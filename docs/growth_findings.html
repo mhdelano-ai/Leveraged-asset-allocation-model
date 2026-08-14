@@ -1,0 +1,801 @@
+<title>The Leverage Cliff</title>
+<style>
+  :root {
+    color-scheme: light;
+    --paper:        #F2F1EC;
+    --panel:        #FAF9F5;
+    --ink:          #17191C;
+    --muted:        #64676D;
+    --faint:        #8E9198;
+    --rule:         #D9D7D0;
+    --rule-soft:    #E7E5DE;
+    --series-1:     #1D5FA8;
+    --series-2:     #C25E1E;
+    --series-3:     #0F8A6A;
+    --pos:          #1D5FA8;
+    --neg:          #B03A2E;
+    --mid:          #CFCDC6;
+    --brass:        #8A6A22;
+    --measure:      35rem;
+    --figure:       61rem;
+    --serif:        "Iowan Old Style", Charter, Georgia, "Times New Roman", serif;
+    --sans:         ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono:         ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper:      #131518;
+      --panel:      #191C20;
+      --ink:        #E7E5DE;
+      --muted:      #9BA0A7;
+      --faint:      #757A81;
+      --rule:       #2B2F35;
+      --rule-soft:  #23262B;
+      --series-1:   #4E93DC;
+      --series-2:   #D0702F;
+      --series-3:   #1CA179;
+      --pos:        #4E93DC;
+      --neg:        #D45A48;
+      --mid:        #383C42;
+      --brass:      #C6A24A;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper:      #131518;
+    --panel:      #191C20;
+    --ink:        #E7E5DE;
+    --muted:      #9BA0A7;
+    --faint:      #757A81;
+    --rule:       #2B2F35;
+    --rule-soft:  #23262B;
+    --series-1:   #4E93DC;
+    --series-2:   #D0702F;
+    --series-3:   #1CA179;
+    --pos:        #4E93DC;
+    --neg:        #D45A48;
+    --mid:        #383C42;
+    --brass:      #C6A24A;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.62;
+    margin: 0;
+    padding: 0 1.5rem 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { display: flex; flex-direction: column; gap: 3rem; max-width: var(--figure); margin: 0 auto; }
+  .col  { width: 100%; max-width: var(--measure); }
+  section { display: flex; flex-direction: column; gap: 1.15rem; align-items: flex-start; }
+
+  /* ---------------------------------------------------------- masthead */
+  header { display: flex; flex-direction: column; gap: 1.5rem; padding: 4rem 0 0; }
+  .eyebrow {
+    font-family: var(--sans); font-size: 0.7rem; font-weight: 600;
+    letter-spacing: 0.13em; text-transform: uppercase; color: var(--brass); margin: 0;
+  }
+  h1 {
+    font-family: var(--serif); font-size: clamp(2.6rem, 6.5vw, 4.1rem);
+    line-height: 1.03; font-weight: 600; letter-spacing: -0.022em;
+    margin: 0; max-width: 15ch; text-wrap: balance;
+  }
+  .standfirst { font-size: 1.2rem; line-height: 1.5; color: var(--muted); max-width: 42rem; margin: 0; }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+
+  .keyrow {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+    width: 100%; margin-top: 0.75rem;
+  }
+  .keycell { background: var(--panel); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.2rem; }
+  .keycell .k {
+    font-family: var(--sans); font-size: 0.62rem; letter-spacing: 0.11em;
+    text-transform: uppercase; color: var(--faint); font-weight: 600;
+  }
+  .keycell .v { font-family: var(--mono); font-size: 1.45rem; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .keycell .n { font-family: var(--sans); font-size: 0.72rem; color: var(--muted); }
+
+  /* ------------------------------------------------------------- type */
+  h2 {
+    font-family: var(--serif); font-size: 1.85rem; font-weight: 600;
+    letter-spacing: -0.015em; line-height: 1.15; margin: 0; text-wrap: balance;
+  }
+  h3 { font-family: var(--serif); font-size: 1.15rem; font-weight: 600; margin: 0; }
+  p { margin: 0; max-width: var(--measure); }
+  p + p { margin-top: -0.2rem; }
+  .lede { font-size: 1.06rem; }
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+  code, .num { font-family: var(--mono); font-size: 0.92em; font-variant-numeric: tabular-nums; }
+
+  .sectionhead { display: flex; flex-direction: column; gap: 0.5rem; width: 100%; max-width: var(--measure); }
+  .sectionhead::before { content: ""; display: block; height: 2px; width: 2.5rem; background: var(--brass); }
+
+  /* ----------------------------------------------------------- figures */
+  figure { margin: 0; width: 100%; display: flex; flex-direction: column; gap: 0.75rem; }
+  .figbody { background: var(--panel); border: 1px solid var(--rule); padding: 1.4rem 1.2rem 1rem; overflow-x: auto; }
+  figcaption { font-family: var(--sans); font-size: 0.8rem; line-height: 1.5; color: var(--muted); max-width: 44rem; }
+  figcaption b { color: var(--ink); font-weight: 600; }
+  .figtitle { font-family: var(--sans); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); }
+
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .grid   { stroke: var(--rule-soft); stroke-width: 1; }
+  .axis   { stroke: var(--rule); stroke-width: 1; }
+  .tick   { font-family: var(--mono); font-size: 10px; fill: var(--faint); font-variant-numeric: tabular-nums; }
+  .axlab  { font-family: var(--sans); font-size: 10px; fill: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }
+  .dlabel { font-family: var(--sans); font-size: 11px; font-weight: 600; }
+  .annot  { font-family: var(--sans); font-size: 10.5px; fill: var(--muted); }
+  .s1 { stroke: var(--series-1); } .s2 { stroke: var(--series-2); } .s3 { stroke: var(--series-3); }
+  .f1 { fill: var(--series-1); }   .f2 { fill: var(--series-2); }   .f3 { fill: var(--series-3); }
+  .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .barpos { fill: var(--pos); } .barneg { fill: var(--neg); }
+  .peakline { stroke: var(--brass); stroke-width: 1.5; stroke-dasharray: 3 3; }
+  .peakdot  { fill: var(--brass); stroke: var(--panel); stroke-width: 2; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 1.1rem; font-family: var(--sans); font-size: 0.78rem; color: var(--muted); padding-top: 0.35rem; }
+  .legend span { display: inline-flex; align-items: center; gap: 0.42rem; }
+  .swatch { width: 13px; height: 3px; border-radius: 1.5px; flex: none; }
+
+  .tipdot { fill: var(--panel); stroke-width: 2; }
+  .crosshair { stroke: var(--faint); stroke-width: 1; stroke-dasharray: 2 3; }
+  .tip {
+    position: absolute; pointer-events: none; opacity: 0; transition: opacity .1s;
+    background: var(--ink); color: var(--paper); font-family: var(--mono); font-size: 11px;
+    line-height: 1.5; padding: 0.45rem 0.6rem; white-space: nowrap; z-index: 5;
+    font-variant-numeric: tabular-nums; transform: translate(-50%, -115%);
+  }
+  .tip b { font-family: var(--sans); font-weight: 600; }
+  .tipwrap { position: relative; }
+
+  /* ------------------------------------------------------------ tables */
+  table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+  caption { text-align: left; font-family: var(--sans); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); padding-bottom: 0.6rem; }
+  th, td { text-align: right; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--rule-soft); }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { font-family: var(--sans); font-size: 0.7rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--rule); }
+  tbody td:not(:first-child) { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: none; }
+  tr.hi td { background: color-mix(in srgb, var(--brass) 9%, transparent); font-weight: 600; }
+  .tablewrap { width: 100%; overflow-x: auto; background: var(--panel); border: 1px solid var(--rule); padding: 1.2rem; }
+
+  .verdict { font-family: var(--sans); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; white-space: nowrap; }
+  .verdict.ok   { color: var(--series-3); }
+  .verdict.no   { color: var(--neg); }
+
+  /* -------------------------------------------------------------- pull */
+  .pull {
+    border-left: 3px solid var(--brass); padding: 0.1rem 0 0.1rem 1.3rem;
+    font-size: 1.16rem; line-height: 1.45; max-width: var(--measure);
+  }
+  .pull strong { font-weight: 600; }
+
+  ol.steps { margin: 0; padding-left: 1.3rem; max-width: var(--measure); display: flex; flex-direction: column; gap: 0.7rem; }
+  ol.steps li::marker { font-family: var(--mono); color: var(--brass); font-size: 0.85em; }
+  ul.plain { margin: 0; padding-left: 1.15rem; max-width: var(--measure); display: flex; flex-direction: column; gap: 0.55rem; }
+  ul.plain li::marker { color: var(--faint); }
+
+  footer { border-top: 1px solid var(--rule); padding-top: 1.4rem; font-family: var(--sans); font-size: 0.78rem; color: var(--muted); max-width: var(--measure); }
+
+  :where(a):focus-visible, :where([tabindex]):focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Nasdaq-100 &middot; 1985&ndash;2026 &middot; walk-forward validated</p>
+    <h1>The Leverage Cliff</h1>
+    <p class="standfirst">
+      A return-maximising leveraged book on the Nasdaq-100 compounded at
+      <strong>16.3%/yr out of sample</strong> against the index's 9.7%, at half the drawdown.
+      Nearly all of that came from the timing rules &mdash; and
+      <strong>93% of the timing edge was earned in one 26-month window.</strong>
+    </p>
+    <div class="keyrow">
+      <div class="keycell"><span class="k">Out of sample</span><span class="v">16.26%</span><span class="n">index 9.68%</span></div>
+      <div class="keycell"><span class="k">Worst drawdown</span><span class="v">&minus;49.6%</span><span class="n">index &minus;76.3%</span></div>
+      <div class="keycell"><span class="k">$1 becomes</span><span class="v">$49</span><span class="n">index $11</span></div>
+      <div class="keycell"><span class="k">Average leverage</span><span class="v">1.78&times;</span><span class="n">peak 3.4&times;</span></div>
+    </div>
+  </header>
+
+  <!-- ================================================== 1. the cliff -->
+  <section>
+    <div class="sectionhead">
+      <h2>More leverage stops paying long before it stops hurting</h2>
+    </div>
+    <p class="lede col">
+      Compound growth rises linearly in leverage and falls quadratically, so there is
+      an interior optimum and a cliff just past it. On the Nasdaq-100, constant
+      leverage financed at the bill rate plus 50&nbsp;bp peaks at
+      <span class="num">2.10&times;</span>. At <span class="num">3&times;</span> the book returns
+      barely more than holding the index outright &mdash; and gives up 99.98% on the way.
+      At <span class="num">5&times;</span> it loses money outright.
+    </p>
+
+    <figure>
+      <span class="figtitle">Constant leverage, daily reset &mdash; compound return and worst drawdown</span>
+      <div class="figbody tipwrap" id="wrap-lev">
+        <svg id="chart-lev" viewBox="0 0 880 420" role="img"
+             aria-label="Compound annual return against constant leverage peaks at 2.1 times and falls sharply beyond 3 times, while maximum drawdown deepens monotonically toward total loss."></svg>
+        <div class="tip" id="tip-lev"></div>
+      </div>
+      <figcaption>
+        Two panels, one shared axis. <b>Growth has a maximum; risk does not.</b> The
+        drawdown panel below runs to &minus;100% and never turns back, which is why the
+        peak of the upper panel is not a place to sit.
+      </figcaption>
+    </figure>
+
+    <p class="col">
+      The Kelly estimate from sample moments agrees closely with the realised peak
+      &mdash; <span class="num">2.13&times;</span> against <span class="num">2.10&times;</span>.
+      That agreement is less reassuring than it looks. A moving-block bootstrap puts
+      the 90% interval for the optimum at <span class="num">1.18&times; to 3.10&times;</span>,
+      because the optimum is a ratio of two noisily estimated moments and the numerator
+      is the equity risk premium.
+    </p>
+    <p class="pull">
+      Betting the point estimate is betting the whole interval. At the top of that
+      interval you are past the cliff.
+    </p>
+  </section>
+
+  <!-- ============================================ 2. what rules add -->
+  <section>
+    <div class="sectionhead">
+      <p class="eyebrow">Out of sample</p>
+      <h2>Against equal risk, not against the index</h2>
+    </div>
+    <p class="lede col">
+      A strategy running more leverage than the index will always show a higher return,
+      and reporting that as evidence the timing works is the standard error here. The
+      honest comparison is constant leverage carrying <em>the same realised volatility</em>
+      &mdash; <span class="num">1.21&times;</span>, matched by bisection to 31.5%.
+    </p>
+
+    <figure>
+      <span class="figtitle">Stitched walk-forward, 2000&ndash;2026 &mdash; growth of $1, log scale</span>
+      <div class="figbody tipwrap" id="wrap-oos">
+        <svg id="chart-oos" viewBox="0 0 880 380" role="img"
+             aria-label="Growth of one dollar on a log scale: the strategy reaches about 49 dollars while the index reaches 11 and volatility-matched constant leverage reaches 13; the strategy separates decisively during 2000 to 2002."></svg>
+        <div class="tip" id="tip-oos"></div>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--series-1)"></i>Strategy, out of sample</span>
+        <span><i class="swatch" style="background:var(--series-2)"></i>Nasdaq-100 (QQQ), unlevered</span>
+        <span><i class="swatch" style="background:var(--series-3)"></i>Static 1.21&times;, volatility-matched</span>
+      </div>
+      <figcaption>
+        Anchored walk-forward: 15-year initial training window, parameters re-selected
+        every two years on training data only, 13 folds. <b>The two comparison lines end
+        within 15% of each other.</b> Everything that separates the strategy from them
+        happened between 2000 and 2002.
+      </figcaption>
+    </figure>
+
+    <div class="tablewrap col" style="max-width:var(--figure)">
+      <table>
+        <caption>Stitched out-of-sample, 2000-10 to 2026-08</caption>
+        <thead>
+          <tr><th>Series</th><th>CAGR</th><th>Volatility</th><th>Sharpe</th><th>Max drawdown</th><th>$1 becomes</th></tr>
+        </thead>
+        <tbody>
+          <tr class="hi"><td>Strategy</td><td>16.26%</td><td>31.5%</td><td>0.58</td><td>&minus;49.6%</td><td>$49.17</td></tr>
+          <tr><td>Nasdaq-100, unlevered</td><td>9.68%</td><td>26.1%</td><td>0.41</td><td>&minus;76.3%</td><td>$10.90</td></tr>
+          <tr><td>Static 1.21&times;, vol-matched</td><td>10.29%</td><td>31.5%</td><td>0.41</td><td>&minus;83.8%</td><td>$12.59</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================================== 3. attribution -->
+  <section>
+    <div class="sectionhead">
+      <p class="eyebrow">The uncomfortable part</p>
+      <h2>Where the edge was actually earned</h2>
+    </div>
+    <p class="lede col">
+      The strategy beat equally-risky constant leverage by <span class="num">596&nbsp;bp/yr</span>.
+      Decomposing that advantage day by day across the out-of-sample period gives a
+      result that no amount of averaging should be allowed to hide.
+    </p>
+
+    <figure>
+      <span class="figtitle">Contribution to the cumulative edge over vol-matched static leverage</span>
+      <div class="figbody tipwrap" id="wrap-attr">
+        <svg id="chart-attr" viewBox="0 0 880 400" role="img"
+             aria-label="Contribution to the strategy's edge by episode: the 2000 to 2002 dotcom collapse contributes 93 percent of the total, the 2007 to 2009 crisis 11 percent, and choppy episodes such as 2011, 2015-16, 2018 and 2020 all contribute negatively."></svg>
+        <div class="tip" id="tip-attr"></div>
+      </div>
+      <figcaption>
+        Bars are cumulative log-return advantage over the matched static book.
+        <b>The 2000-02 collapse is 563 trading days out of 6,504 and carries 93% of the
+        entire edge.</b> Every choppy, V-shaped episode is a cost.
+      </figcaption>
+    </figure>
+
+    <div class="tablewrap col" style="max-width:var(--figure)">
+      <table>
+        <caption>Removing the crises</caption>
+        <thead><tr><th>Out-of-sample period</th><th>Edge over vol-matched static</th></tr></thead>
+        <tbody>
+          <tr><td>Full period</td><td>+596 bp/yr</td></tr>
+          <tr><td>Excluding 2000-02</td><td>+41 bp/yr</td></tr>
+          <tr class="hi"><td>Excluding 2000-02 and 2007-09</td><td>&minus;25 bp/yr</td></tr>
+          <tr><td>The same test on the S&amp;P 500</td><td>&minus;94 bp/yr</td></tr>
+          <tr><td>S&amp;P 500, excluding both crises</td><td>&minus;397 bp/yr</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="pull">
+      A trend overlay is a synthetic straddle. It bleeds a small premium in choppy
+      markets and pays enormously in one sustained collapse. The Nasdaq's
+      2000-02 was &minus;82.5% and more than covered forty years of premium.
+      <strong>The S&amp;P's bears were never big enough to.</strong>
+    </p>
+
+    <p class="col">
+      This is not an argument against the design &mdash; it is a description of what
+      the design is. The payoff profile is deliberately asymmetric: against equal risk
+      the strategy was 17 to 44 percentage points shallower in every extended bear
+      market, and 4 to 13 points deeper in every sharp V-shaped shock. The asymmetry
+      points the right way. But it is an average over roughly two observations.
+    </p>
+  </section>
+
+  <!-- ============================================ 4. what survives -->
+  <section>
+    <div class="sectionhead">
+      <h2>What survives testing</h2>
+    </div>
+    <div class="tablewrap col" style="max-width:var(--figure)">
+      <table>
+        <caption>Claims, and whether the evidence supports them</caption>
+        <thead><tr><th>Claim</th><th style="text-align:left">Verdict</th><th style="text-align:left">Evidence</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Levering a growth index to a volatility target beats holding it</td>
+            <td><span class="verdict ok">Holds</span></td>
+            <td style="text-align:left">Both indices, in sample and out</td>
+          </tr>
+          <tr>
+            <td>The book runs a far shallower drawdown than static leverage at equal risk</td>
+            <td><span class="verdict ok">Holds</span></td>
+            <td style="text-align:left">&minus;49.6% vs &minus;83.8%; structural, not event-driven</td>
+          </tr>
+          <tr>
+            <td>The trend gate is what makes leverage survivable</td>
+            <td><span class="verdict ok">Holds</span></td>
+            <td style="text-align:left">Removing it costs 3.2pp of CAGR and 10pp of drawdown; on the S&amp;P it drops the levered book <em>below</em> buy-and-hold</td>
+          </tr>
+          <tr>
+            <td>Parameters describe leveraged equity, not one index's history</td>
+            <td><span class="verdict ok">Holds</span></td>
+            <td style="text-align:left">S&amp;P-fitted parameters return 20.2% on the Nasdaq against 23.5% for Nasdaq-fitted</td>
+          </tr>
+          <tr>
+            <td>A volatility-regime layer adds something beyond volatility targeting</td>
+            <td><span class="verdict no">Fails</span></td>
+            <td style="text-align:left">Ablates to zero effect; the optimiser switches it off</td>
+          </tr>
+          <tr>
+            <td>The timing rules add compound return in normal markets</td>
+            <td><span class="verdict no">Fails</span></td>
+            <td style="text-align:left">+41 bp/yr ex-2000-02; negative on the S&amp;P</td>
+          </tr>
+          <tr>
+            <td>The Sharpe improvement clears a multiple-testing bar</td>
+            <td><span class="verdict no">Fails</span></td>
+            <td style="text-align:left">0.58 observed against an expected maximum under the null of 0.68 over 2,048 trials</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ================================================= 5. frontier -->
+  <section>
+    <div class="sectionhead">
+      <p class="eyebrow">Choosing a point</p>
+      <h2>&ldquo;Maximise return&rdquo; has no answer until you name a drawdown</h2>
+    </div>
+    <p class="lede col">
+      From a 2,048-point search over eight parameters, the best achievable compound
+      return at each level of pain. Two things stand out: at a 30% tolerance the
+      strategy already matches buy-and-hold's return with a third of its drawdown, and
+      the <em>unconstrained</em> maximum stops at &minus;58% rather than &minus;99%
+      &mdash; the strategy's own risk controls bind before any external limit does.
+    </p>
+
+    <figure>
+      <span class="figtitle">Best in-sample compound return at each drawdown tolerance</span>
+      <div class="figbody tipwrap" id="wrap-front">
+        <svg id="chart-front" viewBox="0 0 880 300" role="img"
+             aria-label="Best achievable compound return rises from 14.2 percent at a 25 percent drawdown tolerance to 25.9 percent at 60 percent, then flattens as no configuration wants more risk."></svg>
+        <div class="tip" id="tip-front"></div>
+      </div>
+      <figcaption>
+        The curve flattens past 60% because nothing in the search wants more risk than
+        that. <b>The headline configuration is the 50% point</b> &mdash; 23.5% in sample,
+        1.78&times; average leverage.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============================================== 6. what to hold -->
+  <section>
+    <div class="sectionhead">
+      <h2>So what would you actually hold?</h2>
+    </div>
+    <p class="lede col">
+      Leveraged Nasdaq-100, sized to a volatility target of roughly 45%, capped near
+      <span class="num">3&times;</span>, gated off when the index falls below trend, with
+      a hard drawdown throttle underneath. That ran at 1.78&times; average leverage and
+      16.3%/yr out of sample against QQQ's 9.7%.
+    </p>
+    <h3>Three things to be clear-eyed about</h3>
+    <ol class="steps">
+      <li><strong>A &minus;50% drawdown is the design target, not the bad case.</strong>
+        The unconstrained optimum sits at &minus;58%. If 30% is the real limit, the
+        honest answer is 16.4%/yr, not 23%.</li>
+      <li><strong>Most of the measured timing edge is one event.</strong> The leverage
+        and the volatility sizing generalise. Budget for the trend overlay to cost a
+        little and protect a lot &mdash; not to add return every year.</li>
+      <li><strong>The vehicle matters more than the parameters.</strong> Portfolio
+        margin financed with box spreads beat TQQQ by 439&nbsp;bp/yr, which is larger
+        than most of the parameter differences in the entire search.</li>
+    </ol>
+
+    <div class="tablewrap col" style="max-width:var(--figure)">
+      <table>
+        <caption>Implementation vehicles, Nasdaq-100, same parameters</caption>
+        <thead><tr><th>Vehicle</th><th>CAGR</th><th>Max drawdown</th><th>Margin calls</th></tr></thead>
+        <tbody>
+          <tr class="hi"><td>Portfolio margin + box spread</td><td>24.08%</td><td>&minus;48.4%</td><td>0</td></tr>
+          <tr><td>Idealised (no vehicle modelled)</td><td>23.54%</td><td>&minus;48.8%</td><td>&mdash;</td></tr>
+          <tr><td>Reg-T margin</td><td>21.98%</td><td>&minus;48.6%</td><td>0</td></tr>
+          <tr><td>Leveraged ETF (TQQQ)</td><td>19.69%</td><td>&minus;50.0%</td><td>n/a</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="col">
+      No configuration was ever margin-called &mdash; a consequence of the trend gate,
+      which de-levers the book before a maintenance requirement would bite.
+    </p>
+  </section>
+
+  <section>
+    <div class="sectionhead"><h2>What would change the conclusion</h2></div>
+    <ul class="plain">
+      <li>A bear market that is <strong>fast rather than slow</strong>. Every episode
+        where the strategy lost ground was V-shaped: 1994, 1998, 2015-16, Q4 2018,
+        March 2020.</li>
+      <li>A decade with <strong>no sustained drawdown at all</strong>. The overlay's
+        premium is paid continuously and collected rarely.</li>
+      <li><strong>Financing above the modelled bill + 50&nbsp;bp.</strong> At 3&times;
+        assumed costs the result falls from 23.5% to 20.3% &mdash; survivable, but the
+        margin is not unlimited.</li>
+      <li>The Nasdaq-100's forty-year record is <strong>partly the story of the
+        technology sector winning</strong>. A leveraged bet on it is a leveraged bet
+        that this continues.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Nasdaq-100 total return reconstructed from the <span class="num">^NDX</span> price
+    path with dividends accrued at the QQQ-implied yield (validated at correlation
+    0.9986 and 0.17pp of maximum drawdown). All figures net of financing at the
+    13-week bill rate plus 50&nbsp;bp on an ACT/360 calendar-day basis, and of
+    transaction costs widened fourfold before 1990. Signals execute with a one-day
+    lag. Out-of-sample figures come from an anchored walk-forward in which parameters
+    were chosen on training data only.
+  </footer>
+</div>
+
+<script>
+const DATA = {"leverage_curve":[{"L":0.25,"cagr":0.06880043198522134,"dd":-0.2583426118289216},{"L":0.5,"cagr":0.10230885764917819,"dd":-0.5205653571396462},{"L":0.75,"cagr":0.13220222101739298,"dd":-0.7035292502048381},{"L":1.0,"cagr":0.15812848014234349,"dd":-0.8246103677760068},{"L":1.25,"cagr":0.17756452045425042,"dd":-0.9013212583441196},{"L":1.5,"cagr":0.1922127891951515,"dd":-0.9469318639126116},{"L":1.75,"cagr":0.20186525312011216,"dd":-0.9727240563136034},{"L":2.0,"cagr":0.2063696215740516,"dd":-0.9866039845460981},{"L":2.25,"cagr":0.20563257138062352,"dd":-0.9944716817502679},{"L":2.5,"cagr":0.19962188219044985,"dd":-0.9979151431568538},{"L":2.75,"cagr":0.1883674045294237,"dd":-0.9992699447526838},{"L":3.0,"cagr":0.1719608053761903,"dd":-0.9997627958360907},{"L":3.25,"cagr":0.15055405767131202,"dd":-0.9999285473176206},{"L":3.5,"cagr":0.12435665797818296,"dd":-0.9999800640979484},{"L":3.75,"cagr":0.09363156619396418,"dd":-0.9999948535080008},{"L":4.0,"cagr":0.058689855117698864,"dd":-0.9999987722133136},{"L":4.25,"cagr":0.01988402133271472,"dd":-0.9999997296757672},{"L":4.5,"cagr":-0.022400187698689122,"dd":-0.9999999451544271},{"L":4.75,"cagr":-0.06775379954210337,"dd":-0.99999998976332},{"L":5.0,"cagr":-0.11575738215902576,"dd":-0.9999999982555994}],"frontier":[{"ceiling":0.25,"cagr":0.14223740215361436,"dd":-0.24656241127112832,"lev":0.8113299654707347},{"ceiling":0.3,"cagr":0.16424290009473896,"dd":-0.29349928413490833,"lev":1.0060472571937398},{"ceiling":0.4,"cagr":0.20365310530994662,"dd":-0.385527426020734,"lev":1.290934609315785},{"ceiling":0.5,"cagr":0.23538488799352475,"dd":-0.4882089871416154,"lev":1.7752168948056994},{"ceiling":0.6,"cagr":0.2592313971384821,"dd":-0.5801311101805589,"lev":2.0041434798106055},{"ceiling":0.7,"cagr":0.2592313971384821,"dd":-0.5801311101805589,"lev":2.0041434798106055},{"ceiling":0.85,"cagr":0.2592313971384821,"dd":-0.5801311101805589,"lev":2.0041434798106055}],"attribution":[{"episode":"2000-02 dotcom","edge":1.2649511596413168},{"episode":"2007-09 GFC","edge":0.15155539399686746},{"episode":"2011 EU crisis","edge":-0.25263499049995275},{"episode":"2013 taper tantrum","edge":0.11080942445481914},{"episode":"2015-16 China","edge":-0.21645084099722306},{"episode":"Q4 2018","edge":-0.11070272815140793},{"episode":"2020 COVID","edge":-0.17659693647797164},{"episode":"2022 inflation","edge":0.004861452731864047},{"episode":"2023-26 recent","edge":0.21124912868671997},{"episode":"all other days","edge":0.37496242159131327}],"oos":{"strategy":[["2000-10-02",0.9824],["2000-10-16",0.9504],["2000-10-30",0.9249],["2000-11-13",0.9035],["2000-11-28",0.8786],["2000-12-12",0.888],["2000-12-27",0.865],["2001-01-11",0.8693],["2001-01-26",0.8767],["2001-02-09",0.8459],["2001-02-26",0.8326],["2001-03-12",0.8036],["2001-03-26",0.8046],["2001-04-09",0.7938],["2001-04-24",0.8129],["2001-05-08",0.8273],["2001-05-22",0.8397],["2001-06-06",0.8288],["2001-06-20",0.8077],["2001-07-05",0.8089],["2001-07-19",0.8008],["2001-08-02",0.8053],["2001-08-16",0.7919],["2001-08-30",0.782],["2001-09-20",0.7552],["2001-10-04",0.765],["2001-10-18",0.7724],["2001-11-01",0.786],["2001-11-15",0.8122],["2001-11-30",0.812],["2001-12-14",0.8152],["2001-12-31",0.8071],["2002-01-15",0.8188],["2002-01-30",0.7958],["2002-02-13",0.7798],["2002-02-28",0.7664],["2002-03-14",0.7648],["2002-03-28",0.7577],["2002-04-12",0.7375],["2002-04-26",0.7173],["2002-05-10",0.7148],["2002-05-24",0.7212],["2002-06-10",0.7117],["2002-06-24",0.7057],["2002-07-09",0.6999],["2002-07-23",0.6916],["2002-08-06",0.6936],["2002-08-20",0.702],["2002-09-04",0.6958],["2002-09-18",0.6941],["2002-10-02",0.6911],["2002-10-16",0.6973],["2002-10-30",0.7048],["2002-11-13",0.7113],["2002-11-27",0.7411],["2002-12-12",0.7169],["2002-12-27",0.705],["2003-01-13",0.7322],["2003-01-28",0.7071],["2003-02-11",0.6992],["2003-02-26",0.7001],["2003-03-12",0.6994],["2003-03-26",0.7177],["2003-04-09",0.6996],["2003-04-24",0.7327],["2003-05-08",0.7379],["2003-05-22",0.744],["2003-06-06",0.7825],["2003-06-20",0.7883],["2003-07-07",0.8212],["2003-07-21",0.7989],["2003-08-04",0.813],["2003-08-18",0.8139],["2003-09-02",0.863],["2003-09-16",0.8783],["2003-09-30",0.8239],["2003-10-14",0.897],["2003-10-28",0.8969],["2003-11-11",0.8893],["2003-11-25",0.8776],["2003-12-10",0.8589],["2003-12-24",0.8881],["2004-01-09",0.9528],["2004-01-26",0.9818],["2004-02-09",0.9195],["2004-02-24",0.8936],["2004-03-09",0.8767],["2004-03-23",0.8381],["2004-04-06",0.909],["2004-04-21",0.8589],["2004-05-05",0.8255],["2004-05-19",0.8102],["2004-06-03",0.8367],["2004-06-18",0.8536],["2004-07-02",0.863],["2004-07-19",0.8044],["2004-08-02",0.8084],["2004-08-16",0.7733],["2004-08-30",0.7888],["2004-09-14",0.8116],["2004-09-28",0.7781],["2004-10-12",0.7944],["2004-10-26",0.7984],["2004-11-09",0.8654],["2004-11-23",0.8965],["2004-12-08",0.9391],["2004-12-22",0.9517],["2005-01-06",0.8877],["2005-01-21",0.8428],["2005-02-04",0.8608],["2005-02-18",0.8405],["2005-03-07",0.8616],["2005-03-21",0.8127],["2005-04-05",0.8106],["2005-04-19",0.7885],["2005-05-03",0.7906],["2005-05-17",0.8147],["2005-06-01",0.8703],["2005-06-15",0.8406],["2005-06-29",0.8183],["2005-07-14",0.8749],["2005-07-28",0.9282],["2005-08-11",0.9027],["2005-08-25",0.852],["2005-09-09",0.8984],["2005-09-23",0.8511],["2005-10-07",0.8264],["2005-10-21",0.8344],["2005-11-04",0.8888],["2005-11-18",0.9628],["2005-12-05",0.9815],["2005-12-19",0.9285],["2006-01-04",0.9612],["2006-01-19",1.0177],["2006-02-02",0.9208],["2006-02-16",0.9228],["2006-03-03",0.902],["2006-03-17",0.8975],["2006-03-31",0.9091],["2006-04-17",0.8901],["2006-05-01",0.8752],["2006-05-15",0.8098],["2006-05-30",0.7744],["2006-06-13",0.7618],["2006-06-27",0.7652],["2006-07-12",0.7585],["2006-07-26",0.7571],["2006-08-09",0.7576],["2006-08-23",0.7733],["2006-09-07",0.7703],["2006-09-21",0.8102],["2006-10-05",0.8393],["2006-10-19",0.8549],["2006-11-02",0.8537],["2006-11-16",0.9806],["2006-12-01",0.9346],["2006-12-15",0.9876],["2007-01-03",0.8954],["2007-01-18",0.9393],["2007-02-01",0.92],["2007-02-15",0.9618],["2007-03-02",0.8262],["2007-03-16",0.834],["2007-03-30",0.8397],["2007-04-16",0.8941],["2007-04-30",0.9405],["2007-05-14",0.9694],["2007-05-29",0.9847],["2007-06-12",0.9635],["2007-06-26",0.9904],["2007-07-11",1.1127],["2007-07-25",1.1525],["2007-08-08",1.0621],["2007-08-22",0.969],["2007-09-06",1.0245],["2007-09-20",1.0516],["2007-10-04",1.1315],["2007-10-18",1.2364],["2007-11-01",1.2436],["2007-11-15",1.0292],["2007-11-30",1.0785],["2007-12-14",1.0561],["2007-12-31",1.0584],["2008-01-15",0.9351],["2008-01-30",0.8952],["2008-02-13",0.889],["2008-02-28",0.8747],["2008-03-13",0.8496],["2008-03-28",0.8296],["2008-04-11",0.8317],["2008-04-25",0.881],["2008-05-09",0.9117],["2008-05-23",0.8998],["2008-06-09",0.9146],["2008-06-23",0.8325],["2008-07-08",0.7904],["2008-07-22",0.7768],["2008-08-05",0.7736],["2008-08-19",0.774],["2008-09-03",0.7486],["2008-09-17",0.707],["2008-10-01",0.7019],["2008-10-15",0.6849],["2008-10-29",0.6882],["2008-11-12",0.6829],["2008-11-26",0.684],["2008-12-11",0.6835],["2008-12-26",0.6837],["2009-01-12",0.6833],["2009-01-27",0.6824],["2009-02-10",0.6754],["2009-02-25",0.6646],["2009-03-11",0.6625],["2009-03-25",0.6751],["2009-04-08",0.6908],["2009-04-23",0.7015],["2009-05-07",0.7135],["2009-05-21",0.7054],["2009-06-05",0.7574],["2009-06-19",0.7476],["2009-07-06",0.7294],["2009-07-20",0.7689],["2009-08-03",0.8258],["2009-08-17",0.7758],["2009-08-31",0.8221],["2009-09-15",0.8997],["2009-09-29",0.9216],["2009-10-13",0.938],["2009-10-27",0.9287],["2009-11-10",0.9516],["2009-11-24",0.9673],["2009-12-09",0.9742],["2009-12-23",1.0538],["2010-01-08",1.1087],["2010-01-25",0.9824],["2010-02-08",0.9326],["2010-02-23",0.9747],["2010-03-09",1.0757],["2010-03-23",1.1498],["2010-04-07",1.1708],["2010-04-21",1.2507],["2010-05-05",1.1441],["2010-05-19",1.0369],["2010-06-03",1.0492],["2010-06-17",1.0607],["2010-07-01",0.9521],["2010-07-16",0.9765],["2010-07-30",1.0009],["2010-08-13",0.9517],["2010-08-27",0.9239],["2010-09-13",1.0147],["2010-09-27",1.1152],["2010-10-11",1.139],["2010-10-25",1.2526],["2010-11-08",1.3586],["2010-11-22",1.3055],["2010-12-07",1.3603],["2010-12-21",1.4247],["2011-01-05",1.4806],["2011-01-20",1.5049],["2011-02-03",1.5635],["2011-02-17",1.6803],["2011-03-04",1.6233],["2011-03-18",1.4436],["2011-04-01",1.5573],["2011-04-15",1.5089],["2011-05-02",1.608],["2011-05-16",1.5039],["2011-05-31",1.5209],["2011-06-14",1.3955],["2011-06-28",1.3901],["2011-07-13",1.432],["2011-07-27",1.455],["2011-08-10",1.2133],["2011-08-24",1.2454],["2011-09-08",1.2768],["2011-09-22",1.1957],["2011-10-06",1.2028],["2011-10-20",1.2599],["2011-11-03",1.3126],["2011-11-17",1.2057],["2011-12-02",1.2005],["2011-12-16",1.1523],["2012-01-03",1.1986],["2012-01-18",1.307],["2012-02-01",1.384],["2012-02-15",1.4731],["2012-03-01",1.5902],["2012-03-15",1.6916],["2012-03-29",1.7592],["2012-04-13",1.6661],["2012-04-27",1.6969],["2012-05-11",1.5267],["2012-05-25",1.4373],["2012-06-11",1.4282],["2012-06-25",1.4315],["2012-07-10",1.4635],["2012-07-24",1.4276],["2012-08-07",1.5885],["2012-08-21",1.6628],["2012-09-05",1.6563],["2012-09-19",1.7953],["2012-10-03",1.7324],["2012-10-17",1.6627],["2012-11-02",1.5205],["2012-11-16",1.4076],["2012-12-03",1.5351],["2012-12-17",1.5245],["2013-01-02",1.6324],["2013-01-16",1.6181],["2013-01-31",1.6149],["2013-02-14",1.6717],["2013-03-01",1.6396],["2013-03-15",1.7132],["2013-04-01",1.7099],["2013-04-15",1.7116],["2013-04-29",1.8143],["2013-05-13",1.9885],["2013-05-28",2.035],["2013-06-11",1.9559],["2013-06-25",1.8096],["2013-07-10",2.0112],["2013-07-24",2.0712],["2013-08-07",2.1905],["2013-08-21",2.1142],["2013-09-05",2.2111],["2013-09-19",2.3883],["2013-10-03",2.3504],["2013-10-17",2.5035],["2013-10-31",2.6376],["2013-11-14",2.7084],["2013-11-29",2.8445],["2013-12-13",2.7856],["2013-12-30",3.0073],["2014-01-14",3.0288],["2014-01-29",2.8039],["2014-02-12",3.1209],["2014-02-27",3.2648],["2014-03-13",3.1664],["2014-03-27",2.9839],["2014-04-10",2.8365],["2014-04-25",2.9116],["2014-05-09",2.9476],["2014-05-23",3.1721],["2014-06-09",3.4131],["2014-06-23",3.4351],["2014-07-08",3.5611],["2014-07-22",3.7751],["2014-08-05",3.5886],["2014-08-19",3.9553],["2014-09-03",4.0242],["2014-09-17",4.0329],["2014-10-01",3.8282],["2014-10-15",3.3238],["2014-10-29",3.9343],["2014-11-12",4.1948],["2014-11-26",4.5509],["2014-12-11",4.3079],["2014-12-26",4.4136],["2015-01-12",3.9751],["2015-01-27",3.9092],["2015-02-10",4.1207],["2015-02-25",4.5533],["2015-03-11",4.1229],["2015-03-25",4.203],["2015-04-09",4.3936],["2015-04-23",4.5983],["2015-05-07",4.3511],["2015-05-21",4.6984],["2015-06-05",4.5394],["2015-06-19",4.6105],["2015-07-06",4.2926],["2015-07-20",5.0404],["2015-08-03",4.7443],["2015-08-17",4.7019],["2015-08-31",3.8573],["2015-09-15",3.9204],["2015-09-29",3.7078],["2015-10-13",3.9083],["2015-10-27",4.3244],["2015-11-10",4.3303],["2015-11-24",4.3876],["2015-12-09",4.2749],["2015-12-23",4.1677],["2016-01-08",3.5766],["2016-01-25",3.4467],["2016-02-08",3.3524],["2016-02-23",3.4284],["2016-03-08",3.4185],["2016-03-22",3.6769],["2016-04-06",3.8796],["2016-04-20",3.8746],["2016-05-04",3.4788],["2016-05-18",3.5108],["2016-06-02",3.792],["2016-06-16",3.5116],["2016-06-30",3.3385],["2016-07-15",3.6136],["2016-07-29",3.9147],["2016-08-12",4.1097],["2016-08-26",4.0532],["2016-09-12",3.9712],["2016-09-26",4.1104],["2016-10-10",4.3024],["2016-10-24",4.338],["2016-11-07",4.0051],["2016-11-21",4.1515],["2016-12-06",4.0206],["2016-12-20",4.3493],["2017-01-05",4.3781],["2017-01-20",4.5794],["2017-02-03",4.7871],["2017-02-17",5.1428],["2017-03-06",5.2256],["2017-03-20",5.3483],["2017-04-03",5.3925],["2017-04-18",5.2984],["2017-05-02",5.8986],["2017-05-16",6.0956],["2017-05-31",6.2536],["2017-06-14",6.0964],["2017-06-28",6.1635],["2017-07-13",6.2542],["2017-07-27",6.5603],["2017-08-10",6.23],["2017-08-24",6.351],["2017-09-08",6.5526],["2017-09-22",6.6037],["2017-10-06",6.9569],["2017-10-20",7.0754],["2017-11-03",7.5809],["2017-11-17",7.6343],["2017-12-04",7.4834],["2017-12-18",8.205],["2018-01-03",8.3883],["2018-01-18",9.0736],["2018-02-01",9.2943],["2018-02-15",8.4121],["2018-03-02",8.4619],["2018-03-16",9.0796],["2018-04-02",7.7542],["2018-04-16",8.0882],["2018-04-30",7.9409],["2018-05-14",8.4946],["2018-05-29",8.4057],["2018-06-12",9.215],["2018-06-26",8.8038],["2018-07-11",9.3168],["2018-07-25",10.0899],["2018-08-08",9.9957],["2018-08-22",9.8552],["2018-09-06",9.8916],["2018-09-20",10.2642],["2018-10-04",9.8586],["2018-10-18",8.4352],["2018-11-01",8.2444],["2018-11-15",7.9379],["2018-11-30",7.9993],["2018-12-17",7.5074],["2019-01-02",7.4708],["2019-01-16",7.6013],["2019-01-31",7.7873],["2019-02-14",7.8621],["2019-03-01",8.1277],["2019-03-15",8.3909],["2019-03-29",8.5676],["2019-04-12",9.2807],["2019-04-29",10.0296],["2019-05-13",7.9958],["2019-05-28",7.8378],["2019-06-11",7.9948],["2019-06-25",8.1783],["2019-07-10",9.0533],["2019-07-24",9.391],["2019-08-07",7.4923],["2019-08-21",7.4993],["2019-09-05",7.7131],["2019-09-19",7.7961],["2019-10-03",7.0866],["2019-10-17",7.5825],["2019-10-31",7.9014],["2019-11-14",8.3836],["2019-11-29",8.8386],["2019-12-13",9.1106],["2019-12-30",9.8152],["2020-01-14",10.9584],["2020-01-29",11.1863],["2020-02-12",13.1439],["2020-02-27",9.3953],["2020-03-12",8.1379],["2020-03-26",8.3833],["2020-04-09",8.5334],["2020-04-24",8.8023],["2020-05-08",9.1086],["2020-05-22",9.2542],["2020-06-08",9.775],["2020-06-22",10.0281],["2020-07-07",10.5514],["2020-07-21",10.9689],["2020-08-04",11.381],["2020-08-18",11.8792],["2020-09-01",13.6116],["2020-09-16",11.4594],["2020-09-30",11.6275],["2020-10-14",12.0645],["2020-10-28",11.0611],["2020-11-11",11.5991],["2020-11-25",11.9721],["2020-12-10",12.387],["2020-12-24",12.9758],["2021-01-11",13.4009],["2021-01-26",14.8452],["2021-02-09",15.3526],["2021-02-24",14.4125],["2021-03-10",13.1379],["2021-03-24",13.2096],["2021-04-08",14.6254],["2021-04-22",14.6124],["2021-05-06",14.2416],["2021-05-20",13.7902],["2021-06-04",14.0669],["2021-06-18",14.6867],["2021-07-02",16.3107],["2021-07-19",15.8619],["2021-08-02",16.9421],["2021-08-16",17.4272],["2021-08-30",18.6826],["2021-09-14",18.069],["2021-09-28",16.145],["2021-10-12",15.9647],["2021-10-26",17.7283],["2021-11-09",19.5335],["2021-11-23",19.7852],["2021-12-08",20.0577],["2021-12-22",19.1072],["2022-01-06",17.7893],["2022-01-21",15.5995],["2022-02-04",15.8322],["2022-02-18",15.122],["2022-03-07",14.484],["2022-03-21",15.5057],["2022-04-04",16.5211],["2022-04-19",14.6757],["2022-05-03",13.9363],["2022-05-17",13.7211],["2022-06-01",13.7289],["2022-06-15",13.4289],["2022-06-30",13.4075],["2022-07-15",13.5782],["2022-07-29",14.2367],["2022-08-12",14.9701],["2022-08-26",13.4216],["2022-09-12",13.2362],["2022-09-26",12.1698],["2022-10-10",12.0012],["2022-10-24",12.1737],["2022-11-07",12.055],["2022-11-21",12.2394],["2022-12-06",12.1479],["2022-12-20",11.9363],["2023-01-05",11.8571],["2023-01-20",12.3373],["2023-02-03",13.3395],["2023-02-17",13.0962],["2023-03-06",13.0451],["2023-03-20",13.322],["2023-04-03",14.4609],["2023-04-18",14.3152],["2023-05-02",14.3447],["2023-05-16",15.09],["2023-05-31",17.109],["2023-06-14",19.2093],["2023-06-29",18.9833],["2023-07-14",20.8213],["2023-07-28",21.3546],["2023-08-11",18.9271],["2023-08-25",18.5879],["2023-09-11",19.7693],["2023-09-25",17.9255],["2023-10-09",18.5441],["2023-10-23",17.2197],["2023-11-06",18.4486],["2023-11-20",20.9013],["2023-12-05",20.3966],["2023-12-19",23.4063],["2024-01-04",21.4739],["2024-01-19",25.0462],["2024-02-02",26.1899],["2024-02-16",26.2847],["2024-03-04",28.2107],["2024-03-18",27.2],["2024-04-02",27.6392],["2024-04-16",25.7898],["2024-04-30",24.9503],["2024-05-14",27.5934],["2024-05-29",29.0131],["2024-06-12",31.9127],["2024-06-27",33.0604],["2024-07-12",35.2978],["2024-07-26",29.5819],["2024-08-09",27.3982],["2024-08-23",30.0907],["2024-09-09",26.8132],["2024-09-23",29.5762],["2024-10-07",29.2601],["2024-10-21",31.1291],["2024-11-04",29.5928],["2024-11-18",31.6342],["2024-12-03",34.1863],["2024-12-17",37.1959],["2025-01-02",33.0473],["2025-01-17",34.0816],["2025-02-03",33.151],["2025-02-18",36.2712],["2025-03-04",29.9287],["2025-03-18",27.5326],["2025-04-01",27.5678],["2025-04-15",26.474],["2025-04-30",26.9439],["2025-05-14",28.887],["2025-05-29",28.7122],["2025-06-12",29.7478],["2025-06-27",31.1964],["2025-07-14",31.9442],["2025-07-28",33.4391],["2025-08-11",34.0391],["2025-08-25",33.6038],["2025-09-09",35.1575],["2025-09-23",37.996],["2025-10-07",39.0136],["2025-10-21",40.1887],["2025-11-04",41.297],["2025-11-18",37.7593],["2025-12-03",41.434],["2025-12-17",37.6692],["2026-01-02",39.1273],["2026-01-16",40.2598],["2026-02-02",40.3773],["2026-02-17",36.2185],["2026-03-03",35.9047],["2026-03-17",36.056],["2026-03-31",33.5519],["2026-04-15",38.6414],["2026-04-29",41.6371],["2026-05-13",49.4792],["2026-05-28",52.5875],["2026-06-11",48.3422],["2026-06-26",47.5766],["2026-07-13",47.6477],["2026-07-27",44.4241],["2026-08-10",47.8925]],"asset":[["2000-10-02",0.9685],["2000-10-16",0.9105],["2000-10-30",0.8636],["2000-11-13",0.7954],["2000-11-28",0.7353],["2000-12-12",0.8035],["2000-12-27",0.6907],["2001-01-11",0.709],["2001-01-26",0.7395],["2001-02-09",0.6357],["2001-02-26",0.5899],["2001-03-12",0.4728],["2001-03-26",0.4719],["2001-04-09",0.417],["2001-04-24",0.4963],["2001-05-08",0.5436],["2001-05-22",0.5758],["2001-06-06",0.5368],["2001-06-20",0.4856],["2001-07-05",0.4941],["2001-07-19",0.4788],["2001-08-02",0.4946],["2001-08-16",0.4469],["2001-08-30",0.4109],["2001-09-20",0.3298],["2001-10-04",0.3566],["2001-10-18",0.3765],["2001-11-01",0.4032],["2001-11-15",0.4482],["2001-11-30",0.4522],["2001-12-14",0.4551],["2001-12-31",0.4472],["2002-01-15",0.4575],["2002-01-30",0.4368],["2002-02-13",0.4221],["2002-02-28",0.3861],["2002-03-14",0.4197],["2002-03-28",0.413],["2002-04-12",0.3844],["2002-04-26",0.3559],["2002-05-10",0.3383],["2002-05-24",0.3567],["2002-06-10",0.3235],["2002-06-24",0.3014],["2002-07-09",0.2823],["2002-07-23",0.2557],["2002-08-06",0.2573],["2002-08-20",0.2877],["2002-09-04",0.2629],["2002-09-18",0.2557],["2002-10-02",0.2427],["2002-10-16",0.2601],["2002-10-30",0.282],["2002-11-13",0.2895],["2002-11-27",0.3221],["2002-12-12",0.2977],["2002-12-27",0.2858],["2003-01-13",0.3103],["2003-01-28",0.287],["2003-02-11",0.2786],["2003-02-26",0.2795],["2003-03-12",0.2785],["2003-03-26",0.3061],["2003-04-09",0.2939],["2003-04-24",0.3184],["2003-05-08",0.3216],["2003-05-22",0.3253],["2003-06-06",0.3489],["2003-06-20",0.352],["2003-07-07",0.369],["2003-07-21",0.3573],["2003-08-04",0.3651],["2003-08-18",0.3703],["2003-09-02",0.3925],["2003-09-16",0.3989],["2003-09-30",0.3762],["2003-10-14",0.4101],["2003-10-28",0.4101],["2003-11-11",0.4072],["2003-11-25",0.4079],["2003-12-10",0.4016],["2003-12-24",0.4174],["2004-01-09",0.4399],["2004-01-26",0.4498],["2004-02-09",0.4318],["2004-02-24",0.4236],["2004-03-09",0.4166],["2004-03-23",0.3972],["2004-04-06",0.4332],["2004-04-21",0.421],["2004-05-05",0.4146],["2004-05-19",0.4055],["2004-06-03",0.4198],["2004-06-18",0.4257],["2004-07-02",0.4306],["2004-07-19",0.4063],["2004-08-02",0.4092],["2004-08-16",0.3862],["2004-08-30",0.3983],["2004-09-14",0.4179],["2004-09-28",0.405],["2004-10-12",0.4184],["2004-10-26",0.4206],["2004-11-09",0.4455],["2004-11-23",0.4561],["2004-12-08",0.4678],["2004-12-22",0.4713],["2005-01-06",0.4552],["2005-01-21",0.4396],["2005-02-04",0.4488],["2005-02-18",0.4434],["2005-03-07",0.4523],["2005-03-21",0.4347],["2005-04-05",0.4346],["2005-04-19",0.4164],["2005-05-03",0.4185],["2005-05-17",0.437],["2005-06-01",0.4575],["2005-06-15",0.4489],["2005-06-29",0.4416],["2005-07-14",0.4622],["2005-07-28",0.4756],["2005-08-11",0.4705],["2005-08-25",0.4605],["2005-09-09",0.473],["2005-09-23",0.4626],["2005-10-07",0.4581],["2005-10-21",0.461],["2005-11-04",0.4797],["2005-11-18",0.4951],["2005-12-05",0.4998],["2005-12-19",0.491],["2006-01-04",0.5005],["2006-01-19",0.5108],["2006-02-02",0.4979],["2006-02-16",0.499],["2006-03-03",0.4979],["2006-03-17",0.4985],["2006-03-31",0.504],["2006-04-17",0.5015],["2006-05-01",0.4994],["2006-05-15",0.4842],["2006-05-30",0.4656],["2006-06-13",0.4496],["2006-06-27",0.4528],["2006-07-12",0.4454],["2006-07-26",0.4416],["2006-08-09",0.4411],["2006-08-23",0.4605],["2006-09-07",0.4649],["2006-09-21",0.4859],["2006-10-05",0.5023],["2006-10-19",0.5076],["2006-11-02",0.5089],["2006-11-16",0.5364],["2006-12-01",0.5286],["2006-12-15",0.5388],["2007-01-03",0.5244],["2007-01-18",0.5349],["2007-02-01",0.5344],["2007-02-15",0.5442],["2007-03-02",0.5153],["2007-03-16",0.5203],["2007-03-30",0.5295],["2007-04-16",0.5482],["2007-04-30",0.5585],["2007-05-14",0.5648],["2007-05-29",0.5685],["2007-06-12",0.566],["2007-06-26",0.5716],["2007-07-11",0.5945],["2007-07-25",0.6028],["2007-08-08",0.5959],["2007-08-22",0.581],["2007-09-06",0.5998],["2007-09-20",0.6102],["2007-10-04",0.6323],["2007-10-18",0.6572],["2007-11-01",0.6603],["2007-11-15",0.6085],["2007-11-30",0.6284],["2007-12-14",0.6235],["2007-12-31",0.6276],["2008-01-15",0.5704],["2008-01-30",0.5449],["2008-02-13",0.5494],["2008-02-28",0.5411],["2008-03-13",0.528],["2008-03-28",0.5334],["2008-04-11",0.543],["2008-04-25",0.5794],["2008-05-09",0.5922],["2008-05-23",0.592],["2008-06-09",0.5986],["2008-06-23",0.5787],["2008-07-08",0.5662],["2008-07-22",0.5514],["2008-08-05",0.5662],["2008-08-19",0.5782],["2008-09-03",0.5555],["2008-09-17",0.4949],["2008-10-01",0.4743],["2008-10-15",0.3775],["2008-10-29",0.3952],["2008-11-12",0.3539],["2008-11-26",0.3624],["2008-12-11",0.3587],["2008-12-26",0.3604],["2009-01-12",0.3653],["2009-01-27",0.3634],["2009-02-10",0.3742],["2009-02-25",0.3535],["2009-03-11",0.343],["2009-03-25",0.3769],["2009-04-08",0.3966],["2009-04-23",0.41],["2009-05-07",0.424],["2009-05-21",0.4174],["2009-06-05",0.4559],["2009-06-19",0.4494],["2009-07-06",0.4404],["2009-07-20",0.472],["2009-08-03",0.4979],["2009-08-17",0.4788],["2009-08-31",0.4974],["2009-09-15",0.5204],["2009-09-29",0.5261],["2009-10-13",0.5302],["2009-10-27",0.528],["2009-11-10",0.5438],["2009-11-24",0.548],["2009-12-09",0.5493],["2009-12-23",0.5686],["2010-01-08",0.5813],["2010-01-25",0.5539],["2010-02-08",0.5333],["2010-02-23",0.5517],["2010-03-09",0.585],["2010-03-23",0.6042],["2010-04-07",0.6088],["2010-04-21",0.6267],["2010-05-05",0.6034],["2010-05-19",0.5775],["2010-06-03",0.5846],["2010-06-17",0.5894],["2010-07-01",0.5353],["2010-07-16",0.5568],["2010-07-30",0.5757],["2010-08-13",0.562],["2010-08-27",0.5538],["2010-09-13",0.5943],["2010-09-27",0.6221],["2010-10-11",0.6273],["2010-10-25",0.6543],["2010-11-08",0.6779],["2010-11-22",0.6664],["2010-12-07",0.6786],["2010-12-21",0.6929],["2011-01-05",0.7043],["2011-01-20",0.7094],["2011-02-03",0.7212],["2011-02-17",0.7446],["2011-03-04",0.7332],["2011-03-18",0.6903],["2011-04-01",0.7285],["2011-04-15",0.7178],["2011-05-02",0.7482],["2011-05-16",0.7278],["2011-05-31",0.7389],["2011-06-14",0.7011],["2011-06-28",0.7124],["2011-07-13",0.7335],["2011-07-27",0.7384],["2011-08-10",0.6469],["2011-08-24",0.6696],["2011-09-08",0.6915],["2011-09-22",0.6825],["2011-10-06",0.6932],["2011-10-20",0.7211],["2011-11-03",0.7405],["2011-11-17",0.7109],["2011-12-02",0.7206],["2011-12-16",0.7008],["2012-01-03",0.7274],["2012-01-18",0.7603],["2012-02-01",0.7801],["2012-02-15",0.8017],["2012-03-01",0.8295],["2012-03-15",0.8522],["2012-03-29",0.8673],["2012-04-13",0.8479],["2012-04-27",0.8615],["2012-05-11",0.8224],["2012-05-25",0.7948],["2012-06-11",0.792],["2012-06-25",0.7975],["2012-07-10",0.8142],["2012-07-24",0.8088],["2012-08-07",0.8563],["2012-08-21",0.874],["2012-09-05",0.8727],["2012-09-19",0.9036],["2012-10-03",0.8897],["2012-10-17",0.8764],["2012-11-02",0.8391],["2012-11-16",0.8008],["2012-12-03",0.8447],["2012-12-17",0.8427],["2013-01-02",0.869],["2013-01-16",0.8656],["2013-01-31",0.865],["2013-02-14",0.878],["2013-03-01",0.8708],["2013-03-15",0.8875],["2013-04-01",0.8872],["2013-04-15",0.8877],["2013-04-29",0.9101],["2013-05-13",0.947],["2013-05-28",0.9568],["2013-06-11",0.9406],["2013-06-25",0.9113],["2013-07-10",0.9544],["2013-07-24",0.9676],["2013-08-07",0.9927],["2013-08-21",0.978],["2013-09-05",0.997],["2013-09-19",1.0317],["2013-10-03",1.0245],["2013-10-17",1.0528],["2013-10-31",1.0776],["2013-11-14",1.09],["2013-11-29",1.1136],["2013-12-13",1.104],["2013-12-30",1.1408],["2014-01-14",1.1447],["2014-01-29",1.1091],["2014-02-12",1.1605],["2014-02-27",1.1842],["2014-03-13",1.1692],["2014-03-27",1.1413],["2014-04-10",1.1176],["2014-04-25",1.1326],["2014-05-09",1.1403],["2014-05-23",1.1797],["2014-06-09",1.2183],["2014-06-23",1.2218],["2014-07-08",1.2412],["2014-07-22",1.273],["2014-08-05",1.2456],["2014-08-19",1.2992],["2014-09-03",1.3097],["2014-09-17",1.311],["2014-10-01",1.2829],["2014-10-15",1.2194],["2014-10-29",1.318],["2014-11-12",1.3523],["2014-11-26",1.3923],["2014-12-11",1.3698],["2014-12-26",1.3922],["2015-01-12",1.3463],["2015-01-27",1.3454],["2015-02-10",1.3833],["2015-02-25",1.4354],["2015-03-11",1.3923],["2015-03-25",1.4005],["2015-04-09",1.4253],["2015-04-23",1.4495],["2015-05-07",1.4256],["2015-05-21",1.4676],["2015-06-05",1.4512],["2015-06-19",1.4635],["2015-07-06",1.4335],["2015-07-20",1.5187],["2015-08-03",1.4871],["2015-08-17",1.4831],["2015-08-31",1.3888],["2015-09-15",1.4173],["2015-09-29",1.3278],["2015-10-13",1.4159],["2015-10-27",1.5096],["2015-11-10",1.511],["2015-11-24",1.5206],["2015-12-09",1.5059],["2015-12-23",1.5072],["2016-01-08",1.3925],["2016-01-25",1.3689],["2016-02-08",1.2925],["2016-02-23",1.3589],["2016-03-08",1.3931],["2016-03-22",1.4498],["2016-04-06",1.4851],["2016-04-20",1.4846],["2016-05-04",1.4105],["2016-05-18",1.4196],["2016-06-02",1.4834],["2016-06-16",1.4489],["2016-06-30",1.4473],["2016-07-15",1.5043],["2016-07-29",1.5509],["2016-08-12",1.5767],["2016-08-26",1.5696],["2016-09-12",1.5641],["2016-09-26",1.5819],["2016-10-10",1.6077],["2016-10-24",1.6136],["2016-11-07",1.5695],["2016-11-21",1.5981],["2016-12-06",1.5756],["2016-12-20",1.6306],["2017-01-05",1.635],["2017-01-20",1.668],["2017-02-03",1.7011],["2017-02-17",1.7555],["2017-03-06",1.768],["2017-03-20",1.7862],["2017-04-03",1.7931],["2017-04-18",1.7805],["2017-05-02",1.8645],["2017-05-16",1.8918],["2017-05-31",1.9138],["2017-06-14",1.8942],["2017-06-28",1.9035],["2017-07-13",1.9176],["2017-07-27",1.9593],["2017-08-10",1.9174],["2017-08-24",1.9334],["2017-09-08",1.9604],["2017-09-22",1.9674],["2017-10-06",2.012],["2017-10-20",2.0275],["2017-11-03",2.0903],["2017-11-17",2.0973],["2017-12-04",2.0814],["2017-12-18",2.1652],["2018-01-03",2.1869],["2018-01-18",2.2662],["2018-02-01",2.2971],["2018-02-15",2.2625],["2018-03-02",2.2688],["2018-03-16",2.3392],["2018-04-02",2.1306],["2018-04-16",2.2262],["2018-04-30",2.2039],["2018-05-14",2.3244],["2018-05-29",2.3128],["2018-06-12",2.4081],["2018-06-26",2.3619],["2018-07-11",2.4216],["2018-07-25",2.511],["2018-08-08",2.4989],["2018-08-22",2.4848],["2018-09-06",2.4954],["2018-09-20",2.5352],["2018-10-04",2.5096],["2018-10-18",2.3853],["2018-11-01",2.3704],["2018-11-15",2.3114],["2018-11-30",2.332],["2018-12-17",2.165],["2019-01-02",2.1365],["2019-01-16",2.2408],["2019-01-31",2.3218],["2019-02-14",2.3615],["2019-03-01",2.4059],["2019-03-15",2.4592],["2019-03-29",2.4843],["2019-04-12",2.5692],["2019-04-29",2.6415],["2019-05-13",2.4689],["2019-05-28",2.4545],["2019-06-11",2.5348],["2019-06-25",2.562],["2019-07-10",2.6684],["2019-07-24",2.7056],["2019-08-07",2.5516],["2019-08-21",2.6139],["2019-09-05",2.6587],["2019-09-19",2.673],["2019-10-03",2.5849],["2019-10-17",2.6887],["2019-10-31",2.7377],["2019-11-14",2.7977],["2019-11-29",2.8483],["2019-12-13",2.8779],["2019-12-30",2.9545],["2020-01-14",3.0656],["2020-01-29",3.09],["2020-02-12",3.2649],["2020-02-27",2.8665],["2020-03-12",2.4689],["2020-03-26",2.6852],["2020-04-09",2.8024],["2020-04-24",2.99],["2020-05-08",3.1388],["2020-05-22",3.206],["2020-06-08",3.3736],["2020-06-22",3.4528],["2020-07-07",3.5885],["2020-07-21",3.6953],["2020-08-04",3.7866],["2020-08-18",3.8913],["2020-09-01",4.198],["2020-09-16",3.8426],["2020-09-30",3.9024],["2020-10-14",4.0978],["2020-10-28",3.8112],["2020-11-11",4.0693],["2020-11-25",4.1596],["2020-12-10",4.2468],["2020-12-24",4.3543],["2021-01-11",4.4221],["2021-01-26",4.6254],["2021-02-09",4.6947],["2021-02-24",4.5646],["2021-03-10",4.3775],["2021-03-24",4.3952],["2021-04-08",4.7267],["2021-04-22",4.7298],["2021-05-06",4.6805],["2021-05-20",4.6411],["2021-06-04",4.7382],["2021-06-18",4.836],["2021-07-02",5.0713],["2021-07-19",5.0122],["2021-08-02",5.157],["2021-08-16",5.22],["2021-08-30",5.3821],["2021-09-14",5.3077],["2021-09-28",5.0983],["2021-10-12",5.0628],["2021-10-26",5.3748],["2021-11-09",5.605],["2021-11-23",5.6372],["2021-12-08",5.6698],["2021-12-22",5.5978],["2022-01-06",5.4566],["2022-01-21",4.9993],["2022-02-04",5.0899],["2022-02-18",4.8545],["2022-03-07",4.6175],["2022-03-21",4.9858],["2022-04-04",5.2595],["2022-04-19",4.9322],["2022-05-03",4.545],["2022-05-17",4.3641],["2022-06-01",4.3604],["2022-06-15",4.0303],["2022-06-30",4.0006],["2022-07-15",4.1692],["2022-07-29",4.5064],["2022-08-12",4.7233],["2022-08-26",4.3905],["2022-09-12",4.4394],["2022-09-26",3.9232],["2022-10-10",3.8106],["2022-10-24",3.9876],["2022-11-07",3.831],["2022-11-21",4.0337],["2022-12-06",4.034],["2022-12-20",3.8688],["2023-01-05",3.7547],["2023-01-20",4.0632],["2023-02-03",4.3986],["2023-02-17",4.325],["2023-03-06",4.3075],["2023-03-20",4.4003],["2023-04-03",4.6072],["2023-04-18",4.5893],["2023-05-02",4.5987],["2023-05-16",4.71],["2023-05-31",5.0026],["2023-06-14",5.2683],["2023-06-29",5.2474],["2023-07-14",5.4694],["2023-07-28",5.5366],["2023-08-11",5.2846],["2023-08-25",5.2562],["2023-09-11",5.4417],["2023-09-25",5.1998],["2023-10-09",5.2998],["2023-10-23",5.146],["2023-11-06",5.3418],["2023-11-20",5.6514],["2023-12-05",5.601],["2023-12-19",5.9328],["2024-01-04",5.7483],["2024-01-19",6.1152],["2024-02-02",6.2336],["2024-02-16",6.2513],["2024-03-04",6.4453],["2024-03-18",6.3624],["2024-04-02",6.4134],["2024-04-16",6.2713],["2024-04-30",6.1771],["2024-05-14",6.4919],["2024-05-29",6.6413],["2024-06-12",6.9022],["2024-06-27",7.0199],["2024-07-12",7.2152],["2024-07-26",6.7537],["2024-08-09",6.5749],["2024-08-23",7.0066],["2024-09-09",6.633],["2024-09-23",7.0592],["2024-10-07",7.0436],["2024-10-21",7.2458],["2024-11-04",7.1069],["2024-11-18",7.3146],["2024-12-03",7.5635],["2024-12-17",7.8414],["2025-01-02",7.4792],["2025-01-17",7.6483],["2025-02-03",7.6006],["2025-02-18",7.9133],["2025-03-04",7.2691],["2025-03-18",6.9613],["2025-04-01",6.9472],["2025-04-15",6.7331],["2025-04-30",7.0009],["2025-05-14",7.6291],["2025-05-29",7.6483],["2025-06-12",7.8479],["2025-06-27",8.0736],["2025-07-14",8.1926],["2025-07-28",8.3752],["2025-08-11",8.4395],["2025-08-25",8.4065],["2025-09-09",8.5586],["2025-09-23",8.8278],["2025-10-07",8.9246],["2025-10-21",9.0311],["2025-11-04",9.1455],["2025-11-18",8.8135],["2025-12-03",9.2142],["2025-12-17",8.8725],["2026-01-02",9.0776],["2026-01-16",9.1974],["2026-02-02",9.2771],["2026-02-17",8.907],["2026-03-03",8.9171],["2026-03-17",8.9422],["2026-03-31",8.5701],["2026-04-15",9.4636],["2026-04-29",9.8222],["2026-05-13",10.6138],["2026-05-28",10.928],["2026-06-11",10.6509],["2026-06-26",10.5365],["2026-07-13",10.5942],["2026-07-27",10.1547],["2026-08-10",10.7319]],"matched":[["2000-10-02",0.962],["2000-10-16",0.8908],["2000-10-30",0.8337],["2000-11-13",0.7532],["2000-11-28",0.683],["2000-12-12",0.7578],["2000-12-27",0.6291],["2001-01-11",0.6447],["2001-01-26",0.6774],["2001-02-09",0.5636],["2001-02-26",0.5138],["2001-03-12",0.3922],["2001-03-26",0.3903],["2001-04-09",0.3348],["2001-04-24",0.4115],["2001-05-08",0.4587],["2001-05-22",0.491],["2001-06-06",0.4504],["2001-06-20",0.3986],["2001-07-05",0.4067],["2001-07-19",0.3907],["2001-08-02",0.4061],["2001-08-16",0.359],["2001-08-30",0.3239],["2001-09-20",0.2479],["2001-10-04",0.272],["2001-10-18",0.2899],["2001-11-01",0.3144],["2001-11-15",0.3571],["2001-11-30",0.3606],["2001-12-14",0.363],["2001-12-31",0.3551],["2002-01-15",0.3648],["2002-01-30",0.3446],["2002-02-13",0.3305],["2002-02-28",0.2965],["2002-03-14",0.3276],["2002-03-28",0.321],["2002-04-12",0.2942],["2002-04-26",0.2678],["2002-05-10",0.2514],["2002-05-24",0.2677],["2002-06-10",0.2377],["2002-06-24",0.218],["2002-07-09",0.2011],["2002-07-23",0.1783],["2002-08-06",0.1791],["2002-08-20",0.2047],["2002-09-04",0.1834],["2002-09-18",0.1771],["2002-10-02",0.1662],["2002-10-16",0.1804],["2002-10-30",0.1986],["2002-11-13",0.2048],["2002-11-27",0.2328],["2002-12-12",0.2115],["2002-12-27",0.2012],["2003-01-13",0.222],["2003-01-28",0.2019],["2003-02-11",0.1947],["2003-02-26",0.1954],["2003-03-12",0.1945],["2003-03-26",0.2177],["2003-04-09",0.2072],["2003-04-24",0.2281],["2003-05-08",0.2307],["2003-05-22",0.2339],["2003-06-06",0.2544],["2003-06-20",0.257],["2003-07-07",0.2719],["2003-07-21",0.2615],["2003-08-04",0.2683],["2003-08-18",0.2728],["2003-09-02",0.2925],["2003-09-16",0.2982],["2003-09-30",0.2777],["2003-10-14",0.3081],["2003-10-28",0.3079],["2003-11-11",0.3053],["2003-11-25",0.3057],["2003-12-10",0.2999],["2003-12-24",0.3142],["2004-01-09",0.3347],["2004-01-26",0.3436],["2004-02-09",0.327],["2004-02-24",0.3194],["2004-03-09",0.313],["2004-03-23",0.2954],["2004-04-06",0.3279],["2004-04-21",0.3167],["2004-05-05",0.3108],["2004-05-19",0.3024],["2004-06-03",0.3153],["2004-06-18",0.3205],["2004-07-02",0.3249],["2004-07-19",0.3028],["2004-08-02",0.3053],["2004-08-16",0.2846],["2004-08-30",0.2953],["2004-09-14",0.3127],["2004-09-28",0.3011],["2004-10-12",0.313],["2004-10-26",0.3149],["2004-11-09",0.3375],["2004-11-23",0.347],["2004-12-08",0.3576],["2004-12-22",0.3608],["2005-01-06",0.3458],["2005-01-21",0.3314],["2005-02-04",0.3397],["2005-02-18",0.3346],["2005-03-07",0.3426],["2005-03-21",0.3265],["2005-04-05",0.3263],["2005-04-19",0.3097],["2005-05-03",0.3115],["2005-05-17",0.3281],["2005-06-01",0.3466],["2005-06-15",0.3386],["2005-06-29",0.3319],["2005-07-14",0.3505],["2005-07-28",0.3627],["2005-08-11",0.3579],["2005-08-25",0.3485],["2005-09-09",0.3599],["2005-09-23",0.3502],["2005-10-07",0.3459],["2005-10-21",0.3484],["2005-11-04",0.3653],["2005-11-18",0.3794],["2005-12-05",0.3835],["2005-12-19",0.3753],["2006-01-04",0.3838],["2006-01-19",0.3932],["2006-02-02",0.381],["2006-02-16",0.3818],["2006-03-03",0.3806],["2006-03-17",0.381],["2006-03-31",0.3859],["2006-04-17",0.3833],["2006-05-01",0.3812],["2006-05-15",0.3671],["2006-05-30",0.3499],["2006-06-13",0.3352],["2006-06-27",0.3379],["2006-07-12",0.331],["2006-07-26",0.3273],["2006-08-09",0.3267],["2006-08-23",0.3439],["2006-09-07",0.3477],["2006-09-21",0.3666],["2006-10-05",0.3813],["2006-10-19",0.3859],["2006-11-02",0.3869],["2006-11-16",0.4121],["2006-12-01",0.4047],["2006-12-15",0.4139],["2007-01-03",0.4003],["2007-01-18",0.4097],["2007-02-01",0.4091],["2007-02-15",0.4179],["2007-03-02",0.391],["2007-03-16",0.3954],["2007-03-30",0.4036],["2007-04-16",0.4206],["2007-04-30",0.4299],["2007-05-14",0.4356],["2007-05-29",0.4388],["2007-06-12",0.4362],["2007-06-26",0.4412],["2007-07-11",0.4624],["2007-07-25",0.4699],["2007-08-08",0.4631],["2007-08-22",0.4488],["2007-09-06",0.4661],["2007-09-20",0.4756],["2007-10-04",0.4964],["2007-10-18",0.5197],["2007-11-01",0.5224],["2007-11-15",0.4729],["2007-11-30",0.4912],["2007-12-14",0.4864],["2007-12-31",0.49],["2008-01-15",0.4362],["2008-01-30",0.4125],["2008-02-13",0.4165],["2008-02-28",0.4087],["2008-03-13",0.3965],["2008-03-28",0.4011],["2008-04-11",0.4096],["2008-04-25",0.4428],["2008-05-09",0.4545],["2008-05-23",0.4541],["2008-06-09",0.46],["2008-06-23",0.4414],["2008-07-08",0.4297],["2008-07-22",0.4159],["2008-08-05",0.4292],["2008-08-19",0.44],["2008-09-03",0.4191],["2008-09-17",0.3642],["2008-10-01",0.345],["2008-10-15",0.2608],["2008-10-29",0.2749],["2008-11-12",0.2402],["2008-11-26",0.2466],["2008-12-11",0.243],["2008-12-26",0.2443],["2009-01-12",0.2481],["2009-01-27",0.2464],["2009-02-10",0.255],["2009-02-25",0.2379],["2009-03-11",0.2291],["2009-03-25",0.2565],["2009-04-08",0.2725],["2009-04-23",0.2836],["2009-05-07",0.2953],["2009-05-21",0.2896],["2009-06-05",0.3221],["2009-06-19",0.3164],["2009-07-06",0.3087],["2009-07-20",0.3355],["2009-08-03",0.3578],["2009-08-17",0.3412],["2009-08-31",0.3572],["2009-09-15",0.3772],["2009-09-29",0.3821],["2009-10-13",0.3856],["2009-10-27",0.3836],["2009-11-10",0.3973],["2009-11-24",0.401],["2009-12-09",0.4021],["2009-12-23",0.4192],["2010-01-08",0.4305],["2010-01-25",0.4059],["2010-02-08",0.3877],["2010-02-23",0.4038],["2010-03-09",0.4333],["2010-03-23",0.4506],["2010-04-07",0.4547],["2010-04-21",0.4708],["2010-05-05",0.4496],["2010-05-19",0.4261],["2010-06-03",0.4321],["2010-06-17",0.4363],["2010-07-01",0.3882],["2010-07-16",0.407],["2010-07-30",0.4237],["2010-08-13",0.4114],["2010-08-27",0.4041],["2010-09-13",0.4399],["2010-09-27",0.4648],["2010-10-11",0.4694],["2010-10-25",0.4938],["2010-11-08",0.5154],["2010-11-22",0.5047],["2010-12-07",0.5158],["2010-12-21",0.5289],["2011-01-05",0.5393],["2011-01-20",0.544],["2011-02-03",0.5548],["2011-02-17",0.5766],["2011-03-04",0.5658],["2011-03-18",0.526],["2011-04-01",0.5612],["2011-04-15",0.5512],["2011-05-02",0.5794],["2011-05-16",0.5603],["2011-05-31",0.5706],["2011-06-14",0.5354],["2011-06-28",0.5457],["2011-07-13",0.5652],["2011-07-27",0.5696],["2011-08-10",0.4848],["2011-08-24",0.505],["2011-09-08",0.5247],["2011-09-22",0.5163],["2011-10-06",0.5258],["2011-10-20",0.5512],["2011-11-03",0.569],["2011-11-17",0.5414],["2011-12-02",0.5501],["2011-12-16",0.5318],["2012-01-03",0.5561],["2012-01-18",0.5865],["2012-02-01",0.605],["2012-02-15",0.6252],["2012-03-01",0.6513],["2012-03-15",0.6728],["2012-03-29",0.6872],["2012-04-13",0.6685],["2012-04-27",0.6814],["2012-05-11",0.6441],["2012-05-25",0.6179],["2012-06-11",0.6152],["2012-06-25",0.6201],["2012-07-10",0.6357],["2012-07-24",0.6305],["2012-08-07",0.6753],["2012-08-21",0.6921],["2012-09-05",0.6908],["2012-09-19",0.7204],["2012-10-03",0.7069],["2012-10-17",0.6941],["2012-11-02",0.6584],["2012-11-16",0.6222],["2012-12-03",0.6635],["2012-12-17",0.6614],["2013-01-02",0.6863],["2013-01-16",0.683],["2013-01-31",0.6823],["2013-02-14",0.6946],["2013-03-01",0.6877],["2013-03-15",0.7036],["2013-04-01",0.7032],["2013-04-15",0.7035],["2013-04-29",0.7248],["2013-05-13",0.7604],["2013-05-28",0.7699],["2013-06-11",0.7541],["2013-06-25",0.7257],["2013-07-10",0.7672],["2013-07-24",0.7799],["2013-08-07",0.8043],["2013-08-21",0.7899],["2013-09-05",0.8084],["2013-09-19",0.8424],["2013-10-03",0.8352],["2013-10-17",0.8629],["2013-10-31",0.8874],["2013-11-14",0.8996],["2013-11-29",0.9231],["2013-12-13",0.9135],["2013-12-30",0.9503],["2014-01-14",0.954],["2014-01-29",0.9181],["2014-02-12",0.9696],["2014-02-27",0.9934],["2014-03-13",0.9781],["2014-03-27",0.9499],["2014-04-10",0.9258],["2014-04-25",0.9406],["2014-05-09",0.9483],["2014-05-23",0.9879],["2014-06-09",1.0269],["2014-06-23",1.0304],["2014-07-08",1.0501],["2014-07-22",1.0825],["2014-08-05",1.0543],["2014-08-19",1.1092],["2014-09-03",1.12],["2014-09-17",1.1212],["2014-10-01",1.0921],["2014-10-15",1.0268],["2014-10-29",1.1276],["2014-11-12",1.163],["2014-11-26",1.2046],["2014-12-11",1.1811],["2014-12-26",1.2041],["2015-01-12",1.1561],["2015-01-27",1.1549],["2015-02-10",1.1941],["2015-02-25",1.2485],["2015-03-11",1.2032],["2015-03-25",1.2116],["2015-04-09",1.2373],["2015-04-23",1.2626],["2015-05-07",1.2373],["2015-05-21",1.2813],["2015-06-05",1.2639],["2015-06-19",1.2767],["2015-07-06",1.245],["2015-07-20",1.3346],["2015-08-03",1.301],["2015-08-17",1.2966],["2015-08-31",1.1966],["2015-09-15",1.2257],["2015-09-29",1.1326],["2015-10-13",1.2238],["2015-10-27",1.3219],["2015-11-10",1.3233],["2015-11-24",1.3331],["2015-12-09",1.3172],["2015-12-23",1.3183],["2016-01-08",1.1978],["2016-01-25",1.1727],["2016-02-08",1.0936],["2016-02-23",1.1614],["2016-03-08",1.1965],["2016-03-22",1.2554],["2016-04-06",1.2922],["2016-04-20",1.2915],["2016-05-04",1.2138],["2016-05-18",1.2231],["2016-06-02",1.2896],["2016-06-16",1.2533],["2016-06-30",1.2511],["2016-07-15",1.3106],["2016-07-29",1.3596],["2016-08-12",1.3869],["2016-08-26",1.3792],["2016-09-12",1.3731],["2016-09-26",1.3918],["2016-10-10",1.4191],["2016-10-24",1.4252],["2016-11-07",1.378],["2016-11-21",1.4082],["2016-12-06",1.3841],["2016-12-20",1.4423],["2017-01-05",1.4468],["2017-01-20",1.482],["2017-02-03",1.5174],["2017-02-17",1.576],["2017-03-06",1.5894],["2017-03-20",1.609],["2017-04-03",1.6162],["2017-04-18",1.6023],["2017-05-02",1.6938],["2017-05-16",1.7235],["2017-05-31",1.7474],["2017-06-14",1.7253],["2017-06-28",1.7351],["2017-07-13",1.7502],["2017-07-27",1.796],["2017-08-10",1.7493],["2017-08-24",1.7666],["2017-09-08",1.796],["2017-09-22",1.8035],["2017-10-06",1.8527],["2017-10-20",1.8697],["2017-11-03",1.9393],["2017-11-17",1.9469],["2017-12-04",1.9285],["2017-12-18",2.0222],["2018-01-03",2.0463],["2018-01-18",2.1357],["2018-02-01",2.1703],["2018-02-15",2.1289],["2018-03-02",2.1354],["2018-03-16",2.2151],["2018-04-02",1.977],["2018-04-16",2.0838],["2018-04-30",2.0577],["2018-05-14",2.1938],["2018-05-29",2.1799],["2018-06-12",2.2882],["2018-06-26",2.2346],["2018-07-11",2.3023],["2018-07-25",2.4046],["2018-08-08",2.3899],["2018-08-22",2.373],["2018-09-06",2.3845],["2018-09-20",2.4297],["2018-10-04",2.3996],["2018-10-18",2.2549],["2018-11-01",2.236],["2018-11-15",2.1677],["2018-11-30",2.1896],["2018-12-17",2.0001],["2019-01-02",1.9664],["2019-01-16",2.0812],["2019-01-31",2.1713],["2019-02-14",2.2156],["2019-03-01",2.2653],["2019-03-15",2.3252],["2019-03-29",2.353],["2019-04-12",2.4498],["2019-04-29",2.5324],["2019-05-13",2.3329],["2019-05-28",2.3156],["2019-06-11",2.4062],["2019-06-25",2.4366],["2019-07-10",2.5585],["2019-07-24",2.601],["2019-08-07",2.4222],["2019-08-21",2.4923],["2019-09-05",2.5428],["2019-09-19",2.5587],["2019-10-03",2.4564],["2019-10-17",2.5752],["2019-10-31",2.6313],["2019-11-14",2.7006],["2019-11-29",2.759],["2019-12-13",2.793],["2019-12-30",2.8823],["2020-01-14",3.0128],["2020-01-29",3.0409],["2020-02-12",3.2488],["2020-02-27",2.7741],["2020-03-12",2.3088],["2020-03-26",2.5413],["2020-04-09",2.6719],["2020-04-24",2.8873],["2020-05-08",3.0602],["2020-05-22",3.1385],["2020-06-08",3.337],["2020-06-22",3.4302],["2020-07-07",3.5921],["2020-07-21",3.7205],["2020-08-04",3.8305],["2020-08-18",3.9578],["2020-09-01",4.3365],["2020-09-16",3.8933],["2020-09-30",3.9649],["2020-10-14",4.2037],["2020-10-28",3.8501],["2020-11-11",4.1641],["2020-11-25",4.2754],["2020-12-10",4.383],["2020-12-24",4.517],["2021-01-11",4.6007],["2021-01-26",4.8564],["2021-02-09",4.9426],["2021-02-24",4.7769],["2021-03-10",4.5377],["2021-03-24",4.5583],["2021-04-08",4.9754],["2021-04-22",4.9785],["2021-05-06",4.9153],["2021-05-20",4.8637],["2021-06-04",4.986],["2021-06-18",5.11],["2021-07-02",5.411],["2021-07-19",5.3344],["2021-08-02",5.5203],["2021-08-16",5.6015],["2021-08-30",5.8113],["2021-09-14",5.7141],["2021-09-28",5.4416],["2021-10-12",5.3951],["2021-10-26",5.7979],["2021-11-09",6.0984],["2021-11-23",6.1398],["2021-12-08",6.1802],["2021-12-22",6.0833],["2022-01-06",5.8969],["2022-01-21",5.3035],["2022-02-04",5.416],["2022-02-18",5.1123],["2022-03-07",4.8094],["2022-03-21",5.2723],["2022-04-04",5.6215],["2022-04-19",5.1993],["2022-05-03",4.7064],["2022-05-17",4.4756],["2022-06-01",4.4673],["2022-06-15",4.0582],["2022-06-30",4.0189],["2022-07-15",4.2224],["2022-07-29",4.6344],["2022-08-12",4.9023],["2022-08-26",4.4854],["2022-09-12",4.5433],["2022-09-26",3.9101],["2022-10-10",3.7716],["2022-10-24",3.981],["2022-11-07",3.7894],["2022-11-21",4.0278],["2022-12-06",4.0249],["2022-12-20",3.8243],["2023-01-05",3.6859],["2023-01-20",4.0515],["2023-02-03",4.4546],["2023-02-17",4.362],["2023-03-06",4.3375],["2023-03-20",4.4475],["2023-04-03",4.6984],["2023-04-18",4.6736],["2023-05-02",4.6823],["2023-05-16",4.8168],["2023-05-31",5.1764],["2023-06-14",5.5068],["2023-06-29",5.4769],["2023-07-14",5.7543],["2023-07-28",5.8362],["2023-08-11",5.5137],["2023-08-25",5.4744],["2023-09-11",5.7045],["2023-09-25",5.3964],["2023-10-09",5.5184],["2023-10-23",5.3225],["2023-11-06",5.5639],["2023-11-20",5.9516],["2023-12-05",5.8845],["2023-12-19",6.3043],["2024-01-04",6.0645],["2024-01-19",6.5304],["2024-02-02",6.6794],["2024-02-16",6.6985],["2024-03-04",6.9451],["2024-03-18",6.8329],["2024-04-02",6.8953],["2024-04-16",6.7071],["2024-04-30",6.581],["2024-05-14",6.9841],["2024-05-29",7.1745],["2024-06-12",7.5116],["2024-06-27",7.6621],["2024-07-12",7.9152],["2024-07-26",7.3021],["2024-08-09",7.0622],["2024-08-23",7.6203],["2024-09-09",7.1266],["2024-09-23",7.6783],["2024-10-07",7.654],["2024-10-21",7.9162],["2024-11-04",7.7291],["2024-11-18",7.9974],["2024-12-03",8.323],["2024-12-17",8.6891],["2025-01-02",8.201],["2025-01-17",8.4199],["2025-02-03",8.351],["2025-02-18",8.7629],["2025-03-04",7.9039],["2025-03-18",7.495],["2025-04-01",7.472],["2025-04-15",7.1722],["2025-04-30",7.5112],["2025-05-14",8.3265],["2025-05-29",8.3473],["2025-06-12",8.6073],["2025-06-27",8.9021],["2025-07-14",9.0559],["2025-07-28",9.2964],["2025-08-11",9.3777],["2025-08-25",9.329],["2025-09-09",9.5289],["2025-09-23",9.8877],["2025-10-07",10.0149],["2025-10-21",10.1529],["2025-11-04",10.3029],["2025-11-18",9.8478],["2025-12-03",10.3847],["2025-12-17",9.9173],["2026-01-02",10.19],["2026-01-16",10.3486],["2026-02-02",10.4513],["2026-02-17",9.9443],["2026-03-03",9.9534],["2026-03-17",9.9825],["2026-03-31",9.4765],["2026-04-15",10.6755],["2026-04-29",11.1603],["2026-05-13",12.2484],["2026-05-28",12.6812],["2026-06-11",12.2831],["2026-06-26",12.1145],["2026-07-13",12.1858],["2026-07-27",11.5719],["2026-08-10",12.3611]]},"oos_stats":{"strategy":{"cagr":0.16255365301327984,"vol":0.3150108690256526,"dd":-0.49551862278566783,"terminal":49.16930118639748},"asset":{"cagr":0.09676862904768457,"vol":0.26110392597445403,"dd":-0.7626233185605954,"terminal":10.900443130696186},"matched":{"cagr":0.1029122737819792,"vol":0.3151686736583702,"dd":-0.8382233270225975,"terminal":12.594572713654074,"lev":1.20703125}},"folds":[{"end":"2002-10-02","oos":-0.1687580948397538,"asset":-0.5075628786795736},{"end":"2004-10-02","oos":0.08215016433600453,"asset":0.3050057231074301},{"end":"2006-10-02","oos":-0.009747297121979637,"asset":0.07095731008664807},{"end":"2008-10-02","oos":-0.07727905749670327,"asset":-0.040982612688650444},{"end":"2010-10-02","oos":0.25175569681848264,"asset":0.14154575944084624},{"end":"2012-10-02","oos":0.24584992506877335,"asset":0.1963837430018296},{"end":"2014-10-02","oos":0.5029756229796536,"asset":0.20644815972248254},{"end":"2016-10-02","oos":0.05550941448671831,"asset":0.11747522397904753},{"end":"2018-10-02","oos":0.5672178447646672,"asset":0.26396747728940184},{"end":"2020-10-02","oos":0.03925468678880861,"asset":0.2253391682953252},{"end":"2022-10-02","oos":0.008345390518150309,"asset":-0.01711672348827309},{"end":"2024-10-02","oos":0.5621806209891176,"asset":0.35725811340458646},{"end":"2026-08-13","oos":0.3232510513741542,"asset":0.2654044467849985}]};
+
+const fmtPct = v => (v * 100).toFixed(1) + "%";
+const svgEl = (n, a = {}) => {
+  const e = document.createElementNS("http://www.w3.org/2000/svg", n);
+  for (const k in a) e.setAttribute(k, a[k]);
+  return e;
+};
+
+function tipFor(wrapId, tipId) {
+  const wrap = document.getElementById(wrapId);
+  const tip = document.getElementById(tipId);
+  return {
+    show(html, clientX, clientY) {
+      const r = wrap.getBoundingClientRect();
+      tip.innerHTML = html;
+      tip.style.left = (clientX - r.left + wrap.scrollLeft) + "px";
+      tip.style.top = (clientY - r.top) + "px";
+      tip.style.opacity = "1";
+    },
+    hide() { tip.style.opacity = "0"; }
+  };
+}
+
+/* ------------------------------------------------- 1. leverage curve */
+(function () {
+  const svg = document.getElementById("chart-lev");
+  const d = DATA.leverage_curve;
+  const W = 880, L = 52, R = 26, TOP = 18, H1 = 210, GAP = 46, H2 = 108;
+  const x = v => L + (v - 0.25) / (5 - 0.25) * (W - L - R);
+  const yC = v => TOP + (0.24 - v) / (0.24 - (-0.13)) * H1;
+  const yD = v => TOP + H1 + GAP + (0 - v) / 1.0 * H2;
+
+  // grid + ticks, upper panel
+  [0.20, 0.10, 0.00, -0.10].forEach(g => {
+    svg.appendChild(svgEl("line", { class: "grid", x1: L, x2: W - R, y1: yC(g), y2: yC(g) }));
+    const t = svgEl("text", { class: "tick", x: L - 8, y: yC(g) + 3.5, "text-anchor": "end" });
+    t.textContent = (g * 100).toFixed(0) + "%";
+    svg.appendChild(t);
+  });
+  [0, -0.5, -1].forEach(g => {
+    svg.appendChild(svgEl("line", { class: "grid", x1: L, x2: W - R, y1: yD(g), y2: yD(g) }));
+    const t = svgEl("text", { class: "tick", x: L - 8, y: yD(g) + 3.5, "text-anchor": "end" });
+    t.textContent = (g * 100).toFixed(0) + "%";
+    svg.appendChild(t);
+  });
+
+  const lab1 = svgEl("text", { class: "axlab", x: L, y: TOP - 5 });
+  lab1.textContent = "Compound annual return";
+  svg.appendChild(lab1);
+  const lab2 = svgEl("text", { class: "axlab", x: L, y: TOP + H1 + GAP - 11 });
+  lab2.textContent = "Maximum drawdown";
+  svg.appendChild(lab2);
+
+  // zero line on upper panel
+  svg.appendChild(svgEl("line", { class: "axis", x1: L, x2: W - R, y1: yC(0), y2: yC(0) }));
+
+  const path = v => "M" + d.map(p => x(p.L).toFixed(1) + "," + v(p).toFixed(1)).join("L");
+  svg.appendChild(svgEl("path", { class: "line s1", d: path(p => yC(p.cagr)) }));
+  svg.appendChild(svgEl("path", { class: "line s2", d: path(p => yD(p.dd)) }));
+
+  // peak marker
+  const peak = d.reduce((a, b) => (b.cagr > a.cagr ? b : a));
+  svg.appendChild(svgEl("line", { class: "peakline", x1: x(peak.L), x2: x(peak.L), y1: yC(peak.cagr), y2: TOP + H1 + GAP + H2 }));
+  svg.appendChild(svgEl("circle", { class: "peakdot", cx: x(peak.L), cy: yC(peak.cagr), r: 5 }));
+  const pk = svgEl("text", { class: "dlabel", x: x(peak.L) + 10, y: yC(peak.cagr) - 6, fill: "var(--brass)" });
+  pk.textContent = "peak of the curve — 20.6%";
+  svg.appendChild(pk);
+
+  // Annotations sit below-right of their marker so neither crowds the peak
+  // label nor the curve itself.
+  [[3, ["3× — 17.2% return,", "−99.98% drawdown"], -13, -1, 36],
+   [5, ["5× — −11.6%,", "capital gone"], -11, -1, 18]].forEach(([lv, lines, dx, dir, dy]) => {
+    const p = d.find(q => Math.abs(q.L - lv) < 1e-9);
+    if (!p) return;
+    svg.appendChild(svgEl("circle", { class: "f1", cx: x(p.L), cy: yC(p.cagr), r: 4 }));
+    lines.forEach((txt, i) => {
+      const t = svgEl("text", {
+        class: "annot", x: x(p.L) + dx, y: yC(p.cagr) + dy + i * 13,
+        "text-anchor": dir > 0 ? "start" : "end"
+      });
+      t.textContent = txt;
+      svg.appendChild(t);
+    });
+  });
+
+  // x axis
+  const axY = TOP + H1 + GAP + H2;
+  svg.appendChild(svgEl("line", { class: "axis", x1: L, x2: W - R, y1: axY, y2: axY }));
+  [0.5, 1, 2, 3, 4, 5].forEach(v => {
+    const t = svgEl("text", { class: "tick", x: x(v), y: axY + 16, "text-anchor": "middle" });
+    t.textContent = v + "×";
+    svg.appendChild(t);
+  });
+  const xl = svgEl("text", { class: "axlab", x: (L + W - R) / 2, y: axY + 34, "text-anchor": "middle" });
+  xl.textContent = "Constant leverage";
+  svg.appendChild(xl);
+
+  // hover
+  const tip = tipFor("wrap-lev", "tip-lev");
+  const hv = svgEl("line", { class: "crosshair", y1: TOP, y2: axY, opacity: 0 });
+  const dot = svgEl("circle", { class: "tipdot s1", r: 5, opacity: 0, style: "stroke:var(--series-1)" });
+  svg.appendChild(hv); svg.appendChild(dot);
+  const hit = svgEl("rect", { x: L, y: TOP, width: W - L - R, height: axY - TOP, fill: "transparent" });
+  svg.appendChild(hit);
+  hit.addEventListener("pointermove", ev => {
+    const box = svg.getBoundingClientRect();
+    const px = (ev.clientX - box.left) / box.width * W;
+    const lev = 0.25 + (px - L) / (W - L - R) * (5 - 0.25);
+    const p = d.reduce((a, b) => (Math.abs(b.L - lev) < Math.abs(a.L - lev) ? b : a));
+    hv.setAttribute("x1", x(p.L)); hv.setAttribute("x2", x(p.L)); hv.setAttribute("opacity", 1);
+    dot.setAttribute("cx", x(p.L)); dot.setAttribute("cy", yC(p.cagr)); dot.setAttribute("opacity", 1);
+    tip.show("<b>" + p.L.toFixed(2) + "× leverage</b><br>CAGR " + fmtPct(p.cagr) + "<br>drawdown " + fmtPct(p.dd),
+      ev.clientX, box.top + yC(p.cagr) / 420 * box.height);
+  });
+  hit.addEventListener("pointerleave", () => { hv.setAttribute("opacity", 0); dot.setAttribute("opacity", 0); tip.hide(); });
+})();
+
+/* ------------------------------------------------------ 2. OOS curves */
+(function () {
+  const svg = document.getElementById("chart-oos");
+  const S = DATA.oos, W = 880, L = 46, R = 118, T = 20, B = 40, H = 380;
+  const n = S.strategy.length;
+  const lo = Math.log10(0.35), hi = Math.log10(70);
+  const x = i => L + i / (n - 1) * (W - L - R);
+  const y = v => T + (hi - Math.log10(Math.max(v, 0.05))) / (hi - lo) * (H - T - B);
+
+  [1, 3, 10, 30].forEach(g => {
+    svg.appendChild(svgEl("line", { class: "grid", x1: L, x2: W - R, y1: y(g), y2: y(g) }));
+    const t = svgEl("text", { class: "tick", x: L - 8, y: y(g) + 3.5, "text-anchor": "end" });
+    t.textContent = "$" + g;
+    svg.appendChild(t);
+  });
+
+  const series = [
+    ["strategy", "s1", "f1", "Strategy", "var(--series-1)"],
+    ["asset", "s2", "f2", "Nasdaq-100", "var(--series-2)"],
+    ["matched", "s3", "f3", "Static 1.21×", "var(--series-3)"]
+  ];
+  series.forEach(([key, cls, , label, col]) => {
+    const pts = S[key];
+    svg.appendChild(svgEl("path", {
+      class: "line " + cls,
+      d: "M" + pts.map((p, i) => x(i).toFixed(1) + "," + y(p[1]).toFixed(1)).join("L")
+    }));
+    const last = pts[pts.length - 1];
+    const t = svgEl("text", { class: "dlabel", x: W - R + 9, y: y(last[1]) + 4, fill: col });
+    t.textContent = label + "  $" + last[1].toFixed(0);
+    svg.appendChild(t);
+  });
+
+  const axY = H - B;
+  svg.appendChild(svgEl("line", { class: "axis", x1: L, x2: W - R, y1: axY, y2: axY }));
+  ["2002", "2008", "2014", "2020", "2026"].forEach(yr => {
+    const i = S.strategy.findIndex(p => p[0].slice(0, 4) === yr);
+    if (i < 0) return;
+    const t = svgEl("text", { class: "tick", x: x(i), y: axY + 17, "text-anchor": "middle" });
+    t.textContent = yr;
+    svg.appendChild(t);
+  });
+
+  const tip = tipFor("wrap-oos", "tip-oos");
+  const hv = svgEl("line", { class: "crosshair", y1: T, y2: axY, opacity: 0 });
+  svg.appendChild(hv);
+  const dots = series.map(([, , fc]) => {
+    const c = svgEl("circle", { class: "tipdot", r: 4.5, opacity: 0 });
+    c.style.stroke = "var(--" + (fc === "f1" ? "series-1" : fc === "f2" ? "series-2" : "series-3") + ")";
+    svg.appendChild(c); return c;
+  });
+  const hit = svgEl("rect", { x: L, y: T, width: W - L - R, height: axY - T, fill: "transparent" });
+  svg.appendChild(hit);
+  hit.addEventListener("pointermove", ev => {
+    const box = svg.getBoundingClientRect();
+    const i = Math.round(((ev.clientX - box.left) / box.width * W - L) / (W - L - R) * (n - 1));
+    if (i < 0 || i >= n) return;
+    hv.setAttribute("x1", x(i)); hv.setAttribute("x2", x(i)); hv.setAttribute("opacity", 1);
+    let html = "<b>" + S.strategy[i][0] + "</b>";
+    series.forEach(([key, , , label], k) => {
+      const v = S[key][i][1];
+      dots[k].setAttribute("cx", x(i)); dots[k].setAttribute("cy", y(v)); dots[k].setAttribute("opacity", 1);
+      html += "<br>" + label + " $" + v.toFixed(2);
+    });
+    tip.show(html, ev.clientX, box.top + y(S.strategy[i][1]) / H * box.height);
+  });
+  hit.addEventListener("pointerleave", () => {
+    hv.setAttribute("opacity", 0); dots.forEach(c => c.setAttribute("opacity", 0)); tip.hide();
+  });
+})();
+
+/* ---------------------------------------------------- 3. attribution */
+(function () {
+  const svg = document.getElementById("chart-attr");
+  const d = DATA.attribution.slice().sort((a, b) => b.edge - a.edge);
+  const W = 880, L = 168, R = 60, T = 24, B = 34, H = 400;
+  const rowH = (H - T - B) / d.length;
+  const maxAbs = 1.35;
+  const x0 = L + (W - L - R) * 0.30;
+  const x = v => x0 + v / maxAbs * (W - R - x0);
+
+  [-0.25, 0, 0.5, 1.0].forEach(g => {
+    svg.appendChild(svgEl("line", { class: g === 0 ? "axis" : "grid", x1: x(g), x2: x(g), y1: T - 6, y2: H - B }));
+    const t = svgEl("text", { class: "tick", x: x(g), y: H - B + 16, "text-anchor": "middle" });
+    t.textContent = g.toFixed(2);
+    svg.appendChild(t);
+  });
+  const xl = svgEl("text", { class: "axlab", x: x(0.5), y: H - B + 33, "text-anchor": "middle" });
+  xl.textContent = "Cumulative log-return advantage";
+  svg.appendChild(xl);
+
+  const tip = tipFor("wrap-attr", "tip-attr");
+  d.forEach((row, i) => {
+    const cy = T + i * rowH;
+    const h = Math.max(8, rowH - 9);
+    const pos = row.edge >= 0;
+    const w = Math.abs(x(row.edge) - x(0));
+    const r = svgEl("rect", {
+      class: pos ? "barpos" : "barneg",
+      x: pos ? x(0) : x(0) - w, y: cy + (rowH - h) / 2 - 4,
+      width: Math.max(w, 1.5), height: h, rx: 3
+    });
+    svg.appendChild(r);
+
+    const lab = svgEl("text", { class: "tick", x: L - 12, y: cy + rowH / 2, "text-anchor": "end", style: "font-size:11px;fill:var(--muted)" });
+    lab.textContent = row.episode;
+    svg.appendChild(lab);
+
+    const val = svgEl("text", {
+      class: "dlabel", y: cy + rowH / 2 + 0.5,
+      x: pos ? x(row.edge) + 7 : x(row.edge) - 7,
+      "text-anchor": pos ? "start" : "end",
+      fill: pos ? "var(--pos)" : "var(--neg)"
+    });
+    val.textContent = (row.edge >= 0 ? "+" : "−") + Math.abs(row.edge).toFixed(2);
+    svg.appendChild(val);
+
+    r.addEventListener("pointerenter", ev => {
+      const box = r.getBoundingClientRect();
+      tip.show("<b>" + row.episode + "</b><br>" + (row.edge >= 0 ? "+" : "−") +
+        Math.abs(row.edge).toFixed(3) + " log return<br>" +
+        (row.edge / 1.362 * 100).toFixed(0) + "% of the total edge",
+        box.left + box.width / 2, box.top);
+    });
+    r.addEventListener("pointerleave", () => tip.hide());
+  });
+})();
+
+/* ------------------------------------------------------- 4. frontier */
+(function () {
+  const svg = document.getElementById("chart-front");
+  const d = DATA.frontier;
+  const W = 880, L = 52, R = 34, T = 26, B = 44, H = 300;
+  const x = v => L + (v - 0.25) / (0.85 - 0.25) * (W - L - R);
+  const y = v => T + (0.28 - v) / (0.28 - 0.10) * (H - T - B);
+
+  [0.28, 0.24, 0.20, 0.16, 0.12].forEach(g => {
+    svg.appendChild(svgEl("line", { class: "grid", x1: L, x2: W - R, y1: y(g), y2: y(g) }));
+    const t = svgEl("text", { class: "tick", x: L - 8, y: y(g) + 3.5, "text-anchor": "end" });
+    t.textContent = (g * 100).toFixed(0) + "%";
+    svg.appendChild(t);
+  });
+
+  svg.appendChild(svgEl("path", {
+    class: "line s1", d: "M" + d.map(p => x(p.ceiling).toFixed(1) + "," + y(p.cagr).toFixed(1)).join("L")
+  }));
+
+  // buy-and-hold reference
+  svg.appendChild(svgEl("line", { class: "peakline", x1: L, x2: W - R, y1: y(0.1581), y2: y(0.1581) }));
+  const bh = svgEl("text", { class: "annot", x: W - R, y: y(0.1581) - 8, "text-anchor": "end" });
+  bh.textContent = "buy and hold, 15.8%";
+  svg.appendChild(bh);
+
+  const tip = tipFor("wrap-front", "tip-front");
+  d.forEach(p => {
+    const c = svgEl("circle", { class: "f1", cx: x(p.ceiling), cy: y(p.cagr), r: 5 });
+    svg.appendChild(c);
+    c.addEventListener("pointerenter", ev => {
+      const box = c.getBoundingClientRect();
+      tip.show("<b>tolerance " + (p.ceiling * 100).toFixed(0) + "%</b><br>CAGR " + fmtPct(p.cagr) +
+        "<br>realised " + fmtPct(p.dd) + "<br>leverage " + p.lev.toFixed(2) + "×",
+        box.left + box.width / 2, box.top);
+    });
+    c.addEventListener("pointerleave", () => tip.hide());
+  });
+
+  const axY = H - B;
+  svg.appendChild(svgEl("line", { class: "axis", x1: L, x2: W - R, y1: axY, y2: axY }));
+  [0.25, 0.40, 0.50, 0.60, 0.70, 0.85].forEach(v => {
+    const t = svgEl("text", { class: "tick", x: x(v), y: axY + 17, "text-anchor": "middle" });
+    t.textContent = (v * 100).toFixed(0) + "%";
+    svg.appendChild(t);
+  });
+  const xl = svgEl("text", { class: "axlab", x: (L + W - R) / 2, y: axY + 35, "text-anchor": "middle" });
+  xl.textContent = "Drawdown tolerance";
+  svg.appendChild(xl);
+})();
+</script>

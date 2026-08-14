@@ -73,14 +73,6 @@ Both readings are reported, because they give very different answers.
 Panel L, 1971-09 → 2026-08. Benchmark: S&P 500 total return, **CAGR 11.17%,
 max drawdown −55.25%**. From a 512-point Sobol scan over eight parameters.
 
-> **Provenance.** The two headline rows below were re-run on the fixed engine
-> (see Method). The scan-derived tables that follow — the frontier, the
-> robustness margins, the walk-forward and the allocation breakdown — were
-> produced before the ratchet fix. The direction of the correction is known and
-> small: the strict configuration gains 0.72pp of CAGR and 0.3pp of drawdown,
-> and the full-sample one is unchanged to two decimal places, because its
-> ratchet already exceeded its rebalance band and never deadlocked.
-
 ### The two answers
 
 | | Strict (full-sample **and** rolling 3y) | Full-sample only |
@@ -110,16 +102,16 @@ condition stays strict throughout.
 
 | Rolling-3y tolerance | Feasible | Best CAGR | Max drawdown | Avg leverage |
 |---|---|---|---|---|
-| 0pp (strict) | 112 / 512 | 9.98% | −16.96% | 0.83× |
-| 1pp | 157 | 10.35% | −23.59% | 0.92× |
-| 3pp | 259 | 10.95% | −21.48% | 1.07× |
-| **5pp** | 347 | **11.43%** | −22.02% | 1.22× |
-| 10pp | 479 | 13.80% | −23.46% | 1.78× |
-| none (full-sample only) | 512 | 15.07% | −40.85% | 2.04× |
+| 0pp (strict) | 86 / 512 | 9.94% | −17.61% | 0.83× |
+| 1pp | 123 | 10.49% | −23.81% | 0.93× |
+| 3pp | 202 | 10.96% | −21.52% | 1.07× |
+| **5pp** | 270 | **11.98%** | −26.54% | 1.25× |
+| 10pp | 433 | 14.04% | −40.33% | 1.64× |
+| none (full-sample only) | 512 | 15.10% | −40.88% | 2.04× |
 
-**Roughly 5pp of tolerance is the break-even point** — that is the smallest
-relaxation of the rolling test at which the strategy matches the S&P's 11.17%
-return, and it does so at −22% drawdown instead of −55%.
+**Between 3pp and 5pp of tolerance is the break-even point** — that is the
+smallest relaxation of the rolling test at which the strategy matches the S&P's
+11.17% return, and at 5pp it does so at −27% drawdown instead of −55%.
 
 The mirror-image question — how much return it costs to demand *safety margin*
 rather than bare feasibility — is answered in Robustness below, and is the more
@@ -133,33 +125,33 @@ move a lot. `python scripts/show_allocation.py` answers "what do I hold".
 
 Long-run mix, as a share of invested capital (Panel L, strict):
 
-| Sleeve | Proxy | Share of book | Avg capital | Range |
-|---|---|---|---|---|
-| US equity | VTI | 45.0% | 25.8% | 0–76% |
-| Intermediate Treasuries | IEF | 30.6% | 17.5% | 0–150% |
-| Long Treasuries | TLT | 13.6% | 7.8% | 0–44% |
-| Gold | GLD | 6.5% | 3.7% | 0–21% |
-| Commodities | DBC | 4.4% | 2.5% | 0–19% |
+| Sleeve | Proxy | Share of book |
+|---|---|---|
+| US equity | VTI | 43.6% |
+| Intermediate Treasuries | IEF | 32.4% |
+| Long Treasuries | TLT | 13.5% |
+| Gold | GLD | 6.5% |
+| Commodities | DBC | 4.0% |
 
 **The strategy is not, in practice, a leveraged one.** Under the strict
-constraint gross exposure averages **0.57×**, sits above 1× on only **7.5%** of
-days, never exceeds 1.94×, and holds ~43% cash on average. The constraint as
+constraint gross exposure averages **0.66×**, sits above 1× on only **14.3%** of
+days, never exceeds 2.54×, and holds ~34% cash on average. The constraint as
 specified very nearly rules leverage out. The full-sample-only configuration is
-genuinely levered — 2.04× average, above 2× on 64% of days.
+genuinely levered — 2.04× average.
 
 The mix is regime-dependent rather than static (average gross weights by decade):
 
 | | US equity | Long UST | Interm UST | Gold | Commodities | Gross |
 |---|---|---|---|---|---|---|
-| 1970s | 16.2% | 2.3% | 23.7% | 4.2% | 0.0% | 0.46× |
-| 1980s | 28.2% | 7.2% | 11.5% | 2.5% | 2.6% | 0.52× |
-| 2000s | 26.1% | 14.3% | 24.1% | 6.3% | 4.7% | 0.75× |
-| 2020s | 24.3% | 3.8% | 9.9% | 4.3% | 2.4% | 0.45× |
+| 1970s | 23.7% | 4.0% | 38.3% | 6.2% | 0.0% | 0.72× |
+| 1980s | 31.3% | 8.4% | 13.4% | 2.7% | 2.8% | 0.59× |
+| 2000s | 28.6% | 16.2% | 27.5% | 6.9% | 5.1% | 0.84× |
+| 2020s | 26.0% | 4.0% | 10.7% | 4.6% | 2.4% | 0.48× |
 
-As of the last bar (2026-08-13) it holds 26.9% US equity, **0% in both Treasury
-sleeves**, 1.0% gold, 1.5% commodities — 0.29× gross, **70.6% cash**. The
-Treasury sleeves are at zero because the trend gate is off on both, which the
-report states rather than leaving to be inferred.
+As of the last bar (2026-08-13) it holds 29.6% US equity, **0% in long
+Treasuries**, 3.5% intermediate Treasuries, 1.1% gold, 1.7% commodities —
+0.36× gross, **64% cash**. The long Treasury sleeve is at zero because the trend
+gate is off on it, which the report states rather than leaving to be inferred.
 
 ### Out of sample
 
@@ -170,17 +162,15 @@ never the in-sample optimum.
 | | Out-of-sample strategy | S&P 500, same dates |
 |---|---|---|
 | Period | 1991-09 → 2026-08 | 1991-09 → 2026-08 |
-| CAGR | **8.84%** | 11.04% |
+| CAGR | **8.78%** | 11.04% |
 | Volatility | 7.2% | — |
-| Sharpe | **0.85** | ~0.37 |
+| Sharpe | **0.84** | ~0.37 |
 | Max drawdown | **−16.96%** | −55.25% |
 | Constraint | **PASS** — 0 of 1,609 windows violating | — |
 
 The constraint holds out of sample, and the Sharpe survives a multiple-testing
-haircut (observed 0.85 against an expected-maximum-under-the-null of 0.51). No
-fold ever failed to find a feasible configuration, and the worst out-of-sample
-fold was 2021-23 at +1.17% — through the 2022 inflation shock that broke most
-levered stock/bond books.
+haircut (observed 0.84 against an expected-maximum-under-the-null of 0.51). No
+fold ever failed to find a feasible configuration.
 
 **One honest limitation.** Each fold re-selects from a candidate pool that was
 itself produced by a scan over the *full* sample, so the candidates embed
@@ -196,19 +186,20 @@ margin 0.44), which is what parameter stability looks like, but it is not proof.
 The strict solution is **fragile**, and the project reports that rather than
 burying it:
 
-- The in-sample optimum clears the constraint by **8 basis points** and has a
-  **plateau radius of 0%** — a 5% move in one parameter breaks feasibility.
-- **`sigma_target` is the binding axis at every margin level.** Feasibility dies
-  the moment the risk target rises, which means there is no clever structure
-  buying extra return here; the constraint is a pure cap on how much volatility
-  the book may run.
-- Requiring genuine slack costs return: 1pp of margin → 9.12%, 2pp → 8.17%,
-  3pp → 7.25%, and **no configuration at all survives a 5pp margin**.
+- The in-sample optimum clears the constraint by **11 basis points** and has a
+  **plateau radius of 0%** — a 5% move in one parameter breaks feasibility. The
+  committed robust set clears by 0.76pp and survives a 10% move.
+- **`sigma_target` is the binding axis.** Feasibility dies the moment the risk
+  target rises, for both the robust set and the in-sample optimum, which means
+  there is no clever structure buying extra return here; the constraint is a pure
+  cap on how much volatility the book may run.
+- Requiring genuine slack costs return: 1pp of margin → 9.10%, 2pp → 8.16%,
+  3pp → 7.28%, and **no configuration at all survives a 5pp margin**.
 - **Cross-panel, the strict solution fails.** Parameters chosen on Panel L
   breach by +0.80pp on Panel X (1986+, nine sleeves) — a different universe and
-  era. It holds on Panel M with 4.2pp to spare.
-- Cost sensitivity is benign for the strict solution (8.05% → 7.69% at 3×
-  assumed costs) but material for the levered one (15.07% → 10.49%), which at
+  era. It holds on Panel M with 4.20pp to spare.
+- Cost sensitivity is benign for the strict solution (8.77% → 8.13% at 3×
+  assumed costs) but material for the levered one (15.10% → 10.50%), which at
   triple costs barely beats the benchmark.
 
 The strict solution passes **all 17** named stress episodes. The full-sample one
@@ -222,12 +213,12 @@ Panel L with the strict configuration:
 
 | Episode | Strategy | S&P 500 | Strategy DD | S&P DD |
 |---|---|---|---|---|
-| 1973-74 oil shock | **+16.8%** | −37.6% | −0.9% | −45.0% |
-| 2000-02 dotcom | **+20.1%** | −33.0% | −8.3% | −47.4% |
-| 2007-09 GFC | **+14.5%** | −45.8% | −9.1% | −55.3% |
-| 2022 inflation | −2.5% | −18.1% | −4.4% | −24.5% |
+| 1973-74 oil shock | **+15.1%** | −37.6% | −4.0% | −45.0% |
+| 2000-02 dotcom | **+17.5%** | −33.0% | −7.0% | −47.4% |
+| 2007-09 GFC | **+12.8%** | −45.8% | −7.2% | −55.3% |
+| 2022 inflation | −3.4% | −18.1% | −4.0% | −24.5% |
 
-The mirror image is the bull market: 2010+ returns 6.10%/yr against the S&P's
+The mirror image is the bull market: 2010+ returns 6.17%/yr against the S&P's
 14.52%. That trade — give up most of the upside, avoid essentially all of the
 drawdown — *is* the constraint, made concrete.
 
@@ -752,6 +743,7 @@ Committed in [`docs/`](docs/):
 | File | What it is |
 |---|---|
 | `findings.html` | Standalone write-up of Model A, with interactive charts |
+| `growth_findings.html` | Standalone write-up of Model B, with interactive charts |
 | `tearsheet_strict.png` | Model A tearsheet, strict constraint |
 | `tearsheet_fullsample.png` | Model A tearsheet, full-sample constraint only |
 | `walkforward_panelL.png` | Model A stitched out-of-sample curve |
@@ -772,9 +764,10 @@ pytest -q                           # 83 tests
 
 # Model A - drawdown-constrained
 python scripts/show_allocation.py --panel M          # what to hold, with tickers
-python scripts/run_backtest.py --panel L
+python scripts/run_backtest.py --panel L --params docs/robust_params.json
 python scripts/run_optimize.py --panel L --trials 512
 python scripts/run_walkforward.py --panel L
+python scripts/run_robustness.py                     # plateau, margin, cross-panel
 python scripts/compare_vehicles.py --panel M --sigma 0.30
 
 # Model B - return-maximising

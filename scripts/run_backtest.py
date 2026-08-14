@@ -23,6 +23,8 @@ def main() -> int:
     ap.add_argument("--sigma", type=float, default=0.11)
     ap.add_argument("--max-leverage", type=float, default=3.0)
     ap.add_argument("--dd-margin", type=float, default=0.80)
+    ap.add_argument("--params", default=None,
+                    help="JSON file of StackParams; overrides the individual flags")
     ap.add_argument("--vehicle", default="none", choices=["none", "letf", "margin", "regt"])
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
@@ -41,11 +43,19 @@ def main() -> int:
 
         vehicle = MarginAccount(schedule="box_spread" if args.vehicle == "margin" else "reg_t")
 
-    params = StackParams(
-        sigma_target=args.sigma,
-        max_leverage=args.max_leverage,
-        dd_budget_margin=args.dd_margin,
-    )
+    if args.params:
+        import json
+        from pathlib import Path
+
+        raw = json.loads(Path(args.params).read_text())
+        fields = StackParams.__dataclass_fields__
+        params = StackParams(**{k: float(v) for k, v in raw.items() if k in fields})
+    else:
+        params = StackParams(
+            sigma_target=args.sigma,
+            max_leverage=args.max_leverage,
+            dd_budget_margin=args.dd_margin,
+        )
     out = pipeline.execute(panel, params, vehicle=vehicle, constraint_step=5)
 
     print("STRATEGY:", out.headline())
