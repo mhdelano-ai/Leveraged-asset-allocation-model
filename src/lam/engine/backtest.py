@@ -56,6 +56,11 @@ class BacktestResult:
     equity: pd.Series
     leverage: pd.Series
     weights: pd.DataFrame
+    # The standing order the book is being held against. Weights drift between
+    # rebalances, so `weights` is what is held and this is what it is aiming at;
+    # reporting the former as "the allocation" would hand back a number that is
+    # not the number to trade to.
+    target_weights: pd.DataFrame
     turnover: pd.Series
     financing_cost: pd.Series
     transaction_cost: pd.Series
@@ -178,6 +183,7 @@ def run(
     fin_path = np.zeros(n_days)
     tc_path = np.zeros(n_days)
     weight_path = np.zeros((n_days, n_assets))
+    target_path = np.zeros((n_days, n_assets))
     events: list[dict] = []
 
     E = initial_equity
@@ -274,6 +280,7 @@ def run(
         )
         phi_path[t] = phi
         weight_path[t] = w
+        target_path[t] = current_target if current_target is not None else w
         # The ratchet limits growth in *notional* exposure, so it must compare
         # like with like -- capital weights would let an LETF book re-lever
         # instantly after a cut.
@@ -286,6 +293,7 @@ def run(
         equity=equity,
         leverage=pd.Series(lev_path, index=common, name="leverage"),
         weights=pd.DataFrame(weight_path, index=common, columns=frame.columns),
+        target_weights=pd.DataFrame(target_path, index=common, columns=frame.columns),
         turnover=pd.Series(turn_path, index=common, name="turnover"),
         financing_cost=pd.Series(fin_path, index=common, name="financing"),
         transaction_cost=pd.Series(tc_path, index=common, name="tcost"),

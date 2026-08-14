@@ -94,6 +94,41 @@ rather than bare feasibility — is answered in Robustness below, and is the mor
 important one, because bare feasibility turns out not to survive contact with
 new data.
 
+### The allocation
+
+There is no fixed allocation — the weights are an output of the rules, and they
+move a lot. `python scripts/show_allocation.py` answers "what do I hold".
+
+Long-run mix, as a share of invested capital (Panel L, strict):
+
+| Sleeve | Proxy | Share of book | Avg capital | Range |
+|---|---|---|---|---|
+| US equity | VTI | 45.0% | 25.8% | 0–76% |
+| Intermediate Treasuries | IEF | 30.6% | 17.5% | 0–150% |
+| Long Treasuries | TLT | 13.6% | 7.8% | 0–44% |
+| Gold | GLD | 6.5% | 3.7% | 0–21% |
+| Commodities | DBC | 4.4% | 2.5% | 0–19% |
+
+**The strategy is not, in practice, a leveraged one.** Under the strict
+constraint gross exposure averages **0.57×**, sits above 1× on only **7.5%** of
+days, never exceeds 1.94×, and holds ~43% cash on average. The constraint as
+specified very nearly rules leverage out. The full-sample-only configuration is
+genuinely levered — 2.04× average, above 2× on 64% of days.
+
+The mix is regime-dependent rather than static (average gross weights by decade):
+
+| | US equity | Long UST | Interm UST | Gold | Commodities | Gross |
+|---|---|---|---|---|---|---|
+| 1970s | 16.2% | 2.3% | 23.7% | 4.2% | 0.0% | 0.46× |
+| 1980s | 28.2% | 7.2% | 11.5% | 2.5% | 2.6% | 0.52× |
+| 2000s | 26.1% | 14.3% | 24.1% | 6.3% | 4.7% | 0.75× |
+| 2020s | 24.3% | 3.8% | 9.9% | 4.3% | 2.4% | 0.45× |
+
+As of the last bar (2026-08-13) it holds 26.9% US equity, **0% in both Treasury
+sleeves**, 1.0% gold, 1.5% commodities — 0.29× gross, **70.6% cash**. The
+Treasury sleeves are at zero because the trend gate is off on both, which the
+report states rather than leaving to be inferred.
+
 ### Out of sample
 
 Anchored walk-forward, 20-year initial training window, re-selected every 2
@@ -317,6 +352,7 @@ pip install -e ".[dev]"
 python scripts/fetch_data.py        # caches to data/cache (a few minutes, paced)
 python scripts/validate_data.py     # the gates above; stops the build if any fail
 pytest -q                           # 48 tests
+python scripts/show_allocation.py --panel M          # what to hold, with tickers
 python scripts/run_backtest.py --panel L
 python scripts/run_optimize.py --panel L --trials 512
 python scripts/run_walkforward.py --panel L

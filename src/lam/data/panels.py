@@ -39,6 +39,25 @@ from . import lbma, rates, synth_bonds, synth_equity, yahoo
 LONG_UST_MATURITY = 23.5
 INTERM_UST_MATURITY = 8.0
 
+# The instrument a real implementation would hold for each sleeve.
+#
+# Panels L and X trade synthetic series -- par-bond rolls off constant-maturity
+# yields, the LBMA gold fix -- because the ETFs did not exist for most of the
+# history. These tickers are the modern proxy you would actually buy, not the
+# series that was backtested; ``Panel.tickers_are_proxies`` says which is which.
+SLEEVE_TICKERS = {
+    "us_equity": "VTI",
+    "intl_equity": "EFA",
+    "em_equity": "EEM",
+    "long_ust": "TLT",
+    "interm_ust": "IEF",
+    "ig_credit": "LQD",
+    "hy_credit": "HYG",
+    "gold": "GLD",
+    "commodities": "DBC",
+    "reit": "VNQ",
+}
+
 # One-way transaction cost per unit turnover, by sleeve.
 SLEEVE_COSTS = {
     "us_equity": 0.0003,
@@ -66,6 +85,20 @@ class Panel:
     @property
     def costs(self) -> np.ndarray:
         return np.array([SLEEVE_COSTS.get(c, 0.0005) for c in self.returns.columns])
+
+    @property
+    def tickers(self) -> list[str]:
+        """The instrument to hold for each sleeve, in column order."""
+        return [SLEEVE_TICKERS.get(c, "?") for c in self.returns.columns]
+
+    @property
+    def tickers_are_proxies(self) -> bool:
+        """True when the panel trades synthetic series rather than the ETFs.
+
+        Panels L and X reach back before the ETFs existed, so their tickers are
+        what you would buy today, not what was backtested.
+        """
+        return self.name != "M"
 
     def coverage(self) -> pd.DataFrame:
         rows = []
