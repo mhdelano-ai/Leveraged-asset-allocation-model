@@ -23,6 +23,12 @@ dev = ["pytest>=8", "openpyxl>=3.1", "xlrd>=2"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# The dashboard page shell is a data file inside the package, so it has to be
+# declared here or a non-editable install ships lam.report.dashboard without the
+# template it reads -- working in the repo and failing everywhere else.
+[tool.setuptools.package-data]
+"lam.report" = ["templates/*.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = ["ignore::DeprecationWarning"]

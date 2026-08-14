@@ -815,7 +815,7 @@ Committed in [`docs/`](docs/):
 pip install -e ".[dev]"
 python scripts/fetch_data.py        # caches to data/cache (a few minutes, paced)
 python scripts/validate_data.py     # the gates above; stops the build if any fail
-pytest -q                           # 104 tests
+pytest -q                           # 107 tests
 
 # Model A - drawdown-constrained
 python scripts/show_allocation.py --panel M          # what to hold, with tickers

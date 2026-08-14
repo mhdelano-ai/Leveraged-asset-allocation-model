@@ -1,4 +1,4 @@
-"""Assembles the JSON payload baked into ``docs/dashboard.html``.
+"""Assembles ``docs/dashboard.html``: the JSON payload, and the page around it.
 
 Kept apart from ``scripts/build_dashboard.py`` on purpose: everything here is a
 pure function of already-loaded series, so ``tests/test_dashboard.py`` can drive
@@ -15,11 +15,21 @@ The strategy priced here is the *improved* variant discussed in
 payload relies on: the SMA here is evaluated on raw closes with a 1% hysteresis
 band, matching exactly what the page can compute for itself from a live feed
 with no dividend stream to reinvest and no way to loop.
+
+The page shell lives beside this module in ``templates/dashboard.html`` rather
+than as a string literal inside the generator. It is 46KB of hand-authored
+HTML, CSS and JavaScript, and inside a Python string none of that gets syntax
+highlighting, formatting or linting from any tool that understands it -- and
+every brace and quote becomes something to escape rather than something to
+read. As a file it is editable as what it actually is, and :func:`render` is
+the only thing that needs to know it is a template at all.
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -39,6 +49,14 @@ from ..metrics.drawdown import drawdown_series, max_drawdown
 
 DASHBOARD_PANEL = "N"
 DEFAULT_TRAILING_MONTHS = 18
+
+TEMPLATE_PATH = Path(__file__).resolve().parent / "templates" / "dashboard.html"
+
+# The one token the template has substituted into it. Deliberately something no
+# HTML, CSS, JS or JSON output could ever produce on its own, so a plain
+# ``str.replace`` is safe: a single substitution needs no templating engine, and
+# an engine would only mean fighting the braces in the page's CSS and JS.
+PLACEHOLDER = "__LAM_DASHBOARD_PAYLOAD__"
 
 
 def _round_list(values: pd.Series | np.ndarray, decimals: int = 6) -> list[float]:
@@ -239,4 +257,30 @@ def load_and_build_payload(
         dividend_yield=dividend_yield,
         cash_rate_annual=cash_rate_annual,
         trailing_months=trailing_months,
+    )
+
+
+def load_template() -> str:
+    """The page shell, read from ``templates/dashboard.html``."""
+    template = TEMPLATE_PATH.read_text(encoding="utf-8")
+    if PLACEHOLDER not in template:
+        raise RuntimeError(
+            f"{TEMPLATE_PATH} is missing its {PLACEHOLDER} placeholder -- the page "
+            "would be generated with no data in it"
+        )
+    return template
+
+
+def render(payload: dict) -> str:
+    """The finished page: the template with ``payload`` spliced into it.
+
+    ``allow_nan=False`` is load-bearing rather than fastidious. A NaN or an
+    Infinity reaching here is always a bug upstream -- an un-trimmed warmup row,
+    or a Calmar computed against a driftless synthetic series -- and Python's
+    default would emit it as a bare ``NaN`` token. That is not valid JSON, but it
+    *is* valid JavaScript, so it would parse silently in the page and surface
+    much later as a blank chart rather than here as a traceback.
+    """
+    return load_template().replace(
+        PLACEHOLDER, json.dumps(payload, allow_nan=False, separators=(",", ":"))
     )

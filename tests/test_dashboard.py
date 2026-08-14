@@ -330,3 +330,41 @@ def test_dashboard_page_has_no_console_errors_or_overflow():
         pw.stop()
 
     assert not failures, "; ".join(failures)
+
+
+# --------------------------------------------------------------------------
+# The template boundary
+# --------------------------------------------------------------------------
+
+def test_template_ships_with_the_package_and_carries_its_placeholder():
+    """The page shell is a data file, so it can go missing in ways code cannot.
+
+    An editable install resolves it from the working tree and a wheel resolves
+    it from package-data; only the second can silently omit it. Asserting the
+    path here fails loudly at test time instead of at someone else's install.
+    """
+    from lam.report.dashboard import PLACEHOLDER, TEMPLATE_PATH, load_template
+
+    assert TEMPLATE_PATH.exists(), f"missing page template at {TEMPLATE_PATH}"
+    assert PLACEHOLDER in load_template()
+
+
+def test_render_substitutes_the_payload_and_leaves_no_placeholder():
+    from lam.report.dashboard import PLACEHOLDER, render
+
+    html = render({"generated_at": "2026-01-02", "marker": "sentinel-value"})
+    assert PLACEHOLDER not in html, "placeholder survived rendering -- page has no data"
+    assert '"marker":"sentinel-value"' in html
+
+
+def test_render_refuses_non_finite_numbers():
+    """A NaN would emit as a bare `NaN` token: invalid JSON, valid JavaScript.
+
+    It would therefore parse silently in the page and show up much later as an
+    empty chart, which is precisely the failure this guard exists to convert
+    into a traceback at generation time.
+    """
+    from lam.report.dashboard import render
+
+    with pytest.raises(ValueError):
+        render({"generated_at": "2026-01-02", "broken": float("nan")})
