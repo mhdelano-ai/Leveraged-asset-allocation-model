@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import pandas as pd
 
+# Columns where True genuinely means "passed"; everything else boolean reads
+# as yes/no so a False cannot masquerade as a failure.
+PASS_COLUMNS = {"pass", "passes", "feasible", "found_feasible", "levered"}
+
 PCT = {"cagr", "vol", "max_dd", "strat_cagr", "bench_cagr", "strat_vol", "strat_dd",
        "bench_dd", "excess_dd", "strat_return", "bench_return", "worst_12m",
        "underwater_frac", "alpha", "worst_excess", "cvar5_excess", "sigma_target",
@@ -18,7 +22,12 @@ def fmt(df: pd.DataFrame, decimals: int = 2) -> str:
         elif pd.api.types.is_float_dtype(out[col]):
             out[col] = out[col].map(lambda v: f"{v:,.{decimals}f}" if pd.notna(v) else "-")
         elif pd.api.types.is_bool_dtype(out[col]):
-            out[col] = out[col].map(lambda v: "PASS" if v else "FAIL")
+            # Only genuine pass/fail columns get PASS/FAIL. Rendering
+            # "ruined=False" as "FAIL" inverts its meaning.
+            if col in PASS_COLUMNS:
+                out[col] = out[col].map(lambda v: "PASS" if v else "FAIL")
+            else:
+                out[col] = out[col].map(lambda v: "yes" if v else "no")
     return out.to_string()
 
 
@@ -30,7 +39,12 @@ def to_markdown(df: pd.DataFrame, decimals: int = 2) -> str:
         elif pd.api.types.is_float_dtype(out[col]):
             out[col] = out[col].map(lambda v: f"{v:,.{decimals}f}" if pd.notna(v) else "-")
         elif pd.api.types.is_bool_dtype(out[col]):
-            out[col] = out[col].map(lambda v: "PASS" if v else "FAIL")
+            # Only genuine pass/fail columns get PASS/FAIL. Rendering
+            # "ruined=False" as "FAIL" inverts its meaning.
+            if col in PASS_COLUMNS:
+                out[col] = out[col].map(lambda v: "PASS" if v else "FAIL")
+            else:
+                out[col] = out[col].map(lambda v: "yes" if v else "no")
     return out.to_markdown()
 
 
@@ -62,13 +76,13 @@ def frontier_table(results: pd.DataFrame, tolerances=(0.0, 0.01, 0.02, 0.03, 0.0
     rolling requirement rather than by crash protection.
     """
     rows = []
+    clean = results.dropna(subset=["cagr", "worst_excess"])
     for tol in tolerances:
-        ok = results[
-            (results["worst_excess"] <= tol)
-            & (results["max_dd"] >= results.get("bench_dd", -1.0))
-        ]
-        if "bench_dd" not in results.columns:
-            ok = results[results["worst_excess"] <= tol]
+        ok = clean[clean["worst_excess"] <= tol]
+        if "bench_dd" in clean.columns:
+            # Full-sample condition: strategy depth <= benchmark depth, i.e. the
+            # (negative) max drawdown is no lower than the benchmark's.
+            ok = ok[ok["max_dd"] >= ok["bench_dd"]]
         rows.append(
             {
                 "tolerance_pp": tol * 100,

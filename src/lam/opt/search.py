@@ -61,6 +61,7 @@ class Trial:
     params: StackParams
     cagr: float
     max_dd: float
+    bench_dd: float
     sharpe: float
     calmar: float
     worst_excess: float
@@ -73,6 +74,7 @@ class Trial:
         return asdict(self.params) | {
             "cagr": self.cagr,
             "max_dd": self.max_dd,
+            "bench_dd": self.bench_dd,
             "sharpe": self.sharpe,
             "calmar": self.calmar,
             "worst_excess": self.worst_excess,
@@ -130,6 +132,7 @@ def evaluate(
         params=params,
         cagr=out.stats["cagr"],
         max_dd=out.stats["max_dd"],
+        bench_dd=-c.benchmark_depth,
         sharpe=out.stats["sharpe"],
         calmar=out.stats["calmar"],
         worst_excess=c.worst_excess,

@@ -137,24 +137,38 @@ class MarginAccount:
 
         vix = self._vix[t] if self._vix is not None else 20.0
         hike = 1.0 + self.maintenance_procyclicality * max(0.0, vix / 20.0 - 1.0)
-        requirement = float(np.abs(weights) @ self._maintenance) * hike
 
-        # Approximate the intraday trough: synthetic sleeves have no low, so the
-        # day's adverse move is scaled up. Documented as an approximation.
+        # Everything below is expressed per unit of *current* equity: check_margin
+        # runs after the book has been marked, so equity is 1.0 by construction
+        # and `weights` are already fractions of it.
+        #
+        # Approximate the intraday trough by extending the day's adverse move --
+        # synthetic sleeves have no intraday low. Both equity and position value
+        # must be re-marked to that trough, or the comparison mixes a pre-move
+        # requirement with a post-move equity.
         today = self._returns[t] if self._returns is not None else np.zeros_like(weights)
         adverse = np.minimum(today, 0.0) * (self.intraday_stress - 1.0)
-        intraday_equity = 1.0 + float(weights @ adverse)
+        equity_low = 1.0 + float(weights @ adverse)
+        position_low = np.abs(weights) * (1.0 + adverse)
+        requirement = float(position_low @ self._maintenance) * hike
 
-        if intraday_equity >= requirement:
+        if equity_low >= requirement:
             return None
+        if equity_low <= 0.0:
+            return 0.0, 0.0, "wiped out before liquidation could complete"
 
-        # Deleverage to restore a buffer above the requirement.
-        target_gross = max(
-            0.0, (1.0 - self.liquidation_buffer) / max(requirement / gross, 1e-6)
+        # Sell down until equity covers the requirement with a buffer. Selling at
+        # market does not change equity, so scaling positions by s scales the
+        # requirement by s: solve equity >= (1 + buffer) * s * requirement.
+        scale = float(
+            np.clip(equity_low / ((1.0 + self.liquidation_buffer) * requirement), 0.0, 1.0)
         )
-        scale = min(1.0, target_gross / gross) if gross > 0 else 0.0
-        slippage = self.base_slippage * (
+        slippage_rate = self.base_slippage * (
             self.stressed_slippage_multiple if vix > 40.0 else 1.0
         )
         sold = gross * (1.0 - scale)
-        return scale, slippage * sold, f"maintenance {requirement:.3f} vs {intraday_equity:.3f}"
+        return (
+            scale,
+            slippage_rate * sold,
+            f"equity {equity_low:.3f} below requirement {requirement:.3f}",
+        )
