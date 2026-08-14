@@ -350,3 +350,107 @@ def test_prices_from_returns_round_trips():
         rtol=1e-12,
         atol=1e-15,
     )
+
+
+# --------------------------------------------------------------------------
+# The four-state rotation rule
+# --------------------------------------------------------------------------
+
+def test_four_state_rule_is_causal():
+    """The state on day t may use no data from day t or later."""
+    from lam.alloc.rules import RuleParams, four_state_signal
+
+    asset = _gbm(3000, seed=23)
+    clean = four_state_signal(asset, RuleParams())
+
+    corrupted = asset.copy()
+    rng = np.random.default_rng(5)
+    corrupted.iloc[2000:] = rng.normal(-0.03, 0.06, len(corrupted) - 2000)
+    dirty = four_state_signal(corrupted, RuleParams())
+
+    np.testing.assert_allclose(
+        clean["exposure"].iloc[:2000].to_numpy(),
+        dirty["exposure"].iloc[:2000].to_numpy(),
+        rtol=0, atol=0,
+    )
+
+
+def test_four_state_rule_maps_conditions_to_states_exactly():
+    """Every day's state must follow from that day's two conditions, always.
+
+    Asserting the mapping itself rather than "state X on day 350 of a fixture"
+    is the stronger test: a fixture only demonstrates the branches it happens to
+    reach, and its own drift can silently stop it reaching them.
+    """
+    from lam.alloc.rules import RuleParams, four_state_signal
+
+    rng = np.random.default_rng(9)
+    idx = pd.bdate_range("1990-01-01", periods=1600)
+    # Calm rise, violent rise, calm fall, violent fall -- all four branches.
+    r = np.concatenate([
+        rng.normal(0.0010, 0.006, 500),
+        rng.normal(0.0060, 0.035, 300),
+        rng.normal(-0.0012, 0.006, 400),
+        rng.normal(-0.0030, 0.035, 400),
+    ])
+    sig = four_state_signal(pd.Series(r, index=idx), RuleParams())
+    live = sig[sig["state"] != "warmup"]
+
+    assert set(live["state"].unique()) == {
+        "levered", "cash (volatile uptrend)", "unlevered", "cash (volatile downtrend)",
+    }
+    expected = np.where(
+        live["above_sma"].eq(True),
+        np.where(live["calm"].eq(True), "levered", "cash (volatile uptrend)"),
+        np.where(live["calm"].eq(True), "unlevered", "cash (volatile downtrend)"),
+    )
+    assert (live["state"].to_numpy() == expected).all()
+
+    # And the exposure ladder: 3x, cash, 1x, cash.
+    assert live.loc[live["state"] == "levered", "exposure"].eq(3.0).all()
+    assert live.loc[live["state"] == "unlevered", "exposure"].eq(1.0).all()
+    assert live.loc[live["state"].str.startswith("cash"), "exposure"].eq(0.0).all()
+
+
+def test_four_state_backtest_charges_the_leveraged_wrapper():
+    """The levered state must cost what a 3x fund costs, not 3x the index.
+
+    Treating the leveraged branch as free 3x leverage is the single most common
+    way this rule gets overstated -- it skips the swap spread, the expense ratio
+    and the daily-reset decay, and is worth roughly 3%/yr on this data.
+    """
+    from lam.alloc.rules import RuleParams, backtest_four_state
+
+    asset = _gbm(3000, mu=0.15, sigma=0.25, seed=31)
+    rf = pd.Series(0.03, index=asset.index)
+    r, sig = backtest_four_state(asset, rf, RuleParams(), cost_per_unit=0.0)
+
+    levered = sig["state"] == "levered"
+    assert levered.sum() > 200
+    naive = 3.0 * asset[levered]
+    assert r[levered].mean() < naive.mean()
+
+
+def test_four_state_cash_states_earn_the_cash_rate():
+    """Cash states carry no equity risk and accrue on calendar days.
+
+    The accrual is ACT/360 on *calendar* days, so a Monday earns three days'
+    interest and the series is deliberately not constant -- checking for a zero
+    standard deviation would fail on a correct implementation.
+    """
+    from lam.alloc.rules import RuleParams, backtest_four_state
+    from lam.timeaxis import day_deltas
+
+    asset = _gbm(2000, seed=37)
+    rf = pd.Series(0.05, index=asset.index)
+    r, sig = backtest_four_state(asset, rf, RuleParams(), cost_per_unit=0.0)
+
+    held = sig["state"].str.startswith("cash") & sig["state"].eq(sig["state"].shift(1))
+    assert held.sum() > 20
+    assert (r[held] > 0).all()
+
+    days = pd.Series(day_deltas(asset.index, prepend=1.0), index=asset.index)
+    per_day = r[held] / days[held]
+    np.testing.assert_allclose(per_day.to_numpy(), per_day.iloc[0], rtol=1e-12)
+    # 5% less the 10bp brokerage haircut, on a 360-day basis.
+    assert float(per_day.iloc[0]) * 360.0 == pytest.approx(0.049, abs=1e-6)
