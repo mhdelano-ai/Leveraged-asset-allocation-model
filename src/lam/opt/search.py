@@ -186,10 +186,31 @@ def plateau_radius(
     point that survives a 15% move in every direction is a plateau; one that
     fails at 5% is a spike and should be discarded however good its CAGR.
     """
+    radius, _ = plateau_radius_detail(
+        panel, params, tolerance=tolerance, radii=radii, constraint_step=constraint_step
+    )
+    return radius
+
+
+def plateau_radius_detail(
+    panel: Panel,
+    params: StackParams,
+    *,
+    tolerance: float = 0.0,
+    radii: tuple[float, ...] = (0.05, 0.10, 0.15, 0.20, 0.25),
+    constraint_step: int = 21,
+) -> tuple[float, str | None]:
+    """As :func:`plateau_radius`, but also names the parameter that breaks first.
+
+    Which axis binds is the useful diagnostic: if feasibility dies the moment
+    ``sigma_target`` ticks up, the point is not a robust design, it is simply
+    sitting exactly on the constraint boundary.
+    """
     keys = list(SEARCH_SPACE)
     best = 0.0
+    binding: str | None = None
     for r in radii:
-        ok = True
+        failed_at: str | None = None
         for k in keys:
             lo, hi = SEARCH_SPACE[k]
             span = hi - lo
@@ -202,15 +223,15 @@ def plateau_radius(
                     tolerance=tolerance, constraint_step=constraint_step,
                 )
                 if not trial.feasible:
-                    ok = False
+                    failed_at = f"{k}{'+' if sign > 0 else '-'}"
                     break
-            if not ok:
+            if failed_at:
                 break
-        if ok:
-            best = r
-        else:
+        if failed_at:
+            binding = failed_at
             break
-    return best
+        best = r
+    return best, binding
 
 
 def select(

@@ -68,29 +68,47 @@ def comparison_table(rows: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(rows).set_index("strategy")
 
 
-def frontier_table(results: pd.DataFrame, tolerances=(0.0, 0.01, 0.02, 0.03, 0.05)) -> pd.DataFrame:
+def frontier_table(
+    results: pd.DataFrame,
+    tolerances=(0.0, 0.01, 0.02, 0.03, 0.05),
+    *,
+    benchmark_dd: float | None = None,
+) -> pd.DataFrame:
     """Best achievable CAGR as the rolling-window tolerance is relaxed.
 
     The full-sample condition stays strict throughout; only the rolling-3y test
-    is loosened. This isolates how much of the return ceiling is imposed by the
-    rolling requirement rather than by crash protection.
+    is loosened. This isolates how much of the return ceiling comes from the
+    rolling requirement rather than from crash protection -- which turns out to
+    be almost all of it, because the S&P's *calmest* three-year windows, not its
+    crashes, are what cap leverage.
+
+    The final row drops the rolling test entirely, giving the looser reading of
+    "drawdowns not exceeding the S&P 500" (worst peak-to-trough only).
     """
     rows = []
     clean = results.dropna(subset=["cagr", "worst_excess"])
-    for tol in tolerances:
-        ok = clean[clean["worst_excess"] <= tol]
-        if "bench_dd" in clean.columns:
-            # Full-sample condition: strategy depth <= benchmark depth, i.e. the
-            # (negative) max drawdown is no lower than the benchmark's.
-            ok = ok[ok["max_dd"] >= ok["bench_dd"]]
+
+    def full_sample_ok(df: pd.DataFrame) -> pd.DataFrame:
+        if "bench_dd" in df.columns:
+            return df[df["max_dd"] >= df["bench_dd"]]
+        if benchmark_dd is not None:
+            return df[df["max_dd"] >= benchmark_dd]
+        return df
+
+    cases = [(f"{tol * 100:.0f}", clean[clean["worst_excess"] <= tol]) for tol in tolerances]
+    cases.append(("full-sample only", clean))
+
+    for label, subset in cases:
+        ok = full_sample_ok(subset)
+        best = ok.loc[ok["cagr"].idxmax()] if len(ok) else None
         rows.append(
             {
-                "tolerance_pp": tol * 100,
+                "rolling_tolerance_pp": label,
                 "n_feasible": int(len(ok)),
-                "best_cagr": float(ok["cagr"].max()) if len(ok) else float("nan"),
-                "best_max_dd": float(ok.loc[ok["cagr"].idxmax(), "max_dd"]) if len(ok) else float("nan"),
-                "best_sharpe": float(ok.loc[ok["cagr"].idxmax(), "sharpe"]) if len(ok) else float("nan"),
-                "best_avg_lev": float(ok.loc[ok["cagr"].idxmax(), "avg_leverage"]) if len(ok) else float("nan"),
+                "best_cagr": float(best["cagr"]) if best is not None else float("nan"),
+                "best_max_dd": float(best["max_dd"]) if best is not None else float("nan"),
+                "best_sharpe": float(best["sharpe"]) if best is not None else float("nan"),
+                "best_avg_lev": float(best["avg_leverage"]) if best is not None else float("nan"),
             }
         )
-    return pd.DataFrame(rows).set_index("tolerance_pp")
+    return pd.DataFrame(rows).set_index("rolling_tolerance_pp")

@@ -196,16 +196,23 @@ def deflated_sharpe(observed_sharpe: float, n_trials: int, n_obs: int) -> dict:
     """
     from scipy.stats import norm
 
-    if n_trials < 2:
-        return {"expected_max_null": 0.0, "deflated": observed_sharpe}
+    if n_trials < 2 or n_obs < 2:
+        return {"observed": observed_sharpe, "expected_max_null": 0.0,
+                "excess_over_null": observed_sharpe, "n_trials": n_trials}
     euler = 0.5772156649
-    e_max = (1 - euler) * norm.ppf(1 - 1.0 / n_trials) + euler * norm.ppf(
+    # Expected maximum of n_trials standard normals.
+    e_max_z = (1 - euler) * norm.ppf(1 - 1.0 / n_trials) + euler * norm.ppf(
         1 - 1.0 / (n_trials * np.e)
     )
-    e_max_ann = e_max * np.sqrt(252.0 / n_obs) * np.sqrt(252)
+    # A per-period Sharpe estimated from n_obs observations has standard error
+    # ~1/sqrt(n_obs); annualising multiplies by sqrt(252). Applying sqrt(252)
+    # twice (once inside a sqrt(252/n_obs) factor and again outside) inflates
+    # this by ~16x and produces absurd thresholds like 8.
+    e_max_ann = e_max_z / np.sqrt(n_obs) * np.sqrt(252.0)
     return {
         "observed": observed_sharpe,
         "n_trials": n_trials,
+        "n_obs": n_obs,
         "expected_max_null": float(e_max_ann),
         "excess_over_null": float(observed_sharpe - e_max_ann),
     }

@@ -9,7 +9,10 @@ venv/
 data/cache/
 !data/cache/.gitkeep
 
-# Generated outputs
+# Generated outputs. docs/ holds the committed deliverables.
 output/
 *.png
 !docs/*.png
+!docs/*.html
+!docs/*.json
+!docs/*.parquet

@@ -55,7 +55,7 @@ plt.rcParams.update(
 
 
 def _style(ax, title: str, ylabel: str = "") -> None:
-    ax.set_title(title, color=INK, fontsize=10, fontweight="600", loc="left", pad=8)
+    ax.set_title(title, color=INK, fontsize=10, fontweight="bold", loc="left", pad=8)
     if ylabel:
         ax.set_ylabel(ylabel, fontsize=8)
     ax.grid(axis="y", alpha=0.7)
@@ -75,7 +75,7 @@ def _label_end(ax, series: pd.Series, text: str, color: str) -> None:
         textcoords="offset points",
         color=color,
         fontsize=8,
-        fontweight="600",
+        fontweight="bold",
         va="center",
     )
 
@@ -114,24 +114,31 @@ def excess_drawdown(ax, strategy: pd.Series, benchmark: pd.Series, step: int = 5
     worst = float(np.max(values)) if values.size else 0.0
     ax.annotate(
         f"worst {worst:+.2f}pp",
-        xy=(0.99, 0.94), xycoords="axes fraction", ha="right",
-        color=CRITICAL if worst > 0 else INK_2, fontsize=8, fontweight="600",
+        xy=(0.99, 0.06), xycoords="axes fraction", ha="right",
+        color=CRITICAL if worst > 0 else INK_2, fontsize=8, fontweight="bold",
     )
 
 
 def leverage(ax, lev: pd.Series, throttle: pd.Series | None = None) -> None:
-    ax.plot(lev.index, lev.to_numpy(), lw=1.2, color=SERIES[0], label="gross leverage")
-    ax.axhline(1.0, color=AXIS, lw=1.0, ls="--")
+    """Leverage on a single scale, with throttle activity shaded behind it.
+
+    The throttle is deliberately *not* a second y-axis. It lives in [0, 1] while
+    leverage lives in [0, 3], and putting them on twin scales makes a control
+    signal look like a data series pinned at some arbitrary level. Shading the
+    periods when it is engaged says the same thing without a second scale.
+    """
     if throttle is not None:
-        ax2 = ax.twinx()  # a control signal in [0,1], not a second data scale
-        ax2.plot(throttle.index, throttle.to_numpy(), lw=1.0, color=SERIES[1], alpha=0.8)
-        ax2.set_ylim(-0.05, 1.6)
-        ax2.set_yticks([0, 1])
-        ax2.set_yticklabels(["off", "full"], fontsize=7, color=SERIES[1])
-        ax2.grid(False)
-        for spine in ax2.spines.values():
-            spine.set_visible(False)
-    _style(ax, "Leverage and drawdown throttle", "x")
+        engaged = (throttle < 0.999).to_numpy()
+        ax.fill_between(
+            throttle.index, 0, 1, where=engaged, transform=ax.get_xaxis_transform(),
+            color=SERIES[1], alpha=0.16, lw=0, label="throttle engaged",
+        )
+    ax.plot(lev.index, lev.to_numpy(), lw=1.1, color=SERIES[0], label="gross leverage")
+    ax.axhline(1.0, color=AXIS, lw=1.0, ls="--")
+    ax.annotate("unlevered", xy=(0.005, 1.0), xycoords=("axes fraction", "data"),
+                fontsize=7, color=MUTED, va="bottom")
+    ax.set_ylim(bottom=0)
+    _style(ax, "Leverage, with drawdown throttle engagement shaded", "x")
     ax.legend(loc="upper left", fontsize=8)
 
 
@@ -154,7 +161,7 @@ def rolling_correlation(ax, a: pd.Series, b: pd.Series, window: int = 504) -> No
     ax.axhline(0, color=INK, lw=1.0)
     _style(ax, "Stock/bond correlation, trailing 2y", "corr")
     ax.annotate("positive: diversification fails", xy=(0.01, 0.92), xycoords="axes fraction",
-                color=CRITICAL, fontsize=7.5, fontweight="600")
+                color=CRITICAL, fontsize=7.5, fontweight="bold")
 
 
 def tearsheet(
@@ -191,7 +198,7 @@ def tearsheet(
         bond_col = "long_ust" if "long_ust" in panel.returns.columns else "interm_ust"
         rolling_correlation(axes[i], panel.returns["us_equity"], panel.returns[bond_col]); i += 1
 
-    fig.suptitle(title, x=0.055, ha="left", fontsize=13, fontweight="700", color=INK, y=0.998)
+    fig.suptitle(title, x=0.055, ha="left", fontsize=13, fontweight="bold", color=INK, y=0.998)
     if subtitle:
         fig.text(0.055, 0.982, subtitle, ha="left", fontsize=9, color=INK_2)
     fig.tight_layout(rect=(0, 0, 1, 0.975))
