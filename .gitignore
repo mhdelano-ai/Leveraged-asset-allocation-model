@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Cached market data — reproducible via `python -m lam.cli fetch`
+data/cache/
+!data/cache/.gitkeep
+
+# Generated outputs
+output/
+*.png
+!docs/*.png
