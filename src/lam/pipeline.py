@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 
 from .alloc.dd_throttle import DrawdownThrottle
+from .alloc.growth import GrowthParams, GrowthSignals, build as build_growth
 from .alloc.stack import StackParams, build as build_stack
 from .data import yahoo
 from .data.panels import Panel
@@ -137,6 +138,124 @@ def execute(
     constraint = evaluate(result.returns, panel.benchmark, step=constraint_step)
     return RunOutput(
         result=result, constraint=constraint, stats=stats, params=params, budget=budget
+    )
+
+
+@dataclass
+class GrowthOutput:
+    """Result of a return-maximising run on a concentrated panel."""
+
+    result: BacktestResult
+    stats: dict
+    benchmark_stats: dict
+    params: GrowthParams
+    signals: GrowthSignals
+
+    @property
+    def beats_benchmark(self) -> bool:
+        """Did the machinery beat simply owning the asset?
+
+        The only hurdle that matters for a concentrated book. A levered,
+        trend-gated, regime-aware strategy that trails buy-and-hold has done a
+        great deal of work to destroy money.
+        """
+        return self.stats["cagr"] > self.benchmark_stats["cagr"]
+
+    def headline(self) -> str:
+        s, b = self.stats, self.benchmark_stats
+        return (
+            f"CAGR {s['cagr']:6.2%} (asset {b['cagr']:6.2%}) | vol {s['vol']:5.1%} | "
+            f"Sharpe {s['sharpe']:4.2f} | maxDD {s['max_dd']:7.2%} "
+            f"(asset {b['max_dd']:7.2%}) | avg lev {s['avg_leverage']:4.2f}x"
+        )
+
+
+_growth_cache: dict[tuple, GrowthSignals] = {}
+
+
+def growth_signals_for(
+    panel: Panel,
+    params: GrowthParams,
+    *,
+    use_trend: bool = True,
+    use_regime: bool = True,
+) -> GrowthSignals:
+    """Causal growth signals, memoised on the parameters that actually affect them.
+
+    ``sigma_target`` and ``max_leverage`` are excluded from the key: both only
+    rescale a finished leverage path, and they are the two axes the optimiser
+    sweeps hardest.
+    """
+    key = (
+        panel.name,
+        round(params.vol_halflife, 4),
+        round(params.trend_fast_weight, 4),
+        round(params.trend_floor, 4),
+        round(params.stress_cap, 4),
+        use_trend,
+        use_regime,
+    )
+    if key not in _growth_cache:
+        _growth_cache[key] = build_growth(
+            panel.returns, panel.rf, params=params,
+            use_trend=use_trend, use_regime=use_regime,
+        )
+    return _growth_cache[key].rescale(params.sigma_target, params.max_leverage)
+
+
+def clear_growth_cache() -> None:
+    _growth_cache.clear()
+
+
+def execute_growth(
+    panel: Panel,
+    params: GrowthParams | None = None,
+    *,
+    vehicle=None,
+    use_trend: bool = True,
+    use_regime: bool = True,
+    use_throttle: bool = True,
+    **engine_overrides,
+) -> GrowthOutput:
+    """Run one return-maximising backtest on a concentrated panel."""
+    params = params or GrowthParams()
+    signals = growth_signals_for(panel, params, use_trend=use_trend, use_regime=use_regime)
+
+    throttle = DrawdownThrottle(budget=params.dd_budget) if use_throttle else None
+    cfg = EngineConfig(
+        cost_per_unit=panel.costs,
+        max_leverage=params.max_leverage,
+        leverage_ratchet_up=params.leverage_ratchet_up,
+        lev_band=params.lev_band,
+    )
+    if engine_overrides:
+        cfg = replace(cfg, **engine_overrides)
+
+    result = run(
+        panel.returns,
+        signals.base_weights,
+        signals.target_leverage,
+        rf_annual=panel.rf,
+        config=cfg,
+        throttle=throttle,
+        vehicle=vehicle,
+        vehicle_vix=_vix_series(),
+    )
+
+    rf_daily = panel.rf / 252.0
+    stats = summary(result.returns, benchmark=panel.benchmark, rf_daily=rf_daily)
+    stats |= result.summary_costs()
+    stats["margin_calls"] = sum(1 for e in result.events if e["type"] == "margin_call")
+    stats["ruined"] = result.ruined
+    stats["max_leverage_used"] = float(result.leverage.max())
+    stats["frac_at_zero"] = float((result.leverage < 0.01).mean())
+
+    return GrowthOutput(
+        result=result,
+        stats=stats,
+        benchmark_stats=summary(panel.benchmark, benchmark=panel.benchmark, rf_daily=rf_daily),
+        params=params,
+        signals=signals,
     )
 
 

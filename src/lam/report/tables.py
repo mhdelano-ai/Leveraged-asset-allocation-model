@@ -11,7 +11,14 @@ PASS_COLUMNS = {"pass", "passes", "feasible", "found_feasible", "levered"}
 PCT = {"cagr", "vol", "max_dd", "strat_cagr", "bench_cagr", "strat_vol", "strat_dd",
        "bench_dd", "excess_dd", "strat_return", "bench_return", "worst_12m",
        "underwater_frac", "alpha", "worst_excess", "cvar5_excess", "sigma_target",
-       "oos_cagr", "oos_dd", "is_cagr", "var_95", "cvar_95", "worst_day"}
+       "oos_cagr", "oos_dd", "is_cagr", "var_95", "cvar_95", "worst_day",
+       # Return-maximising model.
+       "asset_cagr", "asset_dd", "excess_cagr", "half_sample_cagr", "dd_ceiling",
+       "excess_return", "share", "asset return", "strategy return",
+       "share of days", "realised_cagr", "matched_cagr", "strategy_cagr",
+       "target_vol", "matched_vol", "strategy_dd", "matched_dd",
+       "index_cagr", "index_dd", "share_of_total", "implied_spread",
+       "wrapper_cost_ann", "cagr_sim", "cagr_actual", "te_ann", "expense_ratio"}
 
 
 def fmt(df: pd.DataFrame, decimals: int = 2) -> str:

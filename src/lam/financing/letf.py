@@ -43,6 +43,8 @@ from .base import VehicleContext
 # A multiplier of 1.0 means no leveraged product exists and the sleeve must be
 # held unlevered -- this is the structural limitation, expressed as data.
 DEFAULT_PRODUCTS = {
+    "nasdaq100": {"k": 3.0, "ter": 0.0084, "proxy": "TQQQ"},
+    "sp500": {"k": 3.0, "ter": 0.0091, "proxy": "UPRO"},
     "us_equity": {"k": 3.0, "ter": 0.0091, "proxy": "UPRO"},
     "intl_equity": {"k": 2.0, "ter": 0.0095, "proxy": "EFO"},
     "em_equity": {"k": 3.0, "ter": 0.0095, "proxy": "EDC"},

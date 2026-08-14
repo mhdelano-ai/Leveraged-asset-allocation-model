@@ -33,7 +33,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-from . import lbma, rates, synth_bonds, synth_equity, yahoo
+from . import lbma, nasdaq, rates, synth_bonds, synth_equity, yahoo
 
 # Effective maturities calibrated against TLT and IEF (see synth_bonds).
 LONG_UST_MATURITY = 23.5
@@ -46,6 +46,9 @@ INTERM_UST_MATURITY = 8.0
 # history. These tickers are the modern proxy you would actually buy, not the
 # series that was backtested; ``Panel.tickers_are_proxies`` says which is which.
 SLEEVE_TICKERS = {
+    "nasdaq100": "QQQ",
+    "nasdaq_comp": "ONEQ",
+    "sp500": "SPY",
     "us_equity": "VTI",
     "intl_equity": "EFA",
     "em_equity": "EEM",
@@ -60,6 +63,11 @@ SLEEVE_TICKERS = {
 
 # One-way transaction cost per unit turnover, by sleeve.
 SLEEVE_COSTS = {
+    # The two deepest-liquidity ETFs in existence; the engine's era multipliers
+    # widen these 4x before 1990 and 2x before 2000.
+    "nasdaq100": 0.0002,
+    "nasdaq_comp": 0.0004,
+    "sp500": 0.0002,
     "us_equity": 0.0003,
     "intl_equity": 0.0006,
     "em_equity": 0.0012,
@@ -267,7 +275,100 @@ def build_modern(start: str = "2006-02-06") -> Panel:
     )
 
 
-BUILDERS = {"L": build_long, "X": build_extended, "M": build_modern}
+def _concentrated(
+    name: str, sleeve: str, series: pd.Series, *, start: str, description: str
+) -> Panel:
+    """A one-sleeve panel: the asset, cash, and nothing else.
+
+    The benchmark is the sleeve itself, held unlevered. That is the hurdle that
+    actually matters for a concentrated book -- the whole apparatus of leverage,
+    trend and volatility regimes has to beat *simply owning the thing*, and most
+    of the time it does not.
+    """
+    rf = rates.bill_rate_bey()
+    series = series.loc[start:].dropna()
+    series.name = sleeve
+    frame = series.to_frame()
+    return Panel(
+        name=name,
+        returns=frame,
+        benchmark=series.rename("benchmark"),
+        rf=rf.reindex(frame.index).ffill(),
+        eligible=pd.DataFrame(True, index=frame.index, columns=[sleeve]),
+        description=description,
+    )
+
+
+def build_nasdaq(start: str = "1985-10-02") -> Panel:
+    """Panel N -- Nasdaq-100 alone. The maximum-return workhorse.
+
+    Spans 1987, the 1998 LTCM shock, the 2000-02 collapse (-82.9%, the deepest
+    drawdown of any major index in the modern record), 2008, 2020 and 2022. A
+    leverage rule that survives 2000-02 on this series has been tested against
+    the worst case a levered growth book can face.
+    """
+    return _concentrated(
+        "N",
+        "nasdaq100",
+        nasdaq.ndx_total_return(),
+        start=start,
+        description=(
+            "Nasdaq-100 total return, 1985-10+. Price path from ^NDX with "
+            "dividends accrued at the QQQ-implied yield. Benchmark is the same "
+            "index held unlevered."
+        ),
+    )
+
+
+def build_nasdaq_composite(start: str = "1971-02-08") -> Panel:
+    """Panel C -- Nasdaq Composite, fourteen years longer than Panel N.
+
+    The only way to reach 1973-74 with a growth-equity series. Weaker data than
+    Panel N: the yield is calibrated on ONEQ from 2003 rather than QQQ from 2010,
+    and the Composite is a far broader, less tradable index.
+    """
+    return _concentrated(
+        "C",
+        "nasdaq_comp",
+        nasdaq.composite_total_return(),
+        start=start,
+        description=(
+            "Nasdaq Composite total return, 1971-02+. Reaches the 1973-74 bear. "
+            "Broader and less tradable than the Nasdaq-100; treat as the "
+            "secondary growth series."
+        ),
+    )
+
+
+def build_sp500(start: str = "1960-01-05") -> Panel:
+    """Panel S -- S&P 500 alone, from the start of the daily bill-rate record.
+
+    Financing is the whole game for a levered book, so this panel begins where a
+    real short-rate series does (``^IRX``, 1960-01-04) rather than where the
+    price index does. It buys 1962, 1966, 1968-70, 1973-74, 1980-82, 1987, 1990,
+    2000-02, 2008, 2020 and 2022 -- eleven bear markets, and crucially both the
+    high-rate and zero-rate financing regimes.
+    """
+    return _concentrated(
+        "S",
+        "sp500",
+        synth_equity.spx_total_return(),
+        start=start,
+        description=(
+            "S&P 500 total return, 1960-01+. Begins at the first daily T-bill "
+            "observation so every financing cost is measured, not assumed."
+        ),
+    )
+
+
+BUILDERS = {
+    "L": build_long,
+    "X": build_extended,
+    "M": build_modern,
+    "N": build_nasdaq,
+    "C": build_nasdaq_composite,
+    "S": build_sp500,
+}
 
 
 def build(name: str) -> Panel:

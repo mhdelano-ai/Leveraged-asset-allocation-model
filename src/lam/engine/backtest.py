@@ -189,7 +189,7 @@ def run(
     E = initial_equity
     w = np.zeros(n_assets)
     peak = E
-    prev_lev = 0.0
+    prev_desired = 0.0
     prev_phi = 1.0
     current_target: np.ndarray | None = None
 
@@ -220,8 +220,16 @@ def run(
         # Leverage falls freely but rises slowly: stops the book re-levering into
         # bear-market rallies, which is where a large share of realised drawdown
         # in naive vol-targeted strategies actually comes from.
-        if desired > prev_lev + config.leverage_ratchet_up:
-            desired = prev_lev + config.leverage_ratchet_up
+        #
+        # The ratchet is anchored to the previous *desired* leverage, which
+        # advances every day, not to the leverage currently held. Anchoring it to
+        # the held book deadlocks against the rebalance band: the cap keeps the
+        # candidate within `ratchet` of what is held, the band only trades once
+        # the gap exceeds `lev_band`, and with ratchet < lev_band the gap never
+        # gets there. Leverage could then only rise on calendar triggers, one
+        # ratchet step per month -- 1.2x a year against a stated limit of 25x.
+        desired = min(desired, prev_desired + config.leverage_ratchet_up)
+        prev_desired = desired
 
         comp = base[t]
         comp_sum = comp.sum()
@@ -281,10 +289,6 @@ def run(
         phi_path[t] = phi
         weight_path[t] = w
         target_path[t] = current_target if current_target is not None else w
-        # The ratchet limits growth in *notional* exposure, so it must compare
-        # like with like -- capital weights would let an LETF book re-lever
-        # instantly after a cut.
-        prev_lev = lev_path[t]
         prev_phi = phi
 
     equity = pd.Series(equity, index=common, name="equity").ffill()

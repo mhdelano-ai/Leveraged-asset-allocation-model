@@ -1,0 +1,11 @@
+{
+  "sigma_target": 0.5123040572740137,
+  "max_leverage": 2.545850214548409,
+  "vol_halflife": 60.0,
+  "trend_fast_weight": 0.3,
+  "trend_floor": 0.1,
+  "stress_cap": 0.75,
+  "dd_budget": 0.6193055340088904,
+  "leverage_ratchet_up": 0.07507970957085491,
+  "lev_band": 0.25
+}

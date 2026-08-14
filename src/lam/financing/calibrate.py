@@ -26,17 +26,29 @@ from ..timeaxis import day_deltas
 from .letf import simulate_letf
 
 # fund -> (multiplier, expense ratio, underlying key)
+#
+# The expense ratios are the stated prospectus figures, but note what the fit can
+# and cannot see: the estimator solves for ``s`` given ``TER``, so only the *sum*
+# ``(k-1)*s + TER`` is identified by the data. An error in the quoted expense
+# ratio moves the fitted spread by an offsetting amount and leaves the simulated
+# fund unchanged -- which is why :func:`validate` compares whole return paths
+# rather than reporting the split as if it were measured.
 FUNDS = {
     "UPRO": (3.0, 0.0091, "spx"),
     "SSO": (2.0, 0.0089, "spx"),
     "TMF": (3.0, 0.0106, "tlt"),
     "UGL": (2.0, 0.0095, "gold"),
+    "TQQQ": (3.0, 0.0084, "ndx"),
+    "QLD": (2.0, 0.0095, "ndx"),
 }
 
 
 def _underlyings() -> dict[str, pd.Series]:
+    from ..data import nasdaq
+
     return {
         "spx": synth_equity.spx_total_return(),
+        "ndx": nasdaq.ndx_total_return(),
         "tlt": yahoo.total_return_prices("TLT").pct_change().dropna(),
         # GLD, not the LBMA fix. UGL marks at the US close while the London PM
         # fix is set mid-afternoon UK time, so the two are measuring different
@@ -128,9 +140,21 @@ def validate(fund: str, spread: float | None = None) -> dict:
 
 def calibrate_all() -> tuple[pd.DataFrame, pd.DataFrame]:
     fits = pd.DataFrame([fit_spread(f) for f in FUNDS]).set_index("fund")
-    equity = fits.loc[[f for f in FUNDS if FUNDS[f][2] == "spx"], "implied_spread"].mean()
-    rates_ = fits.loc[[f for f in FUNDS if FUNDS[f][2] == "tlt"], "implied_spread"].mean()
-    grouped = {"spx": equity, "tlt": rates_, "gold": equity}
+
+    def group_mean(key: str) -> float:
+        members = [f for f in FUNDS if FUNDS[f][2] == key]
+        return float(fits.loc[members, "implied_spread"].mean())
+
+    equity = group_mean("spx")
+    grouped = {
+        "spx": equity,
+        "tlt": group_mean("tlt"),
+        "gold": equity,
+        # Fitted on its own funds. TQQQ and QLD price the same underlying at
+        # different multipliers, so agreement between them is an independent
+        # check of the functional form on a second index.
+        "ndx": group_mean("ndx"),
+    }
     checks = pd.DataFrame(
         [validate(f, grouped[FUNDS[f][2]]) for f in FUNDS]
     ).set_index("fund")
