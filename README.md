@@ -736,12 +736,67 @@ known source of fake survival).
 
 ---
 
+## Live dashboard
+
+The four-state rotation (see `growth_findings.html`) reduces, day to day, to
+two questions: *what state is the market in, and does that differ from what I
+hold?* `docs/dashboard.html` answers them without running Python — a
+self-contained page, hostable free on GitHub Pages, that fetches what it needs
+and stays current whenever it is opened.
+
+**What it does.** `scripts/build_dashboard.py` bakes in the full 1985→present
+backtest at generation time via `lam.report.dashboard`, reusing
+`backtest_four_state` exactly as the research does — same costs, same one-day
+lag, same improved variant (`RuleParams(up_wild=1.0)`: above trend but too
+volatile to lever, hold 1x QQQ rather than cash). Only the last day or two of
+prices are ever fetched live: on open, the page reads a Twelve Data API key
+from `localStorage`, pulls recent QQQ and TQQQ daily bars, and computes the
+state, the SMA reading and the 20-day realised volatility **client-side**.
+That JavaScript is not a reimplementation taken on faith — `computeStateSeries`
+in `docs/dashboard.html` is checked line-for-line against
+`lam.alloc.rules.four_state_signal` by `tests/test_dashboard.py` via
+Playwright, including the ±1% hysteresis band around the SMA crossing and its
+hold-the-previous-state behaviour on choppy days.
+
+**Setup.** Get a free key at [twelvedata.com](https://twelvedata.com/pricing)
+(800 calls/day; the page caches each day's fetch in `localStorage`, so opening
+it repeatedly costs about two calls a day regardless of how often). Paste the
+key into the page's setup card on first open — it is stored only in that
+browser and is never committed to this repository or sent anywhere but Twelve
+Data. Without a key, or if Twelve Data is unreachable, rate-limited, or rejects
+the key, the page falls back to the baked history with an explicit "as of"
+banner rather than presenting stale numbers as current.
+
+**Regenerating.** Re-run the generator whenever the model, its parameters, or
+the baked history changes — the live segment updates itself on every open and
+needs no rebuild:
+
+    python scripts/build_dashboard.py
+
+**On the SMA basis.** `four_state_signal` computed its trend reading on the
+*total-return* index by default, but a live page can only ever see *raw*
+closes — a price feed does not reinvest dividends for you. The two drift apart
+by roughly 0.4% over a 200-day window, which is enough to flip a borderline
+day, so `four_state_signal` gained a `price_basis` parameter and the
+dashboard's baked backtest is generated on that same raw-close basis, so the
+history it shows and the signal it computes live share one definition rather
+than two that quietly disagree. A ±1% hysteresis band around the crossing
+(`RuleParams.sma_band`, also new) was added at the same time, so the SMA does
+not need to move much to keep whipsaw days from re-triggering a state change.
+Together these move the improved variant on Panel N from the previously
+reported 25.35% CAGR / −67.0% max drawdown to **25.43% / −67.6%, at 7.9
+switches/yr** (down from 11.4/yr — the band earns its keep in choppy stretches
+like 2011 and 2015-16).
+
+---
+
 ## Outputs
 
 Committed in [`docs/`](docs/):
 
 | File | What it is |
 |---|---|
+| `dashboard.html` | Live operating dashboard for the four-state rotation — see [above](#live-dashboard) |
 | `findings.html` | Standalone write-up of Model A, with interactive charts |
 | `growth_findings.html` | Standalone write-up of Model B, with interactive charts |
 | `tearsheet_strict.png` | Model A tearsheet, strict constraint |
@@ -760,7 +815,7 @@ Committed in [`docs/`](docs/):
 pip install -e ".[dev]"
 python scripts/fetch_data.py        # caches to data/cache (a few minutes, paced)
 python scripts/validate_data.py     # the gates above; stops the build if any fail
-pytest -q                           # 83 tests
+pytest -q                           # 104 tests
 
 # Model A - drawdown-constrained
 python scripts/show_allocation.py --panel M          # what to hold, with tickers

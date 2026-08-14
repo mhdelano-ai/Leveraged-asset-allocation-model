@@ -454,3 +454,168 @@ def test_four_state_cash_states_earn_the_cash_rate():
     np.testing.assert_allclose(per_day.to_numpy(), per_day.iloc[0], rtol=1e-12)
     # 5% less the 10bp brokerage haircut, on a 360-day basis.
     assert float(per_day.iloc[0]) * 360.0 == pytest.approx(0.049, abs=1e-6)
+
+
+# --------------------------------------------------------------------------
+# price_basis and sma_band -- the live-dashboard correctness fix
+# --------------------------------------------------------------------------
+
+def test_sma_band_default_is_one_percent():
+    """The dashboard bakes its backtest on RuleParams() defaults; this pins
+    the value it is actually getting, since a silent default change here would
+    move the dashboard's headline numbers without a single obviously-related
+    test failing."""
+    from lam.alloc.rules import RuleParams
+
+    assert RuleParams().sma_band == pytest.approx(0.01)
+
+
+def test_sma_band_zero_reproduces_the_plain_crossing_rule():
+    """sma_band=0.0 must reproduce the old, un-banded ``price > sma`` exactly.
+
+    This is the regression net for the vectorised band construction: with a
+    zero-width band nothing ever falls *inside* it, so `decisive` gets a value
+    on every day the SMA exists and the ffill/seed machinery never has to do
+    anything. If a future refactor breaks that equivalence, this catches it.
+    """
+    from lam.alloc.rules import RuleParams, four_state_signal
+
+    asset = _gbm(2500, seed=41)
+    sig = four_state_signal(asset, RuleParams(sma_band=0.0))
+
+    price = (1.0 + asset.fillna(0.0)).cumprod()
+    sma = price.rolling(200, min_periods=200).mean()
+    expected_above = (price > sma).shift(1)
+
+    # Compared through the same True/False lens the rule itself uses to build
+    # state (`above_raw == 1.0`), where "still NaN" and "explicitly 0.0" both
+    # read as not-above -- see four_state_signal's docstring.
+    assert (sig["above_sma"].eq(True) == expected_above.eq(True)).all()
+    assert (sig["above_sma"].eq(False) == expected_above.eq(False)).all()
+
+
+def test_sma_band_holds_the_previous_state_inside_the_band():
+    """A price dithering within +/-1% of its own SMA must not whipsaw.
+
+    Built by hand rather than off a random walk, so prices can be placed at
+    *known* offsets from the SMA -- some inside the band (must hold the prior
+    reading), some decisively outside it on both sides (must flip). This is
+    the 2011 / 2015-16 scenario the band exists for.
+    """
+    from lam.alloc.rules import RuleParams, four_state_signal
+
+    n1 = 260
+    idx1 = pd.bdate_range("2000-01-03", periods=n1)
+    price1 = (1.0 + pd.Series(np.full(n1, 0.0009), index=idx1)).cumprod()
+    sma_at_end = price1.rolling(200, min_periods=200).mean().iloc[-1]
+
+    # Offsets from that SMA (which barely moves over a ~16-day stretch
+    # relative to its 200-day lookback): alternately inside +/-1% and
+    # decisively outside it, on both sides.
+    offsets = [0.005, -0.003, 0.012, -0.006, 0.002, -0.015, 0.006, -0.002,
+               0.020, -0.030, -0.008, 0.040, 0.008, -0.002, 0.001, 0.060]
+    idx2 = pd.bdate_range(idx1[-1] + pd.Timedelta(days=1), periods=len(offsets))
+    price2 = pd.Series([sma_at_end * (1.0 + o) for o in offsets], index=idx2)
+
+    returns = pd.concat([price1, price2]).pct_change().dropna()
+
+    # vol_threshold=1.0 (never wild) isolates the trend leg being tested --
+    # the volatility leg is untouched by sma_band and is tested elsewhere.
+    banded = four_state_signal(returns, RuleParams(sma_band=0.01, vol_threshold=1.0))
+    plain = four_state_signal(returns, RuleParams(sma_band=0.0, vol_threshold=1.0))
+    tail_banded = banded.loc[price2.index, "above_sma"]
+    tail_plain = plain.loc[price2.index, "above_sma"]
+
+    # The fixture must actually make the two disagree -- otherwise this
+    # passes no matter what the band logic does.
+    assert (tail_banded != tail_plain).any()
+
+    # And the band must specifically hold a state through at least one day
+    # where the plain rule flips on a move that stays inside +/-1%.
+    held = (tail_banded == tail_banded.shift(1)) & (tail_plain != tail_plain.shift(1))
+    assert held.any()
+
+
+def test_sma_band_is_causal():
+    """The band decision for day t must still use only data through t-1.
+
+    Hysteresis adds state (the running "hold" value carried by ffill), which
+    is exactly the kind of mechanism that can accidentally leak a future
+    observation backward if it is built wrong -- so this is worth checking on
+    its own rather than trusting the plain-rule causality test to cover it.
+    """
+    from lam.alloc.rules import RuleParams, four_state_signal
+
+    asset = _gbm(3000, seed=61)
+    clean = four_state_signal(asset, RuleParams(sma_band=0.01))
+
+    corrupted = asset.copy()
+    rng = np.random.default_rng(11)
+    corrupted.iloc[2200:] = rng.normal(-0.02, 0.05, len(corrupted) - 2200)
+    dirty = four_state_signal(corrupted, RuleParams(sma_band=0.01))
+
+    np.testing.assert_allclose(
+        clean["exposure"].iloc[:2200].to_numpy(),
+        dirty["exposure"].iloc[:2200].to_numpy(),
+        rtol=0, atol=0,
+    )
+
+
+def test_price_basis_changes_the_trend_reading_when_it_diverges_from_total_return():
+    """price_basis is not a silent no-op, and defaulting to None must be
+    exactly the old total-return basis.
+
+    This is the other half of the dashboard's correctness fix: a raw price
+    index that never accrues the dividend baked into the total-return series
+    (the gap four_state_signal's docstring describes between a fund's raw
+    close and its adjusted close) must be able to move the trend flag.
+    """
+    from lam.alloc.rules import RuleParams, four_state_signal
+
+    asset = _gbm(2200, seed=53)
+    tr_price = (1.0 + asset.fillna(0.0)).cumprod()
+
+    daily_drag = (1.0 + 0.01) ** (1.0 / 252.0) - 1.0
+    raw_price = tr_price / (1.0 + daily_drag) ** np.arange(1, len(tr_price) + 1)
+
+    default_sig = four_state_signal(asset, RuleParams(sma_band=0.0))
+    basis_sig = four_state_signal(asset, RuleParams(sma_band=0.0), price_basis=raw_price)
+    assert not default_sig["above_sma"].equals(basis_sig["above_sma"])
+
+    # Passing the *same* curve back in as its own basis must be a no-op --
+    # price_basis=None is documented to mean "the total-return curve itself".
+    identity_sig = four_state_signal(asset, RuleParams(sma_band=0.0), price_basis=tr_price)
+    assert default_sig["above_sma"].equals(identity_sig["above_sma"])
+
+
+def test_price_basis_reindexes_and_forward_fills():
+    """price_basis need not share index_tr's exact calendar -- e.g. a live
+    feed that only just started, or a fixture sampled coarser than daily."""
+    from lam.alloc.rules import RuleParams, four_state_signal
+
+    asset = _gbm(1500, seed=71)
+    tr_price = (1.0 + asset.fillna(0.0)).cumprod()
+    sparse = tr_price.iloc[::3]  # every third trading day only
+
+    sig = four_state_signal(asset, RuleParams(), price_basis=sparse)
+    # Warmup aside, every day must get a real (non-NaN) sma once the window fills.
+    assert sig["sma"].iloc[210:].notna().all()
+    assert sig["state"].iloc[210:].ne("warmup").all()
+
+
+def test_backtest_four_state_forwards_price_basis():
+    """backtest_four_state must actually pass price_basis through to the
+    signal rather than silently dropping the keyword."""
+    from lam.alloc.rules import RuleParams, backtest_four_state
+
+    asset = _gbm(2200, mu=0.12, sigma=0.22, seed=83)
+    rf = pd.Series(0.03, index=asset.index)
+    tr_price = (1.0 + asset.fillna(0.0)).cumprod()
+    daily_drag = (1.0 + 0.01) ** (1.0 / 252.0) - 1.0
+    raw_price = tr_price / (1.0 + daily_drag) ** np.arange(1, len(tr_price) + 1)
+
+    _, sig_default = backtest_four_state(asset, rf, RuleParams(sma_band=0.0), cost_per_unit=0.0)
+    _, sig_basis = backtest_four_state(
+        asset, rf, RuleParams(sma_band=0.0), cost_per_unit=0.0, price_basis=raw_price
+    )
+    assert not sig_default["state"].equals(sig_basis["state"])
