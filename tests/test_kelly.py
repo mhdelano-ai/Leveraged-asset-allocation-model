@@ -1,0 +1,129 @@
+"""Kelly solver tests. All synthetic -- nothing here touches the network."""
+
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from lam.kelly import (
+    ASSETS,
+    KellyPanel,
+    constrained_shrunk_kelly,
+    empirical_kelly,
+    gaussian_kelly,
+    growth_rate,
+    score,
+    summarise,
+)
+from lam.kelly.solve import portfolio_returns
+
+
+def _panel(returns: np.ndarray, cash_rate: float = 0.0) -> KellyPanel:
+    index = pd.date_range("2000-01-31", periods=len(returns), freq="ME")
+    frame = pd.DataFrame(returns, columns=ASSETS, index=index)
+    cash = pd.Series(cash_rate, index=index, name="cash")
+    return KellyPanel(name="synthetic", returns=frame, cash=cash, tickers=dict.fromkeys(ASSETS, "X"))
+
+
+def _lognormal_panel(mu: float, sigma: float, n: int = 4000, seed: int = 0) -> KellyPanel:
+    """One asset with known drift and vol; the rest are zero-premium noise.
+
+    The others are noise rather than literal zeros so the sample covariance stays
+    invertible -- a degenerate column is a different test, below.
+    """
+    rng = np.random.default_rng(seed)
+    returns = rng.normal(0.0, 0.01, size=(n, len(ASSETS)))
+    returns[:, 0] = rng.normal(mu / 12.0, sigma / np.sqrt(12.0), size=n)
+    return _panel(returns)
+
+
+def test_gaussian_kelly_is_sigma_inverse_mu():
+    rng = np.random.default_rng(7)
+    returns = rng.normal(0.005, 0.03, size=(600, len(ASSETS)))
+    panel = _panel(returns)
+    mu = panel.excess.mean().to_numpy() * 12
+    sigma = panel.excess.cov().to_numpy() * 12
+    assert np.allclose(gaussian_kelly(panel).to_numpy(), np.linalg.solve(sigma, mu))
+
+
+def test_single_asset_kelly_approaches_mu_over_sigma_squared():
+    # The continuous-time optimum is f* = mu / sigma^2. Monthly rebalancing and
+    # sampling noise keep it close rather than exact.
+    mu, sigma = 0.08, 0.20
+    panel = _lognormal_panel(mu, sigma, n=6000, seed=3)
+    weights = empirical_kelly(panel, financing_spread=0.0).weights
+    assert weights[ASSETS[0]] == pytest.approx(mu / sigma**2, rel=0.15)
+
+
+def test_growth_rate_matches_the_definition():
+    returns = np.tile(np.array([[0.02, 0.0, 0.0, 0.0], [-0.01, 0.0, 0.0, 0.0]]), (5, 1))
+    panel = _panel(returns)
+    w = np.array([1.0, 0.0, 0.0, 0.0])
+    realised = portfolio_returns(w, panel.excess.to_numpy(), panel.cash.to_numpy())
+    expected = 12 * np.mean(np.log1p(realised))
+    assert growth_rate(w, panel.excess.to_numpy(), panel.cash.to_numpy()) == pytest.approx(expected)
+
+
+def test_growth_rate_is_minus_infinity_when_a_month_wipes_the_account_out():
+    returns = np.zeros((24, len(ASSETS)))
+    returns[5, 0] = -0.30
+    panel = _panel(returns)
+    assert growth_rate(np.array([4.0, 0, 0, 0]), panel.excess.to_numpy(), panel.cash.to_numpy()) == -np.inf
+
+
+def test_no_leverage_mode_never_borrows_or_shorts():
+    panel = _lognormal_panel(0.20, 0.15, n=1200, seed=11)
+    weights = empirical_kelly(panel, mode="long_only_unlevered").weights
+    assert (weights >= -1e-9).all()
+    assert weights.sum() <= 1.0 + 1e-6
+
+
+def test_financing_cost_reduces_the_optimal_leverage():
+    panel = _lognormal_panel(0.12, 0.15, n=3000, seed=5)
+    cheap = empirical_kelly(panel, financing_spread=0.0).weights.sum()
+    dear = empirical_kelly(panel, financing_spread=0.05).weights.sum()
+    assert dear < cheap
+
+
+def test_fraction_scales_the_full_kelly_weights():
+    panel = _lognormal_panel(0.10, 0.18, n=1500, seed=2)
+    full = empirical_kelly(panel).weights
+    half = empirical_kelly(panel, fraction=0.5).weights
+    assert np.allclose(half.to_numpy(), full.to_numpy() * 0.5)
+
+
+def test_gross_cap_binds():
+    panel = _lognormal_panel(0.25, 0.15, n=1500, seed=9)
+    weights = empirical_kelly(panel, mode="long_only", max_gross=2.0).weights
+    assert weights.abs().sum() <= 2.0 + 1e-6
+
+
+def test_shrunk_kelly_pulls_a_negative_estimated_premium_back_toward_zero():
+    # Asset 2 has a genuinely negative sample mean; unshrunk Kelly shorts it,
+    # the equal-Sharpe prior should not.
+    rng = np.random.default_rng(4)
+    returns = rng.normal(0.006, 0.03, size=(400, len(ASSETS)))
+    returns[:, 1] -= 0.010
+    panel = _panel(returns)
+    raw = gaussian_kelly(panel)
+    shrunk = constrained_shrunk_kelly(panel, mode="long_only", mu_shrink=1.0)
+    assert raw[ASSETS[1]] < 0
+    assert shrunk[ASSETS[1]] >= -1e-9
+
+
+def test_summarise_reports_ruin_as_a_date_not_a_return():
+    index = pd.date_range("2000-01-31", periods=10, freq="ME")
+    returns = pd.Series([0.01] * 4 + [-1.5] + [0.01] * 5, index=index)
+    out = summarise(returns)
+    assert out["ruined"]
+    assert out["ruin_date"] == index[4]
+    assert out["log_growth"] == -np.inf
+    assert np.isnan(out["cagr"])
+
+
+def test_score_reports_drawdown_of_a_flat_book_as_zero():
+    panel = _panel(np.zeros((36, len(ASSETS))), cash_rate=0.002)
+    out = score(np.zeros(len(ASSETS)), panel)
+    assert out["max_drawdown"] == pytest.approx(0.0)
+    assert out["growth"] == pytest.approx(12 * np.log1p(0.002))

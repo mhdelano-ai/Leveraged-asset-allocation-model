@@ -50,14 +50,27 @@ def _pace(host: str) -> None:
     _last_request[host] = time.monotonic()
 
 
-def get(url: str, *, params: dict | None = None, timeout: int = 60, tries: int = 5) -> bytes:
-    """GET with pacing and exponential backoff. Returns the raw body."""
+def get(
+    url: str,
+    *,
+    params: dict | None = None,
+    timeout: int = 60,
+    tries: int = 5,
+    headers: dict | None = None,
+) -> bytes:
+    """GET with pacing and exponential backoff. Returns the raw body.
+
+    ``headers`` overrides the session defaults for this request only. FRED needs
+    it: the desktop UA that Yahoo *requires* is the one FRED's bot filter stalls
+    on -- the connection is accepted and then never answered, so it surfaces as a
+    read timeout and five rounds of backoff rather than a 403.
+    """
     host = url.split("/")[2]
     last_err: Exception | None = None
     for attempt in range(tries):
         _pace(host)
         try:
-            resp = session().get(url, params=params, timeout=timeout)
+            resp = session().get(url, params=params, timeout=timeout, headers=headers)
             if resp.status_code == 429:
                 raise requests.HTTPError("429 Too Many Requests")
             resp.raise_for_status()

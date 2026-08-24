@@ -22,6 +22,7 @@ daily-reset leveraged ETFs, and portfolio margin / box spreads.
 
 - [Model A — the drawdown-constrained model](#model-a--drawdown-constrained-multi-asset)
 - [Model B — the return-maximising model](#model-b--return-maximising-concentrated-leverage)
+- [Appendix — Kelly on the four-asset question](#appendix--kelly-on-the-four-asset-question)
 
 ---
 
@@ -866,3 +867,75 @@ python scripts/run_growth_robustness.py              # transfer, 1929, vehicles
 - Panel X's mutual-fund sleeves are actively managed and survivorship-selected.
 - Portfolio margin did not exist for retail investors before 2007; pre-2007
   results under that schedule are counterfactual.
+
+---
+
+# Appendix — Kelly on the four-asset question
+
+A separate question, asked of the same engine and the same discipline about
+lookahead: **what is the Kelly-optimal portfolio of US equities, international
+ex-US equities, US bonds, international ex-US bonds and cash, based entirely on
+historical data?**
+
+Full write-up: [`docs/kelly_findings.html`](docs/kelly_findings.html). Reproduce
+with `python scripts/run_kelly.py --draws 1000`; raw output in
+`docs/kelly_report.txt` and `docs/kelly_results.json`.
+
+### The answer
+
+**Full Kelly is not a portfolio.** On 1993–2026 monthly data it asks for
+**17.5× gross exposure** — +3.45 US equities, −1.53 international equities,
+0.00 US bonds, **+12.48 international bonds**, financed by a −13.4× cash
+position — and an account that followed it, re-estimating the weights every year
+from data available at the time, **was wiped out in September 2008** on a
+−113.9% month.
+
+| Kelly fraction | In-sample log growth | Out-of-sample log growth |
+|---|---|---|
+| 0.25× | 14.9% | 11.2% |
+| **0.50×** | 23.8% | **15.0% — the out-of-sample peak** |
+| 0.75× | 29.6% | 10.4% |
+| 0.90× and above | 31.3% | **ruin** |
+
+In sample, growth rises monotonically to 1.0× — that is what "optimal" means and
+it is evidence of nothing. Out of sample it peaks near **half Kelly** and then
+collapses.
+
+### Two structural findings
+
+**Without leverage, Kelly is 100% US equities.** Long-only with no borrowing, the
+log-optimal portfolio is all US equity — in both panels, at the bootstrap median,
+and after shrinking the means toward an equal-Sharpe prior. At 1× exposure a
+15%-vol book gives up ~1.1pp/yr to variance drag, nowhere near enough to buy a
+4%-return bond sleeve a place. **Kelly is not an argument for diversification;
+it is an argument for leverage.** Bonds earn a weight only when they can be
+levered, and levering them is what produces the ruin above.
+
+**The weights are not identified by the data.** A 12-month block bootstrap puts
+the US bond weight's 90% interval at −3.10 to +4.54 — the sign is unknown — and
+gross exposure between 7.8× and 29.9×. Re-solved decade by decade, the
+2×-capped solution is 0.59 US equity / 1.41 international bonds in the 1990s,
+0.00 US equity / 1.22 international equity in the 2000s, and 2.00 US equity in
+the 2010s: three consecutive decades, three unrelated portfolios.
+
+Run honestly out of sample, the unlevered optimiser earned **9.99%/yr against
+11.53%** for simply owning US equities and never solving anything.
+
+### Data, and its one severe limitation
+
+| Sleeve | Panel `modern` (2013-07→) | Panel `long` (1993-01→) |
+|---|---|---|
+| US equities | VTI | VFINX |
+| Intl ex-US equities | VXUS | VTRIX *(active, survivorship-selected)* |
+| US bonds | BND | VBMFX |
+| Intl ex-US bonds | BNDX | PFORX *(active, survivorship-selected)* |
+| Cash | FRED `DTB3`, discount→BEY | same |
+
+**International bonds bind everything.** The asset class as it is actually bought
+— currency-hedged global aggregate ex-USD — has a tradable index history starting
+2013-06. Thirteen years cannot support a Kelly weight, so the long panel
+substitutes the longest-running hedged foreign bond fund, and its 0.85 Sharpe
+ratio (an active fund, selected for having survived, measured across a 30-year
+global bond bull market) is precisely what the levered solution is betting on.
+On the clean modern data those same bonds returned *less than cash*, and Kelly
+gives them nothing at all.

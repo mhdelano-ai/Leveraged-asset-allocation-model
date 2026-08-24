@@ -22,6 +22,12 @@ from .http import get
 
 BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv"
 
+# FRED's bot filter stalls on the desktop-browser UA that the Yahoo endpoint
+# requires: it accepts the connection and never answers, which the shared client
+# can only read as a timeout and retry. A plain library UA is answered in under a
+# second, so this request opts out of the session default.
+FRED_HEADERS = {"User-Agent": "python-requests/lam-research"}
+
 # Expected minimum row counts. Anything materially shorter means the series was
 # truncated upstream (licence change) or renamed.
 MIN_ROWS = {
@@ -62,7 +68,7 @@ def series(series_id: str, *, refresh: bool = False) -> pd.Series:
         return cache.load(key)
 
     url = f"{BASE}?id={series_id}"
-    raw = get(url)
+    raw = get(url, headers=FRED_HEADERS)
     text = raw.decode("utf-8", "replace")
     if text.lstrip().startswith("<"):
         raise RuntimeError(f"FRED {series_id}: returned HTML, not CSV (series missing?)")
