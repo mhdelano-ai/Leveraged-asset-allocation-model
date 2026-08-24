@@ -19,14 +19,20 @@ import pandas as pd
 from lam.kelly import ASSETS, PRETTY, build_panel
 from lam.kelly.forward import (
     GLOBAL_EQUITY_WEIGHTS,
+    PRESETS,
     Assumptions,
     build_cma,
     bundle_kelly,
     bundle_moments,
     constrained_kelly,
+    decompose_growth,
     forward_ladder,
+    growth_needed_for,
+    historical_real_eps_growth,
     kelly,
     market_inputs,
+    profit_share,
+    rolling_real_eps_growth,
     tilt_sensitivity,
     with_equity_premium,
 )
@@ -34,6 +40,11 @@ from lam.kelly.forward import (
 
 def _pct(v, dp=2):
     return "  --  " if v is None or (isinstance(v, float) and np.isnan(v)) else f"{v * 100:.{dp}f}%"
+
+
+def _ordinal(n: int) -> str:
+    suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
 
 
 def _weights(w: pd.Series) -> str:
@@ -116,7 +127,83 @@ def main() -> int:
     )
 
     print("\n" + "=" * 100)
-    print("5. If the equity premium is not what the yields imply")
+    print("5. Where the growth assumption comes from, and what it implies")
+    print("=" * 100)
+    hist = historical_real_eps_growth()
+    show = hist.copy()
+    for c in ("raw_endpoints", "smoothed_endpoints"):
+        show[c] = show[c].map(lambda v: _pct(v))
+    show["years"] = hist["years"].map(lambda v: f"{v:.0f}")
+    print("   Realised real earnings PER SHARE growth, S&P 500 (Shiller):")
+    print(show.to_string())
+
+    rolling = rolling_real_eps_growth()
+    print(f"\n   Every 30-year window since 1871 ({len(rolling)} of them):")
+    print(
+        "      "
+        + "   ".join(
+            f"p{q}: {_pct(np.percentile(rolling, q))}" for q in (5, 25, 50, 75, 95)
+        )
+        + f"   max: {_pct(rolling.max())}"
+    )
+
+    implied = cma.implied_eps_growth
+    pct = float((rolling.to_numpy() < implied["us_equity"]).mean() * 100)
+    print(
+        f"\n   The build-up assumes {_pct(cma.build_up.loc['us_equity', 'real growth'])} of"
+        f" AGGREGATE real growth plus {_pct(cma.build_up.loc['us_equity', 'buyback'])} of buyback,"
+        f"\n   which is {_pct(implied['us_equity'])} PER SHARE -- the {pct:.0f}th percentile of"
+        " that distribution.\n   The base case is an above-median growth forecast, not a"
+        " pessimistic one."
+    )
+    for target, name in ((0.08, "8% nominal"), (0.1082, "its own 1993-2026 realised 10.82%")):
+        need = growth_needed_for(cma, target)
+        print(
+            f"\n   For US equities to return {name}, per-share real growth must be"
+            f" {_pct(need)}\n      -- against a best-ever 30-year figure of {_pct(rolling.max())}."
+        )
+
+    print("\n" + "=" * 100)
+    print("6. Which parts of recent growth can repeat, and which cannot")
+    print("=" * 100)
+    parts = decompose_growth()
+    show = parts.copy()
+    for c in show.columns:
+        show[c] = parts[c].map(lambda v: f"{v * 100:+6.2f}%")
+    print(show.to_string())
+    share = profit_share()
+    print(
+        f"\n   Profit share of GDP: {share.loc[:'2000'].mean():.2%} average to 2000,"
+        f" {share.loc['2010':].mean():.2%} since 2010, {share.iloc[-1]:.2%} now."
+    )
+    print(
+        "   Dilution swung from +2.12%/yr against shareholders to -0.84%/yr in their\n"
+        "   favour -- a ~3pp/yr structural gain, and the durable half of the modern era's\n"
+        "   growth. The other half, +1.75%/yr of profit-share expansion, is a level shift:\n"
+        "   the share doubled, and cannot double again."
+    )
+
+    print("\n   The same question under each named assumption set:")
+    rows = []
+    for name, preset in PRESETS.items():
+        scenario = build_cma(panel, inputs=inputs, assumptions=preset)
+        moments = bundle_moments(scenario)
+        w = bundle_kelly(scenario, financing_spread=args.spread)
+        equity = w["us_equity"] + w["intl_equity"]
+        rows.append(
+            {
+                "assumptions": name,
+                "US per-share growth": _pct(scenario.implied_eps_growth["us_equity"]),
+                "global equity return": _pct(moments["geometric"]),
+                "over cash": _pct(moments["excess"]),
+                "full Kelly": f"{equity:.2f}x",
+                "half Kelly": f"{equity / 2:.2f}x",
+            }
+        )
+    print(pd.DataFrame(rows).set_index("assumptions").to_string())
+
+    print("\n" + "=" * 100)
+    print("7. If the equity premium is not what the yields imply")
     print("=" * 100)
     rows = []
     for shift in (-0.02, -0.01, 0.0, 0.01, 0.02, 0.03):
@@ -135,7 +222,7 @@ def main() -> int:
     print(pd.DataFrame(rows).set_index("shift").to_string())
 
     print("\n" + "=" * 100)
-    print(f"6. Forward account risk: {args.paths} bootstrapped {args.years}-year paths, Reg-T account")
+    print(f"8. Forward account risk: {args.paths} bootstrapped {args.years}-year paths, Reg-T account")
     print("=" * 100)
     equity = np.array([GLOBAL_EQUITY_WEIGHTS[0], GLOBAL_EQUITY_WEIGHTS[1], 0.0, 0.0])
     ladder = forward_ladder(

@@ -158,7 +158,10 @@ footer{margin-top:80px; padding-top:24px; border-top:1px solid var(--rule); font
   backtested ladder rewarded leverage all the way to the Reg-T cap. Run on what these four asset
   classes actually yield today, <strong>full Kelly is 1.18&times; equities and nothing in bonds
   &mdash; and the growth-optimal leverage is roughly &ldquo;fully invested&rdquo;.</strong> The
-  entire difference is the risk premium, and none of it is a modelling choice.</p>
+  entire difference is the risk premium, and none of it is a modelling choice. Granting the
+  strongest version of the case that modern companies compound faster moves that to 1.50&times;;
+  the median of 150 years moves it to 0.90&times;. <strong>The whole defensible range is
+  0.90&times; to 1.50&times;</strong>, and none of it reaches the Reg-T cap.</p>
   <hr class="fracline">
 </header>
 
@@ -188,6 +191,12 @@ footer{margin-top:80px; padding-top:24px; border-top:1px solid var(--rule); font
   as 4.63% in dollars. And <b>the arithmetic column is the one Kelly uses</b>: it is the geometric
   build-up plus &sigma;&sup2;/2, worth 1.5pp on equities &mdash; larger than the entire bond risk
   premium.</p>
+  <p class="note">One label matters more than it looks: <b>&ldquo;real growth&rdquo; is
+  <em>aggregate</em> earnings growth, not per share.</b> The buyback column is the separate term
+  that converts one to the other, so the growth an index-fund holder actually receives is the sum:
+  2.80%/yr for US equities, 2.10% for international. Where that comes from, and how it compares with
+  150 years of realised earnings growth, has <a href="#growth">its own section below</a> &mdash; it
+  is the only number here that is neither observed nor derived.</p>
   <p class="note">Volatility and correlation are measured over the last five years, not the last
   thirty, because the stock/bond correlation regime changed in 2022. It is currently
   <b>+0.22</b> between US equities and US bonds, against &minus;0.30 or lower through 2000&ndash;2020.
@@ -358,6 +367,186 @@ footer{margin-top:80px; padding-top:24px; border-top:1px solid var(--rule); font
 </section>
 
 <section>
+  <h2 id="growth">Where the 1.50% growth assumption comes from</h2>
+  <p class="lede">It is the one number in the build-up that is neither observed nor derived, so it
+  deserves more than a footnote. It is also the number every equity conclusion on this page rests
+  on.</p>
+
+  <h3>What it is, precisely</h3>
+  <p><strong>1.50% is <em>aggregate</em> real earnings growth &mdash; not earnings per share.</strong>
+  The buyback yield is the separate term that converts one into the other. What an index-fund holder
+  actually earns in growth is the sum of the two: <b>1.50% + 1.30% = 2.80% per share, per year, in
+  real terms</b>. Getting this backwards is the classic error in this decomposition &mdash; drop a
+  historical <em>per-share</em> growth rate into the growth slot while a buyback term sits beside it,
+  and the share count is counted twice.</p>
+
+  <h3>What the record says</h3>
+  <p class="lede">Real earnings per share for the S&amp;P 500, from Robert Shiller's dataset back to
+  1871. Earnings are violently cyclical, so measuring between two single months mostly reports where
+  those months sat in the cycle; the smoothed column averages ten years at each end and is the one
+  to believe.</p>
+  <div class="scroll">
+    <table>
+      <caption>Realised real earnings-per-share growth, annualised. Shiller's earnings column ends 2023 &mdash; reported earnings arrive late.</caption>
+      <thead><tr><th>Period</th><th>Years</th><th>Raw endpoints</th><th>10-year averaged endpoints</th></tr></thead>
+      <tbody>
+        <tr class="mark"><td>1871&ndash;2023 &mdash; the full record</td><td>153</td><td>1.93%</td><td><b>1.80%</b></td></tr>
+        <tr><td>1900&ndash;2023</td><td>124</td><td>1.85%</td><td>1.68%</td></tr>
+        <tr><td>1950&ndash;2023</td><td>74</td><td>2.41%</td><td>2.33%</td></tr>
+        <tr><td>1960&ndash;2000</td><td>41</td><td>2.26%</td><td>1.22%</td></tr>
+        <tr><td>1985&ndash;2023 &mdash; the buyback era</td><td>39</td><td>3.47%</td><td>3.86%</td></tr>
+        <tr><td>2005&ndash;2023</td><td>19</td><td>3.40%</td><td>4.05%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Look at 1960&ndash;2000: <b>2.26% on raw endpoints, 1.22% smoothed</b>. Same four
+  decades, nearly a full point apart, purely from where the cycle happened to sit in the first and
+  last month. Any single quoted growth rate for equities should be treated with that much suspicion.</p>
+
+  <h3>An investor gets one draw from a distribution</h3>
+  <p class="lede">Every 30-year window in the record &mdash; 1,199 of them &mdash; measured the same
+  smoothed way. The average is not the input; the spread is.</p>
+  <div class="scroll">
+    <table>
+      <caption>Distribution of 30-year real EPS growth, 1871&ndash;2023.</caption>
+      <thead><tr><th></th><th>5th</th><th>25th</th><th>Median</th><th>75th</th><th>95th</th><th>Best ever</th></tr></thead>
+      <tbody>
+        <tr><td>Real EPS growth over 30 years</td><td class="neg">&minus;0.51%</td><td>1.22%</td><td><b>1.68%</b></td><td>2.41%</td><td>3.32%</td><td>3.72%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note"><b>There are thirty-year stretches in which real earnings per share went
+  backwards.</b> The median is 1.68% &mdash; and this page's base case implies 2.80%, which sits at
+  the <b>83rd percentile</b> of that distribution. The 1.50% growth assumption looks conservative in
+  isolation and is not: once the buyback term is added, the base case is an above-median forecast.</p>
+
+  <h3>What each growth rate would mean</h3>
+  <div class="scroll">
+    <table>
+      <caption>Holding today's 1.17% dividend yield and 2.34% breakeven inflation fixed, and moving only growth.</caption>
+      <thead><tr><th>If per-share real growth is&hellip;</th><th>Rate</th><th>US equities return</th><th>Global equity over cash</th><th>Full Kelly</th></tr></thead>
+      <tbody>
+        <tr class="bad"><td>The worst 30 years in the record</td><td>&minus;0.51%</td><td>3.00%</td><td>+1.05%</td><td>0.04&times;</td></tr>
+        <tr><td>25th percentile</td><td>1.22%</td><td>4.73%</td><td>+2.78%</td><td>0.72&times;</td></tr>
+        <tr class="mark"><td><b>The median 30 years</b></td><td>1.68%</td><td>5.19%</td><td>+3.24%</td><td><b>0.90&times;</b></td></tr>
+        <tr class="mark"><td><b>This page's base case</b></td><td>2.80%</td><td>6.31%</td><td>+4.36%</td><td><b>1.18&times;</b></td></tr>
+        <tr><td>95th percentile</td><td>3.32%</td><td>6.83%</td><td>+4.88%</td><td>1.37&times;</td></tr>
+        <tr><td>The best 30 years in 150</td><td>3.72%</td><td>7.22%</td><td>+5.27%</td><td>1.52&times;</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note"><b>Run it the other way and the arithmetic gets stark.</b> For US equities to
+  return a round 8%/yr, per-share real growth must be <b>4.49%</b> &mdash; higher than any 30-year
+  stretch since 1871. To repeat the 10.82%/yr they actually delivered from 1993 to 2026 would take
+  <b>7.31%</b>, roughly double the best ever recorded. Neither is a statement about growth being
+  weak; it is a statement about the starting dividend yield. That yield averaged about 4.4% across
+  the historical record and is <b>1.17%</b> today, and the missing three points have to come from
+  somewhere.</p>
+
+  <h3>Why 1.50% and not the 3.3% the record implies</h3>
+  <p>Aggregate real earnings growth since 1871 was roughly 3.3%/yr &mdash; the 1.80% per-share
+  figure plus the ~1.5% a year of net new share issuance that diluted it, and close to real GDP
+  growth over the same span. Two things argue against extrapolating that:</p>
+  <ul>
+    <li><strong>The economy grows more slowly now.</strong> Potential US real GDP growth is
+    generally put nearer 1.8% than the 3.3% of the era that produced the historical figure, on
+    demographics alone. Corporate earnings cannot outgrow the economy indefinitely.</li>
+    <li><strong>The profit share of GDP is at a record high.</strong> A large part of the
+    1985&ndash;2023 acceleration to 3.9% was margin expansion &mdash; earnings growing faster than
+    output &mdash; which is a level shift, not a growth rate. Extrapolating it assumes margins keep
+    rising from a record.</li>
+  </ul>
+  <p class="note">The counter-argument deserves stating: if AI-driven margin expansion is real and
+  durable, 2.5% aggregate growth is defensible, which puts per-share growth at 3.8% &mdash; above
+  anything in the record &mdash; and full Kelly near 1.5&times;. That is precisely the belief the
+  1.5&times; rung requires, and it is a coherent one. It is just not what the yields say, and it
+  should be held deliberately rather than inherited from a backtest.</p>
+</section>
+
+<section>
+  <h2>&ldquo;Companies are better at this than they used to be&rdquo;</h2>
+  <p class="lede">The obvious objection to anchoring on 150 years is that the last forty look
+  structurally different, and that recent history is the better guide. That argument is right about
+  something large and real &mdash; and the decomposition below separates the part of it that can
+  repeat from the part that cannot.</p>
+  <div class="scroll">
+    <table>
+      <caption>Real per-share earnings growth = real GDP growth + profit-share drift &minus; dilution. Aggregate profits are deflated by the GDP deflator, which makes the first two terms exactly additive.</caption>
+      <thead><tr><th>Era</th><th>Real GDP</th><th>Profit-share drift</th><th>Aggregate real profits</th><th>Real EPS per share</th><th>Dilution</th></tr></thead>
+      <tbody>
+        <tr><td>1947&ndash;1985</td><td>+3.66%</td><td>+0.10%</td><td>+3.75%</td><td>+1.64%</td><td class="neg">+2.12%</td></tr>
+        <tr class="mark"><td>1985&ndash;2023</td><td>+2.61%</td><td>+1.75%</td><td>+4.41%</td><td><b>+3.86%</b></td><td>+0.55%</td></tr>
+        <tr><td>1995&ndash;2023</td><td>+2.48%</td><td>+1.55%</td><td>+4.07%</td><td>+3.65%</td><td>+0.42%</td></tr>
+        <tr class="mark"><td>2010&ndash;2023</td><td>+2.42%</td><td>+0.53%</td><td>+2.96%</td><td>+3.80%</td><td class="pos">&minus;0.84%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>What the argument gets right &mdash; and it is worth about three points a year</h3>
+  <p>Look at the dilution column, not the growth column. From 1947 to 1985, aggregate corporate
+  profits grew at 3.75%/yr in real terms while the shareholder's earnings per share grew at 1.64%
+  &mdash; <strong>2.12 percentage points a year leaked away into new share issuance.</strong> By
+  2010&ndash;2023 that number is <strong>&minus;0.84%</strong>: buybacks now <em>add</em> most of a
+  point a year to per-share growth rather than subtracting two.</p>
+  <p><strong>That is a swing of roughly three percentage points a year in shareholders' favour, and
+  it is exactly the thing the argument is pointing at.</strong> It is not a cyclical fluke or a
+  measurement artefact. Buybacks became practical in 1982, capital allocation is genuinely more
+  disciplined than the conglomerate era, and forty years is long enough to call it a regime rather
+  than a phase. Nothing in this analysis assumes it reverses.</p>
+
+  <h3>What it gets wrong &mdash; and it is worth about the same</h3>
+  <p>The other half of 1985&ndash;2023's 3.86% is the profit-share column: <strong>+1.75%/yr from
+  corporate profits rising from about 5% of GDP to 11.4%.</strong> That is not a growth rate, it is
+  a level shift. The profit share doubled; it cannot double again, because 23% of GDP as corporate
+  profit is not a world that exists. Even holding it permanently at today's record &mdash; which is
+  what this page's base case does &mdash; contributes exactly zero to future growth. The
+  1985&ndash;2023 rate can only be extrapolated by assuming margins keep climbing from an all-time
+  high.</p>
+  <p class="note">Two smaller pieces of the same era point the same way: the statutory corporate tax
+  rate fell from 46% to 21%, and interest expense fell with a forty-year decline in rates. Both
+  raised the <em>level</em> of after-tax earnings. Neither can happen twice.</p>
+
+  <h3>Putting the repeatable parts back together</h3>
+  <p>Grant the argument everything that survives the decomposition &mdash; the end of dilution in
+  full, and aggregate growth above US GDP because roughly 40% of index revenue is earned abroad
+  &mdash; and hold margins at their record:</p>
+  <div class="scroll">
+    <table>
+      <caption>Three coherent positions. Growth and buyback are stated separately in each, so the share count is never counted twice.</caption>
+      <thead><tr><th>Assumption set</th><th>US per-share growth</th><th>Percentile of the 30y record</th><th>Global equity return</th><th>Over cash</th><th>Full Kelly</th><th>Half Kelly</th></tr></thead>
+      <tbody>
+        <tr><td>Median 30 years of history</td><td>1.68%</td><td>50th</td><td>5.57%</td><td>+3.24%</td><td>0.90&times;</td><td>0.45&times;</td></tr>
+        <tr class="mark"><td>Base case &mdash; this page</td><td>2.80%</td><td>83rd</td><td>6.69%</td><td>+4.36%</td><td><b>1.18&times;</b></td><td>0.59&times;</td></tr>
+        <tr class="mark"><td><b>Modern regime</b> &mdash; the argument, granted</td><td>3.86%</td><td>100th</td><td>7.54%</td><td>+5.21%</td><td><b>1.50&times;</b></td><td>0.75&times;</td></tr>
+        <tr><td>Modern regime, margins keep rising</td><td>4.55%</td><td>&mdash; off the scale</td><td>7.98%</td><td>+5.65%</td><td>1.66&times;</td><td>0.83&times;</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note"><b>The base case already concedes most of this.</b> Its 2.80% is not the historical
+  1.68% &mdash; it is roughly modern GDP growth plus the entire modern buyback yield, with zero
+  further margin expansion. That is the argument's repeatable content, and it already sits at the
+  83rd percentile of 150 years. Taking the full 3.86% means assuming the next thirty years beat
+  <em>every</em> thirty-year window since 1871, which is a coherent thing to believe about a changed
+  world and an uncomfortable thing to lever into.</p>
+  <p class="note"><b>One trap worth naming.</b> If you adopt the 3.86% figure, the buyback yield must
+  come out of the build-up &mdash; 3.86% is already <em>per share</em> and contains the buyback
+  effect. Adding 1.30% on top gives 5.16% and an equity return near 8.7%, which is not a bolder
+  forecast, it is the share count counted twice.</p>
+
+  <h3>Where it lands</h3>
+  <p>The honest range across these positions is <strong>full Kelly between 0.90&times; and
+  1.50&times;</strong>, and it is worth seeing what that does and does not change. It does not
+  resurrect bonds &mdash; they still yield less than the margin rate under every scenario. It does
+  not touch the knife-edge US/international split. It does not make 1.75&times; or 2&times; safe: the
+  Monte Carlo's margin-call probabilities are driven by volatility, not by expected return, so an
+  18&ndash;52% chance of a forced sale survives every growth assumption on this page.</p>
+  <p>What it does change is the top of the sensible range. <strong>Under the modern-regime
+  assumptions, full Kelly is 1.50&times; &mdash; landing exactly on the rung the historical backtest
+  recommended, by an entirely different route.</strong> Two methods with almost nothing in common
+  agreeing on a number is the most reassuring thing on this page.</p>
+</section>
+
+<section>
   <h2>What you would have to believe to lever more</h2>
   <div class="scroll">
     <table>
@@ -415,6 +604,10 @@ footer{margin-top:80px; padding-top:24px; border-top:1px solid var(--rule); font
     That is where both the analytic Kelly (1.18&times;) and the Monte Carlo median (1.25&times;) land,
     and neither has any margin-call risk over ten years. In a $50k account that is $50k&ndash;$62.5k
     of VT-equivalent exposure, financed with at most $12.5k of margin at 5.00%.</li>
+    <li><strong>1.50&times; is the ceiling, and it has a specific price of admission:</strong>
+    believing the last forty years of per-share earnings growth repeat in full &mdash; the end of
+    dilution <em>and</em> nothing given back on margins. The first half of that is well evidenced;
+    the second is an assumption about an all-time-high profit share. Hold it deliberately.</li>
     <li><strong>The honest fractional-Kelly answer is lower still.</strong> Half Kelly on these
     inputs is 0.59&times; &mdash; 60% equities, 40% earning 3.80% in cash. Everything on the previous
     two pages argues for fractioning Kelly rather than taking it whole; the reason not to go that low
@@ -436,9 +629,11 @@ footer{margin-top:80px; padding-top:24px; border-top:1px solid var(--rule); font
   <h2>Where this could be wrong</h2>
   <ul>
     <li><strong>Real growth of 1.5% is the load-bearing assumption</strong>, and it is not
-    observable. It is roughly the long-run US real earnings-per-share growth rate; a case for 2.5%
-    (AI-driven margin expansion, say) moves full Kelly to about 1.5&times;. The sensitivity table
-    above is the honest form of that argument.</li>
+    observable. It is an <em>aggregate</em> rate, deliberately below the ~3.3%/yr the US corporate
+    sector delivered since 1871, on the grounds that potential GDP growth is lower now and the
+    profit share cannot keep rising from a record. Paired with buybacks it still implies
+    above-median per-share growth, so the base case is not a pessimistic one &mdash;
+    <a href="#growth">the section on it</a> gives the full distribution.</li>
     <li><strong>The valuation term is set to zero</strong>, which is a choice in both directions. US
     equities at a high multiple have historically de-rated over subsequent decades, which would make
     6.31% optimistic; assuming any specific reversion, however, is a market-timing forecast in a

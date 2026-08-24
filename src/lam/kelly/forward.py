@@ -28,6 +28,17 @@ breakeven) or an explicit assumption you can move (the rest). The valuation term
 defaults to zero: assuming multiples revert is a forecast, not an input, and it
 belongs in the sensitivity table rather than the base case.
 
+**The growth term is aggregate, not per share, and the distinction is not
+cosmetic.** ``real_growth`` here is the real growth of the *aggregate* earnings of
+the index's constituents; the buyback yield is the separate share-count term that
+converts it to a per-share figure. So what the holder of an index fund actually
+earns in growth is ``real_growth + buyback`` -- 2.80%/yr for US equities in the
+base case. Shiller's earnings-per-share series is already *per share*, so its
+1.84%/yr long-run growth is the thing to compare 2.80% against, and it must never
+be dropped into ``real_growth`` beside a buyback term: that double counts the
+share count. :func:`historical_real_eps_growth` measures the comparison directly
+so the assumption can be argued with rather than asserted.
+
 **Risk.** Volatility and correlation are estimable from data in a way means are
 not, so they come from the sample -- but from the *recent* sample by default. The
 stock/bond correlation regime changed in 2022, and a levered book's tolerance for
@@ -116,7 +127,21 @@ class MarketInputs:
 
 @dataclass(frozen=True)
 class Assumptions:
-    """Judgement, stated as numbers you can move one at a time."""
+    """Judgement, stated as numbers you can move one at a time.
+
+    ``*_real_growth`` is **aggregate** real earnings growth; ``*_buyback`` is the
+    net share-count change that turns it into per-share growth. Their sum is what
+    to compare against a historical earnings-per-share growth rate --- see
+    :func:`historical_real_eps_growth` and ``ForwardCMA.implied_eps_growth``.
+
+    The 1.50% default is deliberately below the ~3.3%/yr real growth the US
+    corporate sector delivered in aggregate since 1871, on two grounds: potential
+    real GDP growth is now nearer 1.8% than the 3.3% of that era, and the profit
+    share of GDP is at a record high, so the margin expansion that lifted earnings
+    faster than output cannot be extrapolated. Paired with the buyback term it
+    still implies 2.80%/yr of per-share growth, which is *above* Shiller's 1.84%
+    long-run median --- the base case is not a pessimistic one.
+    """
 
     us_buyback: float = 0.0130
     us_real_growth: float = 0.0150
@@ -156,6 +181,17 @@ class ForwardCMA:
     @property
     def sharpe(self) -> pd.Series:
         return (self.excess / self.vol).rename("sharpe")
+
+    @property
+    def implied_eps_growth(self) -> pd.Series:
+        """Per-share real earnings growth implied by the build-up.
+
+        Aggregate growth plus the buyback yield. This is the number that is
+        comparable with a historical earnings-per-share growth rate, and the one
+        an equity assumption should be defended on.
+        """
+        growth = self.build_up["real growth"] + self.build_up["buyback"]
+        return growth.rename("implied_real_eps_growth")
 
     def table(self) -> pd.DataFrame:
         out = self.build_up.copy()
@@ -570,3 +606,187 @@ def forward_ladder(
             }
         )
     return pd.DataFrame(rows).set_index("leverage")
+
+
+def historical_real_eps_growth(
+    *,
+    windows: tuple[tuple[str, str], ...] | None = None,
+    smooth_years: int = 10,
+) -> pd.DataFrame:
+    """Realised real earnings-per-share growth of the S&P 500, by period.
+
+    Earnings are violently cyclical, so a growth rate measured between two single
+    months is mostly a statement about where those two months sat in the cycle:
+    1960-2000 reads 2.25%/yr on raw endpoints and 1.27%/yr on ten-year averaged
+    ones. Both are reported, and the smoothed column is the one to believe.
+    """
+    from ..data import shiller
+
+    series = shiller.real_earnings()
+    end = str(series.index[-1].year)
+    windows = windows or (
+        ("1871", end),
+        ("1900", end),
+        ("1950", end),
+        ("1960", "2000"),
+        ("1985", end),
+        ("2005", end),
+    )
+
+    rows = []
+    for start, stop in windows:
+        window = series.loc[start:stop].dropna()
+        span = (window.index[-1] - window.index[0]).days / 365.25
+        raw = (window.iloc[-1] / window.iloc[0]) ** (1.0 / span) - 1.0
+        months = smooth_years * 12
+        smoothed = (
+            window.iloc[-months:].mean() / window.iloc[:months].mean()
+        ) ** (1.0 / (span - smooth_years)) - 1.0
+        rows.append(
+            {
+                "period": f"{start}-{stop}",
+                "raw_endpoints": float(raw),
+                "smoothed_endpoints": float(smoothed),
+                "years": round(span, 1),
+            }
+        )
+    return pd.DataFrame(rows).set_index("period")
+
+
+def rolling_real_eps_growth(
+    *, horizon_years: int = 30, smooth_years: int = 10
+) -> pd.Series:
+    """Every ``horizon_years`` window of real EPS growth in the Shiller record.
+
+    The distribution, not the average, is the honest input to a forward
+    assumption: an investor gets one draw from it.
+    """
+    from ..data import shiller
+
+    smoothed = shiller.real_earnings().rolling(smooth_years * 12).mean().dropna()
+    ratio = smoothed / smoothed.shift(horizon_years * 12)
+    return (ratio ** (1.0 / horizon_years) - 1.0).dropna().rename(
+        f"real_eps_growth_{horizon_years}y"
+    )
+
+
+def growth_needed_for(
+    cma: ForwardCMA,
+    target_return: float,
+    *,
+    asset: str = "us_equity",
+) -> float:
+    """Per-share real growth required for ``asset`` to return ``target_return``.
+
+    Inverts the build-up: income and inflation are observed, so any expected
+    return maps to exactly one growth rate, and that rate can be checked against
+    the historical distribution instead of argued about in the abstract.
+    """
+    row = cma.build_up.loc[asset]
+    fixed = row["income"] + row["inflation"] + row["valuation"] + row["currency"]
+    return float(target_return - fixed)
+
+
+# Named assumption sets. Each is a coherent position, not a dial to split the
+# difference on -- the growth term and the buyback term have to be argued for
+# together or the share count gets counted twice.
+BASE = Assumptions()
+
+MODERN_REGIME = Assumptions(
+    # 1985-2023 delivered 3.86%/yr of real per-share growth. Read through the
+    # decomposition, the repeatable part of that is US real GDP growth plus the
+    # end of dilution; the +1.75%/yr from a doubling profit share is a level
+    # shift. This set grants the repeatable part in full and lifts aggregate
+    # growth above US GDP because roughly 40% of index revenue is earned abroad.
+    us_real_growth=0.0256,
+    us_buyback=0.0130,
+    intl_real_growth=0.0200,
+    intl_buyback=0.0060,
+)
+
+HISTORICAL_MEDIAN = Assumptions(
+    # The median 30-year window since 1871, held per share: 1.68%.
+    us_real_growth=0.0038,
+    us_buyback=0.0130,
+    intl_real_growth=0.0038,
+    intl_buyback=0.0060,
+)
+
+PRESETS = {"base": BASE, "modern": MODERN_REGIME, "historical": HISTORICAL_MEDIAN}
+
+
+def decompose_growth(
+    *, eras: tuple[tuple[str, str], ...] | None = None, smooth_quarters: int = 8
+) -> pd.DataFrame:
+    """Split realised earnings growth into the parts that can and cannot repeat.
+
+    Three measured series, one identity::
+
+        real per-share EPS growth
+            = real GDP growth              (the economy)
+            + profit share drift           (margins -- a level shift, bounded)
+            - dilution                     (net share issuance -- a policy choice)
+
+    The aggregate side is deflated by the GDP deflator rather than CPI, which
+    makes the first two terms exactly additive: profits deflated that way are
+    identically ``profit share x real GDP``. Shiller's earnings are CPI-deflated,
+    so the dilution residual carries the CPI-minus-deflator wedge (~0.2-0.3pp/yr)
+    along with genuine share-count change; it is a good estimate of dilution, not
+    an exact one.
+
+    The reason to run this rather than quote an era's growth rate: 1947-1985 and
+    1985-2023 have almost the same aggregate profit growth, and wildly different
+    per-share growth. What changed was not corporate performance, it was share
+    count and margins.
+    """
+    from ..data import fred, shiller
+
+    eras = eras or (("1947", "1985"), ("1985", "2023"), ("1995", "2023"), ("2010", "2023"))
+
+    profits = fred.series("CPATAX")
+    nominal_gdp = fred.series("GDP")
+    real_gdp = fred.series("GDPC1")
+    eps = shiller.real_earnings()
+
+    quarterly = pd.concat(
+        [profits.rename("profits"), nominal_gdp.rename("gdp"), real_gdp.rename("real_gdp")],
+        axis=1,
+    ).dropna()
+    quarterly["share"] = quarterly["profits"] / quarterly["gdp"]
+    quarterly["real_profits"] = quarterly["share"] * quarterly["real_gdp"]
+
+    def rate(series: pd.Series, start: str, stop: str, smooth: int) -> float:
+        window = series.loc[start:stop].dropna()
+        years = (window.index[-1] - window.index[0]).days / 365.25
+        first = window.iloc[:smooth].mean()
+        last = window.iloc[-smooth:].mean()
+        return float((last / first) ** (1.0 / (years - smooth / 4.0)) - 1.0)
+
+    rows = []
+    for start, stop in eras:
+        window = eps.loc[start:stop].dropna()
+        years = (window.index[-1] - window.index[0]).days / 365.25
+        per_share = float(
+            (window.iloc[-120:].mean() / window.iloc[:120].mean()) ** (1.0 / (years - 10.0))
+            - 1.0
+        )
+        aggregate = rate(quarterly["real_profits"], start, stop, smooth_quarters)
+        rows.append(
+            {
+                "era": f"{start}-{stop}",
+                "real_gdp": rate(quarterly["real_gdp"], start, stop, smooth_quarters),
+                "profit_share_drift": rate(quarterly["share"], start, stop, smooth_quarters),
+                "aggregate_real_profits": aggregate,
+                "real_eps_per_share": per_share,
+                "dilution": aggregate - per_share,
+            }
+        )
+    return pd.DataFrame(rows).set_index("era")
+
+
+def profit_share(*, as_of: str | None = None) -> pd.Series:
+    """After-tax corporate profits as a share of GDP -- the margin level itself."""
+    from ..data import fred
+
+    share = (fred.series("CPATAX") / fred.series("GDP")).dropna().rename("profit_share")
+    return share.loc[:as_of] if as_of else share
