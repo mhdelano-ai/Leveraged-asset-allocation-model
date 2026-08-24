@@ -394,3 +394,42 @@ def test_growth_needed_for_inverts_the_build_up():
     row = cma.build_up.loc["us_equity"]
     rebuilt = row["income"] + row["inflation"] + row["valuation"] + row["currency"] + need
     assert rebuilt == pytest.approx(target)
+
+
+def test_presets_are_coherent_growth_positions():
+    # Each preset states aggregate growth and buyback separately; the per-share
+    # figure they imply is the thing that can be compared with history.
+    implied = {
+        name: preset_growth
+        for name, preset_growth in (
+            (name, p.us_real_growth + p.us_buyback) for name, p in fwd.PRESETS.items()
+        )
+    }
+    assert implied["historical"] == pytest.approx(0.0168)
+    assert implied["base"] == pytest.approx(0.0280)
+    assert implied["modern"] == pytest.approx(0.0386)
+    assert implied["historical"] < implied["base"] < implied["modern"]
+
+
+def test_more_assumed_growth_means_more_kelly_leverage():
+    inputs = _market_inputs()
+    panel = _forward_panel()
+    leverage = {}
+    for name, preset in fwd.PRESETS.items():
+        cma = fwd.build_cma(panel, inputs=inputs, assumptions=preset)
+        w = fwd.bundle_kelly(cma, financing_spread=0.012)
+        leverage[name] = w["us_equity"] + w["intl_equity"]
+    assert leverage["historical"] < leverage["base"] < leverage["modern"]
+
+
+@pytest.mark.network
+def test_growth_decomposition_is_additive_by_construction():
+    # Deflating profits by the GDP deflator makes real profit growth identically
+    # real GDP growth plus profit-share drift.
+    parts = fwd.decompose_growth(eras=(("1985", "2023"),))
+    row = parts.loc["1985-2023"]
+    compounded = (1 + row["real_gdp"]) * (1 + row["profit_share_drift"]) - 1
+    assert row["aggregate_real_profits"] == pytest.approx(compounded, abs=0.002)
+    assert row["dilution"] == pytest.approx(
+        row["aggregate_real_profits"] - row["real_eps_per_share"]
+    )

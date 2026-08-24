@@ -94,7 +94,30 @@ period
       -- against a best-ever 30-year figure of 3.72%.
 
 ====================================================================================================
-6. If the equity premium is not what the yields imply
+6. Which parts of recent growth can repeat, and which cannot
+====================================================================================================
+          real_gdp profit_share_drift aggregate_real_profits real_eps_per_share dilution
+era                                                                                     
+1947-1985   +3.66%             +0.10%                 +3.75%             +1.64%   +2.12%
+1985-2023   +2.61%             +1.75%                 +4.41%             +3.86%   +0.55%
+1995-2023   +2.48%             +1.55%                 +4.07%             +3.65%   +0.42%
+2010-2023   +2.42%             +0.53%                 +2.96%             +3.80%   -0.84%
+
+   Profit share of GDP: 6.12% average to 2000, 10.28% since 2010, 11.37% now.
+   Dilution swung from +2.12%/yr against shareholders to -0.84%/yr in their
+   favour -- a ~3pp/yr structural gain, and the durable half of the modern era's
+   growth. The other half, +1.75%/yr of profit-share expansion, is a level shift:
+   the share doubled, and cannot double again.
+
+   The same question under each named assumption set:
+            US per-share growth global equity return over cash full Kelly half Kelly
+assumptions                                                                         
+base                      2.80%                6.69%     4.36%      1.18x      0.59x
+modern                    3.86%                7.54%     5.21%      1.50x      0.75x
+historical                1.68%                5.57%     3.24%      0.90x      0.45x
+
+====================================================================================================
+7. If the equity premium is not what the yields imply
 ====================================================================================================
       equity geometric excess over cash full Kelly equity half Kelly
 shift                                                               
@@ -106,7 +129,7 @@ shift
 +3pp             9.69%            7.36%             2.30x      1.15x
 
 ====================================================================================================
-7. Forward account risk: 400 bootstrapped 10-year paths, Reg-T account
+8. Forward account risk: 400 bootstrapped 10-year paths, Reg-T account
 ====================================================================================================
          median CAGR  5th pct 95th pct median max DD worst 5% max DD P(margin call) P(lose to cash) P(ruin)
 leverage                                                                                                   

@@ -19,17 +19,20 @@ import pandas as pd
 from lam.kelly import ASSETS, PRETTY, build_panel
 from lam.kelly.forward import (
     GLOBAL_EQUITY_WEIGHTS,
+    PRESETS,
     Assumptions,
     build_cma,
     bundle_kelly,
     bundle_moments,
     constrained_kelly,
+    decompose_growth,
     forward_ladder,
     growth_needed_for,
     historical_real_eps_growth,
     kelly,
-    rolling_real_eps_growth,
     market_inputs,
+    profit_share,
+    rolling_real_eps_growth,
     tilt_sensitivity,
     with_equity_premium,
 )
@@ -161,7 +164,46 @@ def main() -> int:
         )
 
     print("\n" + "=" * 100)
-    print("6. If the equity premium is not what the yields imply")
+    print("6. Which parts of recent growth can repeat, and which cannot")
+    print("=" * 100)
+    parts = decompose_growth()
+    show = parts.copy()
+    for c in show.columns:
+        show[c] = parts[c].map(lambda v: f"{v * 100:+6.2f}%")
+    print(show.to_string())
+    share = profit_share()
+    print(
+        f"\n   Profit share of GDP: {share.loc[:'2000'].mean():.2%} average to 2000,"
+        f" {share.loc['2010':].mean():.2%} since 2010, {share.iloc[-1]:.2%} now."
+    )
+    print(
+        "   Dilution swung from +2.12%/yr against shareholders to -0.84%/yr in their\n"
+        "   favour -- a ~3pp/yr structural gain, and the durable half of the modern era's\n"
+        "   growth. The other half, +1.75%/yr of profit-share expansion, is a level shift:\n"
+        "   the share doubled, and cannot double again."
+    )
+
+    print("\n   The same question under each named assumption set:")
+    rows = []
+    for name, preset in PRESETS.items():
+        scenario = build_cma(panel, inputs=inputs, assumptions=preset)
+        moments = bundle_moments(scenario)
+        w = bundle_kelly(scenario, financing_spread=args.spread)
+        equity = w["us_equity"] + w["intl_equity"]
+        rows.append(
+            {
+                "assumptions": name,
+                "US per-share growth": _pct(scenario.implied_eps_growth["us_equity"]),
+                "global equity return": _pct(moments["geometric"]),
+                "over cash": _pct(moments["excess"]),
+                "full Kelly": f"{equity:.2f}x",
+                "half Kelly": f"{equity / 2:.2f}x",
+            }
+        )
+    print(pd.DataFrame(rows).set_index("assumptions").to_string())
+
+    print("\n" + "=" * 100)
+    print("7. If the equity premium is not what the yields imply")
     print("=" * 100)
     rows = []
     for shift in (-0.02, -0.01, 0.0, 0.01, 0.02, 0.03):
@@ -180,7 +222,7 @@ def main() -> int:
     print(pd.DataFrame(rows).set_index("shift").to_string())
 
     print("\n" + "=" * 100)
-    print(f"7. Forward account risk: {args.paths} bootstrapped {args.years}-year paths, Reg-T account")
+    print(f"8. Forward account risk: {args.paths} bootstrapped {args.years}-year paths, Reg-T account")
     print("=" * 100)
     equity = np.array([GLOBAL_EQUITY_WEIGHTS[0], GLOBAL_EQUITY_WEIGHTS[1], 0.0, 0.0])
     ladder = forward_ladder(

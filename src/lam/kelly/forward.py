@@ -685,3 +685,108 @@ def growth_needed_for(
     row = cma.build_up.loc[asset]
     fixed = row["income"] + row["inflation"] + row["valuation"] + row["currency"]
     return float(target_return - fixed)
+
+
+# Named assumption sets. Each is a coherent position, not a dial to split the
+# difference on -- the growth term and the buyback term have to be argued for
+# together or the share count gets counted twice.
+BASE = Assumptions()
+
+MODERN_REGIME = Assumptions(
+    # 1985-2023 delivered 3.86%/yr of real per-share growth. Read through the
+    # decomposition, the repeatable part of that is US real GDP growth plus the
+    # end of dilution; the +1.75%/yr from a doubling profit share is a level
+    # shift. This set grants the repeatable part in full and lifts aggregate
+    # growth above US GDP because roughly 40% of index revenue is earned abroad.
+    us_real_growth=0.0256,
+    us_buyback=0.0130,
+    intl_real_growth=0.0200,
+    intl_buyback=0.0060,
+)
+
+HISTORICAL_MEDIAN = Assumptions(
+    # The median 30-year window since 1871, held per share: 1.68%.
+    us_real_growth=0.0038,
+    us_buyback=0.0130,
+    intl_real_growth=0.0038,
+    intl_buyback=0.0060,
+)
+
+PRESETS = {"base": BASE, "modern": MODERN_REGIME, "historical": HISTORICAL_MEDIAN}
+
+
+def decompose_growth(
+    *, eras: tuple[tuple[str, str], ...] | None = None, smooth_quarters: int = 8
+) -> pd.DataFrame:
+    """Split realised earnings growth into the parts that can and cannot repeat.
+
+    Three measured series, one identity::
+
+        real per-share EPS growth
+            = real GDP growth              (the economy)
+            + profit share drift           (margins -- a level shift, bounded)
+            - dilution                     (net share issuance -- a policy choice)
+
+    The aggregate side is deflated by the GDP deflator rather than CPI, which
+    makes the first two terms exactly additive: profits deflated that way are
+    identically ``profit share x real GDP``. Shiller's earnings are CPI-deflated,
+    so the dilution residual carries the CPI-minus-deflator wedge (~0.2-0.3pp/yr)
+    along with genuine share-count change; it is a good estimate of dilution, not
+    an exact one.
+
+    The reason to run this rather than quote an era's growth rate: 1947-1985 and
+    1985-2023 have almost the same aggregate profit growth, and wildly different
+    per-share growth. What changed was not corporate performance, it was share
+    count and margins.
+    """
+    from ..data import fred, shiller
+
+    eras = eras or (("1947", "1985"), ("1985", "2023"), ("1995", "2023"), ("2010", "2023"))
+
+    profits = fred.series("CPATAX")
+    nominal_gdp = fred.series("GDP")
+    real_gdp = fred.series("GDPC1")
+    eps = shiller.real_earnings()
+
+    quarterly = pd.concat(
+        [profits.rename("profits"), nominal_gdp.rename("gdp"), real_gdp.rename("real_gdp")],
+        axis=1,
+    ).dropna()
+    quarterly["share"] = quarterly["profits"] / quarterly["gdp"]
+    quarterly["real_profits"] = quarterly["share"] * quarterly["real_gdp"]
+
+    def rate(series: pd.Series, start: str, stop: str, smooth: int) -> float:
+        window = series.loc[start:stop].dropna()
+        years = (window.index[-1] - window.index[0]).days / 365.25
+        first = window.iloc[:smooth].mean()
+        last = window.iloc[-smooth:].mean()
+        return float((last / first) ** (1.0 / (years - smooth / 4.0)) - 1.0)
+
+    rows = []
+    for start, stop in eras:
+        window = eps.loc[start:stop].dropna()
+        years = (window.index[-1] - window.index[0]).days / 365.25
+        per_share = float(
+            (window.iloc[-120:].mean() / window.iloc[:120].mean()) ** (1.0 / (years - 10.0))
+            - 1.0
+        )
+        aggregate = rate(quarterly["real_profits"], start, stop, smooth_quarters)
+        rows.append(
+            {
+                "era": f"{start}-{stop}",
+                "real_gdp": rate(quarterly["real_gdp"], start, stop, smooth_quarters),
+                "profit_share_drift": rate(quarterly["share"], start, stop, smooth_quarters),
+                "aggregate_real_profits": aggregate,
+                "real_eps_per_share": per_share,
+                "dilution": aggregate - per_share,
+            }
+        )
+    return pd.DataFrame(rows).set_index("era")
+
+
+def profit_share(*, as_of: str | None = None) -> pd.Series:
+    """After-tax corporate profits as a share of GDP -- the margin level itself."""
+    from ..data import fred
+
+    share = (fred.series("CPATAX") / fred.series("GDP")).dropna().rename("profit_share")
+    return share.loc[:as_of] if as_of else share

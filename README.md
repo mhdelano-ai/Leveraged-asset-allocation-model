@@ -1130,6 +1130,57 @@ the belief the 1.5× rung requires.
 | **2.80% — this model's base case** | **6.31%** | **1.18×** |
 | 3.72% — best 30y in 150 years | 7.22% | 1.52× |
 
+### Is recent history the better guide?
+
+The case that modern companies compound faster is right about something large,
+and the decomposition separates it from what cannot repeat. Real per-share EPS
+growth = real GDP growth + profit-share drift − dilution, with aggregate profits
+deflated by the GDP deflator so the first two terms are exactly additive:
+
+| Era | Real GDP | Profit-share drift | Aggregate real profits | Real EPS/share | Dilution |
+|---|---|---|---|---|---|
+| 1947–1985 | +3.66% | +0.10% | +3.75% | +1.64% | **+2.12%** |
+| 1985–2023 | +2.61% | **+1.75%** | +4.41% | **+3.86%** | +0.55% |
+| 1995–2023 | +2.48% | +1.55% | +4.07% | +3.65% | +0.42% |
+| 2010–2023 | +2.42% | +0.53% | +2.96% | +3.80% | **−0.84%** |
+
+**What the argument gets right, worth ~3pp/yr.** Dilution ran at +2.12%/yr
+against shareholders in 1947–1985 — aggregate profits grew 3.75% and per-share
+earnings only 1.64%. By 2010–2023 it is −0.84%: buybacks now *add* most of a
+point a year. That is a genuine forty-year regime change, not a phase, and
+nothing here assumes it reverses.
+
+**What it gets wrong, worth about the same.** The other half of 1985–2023's
+3.86% is +1.75%/yr of the profit share rising from ~5% to 11.4% of GDP. That is a
+level shift, not a growth rate — the share doubled and cannot double again.
+Holding it permanently at today's record contributes exactly zero to growth.
+Falling tax rates (46% → 21%) and falling interest expense are the same kind of
+one-off.
+
+| Assumption set | US per-share growth | Percentile of 30y record | Global equity | Over cash | Full Kelly |
+|---|---|---|---|---|---|
+| Median 30 years | 1.68% | 50th | 5.57% | +3.24% | 0.90× |
+| **Base case** | 2.80% | 83rd | 6.69% | +4.36% | **1.18×** |
+| **Modern regime** — the argument granted | 3.86% | 100th | 7.54% | +5.21% | **1.50×** |
+| Modern regime, margins keep rising | 4.55% | off the scale | 7.98% | +5.65% | 1.66× |
+
+The base case already concedes most of it: 2.80% is modern GDP growth plus the
+entire modern buyback yield with zero further margin expansion. Taking the full
+3.86% means assuming the next thirty years beat *every* thirty-year window since
+1871 — coherent about a changed world, uncomfortable to lever into. Available as
+`PRESETS["modern"]`.
+
+**One trap:** adopting 3.86% requires zeroing the buyback term. It is already a
+per-share figure; adding 1.30% on top is not a bolder forecast, it is the share
+count counted twice.
+
+Under modern-regime assumptions full Kelly is **1.50×** — the same rung the
+historical backtest recommended, reached by an entirely different route. What it
+does *not* change: bonds still yield less than the margin rate, the
+US/international split is still a knife edge, and margin-call probabilities are
+driven by volatility rather than expected return, so 1.75×+ stays indefensible
+under every growth assumption.
+
 ### Two sensitivities that matter more than the base case
 
 **The US/international split is a knife edge.** A ±2pp swing in an unobservable
