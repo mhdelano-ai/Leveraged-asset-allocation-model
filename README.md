@@ -1181,6 +1181,50 @@ US/international split is still a knife edge, and margin-call probabilities are
 driven by volatility rather than expected return, so 1.75×+ stays indefensible
 under every growth assumption.
 
+### The geometric frontier, and fractional Kelly by slope
+
+`geometric_frontier` traces expected compound growth against volatility, solving
+at each Kelly fraction
+
+    max  w'μ − (1/2f) w'Σw − spread × borrowed
+
+rather than scaling the full-Kelly weights and holding cash. Scaling is correct
+only under two-fund separation — one rate for lending and borrowing, no position
+limits — and **neither holds in a margin account**: borrowing costs 5.00% while
+cash earns 3.80%, which puts a kink at 1× gross.
+
+| f | Gross | Vol | Geometric | US eq | Intl eq | US bd | Intl bd | Cash | vs scaling |
+|---|---|---|---|---|---|---|---|---|---|
+| 0.10× | 0.42× | 3.0% | 4.64% | 0.09 | 0.05 | 0.05 | 0.23 | 0.58 | +0.35pp |
+| 0.25× | 1.00× | 7.3% | 5.70% | 0.23 | 0.13 | 0.12 | 0.52 | 0.00 | **+0.73pp** |
+| **0.50×** | 1.00× | 11.8% | 6.43% | 0.43 | 0.25 | 0.28 | 0.03 | 0.00 | +0.52pp |
+| 0.70× | 1.00× | 15.6% | 6.77% | 0.60 | 0.35 | 0.05 | 0.00 | 0.00 | +0.28pp |
+| **1.00×** | 1.18× | 19.3% | **6.86%** | 0.74 | 0.44 | 0.00 | 0.00 | −0.18 | — |
+| 1.50× | 1.77× | 29.0% | 6.40% | 1.12 | 0.66 | 0.00 | 0.00 | −0.77 | — |
+
+**Bonds belong below 1× gross.** The "bonds earn nothing" result is a statement
+about a *levered* book and it stands — you cannot borrow at 5.00% for a 4.70%
+expected return. Below 1× nothing is borrowed, so bonds compete against a 3.80%
+bill instead, and win: the frontier holds up to 57% of capital in them. Scaling
+can never find this, because it only ever dilutes a portfolio that holds no
+bonds. **The correction is worth up to 0.73pp/yr of compound growth, at the same
+risk.**
+
+Three regimes, set by the borrowing spread:
+
+- **below 6.7% vol** — cash and bonds do the work; cash appears only here
+- **6.7%–16.4% vol** — *exactly 1.00× gross throughout*. A wide range of risk
+  appetites all sit fully invested, rotating out of bonds into equity rather than
+  changing exposure. This flat spot is the spread's fingerprint: the first dollar
+  of margin costs 1.2pp more than the last dollar of cash earns, so the optimiser
+  sits at the kink rather than crossing it.
+- **above 16.4% vol** — all equity and borrowing; bonds gone.
+
+Half Kelly under this construction is **1.00× gross, 43% US equity, 26%
+international, 31% bonds** — a recognisable balanced portfolio, reached without
+assuming one. Scaling would have called it "59% global equity, 41% cash" and left
+0.52pp/yr on the table.
+
 ### Two sensitivities that matter more than the base case
 
 **The US/international split is a knife edge.** A ±2pp swing in an unobservable
