@@ -1,0 +1,106 @@
+market inputs as of 2026-08-20
+  cash (3m bill, BEY)      3.80%
+  Treasury curve           10y 4.69%  30y 5.23%  3m 3.80%  5y 4.39%
+  10y breakeven inflation  2.34%
+  US agg YTM (6y + 40bp)   4.85%
+  hedged foreign bond YTM  4.63%
+  US equities            distribution yield 1.17%
+  Intl ex-US equities    distribution yield 2.90%
+  US bonds               distribution yield 4.03%
+  Intl ex-US bonds       distribution yield 4.57%
+
+====================================================================================================
+1. Forward expected returns, built up from those yields (risk from the last 5 years)
+====================================================================================================
+                     income  buyback  real growth  inflation  valuation  currency  geometric  volatility  arithmetic  excess  sharpe
+US equities           1.17%    1.30%        1.50%      2.34%      0.00%     0.00%      6.31%      17.53%       7.84%   4.05%  23.08%
+Intl ex-US equities   2.90%    0.60%        1.50%      2.34%      0.00%     0.00%      7.34%      16.37%       8.68%   4.89%  29.85%
+US bonds              4.85%    0.00%        0.00%      0.00%      0.00%    -0.15%      4.70%       6.03%       4.88%   1.08%  17.98%
+Intl ex-US bonds      4.63%    0.00%        0.00%      0.00%      0.00%    -0.05%      4.58%       4.92%       4.70%   0.91%  18.44%
+
+   cash (3m bill) 3.80% -- the hurdle every excess return above is measured over
+
+   correlations:
+                     US equities  Intl ex-US equities  US bonds  Intl ex-US bonds
+US equities                 1.00                 0.81      0.22              0.18
+Intl ex-US equities         0.81                 1.00      0.27              0.22
+US bonds                    0.22                 0.27      1.00              0.82
+Intl ex-US bonds            0.18                 0.22      0.82              1.00
+
+====================================================================================================
+2. Kelly on those inputs
+====================================================================================================
+   unconstrained, no financing cost                   US -0.19   Intl  1.82     US  0.18   Intl  2.34   gross 4.53x
+   unconstrained, borrowing at bills + 1.2%           US -0.00   Intl  1.38     US -0.00   Intl -0.00   gross 1.38x
+   long_only                                         US  0.00   Intl  1.38     US  0.00   Intl  0.00   gross 1.38x
+   long_only <= 2x                                   US  0.00   Intl  1.38     US  0.00   Intl  0.00   gross 1.38x
+   long_only_unlevered                               US  0.00   Intl  1.00     US  0.00   Intl  0.00   gross 1.00x
+
+====================================================================================================
+3. The same question over two bundles instead of four sleeves
+====================================================================================================
+   global equity at cap weights (63% US / 37% intl):
+      expected 6.69% geometric, excess 4.36%, vol 16.4%, Sharpe 0.27
+      unlevered Kelly multiple  1.63x   (if you could borrow at the bill rate)
+      Kelly, at the bill rate          US  0.90   Intl  0.53     US  1.57   Intl  0.85   gross 3.85x
+      Kelly, at bills + 1.2%           US  0.74   Intl  0.44     US  0.00   Intl  0.00   gross 1.18x
+
+   For full Kelly to reach 1.5x, global equity would have to earn 5.21% over cash instead of 4.36%
+   -- about 0.9%/yr more growth than the yields imply.
+
+====================================================================================================
+4. How much of this is a real preference for international equity?
+====================================================================================================
+                                                 us_equity  intl_equity  bonds  gross  us_share_of_equity
+US expected return minus intl, vs the base case                                                          
+-2.0pp                                                0.00         1.75    0.0   1.75                0.00
+-1.5pp                                                0.00         1.66    0.0   1.66                0.00
+-1.0pp                                                0.00         1.56    0.0   1.56                0.00
+-0.5pp                                                0.00         1.47    0.0   1.47                0.00
++0.0pp                                                0.00         1.38    0.0   1.38                0.00
++0.5pp                                                0.10         1.19    0.0   1.30                0.08
++1.0pp                                                0.55         0.71    0.0   1.26                0.44
++1.5pp                                                1.00         0.23    0.0   1.22                0.81
++2.0pp                                                1.25         0.00    0.0   1.25                1.00
+
+   The split is a knife edge: a 2pp swing in an unobservable growth assumption
+   moves it from all-international to all-US. That is what an optimiser does with
+   two assets correlated 0.81, and it is the argument for holding market weights.
+
+====================================================================================================
+5. If the equity premium is not what the yields imply
+====================================================================================================
+      equity geometric excess over cash full Kelly equity half Kelly
+shift                                                               
+-2pp             4.69%            2.36%             0.56x      0.28x
+-1pp             5.69%            3.36%             0.95x      0.48x
++0pp             6.69%            4.36%             1.18x      0.59x
++1pp             7.69%            5.36%             1.55x      0.78x
++2pp             8.69%            6.36%             1.93x      0.96x
++3pp             9.69%            7.36%             2.30x      1.15x
+
+====================================================================================================
+6. Forward account risk: 400 bootstrapped 10-year paths, Reg-T account
+====================================================================================================
+         median CAGR  5th pct 95th pct median max DD worst 5% max DD P(margin call) P(lose to cash) P(ruin)
+leverage                                                                                                   
+0.50           5.62%    1.16%    9.92%        -15.9%          -28.1%           0.0%           22.5%    0.0%
+0.75           6.20%   -0.53%   12.86%        -24.5%          -43.5%           0.0%           27.3%    0.0%
+1.00           6.64%   -2.42%   15.73%        -32.8%          -55.9%           0.0%           29.0%    0.0%
+1.25           6.65%   -4.68%   18.11%        -40.8%          -66.2%           0.0%           32.0%    0.0%
+1.50           6.53%   -7.33%   20.34%        -48.6%          -75.2%           0.0%           36.8%    0.0%
+1.75           6.18%   -9.96%   22.65%        -55.7%          -82.5%          17.8%           40.8%    0.0%
+2.00           5.73%  -12.61%   24.62%        -62.7%          -86.9%          52.2%           45.2%    0.0%
+
+====================================================================================================
+7. The same, over 20 years
+====================================================================================================
+         median_cagr  p5_cagr p95_cagr median_max_drawdown p5_max_drawdown p_margin_call   p_ruin p_underperform_cash
+leverage                                                                                                             
+0.50            5.6%     2.8%     8.5%              -19.3%          -32.1%          0.0%     0.0%               18.2%
+0.75            6.2%     1.9%    10.6%              -30.1%          -48.6%          0.0%     0.0%               21.2%
+1.00            6.7%     0.8%    12.6%              -40.4%          -61.9%          0.0%     0.0%               23.8%
+1.25            6.7%    -0.8%    14.2%              -49.7%          -73.1%          0.0%     0.0%               28.7%
+1.50            6.4%    -2.6%    15.6%              -59.0%          -82.8%          0.0%     0.0%               32.8%
+1.75            6.0%    -4.8%    17.1%              -67.4%          -89.3%         33.0%     0.0%               38.2%
+2.00            5.2%    -7.2%    18.1%              -74.1%          -93.2%         77.8%     0.0%               42.0%

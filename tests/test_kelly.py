@@ -256,3 +256,121 @@ def test_call_threshold_agrees_with_the_simulation():
             procyclicality=0.0,
         )
         assert (len(result.calls) > 0) is expect_call
+
+
+def test_uninvested_cash_earns_the_bill_rate():
+    # A book held at 0.5x gross is half in cash; over a year that half must earn
+    # the bill rate, not zero.
+    # The synthetic panel has 252 rows for a year, so quote the rate per row --
+    # a real panel carries the calendar day count inside daily_cash instead.
+    daily_rate = 1.05 ** (1 / 252) - 1
+    panel = _daily_panel(np.zeros((252, len(ASSETS))), cash_rate=daily_rate)
+    result = simulate(panel, np.array([0.5, 0, 0, 0]), financing_spread=0.02)
+    assert result.equity.iloc[-1] == pytest.approx(1.0 + 0.5 * 0.05, abs=3e-3)
+
+
+# --- forward-looking assumptions -------------------------------------------
+
+from lam.kelly import forward as fwd  # noqa: E402
+
+
+def _market_inputs() -> fwd.MarketInputs:
+    return fwd.MarketInputs(
+        asof=pd.Timestamp("2026-08-20"),
+        cash=0.038,
+        treasury={"3m": 0.038, "5y": 0.0439, "10y": 0.0469, "30y": 0.0523},
+        breakeven_inflation=0.0234,
+        distribution_yield={
+            "us_equity": 0.0117,
+            "intl_equity": 0.0290,
+            "us_bonds": 0.0403,
+            "intl_bonds": 0.0457,
+        },
+        foreign_long={"euro": 0.0305, "japan": 0.0265, "uk": 0.0494},
+        foreign_short={"euro": 0.0223, "japan": 0.0124, "uk": 0.0375},
+    )
+
+
+def _forward_panel() -> KellyPanel:
+    rng = np.random.default_rng(12)
+    daily = rng.normal(0.0003, 0.009, size=(1500, len(ASSETS)))
+    daily[:, 2] *= 0.35
+    daily[:, 3] *= 0.30
+    return _daily_panel(daily, cash_rate=0.038 / 252)
+
+
+def test_hedged_foreign_yield_adds_the_short_rate_differential():
+    mi = _market_inputs()
+    # Japan: a 2.65% JGB plus a 3.80% - 1.24% carry is 5.21% to a dollar investor.
+    japan_leg = mi.foreign_long["japan"] + (mi.cash - mi.foreign_short["japan"])
+    assert japan_leg == pytest.approx(0.0521, abs=1e-4)
+    # And the blend must sit between the cheapest and dearest block.
+    legs = [
+        mi.foreign_long[k] + (mi.cash - mi.foreign_short[k]) for k in fwd.FOREIGN_BLOCKS
+    ]
+    assert min(legs) < mi.hedged_foreign_ytm() < max(legs)
+
+
+def test_us_agg_yield_interpolates_the_curve_and_adds_the_index_spread():
+    mi = _market_inputs()
+    belly = np.interp(6.0, [0.25, 5.0, 10.0, 30.0], [0.038, 0.0439, 0.0469, 0.0523])
+    assert mi.us_agg_ytm() == pytest.approx(belly + fwd.US_AGG_SPREAD)
+
+
+def test_arithmetic_expected_return_is_geometric_plus_half_variance():
+    cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
+    expected = cma.geometric + 0.5 * cma.vol**2
+    assert np.allclose(cma.arithmetic.to_numpy(), expected.to_numpy())
+
+
+def test_equity_build_up_sums_its_stated_components():
+    cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
+    a = fwd.Assumptions()
+    expected = 0.0117 + a.us_buyback + a.us_real_growth + 0.0234
+    assert cma.geometric["us_equity"] == pytest.approx(expected)
+
+
+def test_bond_expected_return_is_the_yield_less_credit_loss():
+    mi = _market_inputs()
+    cma = fwd.build_cma(_forward_panel(), inputs=mi)
+    assert cma.geometric["us_bonds"] == pytest.approx(
+        mi.us_agg_ytm() - fwd.Assumptions().us_bond_credit_loss
+    )
+
+
+def test_forward_kelly_without_financing_is_the_closed_form():
+    cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
+    expected = np.linalg.solve(cma.cov.to_numpy(), cma.excess.to_numpy())
+    assert np.allclose(fwd.kelly(cma).to_numpy(), expected)
+
+
+def test_financing_cost_shrinks_forward_kelly():
+    cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
+    assert fwd.kelly(cma, financing_spread=0.012).abs().sum() < fwd.kelly(cma).abs().sum()
+
+
+def test_bundle_kelly_holds_the_split_it_was_given():
+    cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
+    w = fwd.bundle_kelly(cma, equity_split=(0.6, 0.4), financing_spread=0.012)
+    equity = w["us_equity"] + w["intl_equity"]
+    if equity > 1e-6:
+        assert w["us_equity"] / equity == pytest.approx(0.6, abs=1e-6)
+
+
+def test_shifting_the_equity_premium_leaves_bonds_alone():
+    cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
+    shifted = fwd.with_equity_premium(cma, 0.01)
+    assert shifted.geometric["us_equity"] == pytest.approx(cma.geometric["us_equity"] + 0.01)
+    assert shifted.geometric["us_bonds"] == pytest.approx(cma.geometric["us_bonds"])
+
+
+def test_bootstrap_paths_carry_the_forward_drift_not_the_historical_one():
+    panel = _forward_panel()
+    cma = fwd.build_cma(panel, inputs=_market_inputs())
+    sims = fwd.bootstrap_paths(panel, cma, years=5, paths=40, seed=1, window_years=5)
+    assert len(sims) == 40
+    assert len(sims[0].daily) == 5 * 252
+    drift = np.mean([sim.daily.mean().to_numpy() * 252 for sim in sims], axis=0)
+    assert np.allclose(drift, cma.arithmetic.to_numpy(), atol=0.02)
+    vol = np.mean([sim.daily.std(ddof=1).to_numpy() * np.sqrt(252) for sim in sims], axis=0)
+    assert np.allclose(vol, cma.vol.to_numpy(), rtol=0.15)

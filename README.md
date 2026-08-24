@@ -24,6 +24,7 @@ daily-reset leveraged ETFs, and portfolio margin / box spreads.
 - [Model B — the return-maximising model](#model-b--return-maximising-concentrated-leverage)
 - [Appendix — Kelly on the four-asset question](#appendix--kelly-on-the-four-asset-question)
 - [Appendix — Kelly inside a Reg-T retail account](#appendix--kelly-inside-a-reg-t-retail-account)
+- [Appendix — Kelly at today's yields](#appendix--kelly-at-todays-yields)
 
 ---
 
@@ -1013,3 +1014,92 @@ drawdown** — *less than the unlevered index* (10.86%), at nearly twice the
 drawdown, because the daily reset makes volatility drag scale with the square of
 the multiplier and the embedded swap financing is wider than a margin loan. Its
 only real advantage is that it cannot be margin-called.
+
+---
+
+# Appendix — Kelly at today's yields
+
+Both appendices above run on sample means, and the honest reading of the first
+was that 33 years cannot identify four risk premia. Historical means are also
+*biased for this purpose*: the sample contains a 40-year fall in yields that
+cannot repeat, and a re-rating of US equities that shows up as return but is a
+change in the price paid, not in the cash flow earned.
+
+`src/lam/kelly/forward.py` estimates expected returns the way an allocator has
+to — from what the assets currently yield. Bonds: index YTM less expected credit
+loss, and for hedged foreign bonds the foreign yield **plus the hedge carry**
+(rolling FX forwards earns roughly the short-rate differential, worth +1.6pp on
+euro bonds and +2.6pp on JGBs today). Equities: the Grinold–Kroner build-up, with
+income and inflation observable and growth stated as an explicit assumption.
+Report: [`docs/kelly_forward.html`](docs/kelly_forward.html), run with
+`python scripts/run_kelly_forward.py --paths 400`.
+
+### The inputs, as of 2026-08-20
+
+| | Income | + growth & inflation | Geometric | Vol | Over cash |
+|---|---|---|---|---|---|
+| US equities | 1.17% div + 1.30% buyback | 1.50% + 2.34% | 6.31% | 17.5% | +4.05% |
+| Intl ex-US equities | 2.90% div + 0.60% buyback | 1.50% + 2.34% | **7.34%** | 16.4% | +4.89% |
+| US bonds | 4.85% YTM | — | 4.70% | 6.0% | +1.08% |
+| Intl ex-US bonds, hedged | 4.63% YTM | — | 4.58% | 4.9% | +0.91% |
+| Cash — 3m bill | 3.80% | — | 3.80% | — | — |
+
+Kelly is defined on **arithmetic** means, so σ²/2 is added — worth 1.5pp on
+equities, larger than the entire bond risk premium. Risk is measured over the
+last five years, not thirty: the US stock/bond correlation is now **+0.22**
+against −0.30 or lower through 2000–2020.
+
+### The answer moves by an order of magnitude
+
+| | Historical inputs | Forward inputs |
+|---|---|---|
+| Equity premium | 8.92% | 4.36% |
+| Full Kelly, borrowing at bills + 1.2% | **17.5× gross** | **1.18× equities** |
+| Bond weight | 12.5× intl bonds | **zero** |
+
+**Bonds get nothing, for a structural reason rather than a statistical one:** US
+bonds yield 4.85% and hedged foreign bonds 4.63%, and Robinhood lends at 5.00%.
+You cannot borrow at 5.00% to buy a 4.70% expected return. At zero financing cost
+the optimiser wants 2.4× bonds; at any realistic retail spread it wants none.
+
+### Forward account risk
+
+400 bootstrapped 10-year paths through the same Reg-T account — historical daily
+*shocks* rescaled to forward volatility and re-centred on forward expected
+returns:
+
+| Gross | Median CAGR | 5th pct | Median max DD | P(margin call) | P(lose to cash) |
+|---|---|---|---|---|---|
+| 0.50× | 5.62% | 1.16% | −15.9% | 0% | 22.5% |
+| 1.00× | 6.64% | −2.42% | −32.8% | 0% | 29.0% |
+| **1.25×** | **6.65%** | −4.68% | −40.8% | 0% | 32.0% |
+| 1.50× | 6.53% | −7.33% | −48.6% | 0% | 36.8% |
+| 1.75× | 6.18% | −9.96% | −55.7% | 17.8% | 40.8% |
+| 2.00× | 5.73% | −12.61% | −62.7% | 52.2% | 45.2% |
+
+The Monte Carlo puts the growth-optimal leverage at 1.25×, independently of the
+analytic Kelly solution of 1.18×. Between 1× and 1.5× the median curve is flat to
+within 12bp — leverage in that range buys no expected growth and 16pp of extra
+median drawdown. Over 20 years the ranking is unchanged but the forced-sale risk
+compounds: P(margin call) at 2× rises from 52% to **78%**.
+
+### Two sensitivities that matter more than the base case
+
+**The US/international split is a knife edge.** A ±2pp swing in an unobservable
+growth assumption moves it from all-international to all-US, while *total equity
+exposure barely moves* (1.22× to 1.56×). The optimiser has a firm view on how
+much equity and no real view on which — so hold market weights and spend the
+conviction on the leverage decision.
+
+**What 1.5× requires you to believe.** Full Kelly reaches 1.5× only if global
+equities compound at 7.7% rather than 6.7% — about 0.9pp/yr more growth than the
+yields imply. Defensible, but a view rather than an optimisation.
+
+### The rule, re-runnable
+
+    L* = (expected equity return − borrowing rate) / volatility²
+
+with every input published daily. Re-run it when the dividend yield moves (a
+market decline *raises* Kelly leverage), when the broker's rate moves (it
+currently costs a third of the leverage), or when volatility moves — it enters
+squared, so 16% → 24% more than halves the answer.

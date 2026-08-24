@@ -137,9 +137,13 @@ def simulate(
     for t in range(len(index)):
         positions = positions * (1.0 + returns[t])
         # Interest on the debit balance: the day's bill accrual plus the broker's
-        # spread over the same calendar days.
+        # spread over the same calendar days. A *credit* balance -- any book held
+        # below 1x gross -- earns the bill rate instead, which is the whole reason
+        # sub-1x allocations are worth considering at a 3.8% cash rate.
         if debt > 0:
             debt *= 1.0 + cash_rate[t] + financing_spread * _day_count(index, t) / 365.0
+        elif debt < 0:
+            debt *= 1.0 + cash_rate[t]
         value = positions.sum()
         equity = value - debt
 
