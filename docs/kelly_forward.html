@@ -1,0 +1,470 @@
+<title>Kelly at Today's Yields</title>
+<style>
+:root{
+  color-scheme: light;
+  --ground:#f1f4f3; --panel:#fbfcfc; --panel-2:#e9eeed;
+  --ink:#101619; --ink-2:#4d5a5e; --muted:#7f8f92;
+  --accent:#0d6c76; --accent-soft:#0d6c761f;
+  --breach:#a83a30; --breach-soft:#a83a3021;
+  --gain:#2c7a58;
+  --rule:#d8e0de; --hair:#e6ecea;
+  --shadow:0 1px 2px rgba(16,22,25,.05), 0 8px 24px -16px rgba(16,22,25,.22);
+  --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --ground:#0c1113; --panel:#141b1e; --panel-2:#1b2427;
+    --ink:#e9efee; --ink-2:#a3b1b3; --muted:#78878a;
+    --accent:#47b3bf; --accent-soft:#47b3bf24;
+    --breach:#dd6a5f; --breach-soft:#dd6a5f26;
+    --gain:#4faa83;
+    --rule:#25302f; --hair:#1d2628;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --ground:#0c1113; --panel:#141b1e; --panel-2:#1b2427;
+  --ink:#e9efee; --ink-2:#a3b1b3; --muted:#78878a;
+  --accent:#47b3bf; --accent-soft:#47b3bf24;
+  --breach:#dd6a5f; --breach-soft:#dd6a5f26;
+  --gain:#4faa83;
+  --rule:#25302f; --hair:#1d2628;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px 96px}
+@media(max-width:640px){ .wrap{padding:0 16px 64px} }
+
+header.top{padding:72px 0 0}
+.eyebrow{
+  font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 20px;
+}
+h1{
+  font-family:var(--serif); font-weight:600; font-size:clamp(34px,5.4vw,60px);
+  line-height:1.04; letter-spacing:-.022em; margin:0 0 20px; text-wrap:balance;
+}
+.standfirst{
+  font-size:clamp(17px,2vw,20px); line-height:1.55; color:var(--ink-2);
+  max-width:62ch; margin:0;
+}
+.standfirst strong{color:var(--ink); font-weight:600}
+
+/* the fraction rule: the spine of the argument is f, the Kelly fraction */
+.fracline{
+  margin:56px 0 0; border:0; border-top:1.5px solid var(--ink);
+  position:relative; opacity:.85;
+}
+.fracline::after{
+  content:"2026-08-20"; position:absolute; right:0; top:-22px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--muted);
+}
+.fracline::before{
+  content:"forward"; position:absolute; left:0; top:-22px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--muted);
+}
+
+section{margin-top:64px}
+h2{
+  font-family:var(--serif); font-weight:600; font-size:clamp(23px,3vw,30px);
+  letter-spacing:-.015em; line-height:1.2; margin:0 0 8px; text-wrap:balance;
+}
+h3{font-family:var(--sans); font-size:15px; font-weight:650; letter-spacing:-.005em; margin:28px 0 10px}
+.lede{color:var(--ink-2); max-width:66ch; margin:0 0 24px}
+p{max-width:68ch}
+a{color:var(--accent)}
+strong{font-weight:650}
+
+.split{display:grid; grid-template-columns:1fr 1fr; gap:20px}
+@media(max-width:760px){ .split{grid-template-columns:1fr} }
+.card{
+  background:var(--panel); border:1px solid var(--rule); border-radius:10px;
+  padding:24px; box-shadow:var(--shadow);
+}
+.card .tag{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+  display:inline-flex; align-items:center; gap:7px; padding:4px 9px; border-radius:99px;
+  margin-bottom:16px;
+}
+.tag.win{background:var(--accent-soft); color:var(--accent)}
+.tag.lose{background:var(--breach-soft); color:var(--breach)}
+.tag .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.figure{
+  font-family:var(--serif); font-size:clamp(38px,5.4vw,52px); font-weight:600;
+  letter-spacing:-.03em; line-height:1; margin:0 0 2px;
+}
+.figure .unit{font-size:.44em; letter-spacing:0; color:var(--ink-2); margin-left:4px}
+.fig-label{font-size:13px; color:var(--muted); margin:0 0 20px}
+.kv{display:grid; grid-template-columns:auto 1fr; gap:7px 18px; font-size:14px; margin:0}
+.kv dt{color:var(--ink-2)}
+.kv dd{margin:0; font-family:var(--mono); font-size:13.5px; font-variant-numeric:tabular-nums; text-align:right}
+.verdict{
+  margin-top:20px; padding-top:16px; border-top:1px solid var(--hair);
+  font-size:14px; color:var(--ink-2);
+}
+.verdict b{color:var(--ink)}
+
+figure{margin:0}
+.chart-card{background:var(--panel); border:1px solid var(--rule); border-radius:10px; padding:22px 20px 16px; box-shadow:var(--shadow)}
+.chart-head{display:flex; justify-content:space-between; align-items:baseline; gap:16px; flex-wrap:wrap; margin-bottom:14px}
+.chart-title{font-size:14.5px; font-weight:650}
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2)}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.swatch{width:12px; height:3px; border-radius:2px; display:inline-block}
+.swatch.zone{height:9px; border-radius:2px; opacity:.55}
+svg{display:block; width:100%; height:auto; overflow:visible}
+figcaption{font-size:13px; color:var(--muted); margin-top:12px; max-width:74ch}
+.axis-label{font-family:var(--mono); font-size:10px; fill:var(--muted); letter-spacing:.06em}
+.plot-note{font-family:var(--mono); font-size:10.5px; fill:var(--ink-2); letter-spacing:.04em}
+
+.scroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:560px}
+caption{text-align:left; font-size:13px; color:var(--muted); padding-bottom:10px}
+th,td{padding:9px 12px; text-align:right; border-bottom:1px solid var(--hair)}
+th:first-child,td:first-child{text-align:left}
+thead th{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--muted); font-weight:500; border-bottom:1px solid var(--rule);
+}
+tbody td{font-family:var(--mono); font-size:13.5px; font-variant-numeric:tabular-nums}
+tbody td:first-child{font-family:var(--sans); font-size:14px; color:var(--ink)}
+tbody tr:hover{background:var(--panel-2)}
+tr.mark td{background:var(--accent-soft)}
+tr.mark td:first-child{font-weight:650}
+tr.bad td{background:var(--breach-soft)}
+.pos{color:var(--gain)} .neg{color:var(--breach)}
+.note{font-size:13.5px; color:var(--muted); margin-top:12px; max-width:74ch}
+ul{max-width:68ch; padding-left:20px}
+li{margin-bottom:8px}
+code{font-family:var(--mono); font-size:.88em; background:var(--panel-2); padding:1px 5px; border-radius:4px}
+footer{margin-top:80px; padding-top:24px; border-top:1px solid var(--rule); font-size:13px; color:var(--muted)}
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Forward-looking Kelly &middot; built from yields observable 20 August 2026</p>
+  <h1>Kelly at Today's Yields</h1>
+  <p class="standfirst">Run on 33 years of history, Kelly asked for 17&times; gross exposure and a
+  backtested ladder rewarded leverage all the way to the Reg-T cap. Run on what these four asset
+  classes actually yield today, <strong>full Kelly is 1.18&times; equities and nothing in bonds
+  &mdash; and the growth-optimal leverage is roughly &ldquo;fully invested&rdquo;.</strong> The
+  entire difference is the risk premium, and none of it is a modelling choice.</p>
+  <hr class="fracline">
+</header>
+
+<section>
+  <h2>The inputs, and where each number comes from</h2>
+  <p class="lede">Bonds: the index yield to maturity, which is what a constant-maturity bond fund
+  earns over a holding period as the pull to par offsets price moves. Equities: the Grinold-Kroner
+  build-up &mdash; income you can observe, plus growth and inflation you have to assume, stated
+  separately so you can move them one at a time.</p>
+  <div class="scroll">
+    <table>
+      <caption>Expected nominal returns per year. Income is measured; growth is assumed; the valuation term is deliberately zero.</caption>
+      <thead><tr><th>Asset class</th><th>Income</th><th>Buyback</th><th>Real growth</th><th>Inflation</th><th>Geometric</th><th>Volatility</th><th>Arithmetic</th><th>Over cash</th></tr></thead>
+      <tbody>
+        <tr><td>US equities</td><td>1.17%</td><td>1.30%</td><td>1.50%</td><td>2.34%</td><td>6.31%</td><td>17.5%</td><td>7.84%</td><td>+4.05%</td></tr>
+        <tr class="mark"><td>Intl ex-US equities</td><td>2.90%</td><td>0.60%</td><td>1.50%</td><td>2.34%</td><td><b>7.34%</b></td><td>16.4%</td><td>8.68%</td><td>+4.89%</td></tr>
+        <tr><td>US bonds</td><td>4.85%</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>4.70%</td><td>6.0%</td><td>4.88%</td><td>+1.08%</td></tr>
+        <tr><td>Intl ex-US bonds, hedged</td><td>4.63%</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>4.58%</td><td>4.9%</td><td>4.70%</td><td>+0.91%</td></tr>
+        <tr><td>Cash &mdash; 3m T-bill</td><td>3.80%</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td><td>3.80%</td><td>0.6%</td><td>3.80%</td><td>&mdash;</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Three observations that do most of the work. <b>Inflation is not a guess</b> &mdash;
+  2.34% is the 10-year TIPS breakeven. <b>The hedged foreign bond yield includes the hedge carry</b>:
+  a dollar investor rolling FX forwards earns roughly the short-rate differential, worth +1.6pp on
+  euro bonds and +2.6pp on Japanese ones today, which is why a 3.05% Bund and a 2.65% JGB come back
+  as 4.63% in dollars. And <b>the arithmetic column is the one Kelly uses</b>: it is the geometric
+  build-up plus &sigma;&sup2;/2, worth 1.5pp on equities &mdash; larger than the entire bond risk
+  premium.</p>
+  <p class="note">Volatility and correlation are measured over the last five years, not the last
+  thirty, because the stock/bond correlation regime changed in 2022. It is currently
+  <b>+0.22</b> between US equities and US bonds, against &minus;0.30 or lower through 2000&ndash;2020.
+  Bonds are no longer paid to be a hedge.</p>
+</section>
+
+<section>
+  <h2>What Kelly says now</h2>
+  <div class="split">
+    <div class="card">
+      <p class="tag win"><span class="dot"></span>Full Kelly, forward inputs</p>
+      <p class="figure">1.18<span class="unit">&times; equities</span></p>
+      <p class="fig-label">global equity at market weights; borrowing at bills + 1.2%</p>
+      <dl class="kv">
+        <dt>US equities</dt><dd>0.74</dd>
+        <dt>Intl ex-US equities</dt><dd>0.44</dd>
+        <dt>US bonds</dt><dd>0.00</dd>
+        <dt>Intl ex-US bonds</dt><dd>0.00</dd>
+        <dt>Cash</dt><dd>&minus;0.18</dd>
+        <dt>Half Kelly</dt><dd>0.59&times;</dd>
+      </dl>
+      <p class="verdict"><b>Full Kelly is now barely levered.</b> If you could borrow at the bill
+      rate it would be 1.63&times;; the broker's 1.2pp spread takes a third of that away.</p>
+    </div>
+    <div class="card">
+      <p class="tag lose"><span class="dot"></span>The same solver, historical inputs</p>
+      <p class="figure">17.5<span class="unit">&times; gross</span></p>
+      <p class="fig-label">1993&ndash;2026 sample means</p>
+      <dl class="kv">
+        <dt>Equity risk premium</dt><dd>8.92%</dd>
+        <dt>&mdash; forward</dt><dd>4.36%</dd>
+        <dt>Bond premium, US</dt><dd>1.80%</dd>
+        <dt>&mdash; forward</dt><dd>1.08%</dd>
+        <dt>Stock/bond correlation</dt><dd>0.16</dd>
+        <dt>&mdash; forward</dt><dd>+0.22</dd>
+      </dl>
+      <p class="verdict"><b>Kelly leverage scales with the premium and inversely with variance.</b>
+      Halve the premium and you halve the leverage; there is no other moving part.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Bonds get nothing, and the reason is arithmetic</h2>
+  <p class="lede">US bonds yield 4.85% and hedged foreign bonds 4.63%, against cash at 3.80%
+  &mdash; a premium of about one point. Robinhood lends at 5.00%.</p>
+  <p><strong>You cannot borrow at 5.00% to buy a 4.70% expected return.</strong> That single
+  inequality removes both bond sleeves from every levered solution: at zero financing cost the
+  optimiser wants 2.4&times; bonds, and at any realistic retail borrowing spread it wants none.
+  Bonds re-enter only <em>below</em> 1&times; gross, as a substitute for cash &mdash; and at a 3.80%
+  bill rate they are barely that either, since the extra point of yield costs six points of
+  volatility and now moves <em>with</em> equities rather than against them.</p>
+  <p class="note">This is the cleanest example on any of these pages of a conclusion that is
+  structural rather than statistical. It does not depend on 33 years of data, on which fund proxied
+  which asset class, or on the survivorship problem that made the historical foreign-bond weight
+  untrustworthy. It depends on two numbers you can look up today.</p>
+</section>
+
+<section>
+  <h2>The backtest ladder, re-run forward</h2>
+  <p class="lede">400 bootstrapped ten-year paths through the same Reg-T account: historical daily
+  <em>shocks</em> &mdash; volatility clustering, fat tails and cross-asset correlation preserved
+  &mdash; rescaled to forward volatility and re-centred on forward expected returns. Only the shape
+  of the past survives; none of its level does.</p>
+
+  <figure class="chart-card">
+    <div class="chart-head">
+      <p class="chart-title">Compound return against leverage: what happened, and what should be expected</p>
+      <p class="legend">
+        <span><i class="swatch" style="background:var(--breach)"></i>1993&ndash;2026 backtest</span>
+        <span><i class="swatch" style="background:var(--accent)"></i>Forward median, 10-year paths</span>
+        <span><i class="swatch zone" style="background:var(--breach)"></i>Margin calls appear</span>
+      </p>
+    </div>
+    <svg viewBox="0 0 920 360" role="img" aria-label="Backtested CAGR rises monotonically from 10.9% at 1x to 15.1% at 2x leverage. Forward median CAGR is nearly flat, peaking at 6.65% at 1.25x and falling to 5.73% at 2x.">
+      <rect x="686" y="18" width="210" height="298" fill="var(--breach)" opacity="0.11"></rect>
+      <g stroke="var(--hair)" stroke-width="1">
+        <line x1="56" y1="18" x2="896" y2="18"></line>
+        <line x1="56" y1="92.5" x2="896" y2="92.5"></line>
+        <line x1="56" y1="167" x2="896" y2="167"></line>
+        <line x1="56" y1="241.5" x2="896" y2="241.5"></line>
+      </g>
+      <line x1="56" y1="316" x2="896" y2="316" stroke="var(--ink-2)" stroke-width="1"></line>
+      <g class="axis-label" text-anchor="end">
+        <text x="46" y="22">16%</text>
+        <text x="46" y="96.5">12%</text>
+        <text x="46" y="171">8%</text>
+        <text x="46" y="245.5">4%</text>
+        <text x="46" y="320">0%</text>
+      </g>
+      <g class="axis-label" text-anchor="middle">
+        <text x="56" y="338">0.5&times;</text>
+        <text x="336" y="338">1.0&times;</text>
+        <text x="616" y="338">1.5&times;</text>
+        <text x="896" y="338">2.0&times;</text>
+        <text x="476" y="354" style="letter-spacing:.1em">GROSS EXPOSURE</text>
+      </g>
+      <path d="M 336.0 113.7 L 476.0 86.7 L 616.0 62.7 L 756.0 43.3 L 896.0 34.8"
+            fill="none" stroke="var(--breach)" stroke-width="2.2" stroke-linejoin="round"></path>
+      <path d="M 56.0 211.3 L 196.0 200.5 L 336.0 192.3 L 476.0 192.1 L 616.0 194.4 L 756.0 200.9 L 896.0 209.3"
+            fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round"></path>
+      <circle cx="476" cy="192.1" r="4.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2.2"></circle>
+      <text class="plot-note" x="486" y="178" fill="var(--accent)">peak 6.65% at 1.25&times;</text>
+      <text class="plot-note" x="886" y="28" text-anchor="end" fill="var(--breach)">15.1% backtested</text>
+      <text class="plot-note" x="886" y="224" text-anchor="end" fill="var(--accent)">5.73% expected</text>
+      <text class="plot-note" x="791" y="308" text-anchor="middle" fill="var(--breach)">52% CHANCE OF A MARGIN CALL</text>
+    </svg>
+    <figcaption>The backtest line is one realised path of a period in which the equity premium was
+    8.9pp. The forward line is the median of 400 paths in which it is 4.4pp. Between 1&times; and
+    1.5&times; the forward curve is flat to within 12bp &mdash; leverage in that range buys
+    essentially no expected growth, and 16pp of additional median drawdown.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>The distribution, not the median</h2>
+  <div class="scroll">
+    <table>
+      <caption>400 bootstrapped 10-year paths, global equity at market weights, Reg-T account, borrowing at bills + 1.2%.</caption>
+      <thead><tr><th>Gross</th><th>Median CAGR</th><th>5th pct</th><th>95th pct</th><th>Median max DD</th><th>Worst 5% max DD</th><th>P(margin call)</th><th>P(lose to cash)</th></tr></thead>
+      <tbody>
+        <tr><td>0.50&times;</td><td>5.62%</td><td>1.16%</td><td>9.92%</td><td class="neg">&minus;15.9%</td><td class="neg">&minus;28.1%</td><td>0.0%</td><td>22.5%</td></tr>
+        <tr><td>0.75&times;</td><td>6.20%</td><td>&minus;0.53%</td><td>12.86%</td><td class="neg">&minus;24.5%</td><td class="neg">&minus;43.5%</td><td>0.0%</td><td>27.3%</td></tr>
+        <tr class="mark"><td>1.00&times;</td><td>6.64%</td><td>&minus;2.42%</td><td>15.73%</td><td class="neg">&minus;32.8%</td><td class="neg">&minus;55.9%</td><td>0.0%</td><td>29.0%</td></tr>
+        <tr class="mark"><td>1.25&times;</td><td><b>6.65%</b></td><td>&minus;4.68%</td><td>18.11%</td><td class="neg">&minus;40.8%</td><td class="neg">&minus;66.2%</td><td>0.0%</td><td>32.0%</td></tr>
+        <tr><td>1.50&times;</td><td>6.53%</td><td>&minus;7.33%</td><td>20.34%</td><td class="neg">&minus;48.6%</td><td class="neg">&minus;75.2%</td><td>0.0%</td><td>36.8%</td></tr>
+        <tr><td>1.75&times;</td><td>6.18%</td><td>&minus;9.96%</td><td>22.65%</td><td class="neg">&minus;55.7%</td><td class="neg">&minus;82.5%</td><td class="neg">17.8%</td><td>40.8%</td></tr>
+        <tr class="bad"><td>2.00&times;</td><td>5.73%</td><td>&minus;12.61%</td><td>24.62%</td><td class="neg">&minus;62.7%</td><td class="neg">&minus;86.9%</td><td class="neg">52.2%</td><td>45.2%</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">The Monte Carlo finds the growth-optimal leverage at <b>1.25&times;</b>, entirely
+  independently of the analytic Kelly solution of 1.18&times; &mdash; different machinery, same
+  answer. Note the last column: leverage makes it <em>more</em> likely, not less, that ten years of
+  equity risk leaves you behind a Treasury bill. At 2&times; that happens in 45% of paths.</p>
+  <p class="note">Stretch the horizon to 20 years and the ranking is unchanged &mdash; median CAGR
+  still peaks at 1.00&ndash;1.25&times; (6.7%) and still falls to 5.2% at 2&times; &mdash; but the
+  forced-sale risk compounds: <b>the chance of at least one margin call at 2&times; rises from 52%
+  over ten years to 78% over twenty</b>, and at 1.75&times; from 18% to 33%. A longer horizon does
+  not make high leverage safer; it makes the call arrive.</p>
+</section>
+
+<section>
+  <h2>The US / international split is a knife edge</h2>
+  <p class="lede">On the yields alone, international equities have the higher expected return
+  &mdash; a 2.90% dividend yield against 1.17%. The optimiser responds by putting everything there.
+  It should not be believed.</p>
+  <div class="scroll">
+    <table>
+      <caption>Kelly weights as the assumed US-minus-international return gap moves. 0 is the base case.</caption>
+      <thead><tr><th>US minus intl</th><th>US equities</th><th>Intl equities</th><th>US share of equity</th><th>Total gross</th></tr></thead>
+      <tbody>
+        <tr><td>&minus;1.0pp</td><td>0.00</td><td>1.56</td><td>0%</td><td>1.56&times;</td></tr>
+        <tr class="mark"><td>0.0pp &mdash; base case</td><td>0.00</td><td>1.38</td><td>0%</td><td>1.38&times;</td></tr>
+        <tr><td>+0.5pp</td><td>0.10</td><td>1.19</td><td>8%</td><td>1.30&times;</td></tr>
+        <tr><td>+1.0pp</td><td>0.55</td><td>0.71</td><td>44%</td><td>1.26&times;</td></tr>
+        <tr><td>+1.5pp</td><td>1.00</td><td>0.23</td><td>81%</td><td>1.22&times;</td></tr>
+        <tr><td>+2.0pp</td><td>1.25</td><td>0.00</td><td>100%</td><td>1.25&times;</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">A 2pp swing in an unobservable growth assumption takes the portfolio from
+  all-international to all-US, while <b>total equity exposure barely moves at all</b> (1.22&times;
+  to 1.56&times;). That is the shape of the problem: the optimiser has a firm view on
+  <em>how much</em> equity and no real view on <em>which</em>. Hold market weights &mdash; roughly
+  63% US, 37% international &mdash; and spend your conviction on the leverage decision, which is the
+  one the numbers can actually support.</p>
+</section>
+
+<section>
+  <h2>What you would have to believe to lever more</h2>
+  <div class="scroll">
+    <table>
+      <caption>Full Kelly on global equity as the assumed equity premium moves, borrowing at bills + 1.2%.</caption>
+      <thead><tr><th>Equity premium vs base</th><th>Geometric return</th><th>Over cash</th><th>Full Kelly</th><th>Half Kelly</th></tr></thead>
+      <tbody>
+        <tr><td>&minus;2pp &mdash; a lost decade</td><td>4.69%</td><td>2.36%</td><td>0.56&times;</td><td>0.28&times;</td></tr>
+        <tr><td>&minus;1pp</td><td>5.69%</td><td>3.36%</td><td>0.95&times;</td><td>0.48&times;</td></tr>
+        <tr class="mark"><td>Base case &mdash; the yields</td><td>6.69%</td><td>4.36%</td><td>1.18&times;</td><td>0.59&times;</td></tr>
+        <tr><td>+1pp</td><td>7.69%</td><td>5.36%</td><td>1.55&times;</td><td>0.78&times;</td></tr>
+        <tr><td>+2pp &mdash; the historical premium</td><td>8.69%</td><td>6.36%</td><td>1.93&times;</td><td>0.96&times;</td></tr>
+        <tr><td>+3pp</td><td>9.69%</td><td>7.36%</td><td>2.30&times;</td><td>1.15&times;</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">The 1.5&times; that the backtest recommended requires global equities to compound
+  at <b>7.7% instead of 6.7%</b> &mdash; about 0.9pp/yr more growth than current yields imply. That
+  is not an outrageous belief. It is, however, a belief, and it should be stated as one rather than
+  inherited from a backtest of the period that produced it.</p>
+</section>
+
+<section>
+  <h2>The rule, so you can re-run it without me</h2>
+  <p class="lede">Everything above reduces to one expression, and every input to it is published
+  daily.</p>
+  <p><code>L* = (expected equity return &minus; broker's borrowing rate) / volatility&sup2;</code>,
+  for the levered part, and <code>(expected return &minus; cash rate) / volatility&sup2;</code> below
+  1&times;.</p>
+  <div class="scroll">
+    <table>
+      <caption>Worked at today's numbers.</caption>
+      <thead><tr><th>Term</th><th>Where it comes from</th><th>Today</th></tr></thead>
+      <tbody>
+        <tr><td>Equity expected return</td><td>index dividend yield + ~1.1% buyback + 1.5% real growth + TIPS breakeven</td><td>6.69%</td></tr>
+        <tr><td>Cash rate</td><td>3-month T-bill (FRED <code>DTB3</code>)</td><td>3.80%</td></tr>
+        <tr><td>Borrowing rate</td><td>your broker's published margin tier</td><td>5.00%</td></tr>
+        <tr><td>Volatility</td><td>trailing realised, or the VIX as a live proxy</td><td>16.4%</td></tr>
+        <tr class="mark"><td><b>Unlevered Kelly</b></td><td>(6.69 &minus; 3.80) / 16.4&sup2;</td><td><b>1.63&times;</b></td></tr>
+        <tr class="mark"><td><b>Kelly after financing</b></td><td>(6.69 &minus; 5.00) / 16.4&sup2; &nbsp;on the borrowed part</td><td><b>1.18&times;</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Re-run it when any of three things move: <b>the dividend yield</b> (a 20% market
+  decline raises it, and raises the Kelly leverage with it &mdash; the rule tells you to buy into
+  falls, which is the opposite of what the drawdown makes you want to do); <b>the borrowing rate</b>,
+  which floats with the fed funds rate and is currently taking a third of your Kelly leverage; and
+  <b>volatility</b>, which enters squared and therefore matters most. A move from 16% to 24%
+  volatility more than halves the growth-optimal leverage on its own.</p>
+</section>
+
+<section>
+  <h2>The revised answer</h2>
+  <ul>
+    <li><strong>Hold global equities at market weights, roughly 1.0&times; to 1.25&times; gross.</strong>
+    That is where both the analytic Kelly (1.18&times;) and the Monte Carlo median (1.25&times;) land,
+    and neither has any margin-call risk over ten years. In a $50k account that is $50k&ndash;$62.5k
+    of VT-equivalent exposure, financed with at most $12.5k of margin at 5.00%.</li>
+    <li><strong>The honest fractional-Kelly answer is lower still.</strong> Half Kelly on these
+    inputs is 0.59&times; &mdash; 60% equities, 40% earning 3.80% in cash. Everything on the previous
+    two pages argues for fractioning Kelly rather than taking it whole; the reason not to go that low
+    is that at 1.0&times; you are already inside the flat part of the growth curve, and the fractional
+    discipline matters most where the curve is steep.</li>
+    <li><strong>No bonds while you are borrowing.</strong> Their expected return is below the margin
+    rate. If you want less risk, hold less equity and more cash &mdash; not bonds bought with
+    borrowed money.</li>
+    <li><strong>1.5&times; is a defensible choice, but it is now a view, not an optimisation.</strong>
+    It requires believing the equity premium is about a point higher than the yields imply. It costs
+    16pp of median drawdown for roughly zero expected median return, and it is still safe from a
+    forced sale &mdash; so it is a bet on the upper tail, taken knowingly.</li>
+    <li><strong>1.75&times; and above are now indefensible.</strong> An 18&ndash;52% chance of a
+    margin call over ten years, at a <em>lower</em> median return than 1&times;.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Where this could be wrong</h2>
+  <ul>
+    <li><strong>Real growth of 1.5% is the load-bearing assumption</strong>, and it is not
+    observable. It is roughly the long-run US real earnings-per-share growth rate; a case for 2.5%
+    (AI-driven margin expansion, say) moves full Kelly to about 1.5&times;. The sensitivity table
+    above is the honest form of that argument.</li>
+    <li><strong>The valuation term is set to zero</strong>, which is a choice in both directions. US
+    equities at a high multiple have historically de-rated over subsequent decades, which would make
+    6.31% optimistic; assuming any specific reversion, however, is a market-timing forecast in a
+    build-up that is otherwise built from observables.</li>
+    <li><strong>The international premium is a valuation-and-composition artefact.</strong> The
+    higher dividend yield partly reflects a different sector mix &mdash; more banks and energy, less
+    software &mdash; not a free lunch. That is precisely why the knife-edge table matters more than
+    the base-case tilt.</li>
+    <li><strong>Five-year volatility understates a crisis.</strong> Forward paths bootstrap real
+    daily shocks, so 2020-style clustering is present, but if forward volatility runs at 20% rather
+    than 16.4% every Kelly number here falls by a third.</li>
+    <li><strong>Yields move.</strong> Every number on this page is dated 20 August 2026. That is
+    the point of the rule in the previous section.</li>
+  </ul>
+</section>
+
+<footer>
+  <p>Reproduce: <code>python scripts/run_kelly_forward.py --paths 400</code>. Assumptions and
+  solvers in <code>src/lam/kelly/forward.py</code>, account simulation in
+  <code>src/lam/kelly/account.py</code>, output in <code>docs/kelly_forward_report.txt</code>.
+  Yields from FRED (<code>DTB3</code>, <code>DGS5/10/30</code>, <code>T10YIE</code>, OECD long and
+  short rates for Germany, Japan and the UK) and fund distribution yields from the gap between
+  adjusted and unadjusted closes. Companion pages: the historical answer and the Reg-T leverage
+  ladder.</p>
+  <p>A model of expected returns, not a forecast, and not personalised financial advice. Leverage
+  can lose more than the amount invested.</p>
+</footer>
+
+</div>

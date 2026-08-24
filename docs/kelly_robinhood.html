@@ -1,0 +1,446 @@
+<title>The Robinhood Leverage Ladder</title>
+<style>
+:root{
+  color-scheme: light;
+  --ground:#f1f4f3; --panel:#fbfcfc; --panel-2:#e9eeed;
+  --ink:#101619; --ink-2:#4d5a5e; --muted:#7f8f92;
+  --accent:#0d6c76; --accent-soft:#0d6c761f;
+  --breach:#a83a30; --breach-soft:#a83a3021;
+  --gain:#2c7a58;
+  --rule:#d8e0de; --hair:#e6ecea;
+  --shadow:0 1px 2px rgba(16,22,25,.05), 0 8px 24px -16px rgba(16,22,25,.22);
+  --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --ground:#0c1113; --panel:#141b1e; --panel-2:#1b2427;
+    --ink:#e9efee; --ink-2:#a3b1b3; --muted:#78878a;
+    --accent:#47b3bf; --accent-soft:#47b3bf24;
+    --breach:#dd6a5f; --breach-soft:#dd6a5f26;
+    --gain:#4faa83;
+    --rule:#25302f; --hair:#1d2628;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --ground:#0c1113; --panel:#141b1e; --panel-2:#1b2427;
+  --ink:#e9efee; --ink-2:#a3b1b3; --muted:#78878a;
+  --accent:#47b3bf; --accent-soft:#47b3bf24;
+  --breach:#dd6a5f; --breach-soft:#dd6a5f26;
+  --gain:#4faa83;
+  --rule:#25302f; --hair:#1d2628;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px 96px}
+@media(max-width:640px){ .wrap{padding:0 16px 64px} }
+
+header.top{padding:72px 0 0}
+.eyebrow{
+  font-family:var(--mono); font-size:11px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--muted); margin:0 0 20px;
+}
+h1{
+  font-family:var(--serif); font-weight:600; font-size:clamp(34px,5.4vw,60px);
+  line-height:1.04; letter-spacing:-.022em; margin:0 0 20px; text-wrap:balance;
+}
+.standfirst{
+  font-size:clamp(17px,2vw,20px); line-height:1.55; color:var(--ink-2);
+  max-width:62ch; margin:0;
+}
+.standfirst strong{color:var(--ink); font-weight:600}
+
+/* the fraction rule: the spine of the argument is f, the Kelly fraction */
+.fracline{
+  margin:56px 0 0; border:0; border-top:1.5px solid var(--ink);
+  position:relative; opacity:.85;
+}
+.fracline::after{
+  content:"2.00x"; position:absolute; right:0; top:-22px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--muted);
+}
+.fracline::before{
+  content:"1.00x"; position:absolute; left:0; top:-22px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--muted);
+}
+
+section{margin-top:64px}
+h2{
+  font-family:var(--serif); font-weight:600; font-size:clamp(23px,3vw,30px);
+  letter-spacing:-.015em; line-height:1.2; margin:0 0 8px; text-wrap:balance;
+}
+h3{font-family:var(--sans); font-size:15px; font-weight:650; letter-spacing:-.005em; margin:28px 0 10px}
+.lede{color:var(--ink-2); max-width:66ch; margin:0 0 24px}
+p{max-width:68ch}
+a{color:var(--accent)}
+strong{font-weight:650}
+
+.split{display:grid; grid-template-columns:1fr 1fr; gap:20px}
+@media(max-width:760px){ .split{grid-template-columns:1fr} }
+.card{
+  background:var(--panel); border:1px solid var(--rule); border-radius:10px;
+  padding:24px; box-shadow:var(--shadow);
+}
+.card .tag{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase;
+  display:inline-flex; align-items:center; gap:7px; padding:4px 9px; border-radius:99px;
+  margin-bottom:16px;
+}
+.tag.win{background:var(--accent-soft); color:var(--accent)}
+.tag.lose{background:var(--breach-soft); color:var(--breach)}
+.tag .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.figure{
+  font-family:var(--serif); font-size:clamp(38px,5.4vw,52px); font-weight:600;
+  letter-spacing:-.03em; line-height:1; margin:0 0 2px;
+}
+.figure .unit{font-size:.44em; letter-spacing:0; color:var(--ink-2); margin-left:4px}
+.fig-label{font-size:13px; color:var(--muted); margin:0 0 20px}
+.kv{display:grid; grid-template-columns:auto 1fr; gap:7px 18px; font-size:14px; margin:0}
+.kv dt{color:var(--ink-2)}
+.kv dd{margin:0; font-family:var(--mono); font-size:13.5px; font-variant-numeric:tabular-nums; text-align:right}
+.verdict{
+  margin-top:20px; padding-top:16px; border-top:1px solid var(--hair);
+  font-size:14px; color:var(--ink-2);
+}
+.verdict b{color:var(--ink)}
+
+figure{margin:0}
+.chart-card{background:var(--panel); border:1px solid var(--rule); border-radius:10px; padding:22px 20px 16px; box-shadow:var(--shadow)}
+.chart-head{display:flex; justify-content:space-between; align-items:baseline; gap:16px; flex-wrap:wrap; margin-bottom:14px}
+.chart-title{font-size:14.5px; font-weight:650}
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-2)}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.swatch{width:12px; height:3px; border-radius:2px; display:inline-block}
+.swatch.zone{height:9px; border-radius:2px; opacity:.55}
+svg{display:block; width:100%; height:auto; overflow:visible}
+figcaption{font-size:13px; color:var(--muted); margin-top:12px; max-width:74ch}
+.axis-label{font-family:var(--mono); font-size:10px; fill:var(--muted); letter-spacing:.06em}
+.plot-note{font-family:var(--mono); font-size:10.5px; fill:var(--ink-2); letter-spacing:.04em}
+
+.scroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:560px}
+caption{text-align:left; font-size:13px; color:var(--muted); padding-bottom:10px}
+th,td{padding:9px 12px; text-align:right; border-bottom:1px solid var(--hair)}
+th:first-child,td:first-child{text-align:left}
+thead th{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--muted); font-weight:500; border-bottom:1px solid var(--rule);
+}
+tbody td{font-family:var(--mono); font-size:13.5px; font-variant-numeric:tabular-nums}
+tbody td:first-child{font-family:var(--sans); font-size:14px; color:var(--ink)}
+tbody tr:hover{background:var(--panel-2)}
+tr.mark td{background:var(--accent-soft)}
+tr.mark td:first-child{font-weight:650}
+tr.bad td{background:var(--breach-soft)}
+.pos{color:var(--gain)} .neg{color:var(--breach)}
+.note{font-size:13.5px; color:var(--muted); margin-top:12px; max-width:74ch}
+ul{max-width:68ch; padding-left:20px}
+li{margin-bottom:8px}
+code{font-family:var(--mono); font-size:.88em; background:var(--panel-2); padding:1px 5px; border-radius:4px}
+footer{margin-top:80px; padding-top:24px; border-top:1px solid var(--rule); font-size:13px; color:var(--muted)}
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Kelly, translated into a Reg-T retail account &middot; 1993&ndash;2026</p>
+  <h1>The Robinhood Leverage Ladder</h1>
+  <p class="standfirst">Kelly says the allocation is US equities and the decision is how much of it
+  to own. In a margin account that decision is not made by the growth-optimal calculation &mdash;
+  it is made by the maintenance requirement. <strong>1.5&times; is the highest leverage that was
+  never force-sold in 33 years; above it, the extra return exists only for someone who re-levers
+  the day after being liquidated.</strong></p>
+  <hr class="fracline">
+</header>
+
+<section>
+  <h2>The ladder</h2>
+  <p class="lede">100% US equities, rebalanced monthly to a fixed gross exposure, simulated daily
+  through a Reg-T account: 25% maintenance, requirements hiked as the market falls, tested against
+  intraday prices, borrowing at Robinhood's 5.00% against a 3.80% bill &mdash; a 1.2pp spread.</p>
+  <div class="scroll">
+    <table>
+      <caption>Panel <b>long</b>, 1993-01 &rarr; 2026-08. Drawdowns are account equity, not the index.</caption>
+      <thead><tr><th>Gross exposure</th><th>CAGR</th><th>Volatility</th><th>Max drawdown</th><th>Growth of $1</th><th>Margin calls</th><th>First call</th></tr></thead>
+      <tbody>
+        <tr><td>1.00&times; &mdash; no margin</td><td>10.86%</td><td>18.3%</td><td class="neg">&minus;55.3%</td><td>$32</td><td>0</td><td>&mdash;</td></tr>
+        <tr class="mark"><td>1.25&times;</td><td>12.31%</td><td>23.1%</td><td class="neg">&minus;64.3%</td><td>$50</td><td>0</td><td>&mdash;</td></tr>
+        <tr class="mark"><td>1.50&times;</td><td>13.60%</td><td>28.1%</td><td class="neg">&minus;71.9%</td><td>$73</td><td>0</td><td>&mdash;</td></tr>
+        <tr><td>1.75&times;</td><td>14.64%</td><td>33.2%</td><td class="neg">&minus;80.3%</td><td>$99</td><td class="neg">1</td><td class="neg">Oct 2008</td></tr>
+        <tr class="bad"><td>2.00&times; &mdash; the Reg-T cap</td><td>15.10%</td><td>37.7%</td><td class="neg">&minus;87.4%</td><td>$113</td><td class="neg">6</td><td class="neg">Jul 2002</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Read the drawdown column before the CAGR column. 1.5&times; is not &ldquo;10.9%
+  becomes 13.6%&rdquo;; it is &ldquo;a 55% worst loss becomes a 72% worst loss.&rdquo; Both of
+  those happened, and the 72% one would have taken until 2013 to recover.</p>
+</section>
+
+<section>
+  <h2>The number that actually decides it</h2>
+  <p class="lede">A margin call is not a risk-management event, it is a mechanical one: it fires
+  at a fixed distance below your last rebalance, and you can compute that distance before you
+  place the trade.</p>
+  <div class="scroll">
+    <table>
+      <caption>How far the position can fall between monthly rebalances before the broker sells.</caption>
+      <thead><tr><th>Gross exposure</th><th>Textbook 25% rule</th><th>With intraday testing and a procyclical hike</th><th>Comparable event</th></tr></thead>
+      <tbody>
+        <tr><td>1.25&times;</td><td>&minus;73.3%</td><td>&minus;63.9%</td><td>worse than 2008 peak-to-trough</td></tr>
+        <tr class="mark"><td>1.50&times;</td><td>&minus;55.6%</td><td>&minus;43.4%</td><td>2008 (&minus;55%) &mdash; but spread over 17 months</td></tr>
+        <tr><td>1.75&times;</td><td>&minus;42.9%</td><td>&minus;30.0%</td><td>March 2020 (&minus;34% in 23 trading days)</td></tr>
+        <tr class="bad"><td>2.00&times;</td><td>&minus;33.3%</td><td>&minus;20.4%</td><td>2020, 2022, 2002 &mdash; all of them</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note"><b>Speed matters more than depth.</b> The distance is measured from the last
+  rebalance, not from the peak &mdash; and rebalancing monthly to a fixed leverage <em>sells on
+  the way down</em>. That is why 1.5&times; came through 2008's slow 55% decline untouched while
+  2&times; was called six times, and why the crash that breaks a levered account is a fast one,
+  not necessarily a deep one.</p>
+</section>
+
+<section>
+  <h2>Above 1.5&times;, the return is a discipline test</h2>
+  <p class="lede">A forced sale only costs you the recovery if you do not put the position back
+  on. The simulation below is identical except in what happens after the call: the investor
+  either re-levers at the next rebalance, or stays where the broker left them.</p>
+  <div class="scroll">
+    <table>
+      <caption>CAGR, 1993&ndash;2026, by what the account holder does after being sold out.</caption>
+      <thead><tr><th>Gross exposure</th><th>Re-levers immediately</th><th>Does not re-lever</th><th>Cost of flinching</th></tr></thead>
+      <tbody>
+        <tr><td>1.25&times;</td><td>12.31%</td><td>12.31%</td><td>&mdash; never called</td></tr>
+        <tr class="mark"><td>1.50&times;</td><td>13.60%</td><td>13.60%</td><td>&mdash; never called</td></tr>
+        <tr><td>1.75&times;</td><td>14.64%</td><td>10.74%</td><td class="neg">&minus;3.90 pp/yr</td></tr>
+        <tr class="bad"><td>2.00&times;</td><td>15.10%</td><td>11.26%</td><td class="neg">&minus;3.84 pp/yr</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">At 2&times;, flinching once costs more than the entire gain from leverage: the
+  account ends at 11.26%/yr against 10.86% for never having borrowed at all &mdash; 40bp/yr, for a
+  &minus;77% drawdown. <b>The whole case for going above 1.5&times; rests on buying back in,
+  with borrowed money, in October 2008.</b> Assume you will not, and the ladder stops at
+  1.5&times;.</p>
+</section>
+
+<section>
+  <h2>Does the safe rung move if the broker is harsher?</h2>
+  <p class="lede">Robinhood publishes a 25%&ndash;100% maintenance range and sets it per security
+  from its own volatility model, so 25% is a floor, not a promise. This is that assumption
+  stressed.</p>
+  <div class="scroll">
+    <table>
+      <caption>CAGR and number of forced sales, 1993&ndash;2026.</caption>
+      <thead><tr><th>Assumption</th><th>1.25&times;</th><th>1.5&times;</th><th>1.75&times;</th><th>2&times;</th></tr></thead>
+      <tbody>
+        <tr><td>Base: 25% maintenance, intraday stress 1.35</td><td>12.3% &middot; 0</td><td>13.6% &middot; 0</td><td>14.6% &middot; 1</td><td>15.1% &middot; 6</td></tr>
+        <tr><td>30% maintenance</td><td>12.3% &middot; 0</td><td>13.6% &middot; 0</td><td>14.4% &middot; 4</td><td class="neg">14.8% &middot; 33</td></tr>
+        <tr><td>35% maintenance</td><td>12.3% &middot; 0</td><td>13.4% &middot; 2</td><td class="neg">14.0% &middot; 34</td><td class="neg">14.0% &middot; 222</td></tr>
+        <tr><td>Intraday stress 1.50</td><td>12.3% &middot; 0</td><td>13.6% &middot; 0</td><td>14.4% &middot; 3</td><td class="neg">14.9% &middot; 16</td></tr>
+        <tr><td>Borrowing at bills + 2.5%</td><td>11.9% &middot; 0</td><td>12.9% &middot; 0</td><td>13.5% &middot; 1</td><td>13.6% &middot; 6</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note"><b>1.25&times; is never called under any assumption tested. 1.5&times; survives
+  everything except a 35% requirement.</b> 1.75&times; and 2&times; flip from &ldquo;one bad
+  month&rdquo; to &ldquo;serially liquidated&rdquo; on a 5pp change in a number the broker sets
+  unilaterally and can change without warning.</p>
+</section>
+
+<section>
+  <h2>What to hold in it</h2>
+  <p class="lede">The allocation question is nearly settled by the previous page: at these
+  leverage levels Kelly wants equities, and international equities and bonds earn nothing. What
+  is worth pricing is how much that concentration is costing you if you would rather not make it.</p>
+  <div class="scroll">
+    <table>
+      <caption>Held at 1.5&times; through the Reg-T simulation, 1993&ndash;2026.</caption>
+      <thead><tr><th>Allocation</th><th>CAGR at 1.0&times;</th><th>CAGR at 1.5&times;</th><th>Max drawdown at 1.5&times;</th><th>Calls</th></tr></thead>
+      <tbody>
+        <tr class="mark"><td>100% US equity (VTI)</td><td>10.86%</td><td>13.60%</td><td class="neg">&minus;71.9%</td><td>0</td></tr>
+        <tr><td>80/20 US / intl equity</td><td>10.24%</td><td>12.66%</td><td class="neg">&minus;72.5%</td><td>0</td></tr>
+        <tr><td>70/30 US / intl equity</td><td>9.91%</td><td>12.16%</td><td class="neg">&minus;72.8%</td><td>0</td></tr>
+        <tr><td>90/10 equity / bonds, global</td><td>9.78%</td><td>12.14%</td><td class="neg">&minus;68.2%</td><td>0</td></tr>
+        <tr><td>60/40 global</td><td>7.91%</td><td>9.67%</td><td class="neg">&minus;52.6%</td><td>0</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">Adding 20% international equity cost <b>0.56pp/yr of log growth and bought no
+  drawdown protection</b> &mdash; the 1.5&times; drawdown is marginally <em>worse</em>, because
+  international equities fell just as hard while returning less. That is a real historical fact and
+  a weak basis for a forward-looking decision: it is 33 years of one country outperforming, and the
+  same table run in 2008 would have said the opposite. Treat a 10&ndash;20% international sleeve as
+  insurance you are knowingly paying about half a point a year for, not as an error.</p>
+  <p class="note">Bonds are different. They are not diversification here &mdash; at 1.5&times;
+  gross they simply crowd out the asset doing the work, which is why 90/10 earns less than 100/0
+  with an almost identical drawdown. If you want less risk, take the leverage down; do not add
+  bonds and then borrow against them.</p>
+</section>
+
+<section>
+  <h2>If the account is an IRA: leveraged ETFs are not a substitute</h2>
+  <p class="lede">Margin is not available in a retirement account, which leaves daily-reset
+  leveraged funds as the only lever. They are a different instrument, and over a long hold they
+  are a worse one.</p>
+  <div class="split">
+    <div class="card">
+      <p class="tag win"><span class="dot"></span>2&times; on margin</p>
+      <p class="figure">15.10<span class="unit">% CAGR</span></p>
+      <p class="fig-label">1993&ndash;2026, borrowing at bills + 1.2%</p>
+      <dl class="kv">
+        <dt>Max drawdown</dt><dd>&minus;87.4%</dd>
+        <dt>Forced sales</dt><dd>6</dd>
+        <dt>Cost of leverage</dt><dd>~5.0%/yr on the debit</dd>
+      </dl>
+    </div>
+    <div class="card">
+      <p class="tag lose"><span class="dot"></span>2&times; daily-reset fund (SSO-style)</p>
+      <p class="figure">10.68<span class="unit">% CAGR</span></p>
+      <p class="fig-label">0.89% expense ratio + ~0.83% swap financing spread</p>
+      <dl class="kv">
+        <dt>Max drawdown</dt><dd>&minus;91.5%</dd>
+        <dt>Forced sales</dt><dd>none possible</dd>
+        <dt>vs simply owning VTI</dt><dd class="neg">&minus;0.18 pp/yr</dd>
+      </dl>
+    </div>
+  </div>
+  <p class="note">A 2&times; daily-reset fund held for 33 years returned <em>less than the
+  unlevered index</em> at nearly twice the drawdown. The daily reset compounds
+  <code>2 &times; r</code>, so volatility drag scales with the square of the multiplier, and the
+  fund's all-in financing is wider than a margin loan. Its one genuine advantage &mdash; it cannot
+  be margin-called, and the worst case is losing what you put in &mdash; is the reason to use one
+  tactically, not the reason to hold one.</p>
+</section>
+
+<section>
+  <h2>Three rungs, priced</h2>
+  <p class="lede">Pick by the drawdown you can hold through without selling, not by the CAGR.
+  The middle column is the one that has to be survivable, twice, over a working lifetime.</p>
+  <div class="split" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="card">
+      <p class="tag win"><span class="dot"></span>Conservative lever</p>
+      <p class="figure">1.25<span class="unit">&times;</span></p>
+      <p class="fig-label">$50k equity &rarr; $62.5k of VTI, $12.5k borrowed</p>
+      <dl class="kv">
+        <dt>Historical CAGR</dt><dd>12.31%</dd>
+        <dt>Worst drawdown</dt><dd>&minus;64.3%</dd>
+        <dt>Call distance</dt><dd>&minus;64%</dd>
+        <dt>Interest at 5.00%</dt><dd>$625/yr</dd>
+        <dt>Calls, 1993&ndash;2026</dt><dd>none, in any stress</dd>
+      </dl>
+      <p class="verdict"><b>+1.5pp/yr over cash-only</b> for 9pp of extra drawdown, with no
+      scenario tested in which a broker sells you out.</p>
+    </div>
+    <div class="card">
+      <p class="tag win"><span class="dot"></span>The recommended rung</p>
+      <p class="figure">1.50<span class="unit">&times;</span></p>
+      <p class="fig-label">$50k equity &rarr; $75k of VTI, $25k borrowed</p>
+      <dl class="kv">
+        <dt>Historical CAGR</dt><dd>13.60%</dd>
+        <dt>Worst drawdown</dt><dd>&minus;71.9%</dd>
+        <dt>Call distance</dt><dd>&minus;43%</dd>
+        <dt>Interest at 5.00%</dt><dd>$1,250/yr</dd>
+        <dt>Calls, 1993&ndash;2026</dt><dd>none, unless maintenance &ge; 35%</dd>
+      </dl>
+      <p class="verdict"><b>+2.7pp/yr</b>, and the last rung whose survival does not depend on
+      your behaviour in a crisis. This is where &ldquo;I can afford extra risk&rdquo; lands.</p>
+    </div>
+    <div class="card">
+      <p class="tag lose"><span class="dot"></span>Only with a written rule</p>
+      <p class="figure">1.75<span class="unit">&times;</span>+</p>
+      <p class="fig-label">$50k equity &rarr; $87.5k of VTI, $37.5k borrowed</p>
+      <dl class="kv">
+        <dt>Historical CAGR</dt><dd>14.64%</dd>
+        <dt>&mdash; if you don't re-lever</dt><dd class="neg">10.74%</dd>
+        <dt>Worst drawdown</dt><dd>&minus;80.3%</dd>
+        <dt>Call distance</dt><dd>&minus;30%</dd>
+        <dt>Interest at 5.00%</dt><dd>$1,875/yr</dd>
+      </dl>
+      <p class="verdict"><b>Conditional on a promise.</b> A 2020-speed decline calls this account;
+      the extra 1.0pp/yr exists only if you re-borrow at the bottom.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Mechanics, specific to Robinhood</h2>
+  <ul>
+    <li><strong>The rate.</strong> 5.00% on margin balances up to $50k as of July 2026, stepping
+    down by tier; Gold ($5/month) makes the first $1,000 of margin interest-free, which roughly
+    pays for itself. Against a 3.80% bill that is a 1.2pp spread &mdash; genuinely cheap, and the
+    single biggest reason this ladder is worth climbing at all. It floats with the fed funds rate;
+    at bills + 2.5% the 1.5&times; rung loses 0.7pp/yr.</li>
+    <li><strong>The requirement is theirs, not the regulator's.</strong> 25% is FINRA's floor;
+    Robinhood's published range is 25%&ndash;100% and is set per security by their own model,
+    including concentration. A one-position VTI account is the friendliest possible case, and it
+    is still their call, changeable overnight. Size for 30%.</li>
+    <li><strong>No portfolio margin.</strong> Reg-T caps you at 2&times; at purchase regardless.
+    The cheap-financing tricks in the rest of this project &mdash; box spreads at bills + 20bp,
+    3&times; portfolio margin &mdash; are not available here.</li>
+    <li><strong>Rebalance monthly, mechanically.</strong> The simulation's zero-call record at
+    1.5&times; depends on it: a fixed-leverage rebalance sells into declines. Drifting up to
+    1.9&times; in a rally and meeting the next crash there is how a 1.5&times; plan becomes a
+    2&times; outcome.</li>
+    <li><strong>Taxes are not modelled and are not small.</strong> In a taxable account monthly
+    rebalancing realises short-term gains; margin interest is deductible only against investment
+    income and only if you itemise. The 13.60% at 1.5&times; is pre-tax.</li>
+    <li><strong>Keep the borrowing away from the emergency fund.</strong> A margin call is met by
+    depositing cash or by the broker selling; the whole ladder assumes the money in the account is
+    money you will not need during a &minus;70% stretch lasting years.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Asked forward instead of backward</h2>
+  <p class="lede">Every CAGR on this page comes from a period in which global equities earned about
+  8.9pp over cash. Built from what the same assets yield today, that premium is <b>4.4pp</b>, and
+  the growth-optimal leverage falls with it: <b>full Kelly on forward inputs is 1.18&times;, and a
+  Monte Carlo of the same Reg-T account puts the median-return peak at 1.25&times;</b>, with no
+  expected reward for anything above it. The rung this page recommends is still safe from a forced
+  sale &mdash; but at today's yields it is a view about the equity premium, not an optimum.</p>
+  <p><a href="https://claude.ai/code/artifact/04f83062-d05c-4040-80dc-18aa36ffcbab">Kelly at Today's Yields &rarr;</a></p>
+</section>
+
+<section>
+  <h2>What this analysis does not know</h2>
+  <ul>
+    <li><strong>&ldquo;100% US equity&rdquo; is the answer the last 33 years gave.</strong> It is a
+    single-country, single-asset bet chosen by an optimiser looking at the period in which that
+    country won. The bootstrap on the previous page could not distinguish these risk premia at all;
+    the leverage conclusion is far more robust than the allocation one.</li>
+    <li><strong>Every CAGR here is in-sample.</strong> Held forward with weights re-estimated in
+    real time, the same machinery returned 9.99%/yr against 11.53% for owning US equities and never
+    optimising. The ladder's ranking of leverage levels is the durable finding; the levels of the
+    returns are not.</li>
+    <li><strong>33 years contains about three real tests</strong> &mdash; 2000&ndash;02,
+    2007&ndash;09, 2020. A leverage rule validated on three events is a rule with a sample size of
+    three.</li>
+    <li><strong>The 2013&ndash;2026 window flatters everything.</strong> On the modern all-index
+    panel the same ladder shows 14.0% at 1&times; and 18.9% at 1.5&times; with a &minus;50%
+    drawdown, and even 2&times; was only called in March 2020. That period is not a fair test and
+    those numbers should not be planned around.</li>
+  </ul>
+</section>
+
+<footer>
+  <p>Reproduce: <code>python scripts/run_kelly_account.py --spread 0.012</code>. Full output in
+  <code>docs/kelly_account_report.txt</code>; simulator in <code>src/lam/kelly/account.py</code>,
+  tests in <code>tests/test_kelly.py</code>. The allocation question this builds on is in
+  <code>docs/kelly_findings.html</code>. Daily prices from Yahoo adjusted closes, cash and
+  financing base from FRED <code>DTB3</code>. Rebalanced monthly, forced sales charged 40bp of
+  slippage, voluntary trades 5bp.</p>
+  <p>This is a backtest of a mechanical rule on historical data, not personalised financial
+  advice, and leverage can lose more than the amount invested.</p>
+</footer>
+
+</div>

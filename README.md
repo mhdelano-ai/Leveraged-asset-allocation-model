@@ -22,6 +22,9 @@ daily-reset leveraged ETFs, and portfolio margin / box spreads.
 
 - [Model A — the drawdown-constrained model](#model-a--drawdown-constrained-multi-asset)
 - [Model B — the return-maximising model](#model-b--return-maximising-concentrated-leverage)
+- [Appendix — Kelly on the four-asset question](#appendix--kelly-on-the-four-asset-question)
+- [Appendix — Kelly inside a Reg-T retail account](#appendix--kelly-inside-a-reg-t-retail-account)
+- [Appendix — Kelly at today's yields](#appendix--kelly-at-todays-yields)
 
 ---
 
@@ -866,3 +869,237 @@ python scripts/run_growth_robustness.py              # transfer, 1929, vehicles
 - Panel X's mutual-fund sleeves are actively managed and survivorship-selected.
 - Portfolio margin did not exist for retail investors before 2007; pre-2007
   results under that schedule are counterfactual.
+
+---
+
+# Appendix — Kelly on the four-asset question
+
+A separate question, asked of the same engine and the same discipline about
+lookahead: **what is the Kelly-optimal portfolio of US equities, international
+ex-US equities, US bonds, international ex-US bonds and cash, based entirely on
+historical data?**
+
+Full write-up: [`docs/kelly_findings.html`](docs/kelly_findings.html). Reproduce
+with `python scripts/run_kelly.py --draws 1000`; raw output in
+`docs/kelly_report.txt` and `docs/kelly_results.json`.
+
+### The answer
+
+**Full Kelly is not a portfolio.** On 1993–2026 monthly data it asks for
+**17.5× gross exposure** — +3.45 US equities, −1.53 international equities,
+0.00 US bonds, **+12.48 international bonds**, financed by a −13.4× cash
+position — and an account that followed it, re-estimating the weights every year
+from data available at the time, **was wiped out in September 2008** on a
+−113.9% month.
+
+| Kelly fraction | In-sample log growth | Out-of-sample log growth |
+|---|---|---|
+| 0.25× | 14.9% | 11.2% |
+| **0.50×** | 23.8% | **15.0% — the out-of-sample peak** |
+| 0.75× | 29.6% | 10.4% |
+| 0.90× and above | 31.3% | **ruin** |
+
+In sample, growth rises monotonically to 1.0× — that is what "optimal" means and
+it is evidence of nothing. Out of sample it peaks near **half Kelly** and then
+collapses.
+
+### Two structural findings
+
+**Without leverage, Kelly is 100% US equities.** Long-only with no borrowing, the
+log-optimal portfolio is all US equity — in both panels, at the bootstrap median,
+and after shrinking the means toward an equal-Sharpe prior. At 1× exposure a
+15%-vol book gives up ~1.1pp/yr to variance drag, nowhere near enough to buy a
+4%-return bond sleeve a place. **Kelly is not an argument for diversification;
+it is an argument for leverage.** Bonds earn a weight only when they can be
+levered, and levering them is what produces the ruin above.
+
+**The weights are not identified by the data.** A 12-month block bootstrap puts
+the US bond weight's 90% interval at −3.10 to +4.54 — the sign is unknown — and
+gross exposure between 7.8× and 29.9×. Re-solved decade by decade, the
+2×-capped solution is 0.59 US equity / 1.41 international bonds in the 1990s,
+0.00 US equity / 1.22 international equity in the 2000s, and 2.00 US equity in
+the 2010s: three consecutive decades, three unrelated portfolios.
+
+Run honestly out of sample, the unlevered optimiser earned **9.99%/yr against
+11.53%** for simply owning US equities and never solving anything.
+
+### Data, and its one severe limitation
+
+| Sleeve | Panel `modern` (2013-07→) | Panel `long` (1993-01→) |
+|---|---|---|
+| US equities | VTI | VFINX |
+| Intl ex-US equities | VXUS | VTRIX *(active, survivorship-selected)* |
+| US bonds | BND | VBMFX |
+| Intl ex-US bonds | BNDX | PFORX *(active, survivorship-selected)* |
+| Cash | FRED `DTB3`, discount→BEY | same |
+
+**International bonds bind everything.** The asset class as it is actually bought
+— currency-hedged global aggregate ex-USD — has a tradable index history starting
+2013-06. Thirteen years cannot support a Kelly weight, so the long panel
+substitutes the longest-running hedged foreign bond fund, and its 0.85 Sharpe
+ratio (an active fund, selected for having survived, measured across a 30-year
+global bond bull market) is precisely what the levered solution is betting on.
+On the clean modern data those same bonds returned *less than cash*, and Kelly
+gives them nothing at all.
+
+---
+
+# Appendix — Kelly inside a Reg-T retail account
+
+The Kelly answer above assumes a frictionless account. A retail margin account —
+Robinhood's, and every other Reg-T broker's — breaks that assumption in the one
+way that matters: **a maintenance breach converts a drawdown into a realised
+loss.** The broker sells at the bottom, and the position is not there for the
+recovery.
+
+`src/lam/kelly/account.py` simulates this daily, because a maintenance breach is
+a path event inside the month. It models the Reg-T 2× cap, per-asset maintenance
+requirements, house requirement hikes as the market falls, intraday testing
+rather than close-to-close, slippage on forced sales, and interest accrued daily
+on the debit balance. Report:
+[`docs/kelly_robinhood.html`](docs/kelly_robinhood.html), raw output in
+`docs/kelly_account_report.txt`, run with
+`python scripts/run_kelly_account.py --spread 0.012`.
+
+### The maintenance requirement, not Kelly, sets the leverage
+
+100% US equity rebalanced monthly to a fixed gross exposure, 1993–2026,
+borrowing at bills + 1.2%:
+
+| Gross | CAGR | Max drawdown | Margin calls | First call |
+|---|---|---|---|---|
+| 1.00× | 10.86% | −55.3% | 0 | — |
+| 1.25× | 12.31% | −64.3% | **0** | — |
+| **1.50×** | **13.60%** | −71.9% | **0** | — |
+| 1.75× | 14.64% | −80.3% | 1 | Oct 2008 |
+| 2.00× | 15.10% | −87.4% | 6 | Jul 2002 |
+
+**1.25× is never called under any assumption tested; 1.5× survives everything
+except a 35% maintenance requirement.** At 1.75× and above, a 5pp change in a
+number the broker sets unilaterally flips the account from "one bad month" to
+"serially liquidated".
+
+### Above 1.5× the extra return is a behavioural bet
+
+Identical simulation, differing only in whether the investor re-levers after
+being sold out:
+
+| Gross | Re-levers | Does not re-lever |
+|---|---|---|
+| 1.50× | 13.60% | 13.60% *(never called)* |
+| 1.75× | 14.64% | 10.74% |
+| 2.00× | 15.10% | **11.26%** |
+
+At 2×, flinching once leaves the account at 11.26%/yr against 10.86% for never
+having borrowed — 40bp/yr, for a −77% drawdown. The whole case for exceeding
+1.5× rests on re-borrowing in October 2008.
+
+### Two mechanical facts worth more than the backtest
+
+**The call distance is computable in advance.** At leverage `L` against
+maintenance `m`, the call fires once the position has fallen
+`1 − (L−1)/(L(1−m))` from the last rebalance — 33% at 2×, 56% at 1.5× on the
+textbook rule; 20% and 43% once intraday testing and procyclical hikes are
+priced in (`lam.kelly.account.call_threshold`).
+
+**Speed matters more than depth**, because that distance is measured from the
+last rebalance and monthly rebalancing sells on the way down. 1.5× came through
+2008's slow −55% untouched; 2× was called six times. The crash that breaks a
+levered account is a fast one, not necessarily a deep one.
+
+### Leveraged ETFs are not a substitute (the IRA case)
+
+A 2× daily-reset fund held 1993–2026 returned **10.68%/yr at a −91.5%
+drawdown** — *less than the unlevered index* (10.86%), at nearly twice the
+drawdown, because the daily reset makes volatility drag scale with the square of
+the multiplier and the embedded swap financing is wider than a margin loan. Its
+only real advantage is that it cannot be margin-called.
+
+---
+
+# Appendix — Kelly at today's yields
+
+Both appendices above run on sample means, and the honest reading of the first
+was that 33 years cannot identify four risk premia. Historical means are also
+*biased for this purpose*: the sample contains a 40-year fall in yields that
+cannot repeat, and a re-rating of US equities that shows up as return but is a
+change in the price paid, not in the cash flow earned.
+
+`src/lam/kelly/forward.py` estimates expected returns the way an allocator has
+to — from what the assets currently yield. Bonds: index YTM less expected credit
+loss, and for hedged foreign bonds the foreign yield **plus the hedge carry**
+(rolling FX forwards earns roughly the short-rate differential, worth +1.6pp on
+euro bonds and +2.6pp on JGBs today). Equities: the Grinold–Kroner build-up, with
+income and inflation observable and growth stated as an explicit assumption.
+Report: [`docs/kelly_forward.html`](docs/kelly_forward.html), run with
+`python scripts/run_kelly_forward.py --paths 400`.
+
+### The inputs, as of 2026-08-20
+
+| | Income | + growth & inflation | Geometric | Vol | Over cash |
+|---|---|---|---|---|---|
+| US equities | 1.17% div + 1.30% buyback | 1.50% + 2.34% | 6.31% | 17.5% | +4.05% |
+| Intl ex-US equities | 2.90% div + 0.60% buyback | 1.50% + 2.34% | **7.34%** | 16.4% | +4.89% |
+| US bonds | 4.85% YTM | — | 4.70% | 6.0% | +1.08% |
+| Intl ex-US bonds, hedged | 4.63% YTM | — | 4.58% | 4.9% | +0.91% |
+| Cash — 3m bill | 3.80% | — | 3.80% | — | — |
+
+Kelly is defined on **arithmetic** means, so σ²/2 is added — worth 1.5pp on
+equities, larger than the entire bond risk premium. Risk is measured over the
+last five years, not thirty: the US stock/bond correlation is now **+0.22**
+against −0.30 or lower through 2000–2020.
+
+### The answer moves by an order of magnitude
+
+| | Historical inputs | Forward inputs |
+|---|---|---|
+| Equity premium | 8.92% | 4.36% |
+| Full Kelly, borrowing at bills + 1.2% | **17.5× gross** | **1.18× equities** |
+| Bond weight | 12.5× intl bonds | **zero** |
+
+**Bonds get nothing, for a structural reason rather than a statistical one:** US
+bonds yield 4.85% and hedged foreign bonds 4.63%, and Robinhood lends at 5.00%.
+You cannot borrow at 5.00% to buy a 4.70% expected return. At zero financing cost
+the optimiser wants 2.4× bonds; at any realistic retail spread it wants none.
+
+### Forward account risk
+
+400 bootstrapped 10-year paths through the same Reg-T account — historical daily
+*shocks* rescaled to forward volatility and re-centred on forward expected
+returns:
+
+| Gross | Median CAGR | 5th pct | Median max DD | P(margin call) | P(lose to cash) |
+|---|---|---|---|---|---|
+| 0.50× | 5.62% | 1.16% | −15.9% | 0% | 22.5% |
+| 1.00× | 6.64% | −2.42% | −32.8% | 0% | 29.0% |
+| **1.25×** | **6.65%** | −4.68% | −40.8% | 0% | 32.0% |
+| 1.50× | 6.53% | −7.33% | −48.6% | 0% | 36.8% |
+| 1.75× | 6.18% | −9.96% | −55.7% | 17.8% | 40.8% |
+| 2.00× | 5.73% | −12.61% | −62.7% | 52.2% | 45.2% |
+
+The Monte Carlo puts the growth-optimal leverage at 1.25×, independently of the
+analytic Kelly solution of 1.18×. Between 1× and 1.5× the median curve is flat to
+within 12bp — leverage in that range buys no expected growth and 16pp of extra
+median drawdown. Over 20 years the ranking is unchanged but the forced-sale risk
+compounds: P(margin call) at 2× rises from 52% to **78%**.
+
+### Two sensitivities that matter more than the base case
+
+**The US/international split is a knife edge.** A ±2pp swing in an unobservable
+growth assumption moves it from all-international to all-US, while *total equity
+exposure barely moves* (1.22× to 1.56×). The optimiser has a firm view on how
+much equity and no real view on which — so hold market weights and spend the
+conviction on the leverage decision.
+
+**What 1.5× requires you to believe.** Full Kelly reaches 1.5× only if global
+equities compound at 7.7% rather than 6.7% — about 0.9pp/yr more growth than the
+yields imply. Defensible, but a view rather than an optimisation.
+
+### The rule, re-runnable
+
+    L* = (expected equity return − borrowing rate) / volatility²
+
+with every input published daily. Re-run it when the dividend yield moves (a
+market decline *raises* Kelly leverage), when the broker's rate moves (it
+currently costs a third of the leverage), or when volatility moves — it enters
+squared, so 16% → 24% more than halves the answer.

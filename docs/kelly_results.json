@@ -1,0 +1,1268 @@
+{
+  "modern": {
+    "span": [
+      "2013-07-31",
+      "2026-08-31"
+    ],
+    "months": 158,
+    "tickers": {
+      "us_equity": "VTI",
+      "intl_equity": "VXUS",
+      "us_bonds": "BND",
+      "intl_bonds": "BNDX"
+    },
+    "asset_stats": {
+      "arith": {
+        "US equities": 0.14345084529261104,
+        "Intl ex-US equities": 0.08873954785267259,
+        "US bonds": 0.021593390922630764,
+        "Intl ex-US bonds": 0.02490148689336228,
+        "Cash (3m T-bill)": 0.018580543325005743
+      },
+      "cagr": {
+        "US equities": 0.14089201048384292,
+        "Intl ex-US equities": 0.08111304168566447,
+        "US bonds": 0.020676162045709656,
+        "Intl ex-US bonds": 0.02435792902236278,
+        "Cash (3m T-bill)": 0.018724403225396147
+      },
+      "vol": {
+        "US equities": 0.14804869410775567,
+        "Intl ex-US equities": 0.1448715965610655,
+        "US bonds": 0.047290235053981375,
+        "Intl ex-US bonds": 0.0403977296624287,
+        "Cash (3m T-bill)": 0.005489015775422513
+      },
+      "sharpe": {
+        "US equities": 0.8434407525183558,
+        "Intl ex-US equities": 0.48428405700694954,
+        "US bonds": 0.06370971923032066,
+        "Intl ex-US bonds": 0.15646779215504372,
+        "Cash (3m T-bill)": 0.0
+      },
+      "worst_month": {
+        "US equities": -0.1388570539592029,
+        "Intl ex-US equities": -0.16261579520056468,
+        "US bonds": -0.04183018735717392,
+        "Intl ex-US bonds": -0.03606883133060379,
+        "Cash (3m T-bill)": 1.2673281085007204e-05
+      }
+    },
+    "correlation": {
+      "us_equity": {
+        "us_equity": 1.0,
+        "intl_equity": 0.8412167820381008,
+        "us_bonds": 0.3829981170369875,
+        "intl_bonds": 0.4247837965657845
+      },
+      "intl_equity": {
+        "us_equity": 0.8412167820381008,
+        "intl_equity": 1.0,
+        "us_bonds": 0.46274667388000573,
+        "intl_bonds": 0.4096121041459762
+      },
+      "us_bonds": {
+        "us_equity": 0.3829981170369875,
+        "intl_equity": 0.46274667388000573,
+        "us_bonds": 1.0,
+        "intl_bonds": 0.8623439297753418
+      },
+      "intl_bonds": {
+        "us_equity": 0.4247837965657845,
+        "intl_equity": 0.4096121041459762,
+        "us_bonds": 0.8623439297753418,
+        "intl_bonds": 1.0
+      }
+    },
+    "solutions": {
+      "Gaussian Kelly (Sigma^-1 mu)": {
+        "US equities": 10.320127819184698,
+        "Intl ex-US equities": -4.9002492529845405,
+        "US bonds": -1.5617640138033018,
+        "Intl ex-US bonds": -3.464131784219508,
+        "Cash": 0.6060172318226522,
+        "growth": 0.3209214606461805,
+        "arith": 0.8213818352244457,
+        "vol": 0.9581988085524682,
+        "sharpe": 0.8378233042391444,
+        "max_drawdown": -0.9156078852411347,
+        "worst_month": -0.7829389652037962,
+        "gross": 20.246272870192048
+      },
+      "Full Kelly, empirical": {
+        "US equities": 7.807957606450871,
+        "Intl ex-US equities": -3.5266339641585334,
+        "US bonds": -0.7665137128134647,
+        "Intl ex-US bonds": -8.419077777285397e-08,
+        "Cash": -2.5148098452880943,
+        "growth": 0.36597143937488463,
+        "arith": 0.6772214173979206,
+        "vol": 0.7682064586376195,
+        "sharpe": 0.8573748198381274,
+        "max_drawdown": -0.8264558320634746,
+        "worst_month": -0.5669812847516622,
+        "gross": 12.101105367613647
+      },
+      "0.5x Kelly, empirical": {
+        "US equities": 3.9039788032254354,
+        "Intl ex-US equities": -1.7633169820792667,
+        "US bonds": -0.38325685640673235,
+        "Intl ex-US bonds": -4.2095388886426986e-08,
+        "Cash": -0.7574049226440471,
+        "growth": 0.27447328912147795,
+        "arith": 0.35090098036146317,
+        "vol": 0.38406966249240365,
+        "sharpe": 0.8652608354429198,
+        "max_drawdown": -0.47895741555227955,
+        "worst_month": -0.2822461443427885,
+        "gross": 6.050552683806823
+      },
+      "0.25x Kelly, empirical": {
+        "US equities": 1.9519894016127177,
+        "Intl ex-US equities": -0.8816584910396333,
+        "US bonds": -0.19162842820336617,
+        "Intl ex-US bonds": -2.1047694443213493e-08,
+        "Cash": 0.12129753867797644,
+        "growth": 0.16833757687212098,
+        "arith": 0.1877407618432345,
+        "vol": 0.1920306807101959,
+        "sharpe": 0.8809020407187836,
+        "max_drawdown": -0.2472589704238971,
+        "worst_month": -0.1398785741383516,
+        "gross": 3.0252763419034117
+      },
+      "Full Kelly, long-only": {
+        "US equities": 4.609104854587601,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 3.756303837152175e-17,
+        "Cash": -3.609104854587601,
+        "growth": 0.3181076452024363,
+        "arith": 0.5724662291901894,
+        "vol": 0.6819544032507849,
+        "sharpe": 0.8122034013196265,
+        "max_drawdown": -0.8343330077790992,
+        "worst_month": -0.6427856088472602,
+        "gross": 4.609104854587601
+      },
+      "Kelly, long-only, gross <= 3x": {
+        "US equities": 3.0000000000000004,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 9.49563476298718e-18,
+        "Intl ex-US bonds": 9.16746707974464e-17,
+        "Cash": -2.0000000000000004,
+        "growth": 0.2770613726652262,
+        "arith": 0.3811914492278218,
+        "vol": 0.44389100935829995,
+        "sharpe": 0.8168917555393055,
+        "max_drawdown": -0.6414481572429833,
+        "worst_month": -0.4181110935017251,
+        "gross": 3.0000000000000004
+      },
+      "Kelly, long-only, gross <= 2x": {
+        "US equities": 1.9999999999999993,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 2.294908562220829e-17,
+        "Intl ex-US bonds": 2.4801190259923176e-16,
+        "Cash": -0.9999999999999996,
+        "growth": 0.21628766469121574,
+        "arith": 0.2623211472602162,
+        "vol": 0.2959528939859532,
+        "sharpe": 0.8235790522351816,
+        "max_drawdown": -0.46730212421652173,
+        "worst_month": -0.27848407373046385,
+        "gross": 1.9999999999999996
+      },
+      "Kelly, long-only, gross <= 1.5x": {
+        "US equities": 1.5000000000000004,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 3.429418291452815e-16,
+        "Intl ex-US bonds": 1.7663614510315357e-16,
+        "Cash": -0.5000000000000011,
+        "growth": 0.17692804999202616,
+        "arith": 0.20288599627641374,
+        "vol": 0.22199231744698708,
+        "sharpe": 0.8302334741625513,
+        "max_drawdown": -0.3633947367081084,
+        "worst_month": -0.20867056384483348,
+        "gross": 1.500000000000001
+      },
+      "Kelly, long-only, no leverage": {
+        "US equities": 0.9999999999999998,
+        "Intl ex-US equities": 1.3877787807814457e-16,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 2.756936226744438e-16,
+        "Cash": -2.220446049250313e-16,
+        "growth": 0.13181042177670182,
+        "arith": 0.143450845292611,
+        "vol": 0.14804869410775565,
+        "sharpe": 0.8434407525183556,
+        "max_drawdown": -0.2481914018335154,
+        "worst_month": -0.1388570539592029,
+        "gross": 1.0000000000000002
+      },
+      "Shrunk Kelly (mu 50%, cov 20%)": {
+        "US equities": 4.764630833484,
+        "Intl ex-US equities": -0.7745418258610044,
+        "US bonds": -1.0376819541993128,
+        "Intl ex-US bonds": 1.0498715828222935,
+        "Cash": -3.0022786362459772,
+        "growth": 0.3205501426898161,
+        "arith": 0.5229497950668992,
+        "vol": 0.6143683335581914,
+        "sharpe": 0.8209558080911747,
+        "max_drawdown": -0.7724935265043095,
+        "worst_month": -0.5554952546582703,
+        "gross": 7.6267261963666115
+      },
+      "Shrunk half-Kelly": {
+        "US equities": 2.382315416742,
+        "Intl ex-US equities": -0.3872709129305022,
+        "US bonds": -0.5188409770996564,
+        "Intl ex-US bonds": 0.5249357914111468,
+        "Cash": -1.0011393181229886,
+        "growth": 0.22424691643080025,
+        "arith": 0.27376516919595245,
+        "vol": 0.30719707381907285,
+        "sharpe": 0.8306870332405593,
+        "max_drawdown": -0.46354447527661247,
+        "worst_month": -0.27736264442310604,
+        "gross": 3.8133630981833058
+      },
+      "Shrunk Kelly, long-only, no leverage": {
+        "US equities": 1.000000000000001,
+        "Intl ex-US equities": 1.6653345369377348e-16,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "Cash": -1.3322676295501878e-15,
+        "growth": 0.1318104217767017,
+        "arith": 0.14345084529261118,
+        "vol": 0.14804869410775584,
+        "sharpe": 0.8434407525183556,
+        "max_drawdown": -0.24819140183351585,
+        "worst_month": -0.1388570539592031,
+        "gross": 1.0000000000000013
+      },
+      "Shrunk Kelly, long-only, gross <= 2x": {
+        "US equities": 1.9999999999999996,
+        "Intl ex-US equities": 3.3306690738754696e-16,
+        "US bonds": 2.678883193280802e-16,
+        "Intl ex-US bonds": 3.913438661241013e-16,
+        "Cash": -1.0000000000000009,
+        "growth": 0.21628766469121574,
+        "arith": 0.26232114726021627,
+        "vol": 0.2959528939859533,
+        "sharpe": 0.8235790522351815,
+        "max_drawdown": -0.46730212421652173,
+        "worst_month": -0.27848407373046397,
+        "gross": 2.000000000000001
+      },
+      "Shrunk Kelly, long-only, gross <= 1.5x": {
+        "US equities": 1.5000000000000002,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "Cash": -0.5000000000000002,
+        "growth": 0.17692804999202602,
+        "arith": 0.20288599627641374,
+        "vol": 0.22199231744698708,
+        "sharpe": 0.8302334741625511,
+        "max_drawdown": -0.3633947367081083,
+        "worst_month": -0.20867056384483346,
+        "gross": 1.5000000000000002
+      },
+      "60/40 global cap-weighted": {
+        "US equities": 0.36,
+        "Intl ex-US equities": 0.24,
+        "US bonds": 0.28,
+        "Intl ex-US bonds": 0.12,
+        "Cash": 0.0,
+        "growth": 0.07733832781577321,
+        "arith": 0.08197412367552148,
+        "vol": 0.09381393951652625,
+        "sharpe": 0.6757373230163555,
+        "max_drawdown": -0.20953581193069537,
+        "worst_month": -0.09650809532764014,
+        "gross": 1.0
+      },
+      "100% US equity": {
+        "US equities": 1.0,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "Cash": 0.0,
+        "growth": 0.13181042177670182,
+        "arith": 0.14345084529261104,
+        "vol": 0.14804869410775567,
+        "sharpe": 0.8434407525183558,
+        "max_drawdown": -0.2481914018335154,
+        "worst_month": -0.1388570539592029,
+        "gross": 1.0
+      }
+    },
+    "bootstrap": {
+      "unconstrained": {
+        "p5": {
+          "US equities": 4.7484963770971405,
+          "Intl ex-US equities": -9.56242076138726,
+          "US bonds": -12.08891620781636,
+          "Intl ex-US bonds": -12.487623277366293,
+          "gross": 8.02125763639854
+        },
+        "median": {
+          "US equities": 8.300172285548141,
+          "Intl ex-US equities": -3.369904078896547,
+          "US bonds": -4.629898258796464e-09,
+          "Intl ex-US bonds": -5.658026501386542e-09,
+          "gross": 17.995845522935287
+        },
+        "p95": {
+          "US equities": 13.562598034675835,
+          "Intl ex-US equities": 1.1831295985428878,
+          "US bonds": 6.313690425773453,
+          "Intl ex-US bonds": 6.7408689232901295,
+          "gross": 33.430512880502796
+        }
+      },
+      "long_only_unlevered": {
+        "p5": {
+          "US equities": 0.9999999999999984,
+          "Intl ex-US equities": 0.0,
+          "US bonds": 0.0,
+          "Intl ex-US bonds": 0.0,
+          "gross": 0.999999999999999
+        },
+        "median": {
+          "US equities": 0.9999999999999998,
+          "Intl ex-US equities": 0.0,
+          "US bonds": 2.0741415263525398e-17,
+          "Intl ex-US bonds": 7.385059341521258e-18,
+          "gross": 1.0000000000000002
+        },
+        "p95": {
+          "US equities": 1.000000000000002,
+          "Intl ex-US equities": 7.500944310123708e-16,
+          "US bonds": 5.962327166365249e-16,
+          "Intl ex-US bonds": 5.195278079071042e-16,
+          "gross": 1.0000000000000022
+        }
+      }
+    },
+    "financing_sensitivity": [
+      {
+        "spread": "0.00%",
+        "mode": "unconstrained",
+        "US equities": 9.58,
+        "Intl ex-US equities": -4.93,
+        "US bonds": 1.0,
+        "Intl ex-US bonds": -5.02,
+        "gross": 20.54
+      },
+      {
+        "spread": "0.00%",
+        "mode": "long_only <= 2x",
+        "US equities": 2.0,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "gross": 2.0
+      },
+      {
+        "spread": "0.60%",
+        "mode": "unconstrained",
+        "US equities": 7.81,
+        "Intl ex-US equities": -3.53,
+        "US bonds": -0.77,
+        "Intl ex-US bonds": -0.0,
+        "gross": 12.1
+      },
+      {
+        "spread": "0.60%",
+        "mode": "long_only <= 2x",
+        "US equities": 2.0,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "gross": 2.0
+      },
+      {
+        "spread": "1.50%",
+        "mode": "unconstrained",
+        "US equities": 5.46,
+        "Intl ex-US equities": -1.26,
+        "US bonds": -0.0,
+        "Intl ex-US bonds": -0.0,
+        "gross": 6.72
+      },
+      {
+        "spread": "1.50%",
+        "mode": "long_only <= 2x",
+        "US equities": 2.0,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "gross": 2.0
+      }
+    ],
+    "era_sensitivity": [
+      {
+        "era": "2013-07..2023-06",
+        "mode": "unconstrained",
+        "US equities": 9.9,
+        "Intl ex-US equities": -6.56,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": -0.0,
+        "gross": 16.46
+      },
+      {
+        "era": "2013-07..2023-06",
+        "mode": "long_only <= 2x",
+        "US equities": 2.0,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "gross": 2.0
+      },
+      {
+        "era": "2023-07..2026-08",
+        "mode": "unconstrained",
+        "US equities": 10.33,
+        "Intl ex-US equities": 11.4,
+        "US bonds": -20.0,
+        "Intl ex-US bonds": -20.0,
+        "gross": 61.74
+      },
+      {
+        "era": "2023-07..2026-08",
+        "mode": "long_only <= 2x",
+        "US equities": 2.0,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "gross": 2.0
+      }
+    ],
+    "fraction_curve": [],
+    "walk_forward": {}
+  },
+  "long": {
+    "span": [
+      "1993-01-31",
+      "2026-08-31"
+    ],
+    "months": 404,
+    "tickers": {
+      "us_equity": "VFINX",
+      "intl_equity": "VTRIX",
+      "us_bonds": "VBMFX",
+      "intl_bonds": "PFORX"
+    },
+    "asset_stats": {
+      "arith": {
+        "US equities": 0.1142315706684977,
+        "Intl ex-US equities": 0.08478963140310973,
+        "US bonds": 0.04301143203123139,
+        "Intl ex-US bonds": 0.058564100576351946,
+        "Cash (3m T-bill)": 0.025012658622488484
+      },
+      "cagr": {
+        "US equities": 0.10824991508739523,
+        "Intl ex-US equities": 0.07332707760428114,
+        "US bonds": 0.04299384134204276,
+        "Intl ex-US bonds": 0.05935305991355744,
+        "Cash (3m T-bill)": 0.02528323285852352
+      },
+      "vol": {
+        "US equities": 0.14782505509860352,
+        "Intl ex-US equities": 0.1654513800982982,
+        "US bonds": 0.041120659370468576,
+        "Intl ex-US bonds": 0.03926425541290194,
+        "Cash (3m T-bill)": 0.005974716298514182
+      },
+      "sharpe": {
+        "US equities": 0.6035439120012346,
+        "Intl ex-US equities": 0.3612963079855029,
+        "US bonds": 0.43770634236641137,
+        "Intl ex-US bonds": 0.8545034561597393,
+        "Cash (3m T-bill)": 0.0
+      },
+      "worst_month": {
+        "US equities": -0.16792416110390707,
+        "Intl ex-US equities": -0.2077370142440097,
+        "US bonds": -0.04175083159755866,
+        "Intl ex-US bonds": -0.042149095081347454,
+        "Cash (3m T-bill)": 1.067227036233298e-05
+      }
+    },
+    "correlation": {
+      "us_equity": {
+        "us_equity": 1.0,
+        "intl_equity": 0.8026187600995514,
+        "us_bonds": 0.15977356770976037,
+        "intl_bonds": 0.29086789713013944
+      },
+      "intl_equity": {
+        "us_equity": 0.8026187600995514,
+        "intl_equity": 1.0,
+        "us_bonds": 0.14518557380392372,
+        "intl_bonds": 0.2340500138983669
+      },
+      "us_bonds": {
+        "us_equity": 0.15977356770976037,
+        "intl_equity": 0.14518557380392372,
+        "us_bonds": 1.0,
+        "intl_bonds": 0.6691809115062286
+      },
+      "intl_bonds": {
+        "us_equity": 0.29086789713013944,
+        "intl_equity": 0.2340500138983669,
+        "us_bonds": 0.6691809115062286,
+        "intl_bonds": 1.0
+      }
+    },
+    "solutions": {
+      "Gaussian Kelly (Sigma^-1 mu)": {
+        "US equities": 4.428663307986029,
+        "Intl ex-US equities": -2.0613413415781374,
+        "US bonds": -4.876925605177226,
+        "Intl ex-US bonds": 22.465186519158834,
+        "Cash": -18.9555828803895,
+        "growth": -Infinity,
+        "arith": 0.7658804574499877,
+        "vol": 0.9681650474301057,
+        "sharpe": 0.7652288220836484,
+        "max_drawdown": -1245.737439086707,
+        "worst_month": -1.06737274058089,
+        "gross": 33.832116773900225
+      },
+      "Full Kelly, empirical": {
+        "US equities": 3.4530622825446624,
+        "Intl ex-US equities": -1.5345840739337444,
+        "US bonds": -4.286104053214964e-10,
+        "Intl ex-US bonds": 12.477332081976241,
+        "Cash": -13.395810290158549,
+        "growth": 0.3171191446357978,
+        "arith": 0.5612009407276104,
+        "vol": 0.6644794755258374,
+        "sharpe": 0.8069297876820167,
+        "max_drawdown": -0.9627588751040966,
+        "worst_month": -0.665154720112247,
+        "gross": 17.464978438883257
+      },
+      "0.5x Kelly, empirical": {
+        "US equities": 1.7265311412723312,
+        "Intl ex-US equities": -0.7672920369668722,
+        "US bonds": -2.143052026607482e-10,
+        "Intl ex-US bonds": 6.238666040988121,
+        "Cash": -6.197905145079274,
+        "growth": 0.23771676244524087,
+        "arith": 0.2961067996750495,
+        "vol": 0.3321494641245513,
+        "sharpe": 0.8161811784555659,
+        "max_drawdown": -0.7155460143211136,
+        "worst_month": -0.33184905522471014,
+        "gross": 8.732489219441629
+      },
+      "0.25x Kelly, empirical": {
+        "US equities": 0.8632655706361656,
+        "Intl ex-US equities": -0.3836460184834361,
+        "US bonds": -1.071526013303741e-10,
+        "Intl ex-US bonds": 3.1193330204940604,
+        "Cash": -2.598952572539637,
+        "growth": 0.14884273713751314,
+        "arith": 0.16355972914876898,
+        "vol": 0.16602474116032032,
+        "sharpe": 0.834496530806175,
+        "max_drawdown": -0.425939070513046,
+        "worst_month": -0.16519622278094176,
+        "gross": 4.366244609720814
+      },
+      "Full Kelly, long-only": {
+        "US equities": 1.9536232477394175,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 4.377582537405398e-16,
+        "Intl ex-US bonds": 11.988013997532791,
+        "Cash": -12.94163724527221,
+        "growth": 0.30479634474405315,
+        "arith": 0.5238781316422814,
+        "vol": 0.6179624368362181,
+        "sharpe": 0.8072747521254433,
+        "max_drawdown": -0.9523931487288289,
+        "worst_month": -0.69792648671252,
+        "gross": 13.94163724527221
+      },
+      "Kelly, long-only, gross <= 3x": {
+        "US equities": 2.5540293059777848,
+        "Intl ex-US equities": 7.335999137912531e-18,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.4459706940222154,
+        "Cash": -2.0,
+        "growth": 0.17808013972661038,
+        "arith": 0.255843334489061,
+        "vol": 0.3827713355919721,
+        "sharpe": 0.603051102323488,
+        "max_drawdown": -0.9058295774568255,
+        "worst_month": -0.44146677755983316,
+        "gross": 3.0
+      },
+      "Kelly, long-only, gross <= 2x": {
+        "US equities": 2.0,
+        "Intl ex-US equities": 5.551115123125783e-17,
+        "US bonds": 2.742459980222759e-17,
+        "Intl ex-US bonds": 0.0,
+        "Cash": -1.0,
+        "growth": 0.1516484065364906,
+        "arith": 0.19745048271450694,
+        "vol": 0.29552077123646925,
+        "sharpe": 0.5835049203835404,
+        "max_drawdown": -0.8140871465141827,
+        "worst_month": -0.3369175928743518,
+        "gross": 2.0
+      },
+      "Kelly, long-only, gross <= 1.5x": {
+        "US equities": 1.5000000000000013,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 3.8974741112350314e-16,
+        "Intl ex-US bonds": 0.0,
+        "Cash": -0.5000000000000018,
+        "growth": 0.13016778783418806,
+        "arith": 0.15584102669150243,
+        "vol": 0.22166285292961718,
+        "sharpe": 0.5902133187402168,
+        "max_drawdown": -0.6732935012397121,
+        "worst_month": -0.2524208769891297,
+        "gross": 1.5000000000000018
+      },
+      "Kelly, long-only, no leverage": {
+        "US equities": 0.9999999999999996,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 1.614413019844608e-16,
+        "Intl ex-US bonds": 3.4109499072533347e-16,
+        "Cash": 0.0,
+        "growth": 0.10278211802438555,
+        "arith": 0.1142315706684977,
+        "vol": 0.14782505509860344,
+        "sharpe": 0.6035439120012347,
+        "max_drawdown": -0.5096653097687562,
+        "worst_month": -0.16792416110390698,
+        "gross": 1.0
+      },
+      "Shrunk Kelly (mu 50%, cov 20%)": {
+        "US equities": 2.5626155112907094,
+        "Intl ex-US equities": 0.20399658683339025,
+        "US bonds": 2.455290740306393,
+        "Intl ex-US bonds": 13.390660078793474,
+        "Cash": -17.61256291722397,
+        "growth": 0.22714549094848635,
+        "arith": 0.6536335234921241,
+        "vol": 0.8099144775435829,
+        "sharpe": 0.7761570910254638,
+        "max_drawdown": -0.9957181010742061,
+        "worst_month": -0.8739721404202029,
+        "gross": 18.61256291722397
+      },
+      "Shrunk half-Kelly": {
+        "US equities": 1.2813077556453547,
+        "Intl ex-US equities": 0.10199829341669513,
+        "US bonds": 1.2276453701531964,
+        "Intl ex-US bonds": 6.695330039396737,
+        "Cash": -8.306281458611984,
+        "growth": 0.25345486062411104,
+        "arith": 0.34232309105730624,
+        "vol": 0.40484895731991255,
+        "sharpe": 0.7837748540477982,
+        "max_drawdown": -0.8478265585241079,
+        "worst_month": -0.4366010873040724,
+        "gross": 9.306281458611984
+      },
+      "Shrunk Kelly, long-only, no leverage": {
+        "US equities": 1.0000000000000004,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 7.708867812289818e-17,
+        "Intl ex-US bonds": 0.0,
+        "Cash": -4.440892098500626e-16,
+        "growth": 0.10278211802438554,
+        "arith": 0.11423157066849775,
+        "vol": 0.14782505509860358,
+        "sharpe": 0.6035439120012346,
+        "max_drawdown": -0.5096653097687563,
+        "worst_month": -0.16792416110390715,
+        "gross": 1.0000000000000004
+      },
+      "Shrunk Kelly, long-only, gross <= 2x": {
+        "US equities": 1.9999999999999996,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 1.7806996196646715e-16,
+        "Cash": -0.9999999999999998,
+        "growth": 0.1516484065364906,
+        "arith": 0.19745048271450688,
+        "vol": 0.2955207712364692,
+        "sharpe": 0.5835049203835404,
+        "max_drawdown": -0.8140871465141827,
+        "worst_month": -0.33691759287435175,
+        "gross": 1.9999999999999998
+      },
+      "Shrunk Kelly, long-only, gross <= 1.5x": {
+        "US equities": 1.5000000000000002,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 4.843317904676097e-17,
+        "Cash": -0.5000000000000002,
+        "growth": 0.13016778783418786,
+        "arith": 0.15584102669150235,
+        "vol": 0.22166285292961704,
+        "sharpe": 0.5902133187402168,
+        "max_drawdown": -0.6732935012397119,
+        "worst_month": -0.25242087698912946,
+        "gross": 1.5000000000000002
+      },
+      "60/40 global cap-weighted": {
+        "US equities": 0.36,
+        "Intl ex-US equities": 0.24,
+        "US bonds": 0.28,
+        "Intl ex-US bonds": 0.12,
+        "Cash": 0.0,
+        "growth": 0.07598962179037017,
+        "arith": 0.08054377001531253,
+        "vol": 0.09268384281036525,
+        "sharpe": 0.5991455437000262,
+        "max_drawdown": -0.3460994549917644,
+        "worst_month": -0.12020755372381445,
+        "gross": 1.0
+      },
+      "100% US equity": {
+        "US equities": 1.0,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "Cash": 0.0,
+        "growth": 0.10278211802438554,
+        "arith": 0.1142315706684977,
+        "vol": 0.14782505509860352,
+        "sharpe": 0.6035439120012346,
+        "max_drawdown": -0.5096653097687562,
+        "worst_month": -0.16792416110390707,
+        "gross": 1.0
+      }
+    },
+    "bootstrap": {
+      "unconstrained": {
+        "p5": {
+          "US equities": 0.760216428151635,
+          "Intl ex-US equities": -4.7658093796414525,
+          "US bonds": -3.104878504323431,
+          "Intl ex-US bonds": 1.904522636147075,
+          "gross": 7.844589751338147
+        },
+        "median": {
+          "US equities": 3.6269970359855868,
+          "Intl ex-US equities": -1.5138489559953272,
+          "US bonds": -2.7126175638811527e-10,
+          "Intl ex-US bonds": 12.270903814743168,
+          "gross": 18.746886970630687
+        },
+        "p95": {
+          "US equities": 7.147329526941569,
+          "Intl ex-US equities": 0.28890164677409563,
+          "US bonds": 4.535223113105172,
+          "Intl ex-US bonds": 20.0,
+          "gross": 29.871147824169107
+        }
+      },
+      "long_only_unlevered": {
+        "p5": {
+          "US equities": 0.07840332321734533,
+          "Intl ex-US equities": 0.0,
+          "US bonds": 0.0,
+          "Intl ex-US bonds": 0.0,
+          "gross": 0.9999999999999993
+        },
+        "median": {
+          "US equities": 0.9999999999999996,
+          "Intl ex-US equities": 2.7755575615628914e-17,
+          "US bonds": 1.73684600655776e-17,
+          "Intl ex-US bonds": 8.949151174097167e-17,
+          "gross": 1.0
+        },
+        "p95": {
+          "US equities": 1.0000000000000007,
+          "Intl ex-US equities": 0.10445977955924557,
+          "US bonds": 6.370199685905324e-16,
+          "Intl ex-US bonds": 0.5561629266141784,
+          "gross": 1.0000000000000018
+        }
+      }
+    },
+    "financing_sensitivity": [
+      {
+        "spread": "0.00%",
+        "mode": "unconstrained",
+        "US equities": 4.47,
+        "Intl ex-US equities": -2.86,
+        "US bonds": -3.05,
+        "Intl ex-US bonds": 17.46,
+        "gross": 27.85
+      },
+      {
+        "spread": "0.00%",
+        "mode": "long_only <= 2x",
+        "US equities": 2.0,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "gross": 2.0
+      },
+      {
+        "spread": "0.60%",
+        "mode": "unconstrained",
+        "US equities": 3.45,
+        "Intl ex-US equities": -1.53,
+        "US bonds": -0.0,
+        "Intl ex-US bonds": 12.48,
+        "gross": 17.46
+      },
+      {
+        "spread": "0.60%",
+        "mode": "long_only <= 2x",
+        "US equities": 2.0,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "gross": 2.0
+      },
+      {
+        "spread": "1.50%",
+        "mode": "unconstrained",
+        "US equities": 2.25,
+        "Intl ex-US equities": -0.0,
+        "US bonds": -0.0,
+        "Intl ex-US bonds": 7.68,
+        "gross": 9.93
+      },
+      {
+        "spread": "1.50%",
+        "mode": "long_only <= 2x",
+        "US equities": 2.0,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "gross": 2.0
+      }
+    ],
+    "era_sensitivity": [
+      {
+        "era": "1993-01..2002-12",
+        "mode": "unconstrained",
+        "US equities": 1.27,
+        "Intl ex-US equities": -0.25,
+        "US bonds": 1.84,
+        "Intl ex-US bonds": 17.87,
+        "gross": 21.22
+      },
+      {
+        "era": "1993-01..2002-12",
+        "mode": "long_only <= 2x",
+        "US equities": 0.59,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 1.41,
+        "gross": 2.0
+      },
+      {
+        "era": "2003-01..2012-12",
+        "mode": "unconstrained",
+        "US equities": -0.0,
+        "Intl ex-US equities": 0.25,
+        "US bonds": 6.97,
+        "Intl ex-US bonds": 15.29,
+        "gross": 22.5
+      },
+      {
+        "era": "2003-01..2012-12",
+        "mode": "long_only <= 2x",
+        "US equities": 0.0,
+        "Intl ex-US equities": 1.22,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.78,
+        "gross": 2.0
+      },
+      {
+        "era": "2013-01..2022-12",
+        "mode": "unconstrained",
+        "US equities": 9.98,
+        "Intl ex-US equities": -6.09,
+        "US bonds": -0.27,
+        "Intl ex-US bonds": 0.0,
+        "gross": 16.33
+      },
+      {
+        "era": "2013-01..2022-12",
+        "mode": "long_only <= 2x",
+        "US equities": 2.0,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "gross": 2.0
+      },
+      {
+        "era": "2023-01..2026-08",
+        "mode": "unconstrained",
+        "US equities": 13.32,
+        "Intl ex-US equities": 8.12,
+        "US bonds": -20.0,
+        "Intl ex-US bonds": -19.3,
+        "gross": 60.74
+      },
+      {
+        "era": "2023-01..2026-08",
+        "mode": "long_only <= 2x",
+        "US equities": 2.0,
+        "Intl ex-US equities": 0.0,
+        "US bonds": 0.0,
+        "Intl ex-US bonds": 0.0,
+        "gross": 2.0
+      }
+    ],
+    "fraction_curve": [
+      {
+        "fraction": 0.0,
+        "in_sample_growth": 0.024968899159745025,
+        "out_of_sample_growth": 0.017302233296505837,
+        "out_of_sample_vol": 0.005311372226814036,
+        "out_of_sample_max_drawdown": 0.0,
+        "ruined": false
+      },
+      {
+        "fraction": 0.05,
+        "in_sample_growth": 0.056071604504761945,
+        "out_of_sample_growth": 0.04436883927985479,
+        "out_of_sample_vol": 0.040385198355991164,
+        "out_of_sample_max_drawdown": -0.1430381681075944,
+        "ruined": false
+      },
+      {
+        "fraction": 0.1,
+        "in_sample_growth": 0.08155285486508258,
+        "out_of_sample_growth": 0.06400146018015113,
+        "out_of_sample_vol": 0.08082119844312685,
+        "out_of_sample_max_drawdown": -0.28160643697241317,
+        "ruined": false
+      },
+      {
+        "fraction": 0.15,
+        "in_sample_growth": 0.10513038019487334,
+        "out_of_sample_growth": 0.08175567259552086,
+        "out_of_sample_vol": 0.12136129867501533,
+        "out_of_sample_max_drawdown": -0.4030284334050561,
+        "ruined": false
+      },
+      {
+        "fraction": 0.2,
+        "in_sample_growth": 0.12756120336403518,
+        "out_of_sample_growth": 0.09770990523921813,
+        "out_of_sample_vol": 0.16193036826253668,
+        "out_of_sample_max_drawdown": -0.5088087077179023,
+        "ruined": false
+      },
+      {
+        "fraction": 0.25,
+        "in_sample_growth": 0.14884273713751314,
+        "out_of_sample_growth": 0.11179553538173573,
+        "out_of_sample_vol": 0.20251099764320632,
+        "out_of_sample_max_drawdown": -0.6003648013312749,
+        "ruined": false
+      },
+      {
+        "fraction": 0.3,
+        "in_sample_growth": 0.16896963505606818,
+        "out_of_sample_growth": 0.12392465240979475,
+        "out_of_sample_vol": 0.2430973978028234,
+        "out_of_sample_max_drawdown": -0.679030117448024,
+        "ruined": false
+      },
+      {
+        "fraction": 0.35,
+        "in_sample_growth": 0.1879336278877228,
+        "out_of_sample_growth": 0.13398479921959294,
+        "out_of_sample_vol": 0.2836870919196238,
+        "out_of_sample_max_drawdown": -0.7460567658574915,
+        "ruined": false
+      },
+      {
+        "fraction": 0.4,
+        "in_sample_growth": 0.20572331123306276,
+        "out_of_sample_growth": 0.1418312653931989,
+        "out_of_sample_vol": 0.3242788430909015,
+        "out_of_sample_max_drawdown": -0.8026183806645585,
+        "ruined": false
+      },
+      {
+        "fraction": 0.45,
+        "in_sample_growth": 0.22232387501511358,
+        "out_of_sample_growth": 0.1472754389733383,
+        "out_of_sample_vol": 0.36487196477968187,
+        "out_of_sample_max_drawdown": -0.8498129097576289,
+        "ruined": false
+      },
+      {
+        "fraction": 0.5,
+        "in_sample_growth": 0.23771676244524087,
+        "out_of_sample_growth": 0.15006649062582952,
+        "out_of_sample_vol": 0.40546604535922465,
+        "out_of_sample_max_drawdown": -0.8886653748477565,
+        "ruined": false
+      },
+      {
+        "fraction": 0.55,
+        "in_sample_growth": 0.25187924181217936,
+        "out_of_sample_growth": 0.14986109297398043,
+        "out_of_sample_vol": 0.44606082303601124,
+        "out_of_sample_max_drawdown": -0.920130600929682,
+        "ruined": false
+      },
+      {
+        "fraction": 0.6,
+        "in_sample_growth": 0.26478386858672487,
+        "out_of_sample_growth": 0.1461700508753596,
+        "out_of_sample_vol": 0.4866561233634384,
+        "out_of_sample_max_drawdown": -0.9450959140343194,
+        "ruined": false
+      },
+      {
+        "fraction": 0.65,
+        "in_sample_growth": 0.2763978070981389,
+        "out_of_sample_growth": 0.13825603535943412,
+        "out_of_sample_vol": 0.5272518256184117,
+        "out_of_sample_max_drawdown": -0.9643838061612062,
+        "ruined": false
+      },
+      {
+        "fraction": 0.7,
+        "in_sample_growth": 0.28668196921414907,
+        "out_of_sample_growth": 0.1249140177446663,
+        "out_of_sample_vol": 0.5678478435989849,
+        "out_of_sample_max_drawdown": -0.9787545662986157,
+        "ruined": false
+      },
+      {
+        "fraction": 0.75,
+        "in_sample_growth": 0.29558991011415614,
+        "out_of_sample_growth": 0.10391502679237011,
+        "out_of_sample_vol": 0.6084441141085499,
+        "out_of_sample_max_drawdown": -0.9889088764584179,
+        "ruined": false
+      },
+      {
+        "fraction": 0.8,
+        "in_sample_growth": 0.30306639521125894,
+        "out_of_sample_growth": 0.07015685541605207,
+        "out_of_sample_vol": 0.6490405897614652,
+        "out_of_sample_max_drawdown": -0.9954903716723802,
+        "ruined": false
+      },
+      {
+        "fraction": 0.85,
+        "in_sample_growth": 0.30904551217976073,
+        "out_of_sample_growth": 0.004456345908409397,
+        "out_of_sample_vol": 0.6896372343295671,
+        "out_of_sample_max_drawdown": -0.9990881629163955,
+        "ruined": false
+      },
+      {
+        "fraction": 0.9,
+        "in_sample_growth": 0.3134481384786617,
+        "out_of_sample_growth": -Infinity,
+        "out_of_sample_vol": 0.7302340196408338,
+        "out_of_sample_max_drawdown": -1.0,
+        "ruined": true
+      },
+      {
+        "fraction": 0.95,
+        "in_sample_growth": 0.31617847064981186,
+        "out_of_sample_growth": -Infinity,
+        "out_of_sample_vol": 0.770830923458015,
+        "out_of_sample_max_drawdown": -1.0,
+        "ruined": true
+      },
+      {
+        "fraction": 1.0,
+        "in_sample_growth": 0.3171191446357978,
+        "out_of_sample_growth": -Infinity,
+        "out_of_sample_vol": 0.8114279279940484,
+        "out_of_sample_max_drawdown": -1.0,
+        "ruined": true
+      }
+    ],
+    "walk_forward": {
+      "unconstrained": {
+        "kelly_1x": {
+          "ruined": true,
+          "months_to_ruin": 69.0,
+          "cagr": NaN,
+          "log_growth": -Infinity,
+          "vol": 0.8114279279940484,
+          "max_drawdown": -1.0,
+          "worst_month": -1.1392772056809672
+        },
+        "kelly_0.5x": {
+          "ruined": false,
+          "months_to_ruin": NaN,
+          "cagr": 0.1619114963824857,
+          "log_growth": 0.15006649062582952,
+          "vol": 0.40546604535922465,
+          "max_drawdown": -0.8886653748477565,
+          "worst_month": -0.5689102980090702
+        },
+        "kelly_0.25x": {
+          "ruined": false,
+          "months_to_ruin": NaN,
+          "cagr": 0.11828418771852767,
+          "log_growth": 0.11179553538173573,
+          "vol": 0.20251099764320632,
+          "max_drawdown": -0.6003648013312749,
+          "worst_month": -0.28372684417312183
+        },
+        "60_40": {
+          "ruined": false,
+          "months_to_ruin": NaN,
+          "cagr": 0.07873276305911814,
+          "log_growth": 0.07578698466361676,
+          "vol": 0.09473869204665182,
+          "max_drawdown": -0.34609945499176453,
+          "worst_month": -0.12020755372381443
+        },
+        "all_us_equity": {
+          "ruined": false,
+          "months_to_ruin": NaN,
+          "cagr": 0.11525799671800052,
+          "log_growth": 0.10908576533722661,
+          "vol": 0.14476819744862154,
+          "max_drawdown": -0.5096653097687565,
+          "worst_month": -0.16792416110390707
+        },
+        "cash": {
+          "ruined": false,
+          "months_to_ruin": NaN,
+          "cagr": 0.017452783969265306,
+          "log_growth": 0.017302233296505837,
+          "vol": 0.005311372226814036,
+          "max_drawdown": 0.0,
+          "worst_month": 1.067227036233298e-05
+        }
+      },
+      "long_only (gross <= 2x)": {
+        "kelly_1x": {
+          "ruined": false,
+          "months_to_ruin": null,
+          "cagr": 0.13344217978498185,
+          "log_growth": 0.12525917932911423,
+          "vol": 0.23578583207236187,
+          "max_drawdown": -0.7370935392149416,
+          "worst_month": -0.3824108858223036
+        },
+        "kelly_0.5x": {
+          "ruined": false,
+          "months_to_ruin": null,
+          "cagr": 0.08532014603405513,
+          "log_growth": 0.08187500893834379,
+          "vol": 0.1180299463848202,
+          "max_drawdown": -0.45380462434415914,
+          "worst_month": -0.19067080757788296
+        },
+        "kelly_0.25x": {
+          "ruined": false,
+          "months_to_ruin": null,
+          "cagr": 0.05275577429906675,
+          "log_growth": 0.051411273011912284,
+          "vol": 0.05924112051645426,
+          "max_drawdown": -0.24600263032916758,
+          "worst_month": -0.09505076845567265
+        },
+        "60_40": {
+          "ruined": false,
+          "months_to_ruin": null,
+          "cagr": 0.07873276305911814,
+          "log_growth": 0.07578698466361676,
+          "vol": 0.09473869204665182,
+          "max_drawdown": -0.34609945499176453,
+          "worst_month": -0.12020755372381443
+        },
+        "all_us_equity": {
+          "ruined": false,
+          "months_to_ruin": null,
+          "cagr": 0.11525799671800052,
+          "log_growth": 0.10908576533722661,
+          "vol": 0.14476819744862154,
+          "max_drawdown": -0.5096653097687565,
+          "worst_month": -0.16792416110390707
+        },
+        "cash": {
+          "ruined": false,
+          "months_to_ruin": null,
+          "cagr": 0.017452783969265306,
+          "log_growth": 0.017302233296505837,
+          "vol": 0.005311372226814036,
+          "max_drawdown": 0.0,
+          "worst_month": 1.067227036233298e-05
+        }
+      },
+      "long_only_unlevered": {
+        "kelly_1x": {
+          "ruined": false,
+          "months_to_ruin": null,
+          "cagr": 0.09988209887202615,
+          "log_growth": 0.09520299121622067,
+          "vol": 0.13496202571437552,
+          "max_drawdown": -0.4750416582682213,
+          "worst_month": -0.19762215569618996
+        },
+        "kelly_0.5x": {
+          "ruined": false,
+          "months_to_ruin": null,
+          "cagr": 0.060386573136611776,
+          "log_growth": 0.0586335332784569,
+          "vol": 0.0676420536059774,
+          "max_drawdown": -0.2595069858483844,
+          "worst_month": -0.09852644251482615
+        },
+        "kelly_0.25x": {
+          "ruined": false,
+          "months_to_ruin": null,
+          "cagr": 0.03930954190973446,
+          "log_growth": 0.03855659066288083,
+          "vol": 0.034136798575860695,
+          "max_drawdown": -0.128643607432268,
+          "worst_month": -0.04897858592414424
+        },
+        "60_40": {
+          "ruined": false,
+          "months_to_ruin": null,
+          "cagr": 0.07873276305911814,
+          "log_growth": 0.07578698466361676,
+          "vol": 0.09473869204665182,
+          "max_drawdown": -0.34609945499176453,
+          "worst_month": -0.12020755372381443
+        },
+        "all_us_equity": {
+          "ruined": false,
+          "months_to_ruin": null,
+          "cagr": 0.11525799671800052,
+          "log_growth": 0.10908576533722661,
+          "vol": 0.14476819744862154,
+          "max_drawdown": -0.5096653097687565,
+          "worst_month": -0.16792416110390707
+        },
+        "cash": {
+          "ruined": false,
+          "months_to_ruin": null,
+          "cagr": 0.017452783969265306,
+          "log_growth": 0.017302233296505837,
+          "vol": 0.005311372226814036,
+          "max_drawdown": 0.0,
+          "worst_month": 1.067227036233298e-05
+        }
+      }
+    }
+  }
+}

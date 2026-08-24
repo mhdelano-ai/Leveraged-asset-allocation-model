@@ -1,0 +1,168 @@
+panel long: 1993-01 -> 2026-08 (404 months); US equities=VFINX, Intl ex-US equities=VTRIX, US bonds=VBMFX, Intl ex-US bonds=PFORX
+financing: bills 3.80% + 1.20% spread = 5.00% today; Reg-T cap 2x, 25% maintenance, daily path
+
+============================================================================================
+0. How far the holding can fall between rebalances before the broker sells
+============================================================================================
+         textbook 25% rule as simulated
+leverage                               
+1x                  100.0%       100.0%
+1.25x                73.3%        63.9%
+1.5x                 55.6%        43.4%
+1.75x                42.9%        30.0%
+2x                   33.3%        20.4%
+   Measured from the last rebalance, not from the peak: rebalancing monthly to a
+   fixed leverage sells on the way down, which is what keeps a slow 55% bear
+   market from triggering a call that a fast 30% one would.
+
+============================================================================================
+1. What leverage survives a Reg-T account, holding 100% US equity
+============================================================================================
+                   CAGR    vol max drawdown x growth  margin calls first call ruined
+target_leverage                                                                     
+1.00             10.86%  18.3%       -55.3%    32.1x             0          -      -
+1.25             12.31%  23.1%       -64.3%    49.5x             0          -      -
+1.50             13.60%  28.1%       -71.9%    72.8x             0          -      -
+1.75             14.64%  33.2%       -80.3%    99.0x             1    2008-10      -
+2.00             15.10%  37.7%       -87.4%   113.2x             6    2002-07      -
+
+   ... and the same, for an investor who does not re-lever after being sold out:
+                   CAGR    vol max drawdown x growth  margin calls first call ruined
+target_leverage                                                                     
+1.00             10.86%  18.3%       -55.3%    32.1x             0          -      -
+1.25             12.31%  23.1%       -64.3%    49.5x             0          -      -
+1.50             13.60%  28.1%       -71.9%    72.8x             0          -      -
+1.75             10.74%  26.1%       -73.8%    30.9x             1    2008-10      -
+2.00             11.26%  24.3%       -77.2%    36.1x             1    2002-07      -
+
+============================================================================================
+2. Which allocation to lever -- all at 1.5x, the highest level with no forced sale
+============================================================================================
+                                 CAGR    vol max drawdown x growth  margin calls first call ruined
+allocation           leverage                                                                     
+100% US equity       1x        10.86%  18.3%       -55.3%    32.1x             0          -      -
+                     1.5x      13.60%  28.1%       -71.9%    72.8x             0          -      -
+80/20 US/intl equity 1x        10.24%  17.5%       -55.9%    26.5x             0          -      -
+                     1.5x      12.66%  26.8%       -72.5%    55.1x             0          -      -
+70/30 US/intl equity 1x         9.91%  17.2%       -56.3%    24.0x             0          -      -
+                     1.5x      12.16%  26.4%       -72.8%    47.4x             0          -      -
+90/10 equity/bonds   1x         9.78%  15.6%       -51.7%    23.1x             0          -      -
+                     1.5x      12.14%  23.9%       -68.2%    47.1x             0          -      -
+60/40 global         1x         7.91%  10.0%       -37.8%    12.9x             0          -      -
+                     1.5x       9.67%  15.1%       -52.6%    22.3x             0          -      -
+
+============================================================================================
+3. The cost of holding international equity you cannot justify from the data
+============================================================================================
+   100% US equity           log growth 10.28%  vol 14.8%  max DD -51.0%  Sharpe 0.60
+   80/20 US/intl equity     log growth 9.72%  vol 14.6%  max DD -52.0%  Sharpe 0.57
+   70/30 US/intl equity     log growth 9.42%  vol 14.6%  max DD -52.5%  Sharpe 0.55
+
+============================================================================================
+4. Margin vs a 2x daily-reset ETF (SSO), the only lever available in an IRA
+============================================================================================
+   SSO-style 2x daily reset   CAGR 10.68%  max DD -91.5%  margin calls  none possible
+   2x on Reg-T margin         CAGR 15.10%  max DD -87.4%  margin calls  6
+
+============================================================================================
+5. Does the safe leverage level survive a harsher broker?
+============================================================================================
+                                                  1.25x             1.5x             1.75x                 2x
+assumption                                                                                                   
+base (25% maint, 1.35 intraday stress)   12.3%  0 calls   13.6%  0 calls    14.6%  1 calls     15.1%  6 calls
+30% maintenance                          12.3%  0 calls   13.6%  0 calls    14.4%  4 calls    14.8%  33 calls
+35% maintenance                          12.3%  0 calls   13.4%  2 calls   14.0%  34 calls   14.0%  222 calls
+1.50 intraday stress                     12.3%  0 calls   13.6%  0 calls    14.4%  3 calls    14.9%  16 calls
+no procyclical hike                      12.3%  0 calls   13.6%  0 calls    14.7%  0 calls     15.6%  1 calls
+spread 2.5%                              11.9%  0 calls   12.9%  0 calls    13.5%  1 calls     13.6%  6 calls
+
+============================================================================================
+6. For reference: the unconstrained Kelly weights at this financing cost
+============================================================================================
+   unconstrained          gross 11.88x    US equities   2.39  Intl ex-US e  -0.23      US bonds   0.00  Intl ex-US b   9.25
+   long_only              gross  2.00x    US equities   2.00  Intl ex-US e   0.00      US bonds   0.00  Intl ex-US b   0.00
+   long_only_unlevered    gross  1.00x    US equities   1.00  Intl ex-US e   0.00      US bonds   0.00  Intl ex-US b   0.00
+panel modern: 2013-07 -> 2026-08 (158 months); US equities=VTI, Intl ex-US equities=VXUS, US bonds=BND, Intl ex-US bonds=BNDX
+financing: bills 3.80% + 1.20% spread = 5.00% today; Reg-T cap 2x, 25% maintenance, daily path
+
+============================================================================================
+0. How far the holding can fall between rebalances before the broker sells
+============================================================================================
+         textbook 25% rule as simulated
+leverage                               
+1x                  100.0%       100.0%
+1.25x                73.3%        63.9%
+1.5x                 55.6%        43.4%
+1.75x                42.9%        30.0%
+2x                   33.3%        20.4%
+   Measured from the last rebalance, not from the peak: rebalancing monthly to a
+   fixed leverage sells on the way down, which is what keeps a slow 55% bear
+   market from triggering a call that a fast 30% one would.
+
+============================================================================================
+1. What leverage survives a Reg-T account, holding 100% US equity
+============================================================================================
+                   CAGR    vol max drawdown x growth  margin calls first call ruined
+target_leverage                                                                     
+1.00             14.04%  17.3%       -35.0%     5.6x             0          -      -
+1.25             16.53%  21.8%       -42.6%     7.5x             0          -      -
+1.50             18.90%  26.5%       -49.9%     9.7x             0          -      -
+1.75             21.14%  31.3%       -56.7%    12.4x             0          -      -
+2.00             22.69%  35.7%       -62.1%    14.7x             2    2020-03      -
+
+   ... and the same, for an investor who does not re-lever after being sold out:
+                   CAGR    vol max drawdown x growth  margin calls first call ruined
+target_leverage                                                                     
+1.00             14.04%  17.3%       -35.0%     5.6x             0          -      -
+1.25             16.53%  21.8%       -42.6%     7.5x             0          -      -
+1.50             18.90%  26.5%       -49.9%     9.7x             0          -      -
+1.75             21.14%  31.3%       -56.7%    12.4x             0          -      -
+2.00             16.11%  28.0%       -62.1%     7.1x             2    2020-03      -
+
+============================================================================================
+2. Which allocation to lever -- all at 1.5x, the highest level with no forced sale
+============================================================================================
+                                 CAGR    vol max drawdown x growth  margin calls first call ruined
+allocation           leverage                                                                     
+100% US equity       1x        14.04%  17.3%       -35.0%     5.6x             0          -      -
+                     1.5x      18.90%  26.5%       -49.9%     9.7x             0          -      -
+80/20 US/intl equity 1x        12.88%  16.8%       -34.7%     4.9x             0          -      -
+                     1.5x      17.15%  25.7%       -49.5%     8.0x             0          -      -
+70/30 US/intl equity 1x        12.29%  16.6%       -34.5%     4.6x             0          -      -
+                     1.5x      16.25%  25.4%       -49.4%     7.2x             0          -      -
+90/10 equity/bonds   1x        11.84%  15.1%       -31.7%     4.4x             0          -      -
+                     1.5x      15.71%  23.1%       -45.6%     6.8x             0          -      -
+60/40 global         1x         8.00%  10.2%       -22.3%     2.7x             0          -      -
+                     1.5x      10.16%  15.4%       -32.7%     3.6x             0          -      -
+
+============================================================================================
+3. The cost of holding international equity you cannot justify from the data
+============================================================================================
+   100% US equity           log growth 13.18%  vol 14.8%  max DD -24.8%  Sharpe 0.84
+   80/20 US/intl equity     log growth 12.16%  vol 14.4%  max DD -25.1%  Sharpe 0.79
+   70/30 US/intl equity     log growth 11.64%  vol 14.2%  max DD -25.3%  Sharpe 0.76
+
+============================================================================================
+4. Margin vs a 2x daily-reset ETF (SSO), the only lever available in an IRA
+============================================================================================
+   SSO-style 2x daily reset   CAGR 19.38%  max DD -60.6%  margin calls  none possible
+   2x on Reg-T margin         CAGR 22.69%  max DD -62.1%  margin calls  2
+
+============================================================================================
+5. Does the safe leverage level survive a harsher broker?
+============================================================================================
+                                                  1.25x             1.5x            1.75x                2x
+assumption                                                                                                 
+base (25% maint, 1.35 intraday stress)   16.5%  0 calls   18.9%  0 calls   21.1%  0 calls    22.7%  2 calls
+30% maintenance                          16.5%  0 calls   18.9%  0 calls   21.0%  1 calls    22.4%  6 calls
+35% maintenance                          16.5%  0 calls   18.7%  1 calls   20.5%  6 calls   21.6%  65 calls
+1.50 intraday stress                     16.5%  0 calls   18.9%  0 calls   20.8%  1 calls    22.7%  3 calls
+no procyclical hike                      16.5%  0 calls   18.9%  0 calls   21.1%  0 calls    22.8%  1 calls
+spread 2.5%                              16.2%  0 calls   18.1%  0 calls   20.0%  0 calls    21.1%  2 calls
+
+============================================================================================
+6. For reference: the unconstrained Kelly weights at this financing cost
+============================================================================================
+   unconstrained          gross  8.36x    US equities   6.28  Intl ex-US e  -2.08      US bonds  -0.00  Intl ex-US b  -0.00
+   long_only              gross  2.00x    US equities   2.00  Intl ex-US e   0.00      US bonds   0.00  Intl ex-US b   0.00
+   long_only_unlevered    gross  1.00x    US equities   1.00  Intl ex-US e   0.00      US bonds   0.00  Intl ex-US b   0.00

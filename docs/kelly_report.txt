@@ -1,0 +1,219 @@
+
+====================================================================================================
+panel modern: 2013-07 -> 2026-08 (158 months); US equities=VTI, Intl ex-US equities=VXUS, US bonds=BND, Intl ex-US bonds=BNDX
+proxies: VTI = Vanguard Total Stock Market ETF (index); VXUS = Vanguard Total International Stock ETF (index, ex-US); BND = Vanguard Total Bond Market ETF (index, US aggregate); BNDX = Vanguard Total International Bond ETF (index, ex-US, USD-hedged)
+====================================================================================================
+
+-- Asset classes, annualised --
+                      arith    cagr     vol  sharpe worst_month
+US equities          14.35%  14.09%  14.80%  84.34%     -13.89%
+Intl ex-US equities   8.87%   8.11%  14.49%  48.43%     -16.26%
+US bonds              2.16%   2.07%   4.73%   6.37%      -4.18%
+Intl ex-US bonds      2.49%   2.44%   4.04%  15.65%      -3.61%
+Cash (3m T-bill)      1.86%   1.87%   0.55%   0.00%       0.00%
+
+-- Correlation of monthly returns --
+                     US equities  Intl ex-US equities  US bonds  Intl ex-US bonds
+US equities                 1.00                 0.84      0.38              0.42
+Intl ex-US equities         0.84                 1.00      0.46              0.41
+US bonds                    0.38                 0.46      1.00              0.86
+Intl ex-US bonds            0.42                 0.41      0.86              1.00
+
+-- Kelly solutions (weights as a fraction of capital; Cash = 1 - sum) --
+                                       US equities Intl ex-US equities US bonds Intl ex-US bonds    Cash   gross growth    vol max_drawdown worst_month
+portfolio                                                                                                                                              
+Gaussian Kelly (Sigma^-1 mu)                 10.32               -4.90    -1.56            -3.46    0.61  20.25x  32.1%  95.8%       -91.6%      -78.3%
+Full Kelly, empirical                         7.81               -3.53    -0.77            -0.00   -2.51  12.10x  36.6%  76.8%       -82.6%      -56.7%
+0.5x Kelly, empirical                         3.90               -1.76    -0.38            -0.00   -0.76   6.05x  27.4%  38.4%       -47.9%      -28.2%
+0.25x Kelly, empirical                        1.95               -0.88    -0.19            -0.00    0.12   3.03x  16.8%  19.2%       -24.7%      -14.0%
+Full Kelly, long-only                         4.61                0.00     0.00             0.00   -3.61   4.61x  31.8%  68.2%       -83.4%      -64.3%
+Kelly, long-only, gross <= 3x                 3.00                0.00     0.00             0.00   -2.00   3.00x  27.7%  44.4%       -64.1%      -41.8%
+Kelly, long-only, gross <= 2x                 2.00                0.00     0.00             0.00   -1.00   2.00x  21.6%  29.6%       -46.7%      -27.8%
+Kelly, long-only, gross <= 1.5x               1.50                0.00     0.00             0.00   -0.50   1.50x  17.7%  22.2%       -36.3%      -20.9%
+Kelly, long-only, no leverage                 1.00                0.00     0.00             0.00   -0.00   1.00x  13.2%  14.8%       -24.8%      -13.9%
+Shrunk Kelly (mu 50%, cov 20%)                4.76               -0.77    -1.04             1.05   -3.00   7.63x  32.1%  61.4%       -77.2%      -55.5%
+Shrunk half-Kelly                             2.38               -0.39    -0.52             0.52   -1.00   3.81x  22.4%  30.7%       -46.4%      -27.7%
+Shrunk Kelly, long-only, no leverage          1.00                0.00     0.00             0.00   -0.00   1.00x  13.2%  14.8%       -24.8%      -13.9%
+Shrunk Kelly, long-only, gross <= 2x          2.00                0.00     0.00             0.00   -1.00   2.00x  21.6%  29.6%       -46.7%      -27.8%
+Shrunk Kelly, long-only, gross <= 1.5x        1.50                0.00     0.00             0.00   -0.50   1.50x  17.7%  22.2%       -36.3%      -20.9%
+60/40 global cap-weighted                     0.36                0.24     0.28             0.12    0.00   1.00x   7.7%   9.4%       -21.0%       -9.7%
+100% US equity                                1.00                0.00     0.00             0.00    0.00   1.00x  13.2%  14.8%       -24.8%      -13.9%
+
+-- Bootstrap of the weights (1000 block draws, 12-month blocks) --
+
+   mode = unconstrained
+                        p5  median    p95
+US equities           4.75    8.30  13.56
+Intl ex-US equities  -9.56   -3.37   1.18
+US bonds            -12.09   -0.00   6.31
+Intl ex-US bonds    -12.49   -0.00   6.74
+gross                 8.02   18.00  33.43
+
+   mode = long_only_unlevered
+                      p5  median  p95
+US equities          1.0     1.0  1.0
+Intl ex-US equities  0.0     0.0  0.0
+US bonds             0.0     0.0  0.0
+Intl ex-US bonds     0.0     0.0  0.0
+gross                1.0     1.0  1.0
+
+-- Sensitivity: does the answer survive a different financing cost? --
+                        US equities  Intl ex-US equities  US bonds  Intl ex-US bonds  gross
+spread mode                                                                                
+0.00%  unconstrained           9.58                -4.93      1.00             -5.02  20.54
+       long_only <= 2x         2.00                 0.00      0.00              0.00   2.00
+0.60%  unconstrained           7.81                -3.53     -0.77             -0.00  12.10
+       long_only <= 2x         2.00                 0.00      0.00              0.00   2.00
+1.50%  unconstrained           5.46                -1.26     -0.00             -0.00   6.72
+       long_only <= 2x         2.00                 0.00      0.00              0.00   2.00
+
+-- Sensitivity: does the answer survive being asked in a different decade? --
+                                  US equities  Intl ex-US equities  US bonds  Intl ex-US bonds  gross
+era              mode                                                                                
+2013-07..2023-06 unconstrained           9.90                -6.56       0.0              -0.0  16.46
+                 long_only <= 2x         2.00                 0.00       0.0               0.0   2.00
+2023-07..2026-08 unconstrained          10.33                11.40     -20.0             -20.0  61.74
+                 long_only <= 2x         2.00                 0.00       0.0               0.0   2.00
+
+-- Out of sample: skipped. 158 months of data and a 120-month training window leave 38 live months; under 120 the comparison says nothing. --
+
+====================================================================================================
+panel long: 1993-01 -> 2026-08 (404 months); US equities=VFINX, Intl ex-US equities=VTRIX, US bonds=VBMFX, Intl ex-US bonds=PFORX
+proxies: VFINX = Vanguard 500 Index (index; large-cap only, not total market); VTRIX = Vanguard International Value (ACTIVE, survivorship-selected); VBMFX = Vanguard Total Bond Market Index (index, US aggregate); PFORX = PIMCO Foreign Bond USD-Hedged (ACTIVE, survivorship-selected)
+====================================================================================================
+
+-- Asset classes, annualised --
+                      arith    cagr     vol  sharpe worst_month
+US equities          11.42%  10.82%  14.78%  60.35%     -16.79%
+Intl ex-US equities   8.48%   7.33%  16.55%  36.13%     -20.77%
+US bonds              4.30%   4.30%   4.11%  43.77%      -4.18%
+Intl ex-US bonds      5.86%   5.94%   3.93%  85.45%      -4.21%
+Cash (3m T-bill)      2.50%   2.53%   0.60%   0.00%       0.00%
+
+-- Correlation of monthly returns --
+                     US equities  Intl ex-US equities  US bonds  Intl ex-US bonds
+US equities                 1.00                 0.80      0.16              0.29
+Intl ex-US equities         0.80                 1.00      0.15              0.23
+US bonds                    0.16                 0.15      1.00              0.67
+Intl ex-US bonds            0.29                 0.23      0.67              1.00
+
+-- Kelly solutions (weights as a fraction of capital; Cash = 1 - sum) --
+                                       US equities Intl ex-US equities US bonds Intl ex-US bonds    Cash   gross  growth    vol max_drawdown worst_month
+portfolio                                                                                                                                               
+Gaussian Kelly (Sigma^-1 mu)                  4.43               -2.06    -4.88            22.47  -18.96  33.83x   RUIN   96.8%   -124573.7%     -106.7%
+Full Kelly, empirical                         3.45               -1.53    -0.00            12.48  -13.40  17.46x   31.7%  66.4%       -96.3%      -66.5%
+0.5x Kelly, empirical                         1.73               -0.77    -0.00             6.24   -6.20   8.73x   23.8%  33.2%       -71.6%      -33.2%
+0.25x Kelly, empirical                        0.86               -0.38    -0.00             3.12   -2.60   4.37x   14.9%  16.6%       -42.6%      -16.5%
+Full Kelly, long-only                         1.95                0.00     0.00            11.99  -12.94  13.94x   30.5%  61.8%       -95.2%      -69.8%
+Kelly, long-only, gross <= 3x                 2.55                0.00     0.00             0.45   -2.00   3.00x   17.8%  38.3%       -90.6%      -44.1%
+Kelly, long-only, gross <= 2x                 2.00                0.00     0.00             0.00   -1.00   2.00x   15.2%  29.6%       -81.4%      -33.7%
+Kelly, long-only, gross <= 1.5x               1.50                0.00     0.00             0.00   -0.50   1.50x   13.0%  22.2%       -67.3%      -25.2%
+Kelly, long-only, no leverage                 1.00                0.00     0.00             0.00    0.00   1.00x   10.3%  14.8%       -51.0%      -16.8%
+Shrunk Kelly (mu 50%, cov 20%)                2.56                0.20     2.46            13.39  -17.61  18.61x   22.7%  81.0%       -99.6%      -87.4%
+Shrunk half-Kelly                             1.28                0.10     1.23             6.70   -8.31   9.31x   25.3%  40.5%       -84.8%      -43.7%
+Shrunk Kelly, long-only, no leverage          1.00                0.00     0.00             0.00   -0.00   1.00x   10.3%  14.8%       -51.0%      -16.8%
+Shrunk Kelly, long-only, gross <= 2x          2.00                0.00     0.00             0.00   -1.00   2.00x   15.2%  29.6%       -81.4%      -33.7%
+Shrunk Kelly, long-only, gross <= 1.5x        1.50                0.00     0.00             0.00   -0.50   1.50x   13.0%  22.2%       -67.3%      -25.2%
+60/40 global cap-weighted                     0.36                0.24     0.28             0.12    0.00   1.00x    7.6%   9.3%       -34.6%      -12.0%
+100% US equity                                1.00                0.00     0.00             0.00    0.00   1.00x   10.3%  14.8%       -51.0%      -16.8%
+
+-- Bootstrap of the weights (1000 block draws, 12-month blocks) --
+
+   mode = unconstrained
+                       p5  median    p95
+US equities          0.76    3.63   7.15
+Intl ex-US equities -4.77   -1.51   0.29
+US bonds            -3.10   -0.00   4.54
+Intl ex-US bonds     1.90   12.27  20.00
+gross                7.84   18.75  29.87
+
+   mode = long_only_unlevered
+                       p5  median   p95
+US equities          0.08     1.0  1.00
+Intl ex-US equities  0.00     0.0  0.10
+US bonds             0.00     0.0  0.00
+Intl ex-US bonds     0.00     0.0  0.56
+gross                1.00     1.0  1.00
+
+-- Sensitivity: does the answer survive a different financing cost? --
+                        US equities  Intl ex-US equities  US bonds  Intl ex-US bonds  gross
+spread mode                                                                                
+0.00%  unconstrained           4.47                -2.86     -3.05             17.46  27.85
+       long_only <= 2x         2.00                 0.00      0.00              0.00   2.00
+0.60%  unconstrained           3.45                -1.53     -0.00             12.48  17.46
+       long_only <= 2x         2.00                 0.00      0.00              0.00   2.00
+1.50%  unconstrained           2.25                -0.00     -0.00              7.68   9.93
+       long_only <= 2x         2.00                 0.00      0.00              0.00   2.00
+
+-- Sensitivity: does the answer survive being asked in a different decade? --
+                                  US equities  Intl ex-US equities  US bonds  Intl ex-US bonds  gross
+era              mode                                                                                
+1993-01..2002-12 unconstrained           1.27                -0.25      1.84             17.87  21.22
+                 long_only <= 2x         0.59                 0.00      0.00              1.41   2.00
+2003-01..2012-12 unconstrained          -0.00                 0.25      6.97             15.29  22.50
+                 long_only <= 2x         0.00                 1.22      0.00              0.78   2.00
+2013-01..2022-12 unconstrained           9.98                -6.09     -0.27              0.00  16.33
+                 long_only <= 2x         2.00                 0.00      0.00              0.00   2.00
+2023-01..2026-08 unconstrained          13.32                 8.12    -20.00            -19.30  60.74
+                 long_only <= 2x         2.00                 0.00      0.00              0.00   2.00
+
+-- Out of sample: fit Kelly on the past only, hold it forward --
+
+   fitted as: unconstrained;  live 2003-01 -> 2026-08
+                 cagr log_growth     vol max_drawdown worst_month            ruin
+strategy                                                                         
+kelly_1x         --        RUIN   81.14%     -100.00%    -113.93%  RUINED 2008-09
+kelly_0.5x     16.19%     15.01%  40.55%      -88.87%     -56.89%               -
+kelly_0.25x    11.83%     11.18%  20.25%      -60.04%     -28.37%               -
+60_40           7.87%      7.58%   9.47%      -34.61%     -12.02%               -
+all_us_equity  11.53%     10.91%  14.48%      -50.97%     -16.79%               -
+cash            1.75%      1.73%   0.53%        0.00%       0.00%               -
+
+   fitted as: long_only (gross <= 2x);  live 2003-01 -> 2026-08
+                 cagr log_growth     vol max_drawdown worst_month ruin
+strategy                                                              
+kelly_1x       13.34%     12.53%  23.58%      -73.71%     -38.24%    -
+kelly_0.5x      8.53%      8.19%  11.80%      -45.38%     -19.07%    -
+kelly_0.25x     5.28%      5.14%   5.92%      -24.60%      -9.51%    -
+60_40           7.87%      7.58%   9.47%      -34.61%     -12.02%    -
+all_us_equity  11.53%     10.91%  14.48%      -50.97%     -16.79%    -
+cash            1.75%      1.73%   0.53%        0.00%       0.00%    -
+
+   fitted as: long_only_unlevered;  live 2003-01 -> 2026-08
+                 cagr log_growth     vol max_drawdown worst_month ruin
+strategy                                                              
+kelly_1x        9.99%      9.52%  13.50%      -47.50%     -19.76%    -
+kelly_0.5x      6.04%      5.86%   6.76%      -25.95%      -9.85%    -
+kelly_0.25x     3.93%      3.86%   3.41%      -12.86%      -4.90%    -
+60_40           7.87%      7.58%   9.47%      -34.61%     -12.02%    -
+all_us_equity  11.53%     10.91%  14.48%      -50.97%     -16.79%    -
+cash            1.75%      1.73%   0.53%        0.00%       0.00%    -
+
+-- Log growth against the Kelly fraction, in sample vs out --
+         in_sample_growth out_of_sample_growth out_of_sample_vol out_of_sample_max_drawdown  ruined
+fraction                                                                                           
+0.00                2.50%                1.73%             0.53%                      0.00%   False
+0.05                5.61%                4.44%             4.04%                    -14.30%   False
+0.10                8.16%                6.40%             8.08%                    -28.16%   False
+0.15               10.51%                8.18%            12.14%                    -40.30%   False
+0.20               12.76%                9.77%            16.19%                    -50.88%   False
+0.25               14.88%               11.18%            20.25%                    -60.04%   False
+0.30               16.90%               12.39%            24.31%                    -67.90%   False
+0.35               18.79%               13.40%            28.37%                    -74.61%   False
+0.40               20.57%               14.18%            32.43%                    -80.26%   False
+0.45               22.23%               14.73%            36.49%                    -84.98%   False
+0.50               23.77%               15.01%            40.55%                    -88.87%   False
+0.55               25.19%               14.99%            44.61%                    -92.01%   False
+0.60               26.48%               14.62%            48.67%                    -94.51%   False
+0.65               27.64%               13.83%            52.73%                    -96.44%   False
+0.70               28.67%               12.49%            56.78%                    -97.88%   False
+0.75               29.56%               10.39%            60.84%                    -98.89%   False
+0.80               30.31%                7.02%            64.90%                    -99.55%   False
+0.85               30.90%                0.45%            68.96%                    -99.91%   False
+0.90               31.34%                RUIN             73.02%                   -100.00%    True
+0.95               31.62%                RUIN             77.08%                   -100.00%    True
+1.00               31.71%                RUIN             81.14%                   -100.00%    True
+
+   in-sample peak at 1.00x (31.71%); out-of-sample peak at 0.50x (15.01%); ruin from 0.90x upward
+
+wrote /home/user/Leveraged-asset-allocation-model/docs/kelly_results.json
