@@ -433,3 +433,55 @@ def test_growth_decomposition_is_additive_by_construction():
     assert row["dilution"] == pytest.approx(
         row["aggregate_real_profits"] - row["real_eps_per_share"]
     )
+
+
+def test_geometric_frontier_peaks_at_full_kelly():
+    # f = 1 is the Kelly objective, so the frontier's maximum growth must sit there.
+    cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
+    frontier = fwd.geometric_frontier(
+        cma, fractions=np.round(np.arange(0.2, 1.61, 0.1), 3), financing_spread=0.012
+    )
+    assert frontier["geometric"].idxmax() == pytest.approx(1.0, abs=0.11)
+    assert frontier["vol"].is_monotonic_increasing
+
+
+def test_slope_and_scaling_agree_above_one_times_and_differ_below():
+    cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
+    fractions = np.round(np.arange(0.2, 1.31, 0.1), 3)
+    slope = fwd.geometric_frontier(cma, fractions=fractions, financing_spread=0.012)
+    scaled = fwd.scaled_frontier(cma, fractions=fractions, financing_spread=0.012)
+    gain = slope["geometric"] - scaled["geometric"]
+    # Re-optimising can never do worse than diluting, and above the financing
+    # kink two-fund separation holds so the two constructions coincide. The
+    # tolerance is SLSQP convergence noise: 1e-7 is a hundred-thousandth of a
+    # basis point of growth.
+    assert (gain > -1e-7).all()
+    levered = slope["gross"] > 1.001
+    assert np.allclose(gain[levered].to_numpy(), 0.0, atol=1e-5)
+    assert gain[~levered].max() > 0.001
+
+
+def test_bonds_enter_the_frontier_only_below_one_times_gross():
+    cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
+    frontier = fwd.geometric_frontier(
+        cma,
+        fractions=np.round(np.arange(0.2, 1.31, 0.1), 3),
+        financing_spread=0.012,
+        equity_split=fwd.GLOBAL_EQUITY_WEIGHTS,
+    )
+    bonds = frontier["us_bonds"] + frontier["intl_bonds"]
+    # Nothing is borrowed below 1x, so bonds compete against the bill rate rather
+    # than the margin rate -- and win. Above the kink they must be absent.
+    assert bonds[frontier["gross"] > 1.001].max() < 1e-6
+    assert bonds[frontier["gross"] <= 1.001].max() > 0.05
+
+
+def test_frontier_respects_the_cap_weighted_equity_split():
+    cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
+    frontier = fwd.geometric_frontier(
+        cma, fractions=np.array([0.4, 1.0]), equity_split=(0.6, 0.4)
+    )
+    for _, row in frontier.iterrows():
+        equity = row["us_equity"] + row["intl_equity"]
+        if equity > 1e-6:
+            assert row["us_equity"] / equity == pytest.approx(0.6, abs=1e-6)

@@ -27,11 +27,13 @@ from lam.kelly.forward import (
     constrained_kelly,
     decompose_growth,
     forward_ladder,
+    geometric_frontier,
     growth_needed_for,
     historical_real_eps_growth,
     kelly,
     market_inputs,
     profit_share,
+    scaled_frontier,
     rolling_real_eps_growth,
     tilt_sensitivity,
     with_equity_premium,
@@ -162,6 +164,45 @@ def main() -> int:
             f"\n   For US equities to return {name}, per-share real growth must be"
             f" {_pct(need)}\n      -- against a best-ever 30-year figure of {_pct(rolling.max())}."
         )
+
+    print("\n" + "=" * 100)
+    print("5b. The geometric frontier -- fractional Kelly by slope, not by scaling")
+    print("=" * 100)
+    grid = np.round(np.arange(0.1, 1.51, 0.1), 3)
+    slope = geometric_frontier(
+        cma, fractions=grid, financing_spread=args.spread,
+        equity_split=GLOBAL_EQUITY_WEIGHTS,
+    )
+    scaled = scaled_frontier(
+        cma, fractions=grid, financing_spread=args.spread,
+        equity_split=GLOBAL_EQUITY_WEIGHTS,
+    )
+    table = slope[["gross", "vol", "geometric", *ASSETS, "cash"]].copy()
+    table["vs scaling"] = slope["geometric"] - scaled["geometric"]
+    display = pd.DataFrame(index=table.index)
+    display["gross"] = table["gross"].map(lambda v: f"{v:.2f}x")
+    for col in ("vol", "geometric"):
+        display[col] = table[col].map(lambda v: _pct(v))
+    short = {"us_equity": "US eq", "intl_equity": "Intl eq",
+             "us_bonds": "US bd", "intl_bonds": "Intl bd"}
+    for a in ASSETS:
+        display[short[a]] = table[a].map(lambda v: f"{v:5.2f}")
+    display["cash"] = table["cash"].map(lambda v: f"{v:5.2f}")
+    display["vs scaling"] = table["vs scaling"].map(lambda v: f"{v * 100:+.2f}pp")
+    print(display.to_string())
+    peak = slope["geometric"].idxmax()
+    print(
+        f"\n   Peak growth {_pct(slope.loc[peak, 'geometric'])} at f = {peak:.2f}"
+        f" ({slope.loc[peak, 'gross']:.2f}x gross, {_pct(slope.loc[peak, 'vol'], 1)} vol)."
+    )
+    bonds = slope["us_bonds"] + slope["intl_bonds"]
+    print(
+        "   Bonds appear only where nothing is borrowed: they compete against the 3.80%\n"
+        "   bill rate below 1x gross, not the 5.00% margin rate above it. Scaling the\n"
+        f"   full-Kelly weights instead of re-optimising gives up as much as"
+        f" {(table['vs scaling'].max() * 100):.2f}pp/yr.\n"
+        f"   Largest bond weight on the frontier: {bonds.max():.0%} of capital."
+    )
 
     print("\n" + "=" * 100)
     print("6. Which parts of recent growth can repeat, and which cannot")

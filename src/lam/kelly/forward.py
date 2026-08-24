@@ -790,3 +790,151 @@ def profit_share(*, as_of: str | None = None) -> pd.Series:
 
     share = (fred.series("CPATAX") / fred.series("GDP")).dropna().rename("profit_share")
     return share.loc[:as_of] if as_of else share
+
+
+def geometric_frontier(
+    cma: ForwardCMA,
+    *,
+    fractions: np.ndarray | None = None,
+    financing_spread: float = 0.012,
+    long_only: bool = True,
+    max_gross: float | None = None,
+    equity_split: tuple[float, float] | None = None,
+) -> pd.DataFrame:
+    """The geometric-return frontier, solved by risk aversion rather than by scaling.
+
+    There are two ways to build a fractional-Kelly portfolio, and they are only
+    the same thing in a world that does not exist:
+
+    *Scaling* takes the full-Kelly weights and multiplies them by ``f``, parking
+    the remainder in cash. That is correct **only** under two-fund separation --
+    one risk-free rate for both lending and borrowing, and no position limits.
+
+    *Slope* re-solves at each ``f`` for the portfolio that maximises
+
+        ``w'mu - (1/2f) w'Sigma w - spread x borrowed``
+
+    which is the Kelly objective at ``f = 1`` and a more risk-averse investor
+    below it. This is the construction used here.
+
+    The difference is not academic, because two things break separation:
+
+    * **Borrowing costs more than lending.** The financing spread puts a kink at
+      1x gross, so the tangency portfolio above 1x is not the one below it.
+    * **Cash is not the only low-risk asset.** Below 1x gross nothing is
+      borrowed, so bonds stop competing against a 5.00% margin rate and start
+      competing against a 3.80% bill. Scaling can never discover that, because it
+      only ever dilutes the levered portfolio -- which holds no bonds -- with
+      cash. Slope finds it, and the composition changes accordingly.
+    """
+    from scipy.optimize import minimize
+
+    if fractions is None:
+        fractions = np.round(np.arange(0.1, 1.51, 0.05), 3)
+
+    mu = cma.excess.to_numpy()
+    sigma = cma.cov.to_numpy()
+
+    # With ``equity_split`` the two equity sleeves move together at market
+    # weights, so the frontier answers "how much equity, and how much bonds"
+    # rather than re-litigating the knife-edge US/international tilt at every
+    # point on the curve.
+    if equity_split is None:
+        basis = np.eye(len(mu))
+    else:
+        basis = np.array(
+            [[equity_split[0], equity_split[1], 0.0, 0.0],
+             [0.0, 0.0, 1.0, 0.0],
+             [0.0, 0.0, 0.0, 1.0]]
+        )
+    k = basis.shape[0]
+    bounds = [(0.0, 6.0) if long_only else (-6.0, 6.0)] * k
+    cons = []
+    if max_gross is not None:
+        cons.append({"type": "ineq", "fun": lambda x: max_gross - np.abs(basis.T @ x).sum()})
+
+    rows = []
+    for f in fractions:
+        aversion = 1.0 / (2.0 * float(f))
+
+        def negative(x: np.ndarray, aversion: float = aversion) -> float:
+            w = basis.T @ x
+            borrowed = max(np.abs(w).sum() - 1.0, 0.0)
+            return -(w @ mu - aversion * w @ sigma @ w - borrowed * financing_spread)
+
+        best, best_val = None, np.inf
+        for start in (np.zeros(k), np.full(k, 0.2), np.full(k, 0.5)):
+            res = minimize(
+                negative, start, method="SLSQP", bounds=bounds,
+                constraints=cons, options={"maxiter": 600, "ftol": 1e-13},
+            )
+            if res.fun < best_val:
+                best, best_val = res.x, res.fun
+        w = basis.T @ np.asarray(best)
+
+        gross = float(np.abs(w).sum())
+        variance = float(w @ sigma @ w)
+        borrowed = max(gross - 1.0, 0.0)
+        arithmetic = cma.cash + float(w @ mu) - borrowed * financing_spread
+        row = {
+            "fraction": float(f),
+            "gross": gross,
+            "vol": float(np.sqrt(variance)),
+            "arithmetic": arithmetic,
+            "geometric": arithmetic - 0.5 * variance,
+        }
+        row.update({asset: float(w[i]) for i, asset in enumerate(ASSETS)})
+        row["cash"] = 1.0 - gross
+        rows.append(row)
+
+    return pd.DataFrame(rows).set_index("fraction")
+
+
+def scaled_frontier(
+    cma: ForwardCMA,
+    *,
+    fractions: np.ndarray | None = None,
+    financing_spread: float = 0.012,
+    long_only: bool = True,
+    equity_split: tuple[float, float] | None = None,
+) -> pd.DataFrame:
+    """The same curve built the naive way, by scaling full-Kelly weights.
+
+    Reported only to show what the slope construction buys: below 1x gross this
+    one holds cash where the frontier would hold bonds, and gives up growth for
+    nothing in return.
+    """
+    if fractions is None:
+        fractions = np.round(np.arange(0.1, 1.51, 0.05), 3)
+
+    if equity_split is None:
+        full = constrained_kelly(
+            cma,
+            mode="long_only" if long_only else "unconstrained",
+            financing_spread=financing_spread,
+        ).to_numpy()
+    else:
+        full = bundle_kelly(
+            cma, equity_split=equity_split, financing_spread=financing_spread,
+            long_only=long_only,
+        ).to_numpy()
+    sigma = cma.cov.to_numpy()
+    mu = cma.excess.to_numpy()
+
+    rows = []
+    for f in fractions:
+        w = full * float(f)
+        gross = float(np.abs(w).sum())
+        variance = float(w @ sigma @ w)
+        arithmetic = cma.cash + float(w @ mu) - max(gross - 1.0, 0.0) * financing_spread
+        row = {
+            "fraction": float(f),
+            "gross": gross,
+            "vol": float(np.sqrt(variance)),
+            "arithmetic": arithmetic,
+            "geometric": arithmetic - 0.5 * variance,
+        }
+        row.update({asset: float(w[i]) for i, asset in enumerate(ASSETS)})
+        row["cash"] = 1.0 - gross
+        rows.append(row)
+    return pd.DataFrame(rows).set_index("fraction")
