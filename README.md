@@ -23,6 +23,7 @@ daily-reset leveraged ETFs, and portfolio margin / box spreads.
 - [Model A — the drawdown-constrained model](#model-a--drawdown-constrained-multi-asset)
 - [Model B — the return-maximising model](#model-b--return-maximising-concentrated-leverage)
 - [Appendix — Kelly on the four-asset question](#appendix--kelly-on-the-four-asset-question)
+- [Appendix — Kelly inside a Reg-T retail account](#appendix--kelly-inside-a-reg-t-retail-account)
 
 ---
 
@@ -939,3 +940,76 @@ ratio (an active fund, selected for having survived, measured across a 30-year
 global bond bull market) is precisely what the levered solution is betting on.
 On the clean modern data those same bonds returned *less than cash*, and Kelly
 gives them nothing at all.
+
+---
+
+# Appendix — Kelly inside a Reg-T retail account
+
+The Kelly answer above assumes a frictionless account. A retail margin account —
+Robinhood's, and every other Reg-T broker's — breaks that assumption in the one
+way that matters: **a maintenance breach converts a drawdown into a realised
+loss.** The broker sells at the bottom, and the position is not there for the
+recovery.
+
+`src/lam/kelly/account.py` simulates this daily, because a maintenance breach is
+a path event inside the month. It models the Reg-T 2× cap, per-asset maintenance
+requirements, house requirement hikes as the market falls, intraday testing
+rather than close-to-close, slippage on forced sales, and interest accrued daily
+on the debit balance. Report:
+[`docs/kelly_robinhood.html`](docs/kelly_robinhood.html), raw output in
+`docs/kelly_account_report.txt`, run with
+`python scripts/run_kelly_account.py --spread 0.012`.
+
+### The maintenance requirement, not Kelly, sets the leverage
+
+100% US equity rebalanced monthly to a fixed gross exposure, 1993–2026,
+borrowing at bills + 1.2%:
+
+| Gross | CAGR | Max drawdown | Margin calls | First call |
+|---|---|---|---|---|
+| 1.00× | 10.86% | −55.3% | 0 | — |
+| 1.25× | 12.31% | −64.3% | **0** | — |
+| **1.50×** | **13.60%** | −71.9% | **0** | — |
+| 1.75× | 14.64% | −80.3% | 1 | Oct 2008 |
+| 2.00× | 15.10% | −87.4% | 6 | Jul 2002 |
+
+**1.25× is never called under any assumption tested; 1.5× survives everything
+except a 35% maintenance requirement.** At 1.75× and above, a 5pp change in a
+number the broker sets unilaterally flips the account from "one bad month" to
+"serially liquidated".
+
+### Above 1.5× the extra return is a behavioural bet
+
+Identical simulation, differing only in whether the investor re-levers after
+being sold out:
+
+| Gross | Re-levers | Does not re-lever |
+|---|---|---|
+| 1.50× | 13.60% | 13.60% *(never called)* |
+| 1.75× | 14.64% | 10.74% |
+| 2.00× | 15.10% | **11.26%** |
+
+At 2×, flinching once leaves the account at 11.26%/yr against 10.86% for never
+having borrowed — 40bp/yr, for a −77% drawdown. The whole case for exceeding
+1.5× rests on re-borrowing in October 2008.
+
+### Two mechanical facts worth more than the backtest
+
+**The call distance is computable in advance.** At leverage `L` against
+maintenance `m`, the call fires once the position has fallen
+`1 − (L−1)/(L(1−m))` from the last rebalance — 33% at 2×, 56% at 1.5× on the
+textbook rule; 20% and 43% once intraday testing and procyclical hikes are
+priced in (`lam.kelly.account.call_threshold`).
+
+**Speed matters more than depth**, because that distance is measured from the
+last rebalance and monthly rebalancing sells on the way down. 1.5× came through
+2008's slow −55% untouched; 2× was called six times. The crash that breaks a
+levered account is a fast one, not necessarily a deep one.
+
+### Leveraged ETFs are not a substitute (the IRA case)
+
+A 2× daily-reset fund held 1993–2026 returned **10.68%/yr at a −91.5%
+drawdown** — *less than the unlevered index* (10.86%), at nearly twice the
+drawdown, because the daily reset makes volatility drag scale with the square of
+the multiplier and the embedded swap financing is wider than a margin loan. Its
+only real advantage is that it cannot be margin-called.

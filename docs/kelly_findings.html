@@ -438,6 +438,18 @@ footer{margin-top:80px; padding-top:24px; border-top:1px solid var(--rule); font
   chosen without an optimiser.</p>
 </section>
 
+<section>
+  <h2>Holding this in an actual account</h2>
+  <p class="lede">Everything above is the abstract question. The companion analysis puts the same
+  allocation inside a Reg-T retail margin account &mdash; 2&times; cap, 25% maintenance, the
+  broker's borrowing rate, forced sales simulated daily &mdash; and finds that the maintenance
+  requirement, not the growth optimum, sets the leverage: <b>1.5&times; was never force-sold in
+  33 years; 1.75&times; and 2&times; were, and their extra return exists only for an investor who
+  re-borrows at the bottom.</b></p>
+  <p><a href="https://claude.ai/code/artifact/1b48bf3b-7bad-4b4e-a350-3aa2fdf1588d">The Robinhood
+  Leverage Ladder &rarr;</a></p>
+</section>
+
 <footer>
   <p>Reproduce: <code>python scripts/run_kelly.py --draws 1000</code>. Full numeric output in
   <code>docs/kelly_report.txt</code> and <code>docs/kelly_results.json</code>; solvers in

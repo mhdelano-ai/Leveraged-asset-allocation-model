@@ -82,12 +82,21 @@ PANELS = {
 
 @dataclass(frozen=True)
 class KellyPanel:
-    """Monthly simple total returns plus the matching cash return."""
+    """Monthly simple total returns plus the matching cash return.
+
+    ``daily``/``daily_cash`` carry the same history at daily frequency. Monthly
+    data is the right resolution for estimating a Kelly weight; it is the wrong
+    resolution for asking whether a margin call fires, because a maintenance
+    breach is a *path* event inside the month. Both are kept so each question is
+    answered at the frequency it needs.
+    """
 
     name: str
     returns: pd.DataFrame  # columns = ASSETS, monthly simple returns
     cash: pd.Series  # monthly simple return on 3m T-bills
     tickers: dict[str, str]
+    daily: pd.DataFrame | None = None
+    daily_cash: pd.Series | None = None
 
     @property
     def excess(self) -> pd.DataFrame:
@@ -108,6 +117,10 @@ def _monthly_returns(symbol: str) -> pd.Series:
     daily = yahoo.total_return_prices(symbol)
     monthly = daily.resample("ME").last()
     return monthly.pct_change().dropna().rename(symbol)
+
+
+def _daily_returns(symbol: str) -> pd.Series:
+    return yahoo.total_return_prices(symbol).pct_change().dropna().rename(symbol)
 
 
 def _monthly_cash() -> pd.Series:
@@ -147,4 +160,23 @@ def build_panel(name: str, *, end: str | None = None) -> KellyPanel:
     if not np.isfinite(returns.to_numpy()).all():
         raise RuntimeError(f"panel {name}: non-finite returns")
 
-    return KellyPanel(name=name, returns=returns, cash=joined["cash"], tickers=tickers)
+    daily_cols = {asset: _daily_returns(ticker) for asset, ticker in tickers.items()}
+    daily = pd.DataFrame(daily_cols)[ASSETS].dropna()
+    # Bills are quoted on business days only; forward-fill covers holidays, and
+    # the annual BEY becomes a calendar-day rate so a three-day weekend accrues
+    # three days of interest rather than one.
+    bey = rates.bill_rate_bey(prefer="fred").reindex(daily.index).ffill().bfill()
+    day_gap = pd.Series(daily.index, index=daily.index).diff().dt.days.fillna(1.0).clip(1, 5)
+    daily_cash = ((1.0 + bey) ** (day_gap / 365.0) - 1.0).rename("cash")
+    window = slice(returns.index[0] - pd.offsets.MonthBegin(1), returns.index[-1])
+    daily = daily.loc[window]
+    daily_cash = daily_cash.loc[window]
+
+    return KellyPanel(
+        name=name,
+        returns=returns,
+        cash=joined["cash"],
+        tickers=tickers,
+        daily=daily,
+        daily_cash=daily_cash,
+    )

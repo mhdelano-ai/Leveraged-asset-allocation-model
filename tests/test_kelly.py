@@ -127,3 +127,132 @@ def test_score_reports_drawdown_of_a_flat_book_as_zero():
     out = score(np.zeros(len(ASSETS)), panel)
     assert out["max_drawdown"] == pytest.approx(0.0)
     assert out["growth"] == pytest.approx(12 * np.log1p(0.002))
+
+
+# --- the Reg-T account simulation ------------------------------------------
+
+from lam.kelly.account import MAINTENANCE, leverage_ladder, simulate  # noqa: E402
+
+
+def _daily_panel(daily: np.ndarray, cash_rate: float = 0.0) -> KellyPanel:
+    index = pd.date_range("2000-01-03", periods=len(daily), freq="B")
+    frame = pd.DataFrame(daily, columns=ASSETS, index=index)
+    cash = pd.Series(cash_rate, index=index, name="cash")
+    monthly = frame.resample("ME").apply(lambda c: (1 + c).prod() - 1)
+    return KellyPanel(
+        name="synthetic",
+        returns=monthly,
+        cash=cash.resample("ME").apply(lambda c: (1 + c).prod() - 1),
+        tickers=dict.fromkeys(ASSETS, "X"),
+        daily=frame,
+        daily_cash=cash,
+    )
+
+
+def test_unlevered_account_compounds_the_holding_and_is_never_called():
+    daily = np.zeros((500, len(ASSETS)))
+    daily[:, 0] = 0.0004
+    panel = _daily_panel(daily)
+    result = simulate(panel, np.array([1.0, 0, 0, 0]), financing_spread=0.05)
+    assert len(result.calls) == 0
+    assert not result.ruined
+    # No debt, so the broker's spread must not touch the result.
+    assert result.equity.iloc[-1] == pytest.approx(1.0004**500, rel=1e-6)
+
+
+def test_leverage_costs_the_broker_spread_on_the_borrowed_part_only():
+    panel = _daily_panel(np.zeros((252, len(ASSETS))))
+    flat = simulate(panel, np.array([1.0, 0, 0, 0]), target_leverage=1.0, financing_spread=0.02)
+    levered = simulate(panel, np.array([1.0, 0, 0, 0]), target_leverage=2.0, financing_spread=0.02)
+    assert flat.equity.iloc[-1] == pytest.approx(1.0, rel=1e-9)
+    # One turn of borrowed capital at 2% for a year.
+    assert levered.equity.iloc[-1] == pytest.approx(1.0 - 0.02, abs=2e-3)
+
+
+def test_a_crash_forces_a_sale_and_cuts_leverage():
+    daily = np.zeros((60, len(ASSETS)))
+    daily[30, 0] = -0.35
+    panel = _daily_panel(daily)
+    result = simulate(panel, np.array([1.0, 0, 0, 0]), target_leverage=2.0)
+    assert len(result.calls) == 1
+    assert result.calls[0] == panel.daily.index[30]
+    # The crash alone takes leverage to 1.30/0.30 = 4.33x. The broker sells only
+    # enough to meet the requirement, so the account is left levered ~2.3x -- not
+    # back at its 2x target, and not deleveraged to safety.
+    assert 2.0 < result.leverage.iloc[30] < 4.0
+
+
+def test_no_call_when_the_same_crash_is_held_unlevered():
+    daily = np.zeros((60, len(ASSETS)))
+    daily[30, 0] = -0.35
+    panel = _daily_panel(daily)
+    result = simulate(panel, np.array([1.0, 0, 0, 0]), target_leverage=1.0)
+    assert len(result.calls) == 0
+    assert result.equity.iloc[-1] == pytest.approx(0.65, rel=1e-6)
+
+
+def test_a_move_larger_than_the_equity_cushion_is_ruin():
+    daily = np.zeros((30, len(ASSETS)))
+    daily[10, 0] = -0.60
+    panel = _daily_panel(daily)
+    result = simulate(panel, np.array([1.0, 0, 0, 0]), target_leverage=2.0)
+    assert result.ruined
+    assert result.ruin_date == panel.daily.index[10]
+    assert result.equity.iloc[-1] == 0.0
+
+
+def test_declining_to_relever_leaves_the_account_unlevered_afterwards():
+    daily = np.zeros((120, len(ASSETS)))
+    daily[30, 0] = -0.35
+    panel = _daily_panel(daily)
+    result = simulate(
+        panel, np.array([1.0, 0, 0, 0]), target_leverage=2.0, relever_after_call=False
+    )
+    assert result.leverage.iloc[-1] == pytest.approx(1.0, abs=1e-6)
+
+
+def test_maintenance_covers_every_asset_in_the_universe():
+    assert set(MAINTENANCE) == set(ASSETS)
+
+
+def test_ladder_is_monotone_in_risk_when_nothing_is_ever_called():
+    rng = np.random.default_rng(1)
+    daily = np.zeros((2000, len(ASSETS)))
+    daily[:, 0] = rng.normal(0.0004, 0.006, size=2000)
+    panel = _daily_panel(daily)
+    table = leverage_ladder(panel, np.array([1.0, 0, 0, 0]), levels=(1.0, 1.5, 2.0))
+    assert (table["margin_calls"] == 0).all()
+    assert table["vol"].is_monotonic_increasing
+    assert table["max_drawdown"].is_monotonic_decreasing
+
+
+def test_call_threshold_matches_the_textbook_reg_t_case():
+    from lam.kelly.account import call_threshold
+
+    # 2x against a 25% requirement: equity/value hits 25% after a 33.3% fall.
+    assert call_threshold(2.0, maintenance=0.25) == pytest.approx(1 / 3, rel=1e-9)
+    # 1x is never called, whatever the requirement.
+    assert call_threshold(1.0, maintenance=0.5) == 1.0
+    # Stress and procyclicality can only bring the call forward.
+    assert call_threshold(2.0, intraday_stress=1.35) < call_threshold(2.0)
+    assert call_threshold(2.0, intraday_stress=1.35, procyclicality=0.5) < call_threshold(
+        2.0, intraday_stress=1.35
+    )
+
+
+def test_call_threshold_agrees_with_the_simulation():
+    from lam.kelly.account import call_threshold
+
+    edge = call_threshold(2.0, maintenance=0.25, intraday_stress=1.0)
+    for delta, expect_call in ((-0.01, False), (+0.01, True)):
+        daily = np.zeros((40, len(ASSETS)))
+        daily[20, 0] = -(edge + delta)
+        panel = _daily_panel(daily)
+        result = simulate(
+            panel,
+            np.array([1.0, 0, 0, 0]),
+            target_leverage=2.0,
+            intraday_stress=1.0,
+            procyclicality=0.0,
+        )
+        assert (len(result.calls) > 0) is expect_call
