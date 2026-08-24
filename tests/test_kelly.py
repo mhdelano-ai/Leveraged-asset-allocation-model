@@ -374,3 +374,23 @@ def test_bootstrap_paths_carry_the_forward_drift_not_the_historical_one():
     assert np.allclose(drift, cma.arithmetic.to_numpy(), atol=0.02)
     vol = np.mean([sim.daily.std(ddof=1).to_numpy() * np.sqrt(252) for sim in sims], axis=0)
     assert np.allclose(vol, cma.vol.to_numpy(), rtol=0.15)
+
+
+def test_implied_eps_growth_is_aggregate_growth_plus_buyback():
+    # The build-up's growth term is aggregate; adding the share-count term gives
+    # the per-share figure that a historical EPS growth rate is comparable with.
+    cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
+    a = fwd.Assumptions()
+    assert cma.implied_eps_growth["us_equity"] == pytest.approx(
+        a.us_real_growth + a.us_buyback
+    )
+    assert cma.implied_eps_growth["us_bonds"] == pytest.approx(0.0)
+
+
+def test_growth_needed_for_inverts_the_build_up():
+    cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
+    target = 0.08
+    need = fwd.growth_needed_for(cma, target)
+    row = cma.build_up.loc["us_equity"]
+    rebuilt = row["income"] + row["inflation"] + row["valuation"] + row["currency"] + need
+    assert rebuilt == pytest.approx(target)

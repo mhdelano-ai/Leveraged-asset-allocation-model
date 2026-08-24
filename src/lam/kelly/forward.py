@@ -28,6 +28,17 @@ breakeven) or an explicit assumption you can move (the rest). The valuation term
 defaults to zero: assuming multiples revert is a forecast, not an input, and it
 belongs in the sensitivity table rather than the base case.
 
+**The growth term is aggregate, not per share, and the distinction is not
+cosmetic.** ``real_growth`` here is the real growth of the *aggregate* earnings of
+the index's constituents; the buyback yield is the separate share-count term that
+converts it to a per-share figure. So what the holder of an index fund actually
+earns in growth is ``real_growth + buyback`` -- 2.80%/yr for US equities in the
+base case. Shiller's earnings-per-share series is already *per share*, so its
+1.84%/yr long-run growth is the thing to compare 2.80% against, and it must never
+be dropped into ``real_growth`` beside a buyback term: that double counts the
+share count. :func:`historical_real_eps_growth` measures the comparison directly
+so the assumption can be argued with rather than asserted.
+
 **Risk.** Volatility and correlation are estimable from data in a way means are
 not, so they come from the sample -- but from the *recent* sample by default. The
 stock/bond correlation regime changed in 2022, and a levered book's tolerance for
@@ -116,7 +127,21 @@ class MarketInputs:
 
 @dataclass(frozen=True)
 class Assumptions:
-    """Judgement, stated as numbers you can move one at a time."""
+    """Judgement, stated as numbers you can move one at a time.
+
+    ``*_real_growth`` is **aggregate** real earnings growth; ``*_buyback`` is the
+    net share-count change that turns it into per-share growth. Their sum is what
+    to compare against a historical earnings-per-share growth rate --- see
+    :func:`historical_real_eps_growth` and ``ForwardCMA.implied_eps_growth``.
+
+    The 1.50% default is deliberately below the ~3.3%/yr real growth the US
+    corporate sector delivered in aggregate since 1871, on two grounds: potential
+    real GDP growth is now nearer 1.8% than the 3.3% of that era, and the profit
+    share of GDP is at a record high, so the margin expansion that lifted earnings
+    faster than output cannot be extrapolated. Paired with the buyback term it
+    still implies 2.80%/yr of per-share growth, which is *above* Shiller's 1.84%
+    long-run median --- the base case is not a pessimistic one.
+    """
 
     us_buyback: float = 0.0130
     us_real_growth: float = 0.0150
@@ -156,6 +181,17 @@ class ForwardCMA:
     @property
     def sharpe(self) -> pd.Series:
         return (self.excess / self.vol).rename("sharpe")
+
+    @property
+    def implied_eps_growth(self) -> pd.Series:
+        """Per-share real earnings growth implied by the build-up.
+
+        Aggregate growth plus the buyback yield. This is the number that is
+        comparable with a historical earnings-per-share growth rate, and the one
+        an equity assumption should be defended on.
+        """
+        growth = self.build_up["real growth"] + self.build_up["buyback"]
+        return growth.rename("implied_real_eps_growth")
 
     def table(self) -> pd.DataFrame:
         out = self.build_up.copy()
@@ -570,3 +606,82 @@ def forward_ladder(
             }
         )
     return pd.DataFrame(rows).set_index("leverage")
+
+
+def historical_real_eps_growth(
+    *,
+    windows: tuple[tuple[str, str], ...] | None = None,
+    smooth_years: int = 10,
+) -> pd.DataFrame:
+    """Realised real earnings-per-share growth of the S&P 500, by period.
+
+    Earnings are violently cyclical, so a growth rate measured between two single
+    months is mostly a statement about where those two months sat in the cycle:
+    1960-2000 reads 2.25%/yr on raw endpoints and 1.27%/yr on ten-year averaged
+    ones. Both are reported, and the smoothed column is the one to believe.
+    """
+    from ..data import shiller
+
+    series = shiller.real_earnings()
+    end = str(series.index[-1].year)
+    windows = windows or (
+        ("1871", end),
+        ("1900", end),
+        ("1950", end),
+        ("1960", "2000"),
+        ("1985", end),
+        ("2005", end),
+    )
+
+    rows = []
+    for start, stop in windows:
+        window = series.loc[start:stop].dropna()
+        span = (window.index[-1] - window.index[0]).days / 365.25
+        raw = (window.iloc[-1] / window.iloc[0]) ** (1.0 / span) - 1.0
+        months = smooth_years * 12
+        smoothed = (
+            window.iloc[-months:].mean() / window.iloc[:months].mean()
+        ) ** (1.0 / (span - smooth_years)) - 1.0
+        rows.append(
+            {
+                "period": f"{start}-{stop}",
+                "raw_endpoints": float(raw),
+                "smoothed_endpoints": float(smoothed),
+                "years": round(span, 1),
+            }
+        )
+    return pd.DataFrame(rows).set_index("period")
+
+
+def rolling_real_eps_growth(
+    *, horizon_years: int = 30, smooth_years: int = 10
+) -> pd.Series:
+    """Every ``horizon_years`` window of real EPS growth in the Shiller record.
+
+    The distribution, not the average, is the honest input to a forward
+    assumption: an investor gets one draw from it.
+    """
+    from ..data import shiller
+
+    smoothed = shiller.real_earnings().rolling(smooth_years * 12).mean().dropna()
+    ratio = smoothed / smoothed.shift(horizon_years * 12)
+    return (ratio ** (1.0 / horizon_years) - 1.0).dropna().rename(
+        f"real_eps_growth_{horizon_years}y"
+    )
+
+
+def growth_needed_for(
+    cma: ForwardCMA,
+    target_return: float,
+    *,
+    asset: str = "us_equity",
+) -> float:
+    """Per-share real growth required for ``asset`` to return ``target_return``.
+
+    Inverts the build-up: income and inflation are observed, so any expected
+    return maps to exactly one growth rate, and that rate can be checked against
+    the historical distribution instead of argued about in the abstract.
+    """
+    row = cma.build_up.loc[asset]
+    fixed = row["income"] + row["inflation"] + row["valuation"] + row["currency"]
+    return float(target_return - fixed)

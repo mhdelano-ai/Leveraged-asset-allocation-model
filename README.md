@@ -1083,6 +1083,53 @@ within 12bp — leverage in that range buys no expected growth and 16pp of extra
 median drawdown. Over 20 years the ranking is unchanged but the forced-sale risk
 compounds: P(margin call) at 2× rises from 52% to **78%**.
 
+### Where the 1.5% growth assumption comes from
+
+It is the only number in the build-up that is neither observed nor derived, and
+**it is an *aggregate* rate, not per share** — the buyback yield is the separate
+term that converts one to the other. What an index-fund holder receives in growth
+is the sum: **1.50% + 1.30% = 2.80%/yr real, per share**. Dropping a historical
+*per-share* growth rate into the growth slot beside a buyback term double counts
+the share count, which is the classic error in this decomposition.
+
+Measured against the record (Shiller real EPS, 1871–2023, ten-year averaged
+endpoints):
+
+| Period | Real EPS growth |
+|---|---|
+| 1871–2023 — full record | **1.80%** |
+| 1900–2023 | 1.68% |
+| 1950–2023 | 2.33% |
+| 1960–2000 | 1.22% *(2.26% on raw endpoints — same four decades)* |
+| 1985–2023 — the buyback era | 3.86% |
+
+Across all 1,199 rolling 30-year windows: 5th pct **−0.51%**, median **1.68%**,
+95th pct 3.32%, best ever 3.72%. There are thirty-year stretches in which real
+earnings per share went backwards.
+
+**The base case's implied 2.80% sits at the 83rd percentile of that
+distribution** — 1.50% looks conservative in isolation and is not, once buybacks
+are added. Run it the other way: for US equities to return 8%/yr, per-share real
+growth must be **4.49%**, higher than any 30-year stretch since 1871; to repeat
+their 1993–2026 realised 10.82% would take **7.31%**, roughly double the best
+ever. That is not a claim about growth being weak — it is the starting dividend
+yield, which averaged ~4.4% across the record and is 1.17% today.
+
+Why 1.50% rather than the ~3.3% aggregate growth the record implies (1.80% per
+share plus ~1.5%/yr of historical dilution, close to real GDP over the same
+span): potential real GDP growth is now nearer 1.8%, and much of the 1985–2023
+acceleration was margin expansion from what is now a record profit share — a
+level shift, not a growth rate. The counter-argument is coherent: 2.5% aggregate
+growth puts per-share growth at 3.8% and full Kelly near 1.5×. That is exactly
+the belief the 1.5× rung requires.
+
+| If per-share real growth is… | US equities return | Full Kelly |
+|---|---|---|
+| −0.51% — worst 30y in the record | 3.00% | 0.04× |
+| 1.68% — the median 30y | 5.19% | 0.90× |
+| **2.80% — this model's base case** | **6.31%** | **1.18×** |
+| 3.72% — best 30y in 150 years | 7.22% | 1.52× |
+
 ### Two sensitivities that matter more than the base case
 
 **The US/international split is a knife edge.** A ±2pp swing in an unobservable
