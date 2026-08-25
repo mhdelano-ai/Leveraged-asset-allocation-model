@@ -837,6 +837,60 @@ python scripts/run_growth_robustness.py              # transfer, 1929, vehicles
 
 ---
 
+## Deposits and withdrawals
+
+Kelly's fraction is derived for a *closed* account: the problem is scale-invariant
+there, so the optimum does not depend on how much is in it. External flows break
+that — but the direction of the flow matters far less than **whether it is a fixed
+size or a fixed percentage**. `flow_ladder` runs both.
+
+**Proportional flows change nothing.** Drawing 4% of the *current* balance keeps
+the problem scale-invariant: the withdrawal shrinks with the account, so it can
+run forever without emptying it. The optimum stays where the closed-account
+answer put it and **ruin is impossible at every leverage level**.
+
+**Fixed-size withdrawals break it.** 250 bootstrapped 30-year paths, half-Kelly
+mix, 4%/yr:
+
+| Gross | 4% of *current* balance |  |  | 4% of *opening* balance, indexed |  |  |
+|---|---|---|---|---|---|---|
+| | Median | 5th pct | P(ruin) | Median | 5th pct | P(ruin) |
+| 0.50× | 0.79× | 0.44× | 0.0% | 0.59× | 0.01× | 4.8% |
+| 1.00× | 1.16× | 0.36× | 0.0% | 1.25× | 0.00× | 13.6% |
+| **1.50×** | 1.29× | 0.22× | 0.0% | **1.40×** | 0.00× | **20.0%** |
+| 2.00× | 1.23× | 0.11× | 0.0% | 1.07× | 0.00× | 30.4% |
+
+The same 4%, sized two ways, is the difference between a portfolio that shrinks
+and one that dies — a bad path leaves 22–44 cents on the dollar under the
+proportional rule and *nothing* under the fixed one. So **median wealth is the
+wrong objective once you draw a fixed income**: it still points at 1.50×, and
+1.50× carries a one-in-five chance of running out. Under a 5%-ruin budget the
+answer is **0.5× or unlevered**.
+
+**Leverage cannot rescue too high a withdrawal rate.** At 6%/yr against a 6.9%
+expected return, over half of paths run out at *every* level, and P(ruin) is
+U-shaped: 82% at 0.5×, ~51% at 1.25–1.5×, 56% at 2×. Ground down at the low end,
+killed by volatility at the high end.
+
+**Deposits barely move the optimum and transform the downside.** Saving 20%/yr of
+the opening balance for 20 years leaves the growth-optimal leverage at 1.75×,
+flows or not — but the 5th-percentile outcome at 2× goes from **0.44×** to
+**3.01×**, because contributions come to dominate. Deposits don't make leverage a
+better bet; they make the outcome depend less on it.
+
+One mechanical trap: margin-call probability is *identical to the decimal* whether
+saving or not (1.2% at 1.75×, 63% at 2×). Rebalancing monthly to a fixed leverage
+*ratio* resets the maintenance ratio however big the account gets, so new money
+buys no safety. To make contributions a margin buffer, target constant **debt**
+and let leverage drift down as you pay in.
+
+**The lifecycle bound.** If Kelly is the right share of *total* economic wealth,
+and total wealth is the account plus the PV of future contributions, then
+`L_account = L_kelly × (1 + PV/account)` — 6.48× for a 20-year saver contributing
+20%/yr (`human_capital_leverage`). Reg-T caps at 2×, so **for a young saver the
+binding constraint is the broker, not Kelly**. The assumption underneath is that a
+salary is a Treasury bond, which it is not. An upper bound, never a target.
+
 ## Caveats
 
 - **Effective sample size is ~7, not ~13,900.** The record holds about seven

@@ -511,3 +511,73 @@ def test_frontier_respects_the_cap_weighted_equity_split():
         equity = row["us_equity"] + row["intl_equity"]
         if equity > 1e-6:
             assert row["us_equity"] / equity == pytest.approx(0.6, abs=1e-6)
+
+
+# --- external flows ---------------------------------------------------------
+
+
+def test_deposits_add_exactly_what_was_paid_in_when_nothing_moves():
+    panel = _daily_panel(np.zeros((252, len(ASSETS))))
+    result = simulate(panel, _only(1.0), target_leverage=1.0, deposit_rate=0.12,
+                      flow_growth=0.0, rebalance_slippage=0.0)
+    # Twelve monthly instalments of 1% of the opening balance.
+    assert result.summary["contributed"] == pytest.approx(0.12, abs=5e-3)
+    assert result.equity.iloc[-1] == pytest.approx(1.12, abs=5e-3)
+
+
+def test_a_withdrawal_larger_than_the_balance_is_ruin_not_a_negative_account():
+    panel = _daily_panel(np.zeros((252 * 3, len(ASSETS))))
+    result = simulate(panel, _only(1.0), target_leverage=1.0, withdrawal_rate=0.50,
+                      flow_growth=0.0, rebalance_slippage=0.0)
+    assert result.ruined
+    assert result.equity.iloc[-1] == 0.0
+    assert (result.equity >= 0).all()
+
+
+def test_proportional_flows_cannot_ruin_an_unlevered_account():
+    """The theoretical anchor: a percentage-of-balance flow keeps the problem
+    scale-invariant, so it can shrink the account forever without ever emptying
+    it -- which is why the Kelly fraction is unchanged by such a flow."""
+    rng = np.random.default_rng(3)
+    daily = np.zeros((252 * 5, len(ASSETS)))
+    daily[:, 0] = rng.normal(0.0002, 0.012, size=252 * 5)
+    panel = _daily_panel(daily)
+    result = simulate(panel, _only(1.0), target_leverage=1.0, withdrawal_rate=0.20,
+                      flows_are_proportional=True)
+    assert not result.ruined
+    assert result.equity.iloc[-1] > 0
+
+
+def test_irr_recovers_a_known_return_with_no_flows():
+    monthly = 1.10 ** (1 / 252) - 1
+    daily = np.zeros((252, len(ASSETS)))
+    daily[:, 0] = monthly
+    panel = _daily_panel(daily)
+    result = simulate(panel, _only(1.0), target_leverage=1.0, rebalance_slippage=0.0)
+    assert result.summary["irr"] == pytest.approx(0.10, abs=0.01)
+
+
+def test_irr_is_not_fooled_by_deposits():
+    """A deposit raises the balance without earning anything, so a money-weighted
+    return must ignore it while the raw account multiple cannot."""
+    monthly = 1.08 ** (1 / 252) - 1
+    daily = np.zeros((252 * 3, len(ASSETS)))
+    daily[:, 0] = monthly
+    panel = _daily_panel(daily)
+    flat = simulate(panel, _only(1.0), target_leverage=1.0, rebalance_slippage=0.0)
+    saving = simulate(panel, _only(1.0), target_leverage=1.0, deposit_rate=0.30,
+                      flow_growth=0.0, rebalance_slippage=0.0)
+    assert saving.summary["final_multiple"] > flat.summary["final_multiple"] * 1.5
+    assert saving.summary["irr"] == pytest.approx(flat.summary["irr"], abs=0.005)
+
+
+def test_human_capital_leverage_scales_with_the_present_value_of_deposits():
+    from lam.kelly.forward import human_capital_leverage
+
+    none = human_capital_leverage(1.5, deposit_rate=0.0, years=20, discount_rate=0.05)
+    some = human_capital_leverage(1.5, deposit_rate=0.20, years=20, discount_rate=0.05)
+    assert none["implied_account_leverage"] == pytest.approx(1.5)
+    assert some["implied_account_leverage"] > 1.5
+    assert some["implied_account_leverage"] == pytest.approx(
+        1.5 * (1 + some["pv_of_deposits"])
+    )

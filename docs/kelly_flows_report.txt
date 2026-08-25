@@ -1,0 +1,117 @@
+holding (the frontier's half-Kelly mix, levered as shown):
+   US equities 32%  Intl ex-US equities 19%  Long Treasuries 28%  REITs 21%
+
+====================================================================================================
+Closed account, 20y   (250 paths)
+====================================================================================================
+         median wealth  5th pct  95th pct median IRR median max DD P(call) P(ruin)
+leverage                                                                          
+0.50             1.83x    1.21x     2.82x      5.47%        -13.7%    0.0%    0.0%
+0.75             2.10x    1.12x     4.01x      6.17%        -21.9%    0.0%    0.0%
+1.00             2.36x    1.01x     5.60x      6.79%        -30.1%    0.0%    0.0%
+1.25             2.46x    0.85x     7.25x      7.03%        -37.9%    0.0%    0.0%
+1.50             2.51x    0.70x     9.21x      7.17%        -45.3%    0.0%    0.0%
+1.75             2.54x    0.56x    11.54x      7.21%        -51.9%    1.2%    0.0%
+2.00             2.47x    0.44x    14.25x      7.09%        -57.8%   63.2%    0.0%
+   median wealth is maximised at 1.75x; ruin is impossible at every level
+
+====================================================================================================
+Saving 10%/yr of the opening balance, 20y   (250 paths)
+====================================================================================================
+         median wealth  5th pct  95th pct median IRR median max DD P(call) P(ruin)
+leverage                                                                          
+0.50             4.53x    3.35x     6.13x      5.48%        -12.1%    0.0%    0.0%
+0.75             5.03x    3.20x     8.10x      6.24%        -19.2%    0.0%    0.0%
+1.00             5.52x    3.02x    10.68x      6.91%        -26.9%    0.0%    0.0%
+1.25             5.75x    2.70x    13.27x      7.19%        -34.2%    0.0%    0.0%
+1.50             5.95x    2.39x    16.33x      7.37%        -41.4%    0.0%    0.0%
+1.75             6.00x    2.09x    19.89x      7.42%        -48.1%    1.2%    0.0%
+2.00             5.91x    1.78x    23.95x      7.33%        -54.6%   63.2%    0.0%
+   median wealth is maximised at 1.75x; ruin is impossible at every level
+
+====================================================================================================
+Saving 20%/yr, 20y   (250 paths)
+====================================================================================================
+         median wealth  5th pct  95th pct median IRR median max DD P(call) P(ruin)
+leverage                                                                          
+0.50             7.23x    5.43x     9.54x      5.52%        -11.8%    0.0%    0.0%
+0.75             8.00x    5.19x    12.33x      6.32%        -18.6%    0.0%    0.0%
+1.00             8.79x    4.90x    15.93x      7.00%        -25.8%    0.0%    0.0%
+1.25             9.16x    4.42x    19.60x      7.27%        -32.9%    0.0%    0.0%
+1.50             9.41x    3.95x    23.90x      7.46%        -40.1%    0.0%    0.0%
+1.75             9.45x    3.52x    29.04x      7.55%        -47.2%    1.2%    0.0%
+2.00             9.42x    3.01x    35.01x      7.47%        -53.3%   63.2%    0.0%
+   median wealth is maximised at 1.75x; ruin is impossible at every level
+
+====================================================================================================
+Saving 20%/yr, PROPORTIONAL, 20y   (250 paths)
+====================================================================================================
+         median wealth  5th pct  95th pct median IRR median max DD P(call) P(ruin)
+leverage                                                                          
+0.50            84.84x   55.79x   130.67x      4.87%        -11.0%    0.0%    0.0%
+0.75            97.30x   51.66x   185.63x      5.41%        -16.7%    0.0%    0.0%
+1.00           109.26x   46.88x   259.04x      5.81%        -22.4%    0.0%    0.0%
+1.25           113.71x   39.31x   335.13x      5.83%        -28.7%    0.0%    0.0%
+1.50           116.22x   32.23x   425.72x      5.62%        -35.0%    0.0%    0.0%
+1.75           117.29x   25.82x   533.55x      5.28%        -41.0%    1.2%    0.0%
+2.00           114.32x   20.18x   658.85x      4.90%        -47.1%   63.2%    0.0%
+   median wealth is maximised at 1.75x; ruin is impossible at every level
+
+====================================================================================================
+Drawing 4%/yr of the opening balance, 30y   (250 paths)
+====================================================================================================
+         median wealth  5th pct  95th pct median IRR median max DD P(call) P(ruin)
+leverage                                                                          
+0.50             0.59x    0.01x     1.47x      5.56%        -27.5%    0.0%    4.8%
+0.75             0.89x    0.00x     2.83x      6.23%        -33.1%    0.0%    8.0%
+1.00             1.25x    0.00x     4.91x      6.88%        -39.4%    0.0%   13.6%
+1.25             1.36x    0.00x     7.07x      7.05%        -48.3%    0.0%   16.0%
+1.50             1.40x    0.00x     9.67x      7.11%        -57.2%    0.0%   20.0%
+1.75             1.33x    0.00x    12.71x      6.99%        -66.2%    1.6%   25.2%
+2.00             1.07x    0.00x    15.77x      6.56%        -73.9%   77.6%   30.4%
+   median wealth is maximised at 1.50x; ruin is least likely at 0.50x
+
+====================================================================================================
+Drawing 6%/yr, 30y   (250 paths)
+====================================================================================================
+         median wealth  5th pct  95th pct median IRR median max DD P(call) P(ruin)
+leverage                                                                          
+0.50             0.00x    0.00x     0.38x      5.45%       -100.0%    0.0%   82.0%
+0.75             0.00x    0.00x     1.34x      6.12%       -100.0%    0.0%   62.0%
+1.00             0.00x    0.00x     2.80x      6.67%       -100.0%    0.0%   52.0%
+1.25             0.00x    0.00x     4.46x      6.67%       -100.0%    0.0%   50.8%
+1.50             0.00x    0.00x     6.66x      6.56%       -100.0%    0.0%   50.8%
+1.75             0.00x    0.00x     9.46x      6.43%       -100.0%    1.2%   52.4%
+2.00             0.00x    0.00x    12.09x      5.81%       -100.0%   74.8%   55.6%
+   median wealth is maximised at 0.50x; ruin is least likely at 1.25x
+
+====================================================================================================
+Drawing 4%/yr of the CURRENT balance, 30y   (250 paths)
+====================================================================================================
+         median wealth  5th pct  95th pct median IRR median max DD P(call) P(ruin)
+leverage                                                                          
+0.50             0.79x    0.44x     1.21x      5.62%        -21.7%    0.0%    0.0%
+0.75             0.96x    0.40x     1.86x      6.42%        -31.1%    0.0%    0.0%
+1.00             1.16x    0.36x     2.78x      7.16%        -40.0%    0.0%    0.0%
+1.25             1.25x    0.28x     3.71x      7.50%        -48.9%    0.0%    0.0%
+1.50             1.29x    0.22x     4.81x      7.72%        -56.6%    0.0%    0.0%
+1.75             1.29x    0.16x     6.13x      7.80%        -64.1%    2.0%    0.0%
+2.00             1.23x    0.11x     7.39x      7.69%        -70.7%   80.8%    0.0%
+   median wealth is maximised at 1.50x; ruin is impossible at every level
+
+====================================================================================================
+The lifecycle bound: future deposits are a bond you already own
+====================================================================================================
+   If the Kelly fraction is the right share of TOTAL economic wealth, and total
+   wealth is the account plus the present value of what you will still pay in,
+   then the leverage to run on the account alone is L x (1 + PV/account).
+                          deposits PV of deposits implied leverage
+horizon                                                           
+10y      20%/yr of opening balance          1.73x            4.31x
+20y      20%/yr of opening balance          3.10x            6.48x
+30y      20%/yr of opening balance          4.20x            8.21x
+20y      40%/yr of opening balance          6.21x           11.39x
+
+   Reg-T caps you at 2x. For a young saver the binding constraint is the broker,
+   not Kelly -- and the assumption underneath is that a salary is a Treasury bond,
+   which it is not. Treat this as an upper bound, never a target.

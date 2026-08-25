@@ -986,3 +986,113 @@ def scaled_frontier(
         row["cash"] = 1.0 - gross
         rows.append(row)
     return pd.DataFrame(rows).set_index("fraction")
+
+
+def flow_ladder(
+    panel,
+    cma: ForwardCMA,
+    weights: pd.Series | np.ndarray,
+    *,
+    deposit_rate: float = 0.0,
+    withdrawal_rate: float = 0.0,
+    flows_are_proportional: bool = False,
+    levels: tuple[float, ...] = (0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0),
+    years: int = 20,
+    paths: int = 300,
+    financing_spread: float = 0.012,
+    seed: int = 0,
+) -> pd.DataFrame:
+    """Forward outcomes by leverage for an account with ongoing deposits or sales.
+
+    Kelly's fraction is derived for a closed account: nothing goes in, nothing
+    comes out, and the problem is scale-invariant, so the optimum does not depend
+    on how much money is in it. Fixed-size external flows destroy that invariance
+    in opposite directions.
+
+    * **Deposits** are a claim you already own that behaves like a bond, and they
+      arrive whatever the market did. They therefore let a given amount of
+      portfolio risk be carried against a larger total balance sheet, and they
+      buy after declines. Both effects push the growth-optimal leverage *up*.
+    * **Withdrawals** are the mirror image and worse than the mirror image,
+      because selling into a decline removes the shares that would have carried
+      the recovery. This is sequence risk, it is pure path dependence, and it
+      pushes the optimum *down* while creating a probability of ruin that no
+      amount of expected return removes.
+
+    Reported per leverage level: the distribution of terminal real wealth, the
+    money-weighted return, and the probabilities of a forced sale and of ruin.
+    """
+    from .account import simulate
+
+    sims = bootstrap_paths(panel, cma, years=years, paths=paths, seed=seed)
+    inflation = float(cma.build_up.loc["us_equity", "inflation"])
+
+    rows = []
+    for level in levels:
+        finals, irrs, calls, ruins, drawdowns = [], [], [], [], []
+        for sim in sims:
+            result = simulate(
+                sim,
+                weights,
+                target_leverage=level,
+                financing_spread=financing_spread,
+                deposit_rate=deposit_rate,
+                withdrawal_rate=withdrawal_rate,
+                flows_are_proportional=flows_are_proportional,
+                flow_growth=inflation,
+            )
+            summary = result.summary
+            # Terminal wealth in today's money: the flows are indexed to
+            # inflation, so the balance has to be deflated to be comparable.
+            finals.append(summary["final_multiple"] / (1.0 + inflation) ** years)
+            irrs.append(summary["irr"])
+            calls.append(summary["margin_calls"] > 0)
+            ruins.append(summary["ruined"])
+            drawdowns.append(summary["max_drawdown"])
+        finals = np.array(finals, dtype=float)
+        irrs = np.array(irrs, dtype=float)
+        rows.append(
+            {
+                "leverage": level,
+                "median_real_wealth": float(np.median(finals)),
+                "p5_real_wealth": float(np.percentile(finals, 5)),
+                "p95_real_wealth": float(np.percentile(finals, 95)),
+                "median_irr": float(np.nanmedian(irrs)),
+                "median_max_drawdown": float(np.median(drawdowns)),
+                "p_margin_call": float(np.mean(calls)),
+                "p_ruin": float(np.mean(ruins)),
+            }
+        )
+    return pd.DataFrame(rows).set_index("leverage")
+
+
+def human_capital_leverage(
+    kelly_leverage: float,
+    *,
+    deposit_rate: float,
+    years: int,
+    discount_rate: float,
+    growth: float = 0.0234,
+) -> dict:
+    """The lifecycle adjustment: future deposits are a bond you already own.
+
+    If the Kelly fraction is the right share of *total* economic wealth to hold in
+    risk assets, and total wealth is the account plus the present value of future
+    contributions, then the leverage to run on the account alone is
+
+        ``L_account = L_kelly x (1 + PV(deposits) / account)``
+
+    The contributions are discounted as the bond-like claim they resemble. The
+    result is usually a number a retail broker will not let you have, which is
+    itself the finding: for a young saver the binding constraint is Reg-T, not
+    Kelly. Treat it as an upper bound rather than a target -- it assumes the
+    deposits are certain, and a job is not a Treasury.
+    """
+    pv = 0.0
+    for year in range(1, years + 1):
+        pv += deposit_rate * (1.0 + growth) ** (year - 1) / (1.0 + discount_rate) ** year
+    return {
+        "pv_of_deposits": pv,
+        "total_wealth_multiple": 1.0 + pv,
+        "implied_account_leverage": kelly_leverage * (1.0 + pv),
+    }
