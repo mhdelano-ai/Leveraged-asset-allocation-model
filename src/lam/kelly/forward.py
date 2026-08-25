@@ -152,6 +152,11 @@ class Assumptions:
     intl_currency: float = 0.0
     us_bond_credit_loss: float = US_AGG_CREDIT_LOSS
     intl_bond_credit_loss: float = 0.0005
+    # REITs pay out most of their cash flow, so per-share growth is slow: the
+    # retained fraction is small and leverage is already in the vehicle. 0.5%
+    # real is roughly rent growth net of the depreciation the payout does not
+    # cover.
+    reit_real_growth: float = 0.0050
     # Risk is measured, not assumed; this is the window it is measured over.
     risk_window_years: float = 5.0
     vol_floor: dict = field(default_factory=dict)
@@ -227,6 +232,8 @@ def market_inputs(*, tickers: dict[str, str] | None = None) -> MarketInputs:
         "intl_equity": "VXUS",
         "us_bonds": "BND",
         "intl_bonds": "BNDX",
+        "long_treasuries": "TLT",
+        "reits": "VNQ",
     }
     bills = rates.bill_rate_bey(prefer="fred")
     curve = {
@@ -303,6 +310,28 @@ def build_cma(
             "inflation": 0.0,
             "valuation": 0.0,
             "currency": -a.intl_bond_credit_loss,
+        },
+        # A long Treasury is a pure yield instrument: no credit, no growth, and
+        # the 30-year point is what a 20+ year fund earns if the curve does not
+        # move. Its volatility is equity-like, which matters more than its
+        # expected return.
+        "long_treasuries": {
+            "income": inputs.treasury["30y"],
+            "buyback": 0.0,
+            "real growth": 0.0,
+            "inflation": 0.0,
+            "valuation": 0.0,
+            "currency": 0.0,
+        },
+        # REITs get the equity treatment with a much larger income term and a
+        # much smaller growth one, which is what a high payout ratio means.
+        "reits": {
+            "income": inputs.distribution_yield["reits"],
+            "buyback": 0.0,
+            "real growth": a.reit_real_growth,
+            "inflation": infl,
+            "valuation": 0.0,
+            "currency": 0.0,
         },
     }
     build_up = pd.DataFrame(rows).T.loc[ASSETS]
@@ -395,6 +424,26 @@ def with_equity_premium(cma: ForwardCMA, shift: float) -> ForwardCMA:
 GLOBAL_EQUITY_WEIGHTS = (0.63, 0.37)
 
 
+def _bundle_basis(
+    equity_split: tuple[float, float], bond_split: tuple[float, float]
+) -> np.ndarray:
+    """Two rows -- a global equity bundle and a global bond bundle.
+
+    Sleeves outside those two bundles (long Treasuries, REITs) get a row each, so
+    adding a sleeve to the universe does not silently drop it from the bundled
+    solution.
+    """
+    n = len(ASSETS)
+    equity = [equity_split[0], equity_split[1]] + [0.0] * (n - 2)
+    bonds = [0.0, 0.0, bond_split[0], bond_split[1]] + [0.0] * (n - 4)
+    rows = [equity, bonds]
+    for i in range(4, n):
+        row = [0.0] * n
+        row[i] = 1.0
+        rows.append(row)
+    return np.array(rows)
+
+
 def bundle_kelly(
     cma: ForwardCMA,
     *,
@@ -417,12 +466,7 @@ def bundle_kelly(
     """
     from scipy.optimize import minimize
 
-    basis = np.array(
-        [
-            [equity_split[0], equity_split[1], 0.0, 0.0],
-            [0.0, 0.0, bond_split[0], bond_split[1]],
-        ]
-    )
+    basis = _bundle_basis(equity_split, bond_split)
     mu = basis @ cma.excess.to_numpy()
     sigma = basis @ cma.cov.to_numpy() @ basis.T
 
@@ -430,15 +474,15 @@ def bundle_kelly(
         borrowed = max(np.abs(basis.T @ x).sum() - 1.0, 0.0)
         return -(x @ mu - 0.5 * x @ sigma @ x - borrowed * financing_spread)
 
-    bounds = [(0.0, 10.0) if long_only else (-10.0, 10.0)] * 2
+    bounds = [(0.0, 10.0) if long_only else (-10.0, 10.0)] * basis.shape[0]
     cons = []
     if max_gross is not None:
         cons.append(
             {"type": "ineq", "fun": lambda x: max_gross - np.abs(basis.T @ x).sum()}
         )
     res = minimize(
-        negative, np.array([1.0, 0.0]), method="SLSQP", bounds=bounds,
-        constraints=cons, options={"maxiter": 500, "ftol": 1e-12},
+        negative, np.array([1.0] + [0.0] * (basis.shape[0] - 1)), method="SLSQP",
+        bounds=bounds, constraints=cons, options={"maxiter": 500, "ftol": 1e-12},
     )
     return pd.Series(basis.T @ res.x, index=ASSETS, name="bundle_kelly")
 
@@ -447,7 +491,7 @@ def bundle_moments(
     cma: ForwardCMA, *, equity_split: tuple[float, float] = GLOBAL_EQUITY_WEIGHTS
 ) -> dict:
     """Excess return, volatility and the unlevered Kelly multiple of the equity bundle."""
-    w = np.array([equity_split[0], equity_split[1], 0.0, 0.0])
+    w = np.array([equity_split[0], equity_split[1]] + [0.0] * (len(ASSETS) - 2))
     excess = float(w @ cma.excess.to_numpy())
     vol = float(np.sqrt(w @ cma.cov.to_numpy() @ w))
     return {
@@ -842,11 +886,15 @@ def geometric_frontier(
     if equity_split is None:
         basis = np.eye(len(mu))
     else:
-        basis = np.array(
-            [[equity_split[0], equity_split[1], 0.0, 0.0],
-             [0.0, 0.0, 1.0, 0.0],
-             [0.0, 0.0, 0.0, 1.0]]
-        )
+        # The two equity sleeves move together at market weights; every other
+        # sleeve stays free, so the frontier decides how much equity, how much
+        # of each bond, and how much real estate.
+        rows = [[equity_split[0], equity_split[1]] + [0.0] * (len(ASSETS) - 2)]
+        for i in range(2, len(ASSETS)):
+            row = [0.0] * len(ASSETS)
+            row[i] = 1.0
+            rows.append(row)
+        basis = np.array(rows)
     k = basis.shape[0]
     bounds = [(0.0, 6.0) if long_only else (-6.0, 6.0)] * k
     cons = []

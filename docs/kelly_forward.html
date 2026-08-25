@@ -269,50 +269,88 @@ footer{margin-top:80px; padding-top:24px; border-top:1px solid var(--rule); font
 
   <figure class="chart-card">
     <div class="chart-head">
-      <p class="chart-title">Compound return against leverage: what happened, and what should be expected</p>
+      <p class="chart-title">The geometric frontier &mdash; six sleeves, expected compound growth against volatility</p>
       <p class="legend">
-        <span><i class="swatch" style="background:var(--breach)"></i>1993&ndash;2026 backtest</span>
-        <span><i class="swatch" style="background:var(--accent)"></i>Forward median, 10-year paths</span>
-        <span><i class="swatch zone" style="background:var(--breach)"></i>Margin calls appear</span>
+        <span><i class="swatch" style="background:var(--accent)"></i>Slope method &mdash; re-optimised at each risk level</span>
+        <span><i class="swatch" style="background:var(--breach)"></i>Scaling method &mdash; full Kelly diluted with cash</span>
       </p>
     </div>
-    <svg viewBox="0 0 920 360" role="img" aria-label="Backtested CAGR rises monotonically from 10.9% at 1x to 15.1% at 2x leverage. Forward median CAGR is nearly flat, peaking at 6.65% at 1.25x and falling to 5.73% at 2x.">
-      <rect x="686" y="18" width="210" height="298" fill="var(--breach)" opacity="0.11"></rect>
-      <g stroke="var(--hair)" stroke-width="1">
-        <line x1="56" y1="18" x2="896" y2="18"></line>
-        <line x1="56" y1="92.5" x2="896" y2="92.5"></line>
-        <line x1="56" y1="167" x2="896" y2="167"></line>
-        <line x1="56" y1="241.5" x2="896" y2="241.5"></line>
-      </g>
-      <line x1="56" y1="316" x2="896" y2="316" stroke="var(--ink-2)" stroke-width="1"></line>
-      <g class="axis-label" text-anchor="end">
-        <text x="46" y="22">16%</text>
-        <text x="46" y="96.5">12%</text>
-        <text x="46" y="171">8%</text>
-        <text x="46" y="245.5">4%</text>
-        <text x="46" y="320">0%</text>
-      </g>
-      <g class="axis-label" text-anchor="middle">
-        <text x="56" y="338">0.5&times;</text>
-        <text x="336" y="338">1.0&times;</text>
-        <text x="616" y="338">1.5&times;</text>
-        <text x="896" y="338">2.0&times;</text>
-        <text x="476" y="354" style="letter-spacing:.1em">GROSS EXPOSURE</text>
-      </g>
-      <path d="M 336.0 113.7 L 476.0 86.7 L 616.0 62.7 L 756.0 43.3 L 896.0 34.8"
-            fill="none" stroke="var(--breach)" stroke-width="2.2" stroke-linejoin="round"></path>
-      <path d="M 56.0 211.3 L 196.0 200.5 L 336.0 192.3 L 476.0 192.1 L 616.0 194.4 L 756.0 200.9 L 896.0 209.3"
-            fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round"></path>
-      <circle cx="476" cy="192.1" r="4.5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2.2"></circle>
-      <text class="plot-note" x="486" y="178" fill="var(--accent)">peak 6.65% at 1.25&times;</text>
-      <text class="plot-note" x="886" y="28" text-anchor="end" fill="var(--breach)">15.1% backtested</text>
-      <text class="plot-note" x="886" y="224" text-anchor="end" fill="var(--accent)">5.73% expected</text>
-      <text class="plot-note" x="791" y="308" text-anchor="middle" fill="var(--breach)">52% CHANCE OF A MARGIN CALL</text>
-    </svg>
-    <figcaption>The backtest line is one realised path of a period in which the equity premium was
-    8.9pp. The forward line is the median of 400 paths in which it is 4.4pp. Between 1&times; and
-    1.5&times; the forward curve is flat to within 12bp &mdash; leverage in that range buys
-    essentially no expected growth, and 16pp of additional median drawdown.</figcaption>
+    <svg viewBox="0 0 920 480" role="img" aria-label="Geometric growth against volatility for a six-sleeve universe. The slope frontier rises to a maximum of 7.28 percent at 21.4 percent volatility and 1.58 times gross, then falls. The scaling method sits below it under 14 percent volatility by as much as 0.71 percentage points. The lower panel shows composition: cash and aggregate bonds at low risk, giving way to equities, long Treasuries and REITs.">
+  <rect x="58" y="16" width="216.4" height="250" fill="var(--gain)" opacity="0.07"></rect>
+  <rect x="274.4" y="16" width="108.3" height="250" fill="var(--accent)" opacity="0.06"></rect>
+  <g stroke="var(--hair)" stroke-width="1">
+    <line x1="58" y1="231.3" x2="830" y2="231.3"></line>
+    <line x1="58" y1="196.6" x2="830" y2="196.6"></line>
+    <line x1="58" y1="161.8" x2="830" y2="161.8"></line>
+    <line x1="58" y1="127.1" x2="830" y2="127.1"></line>
+    <line x1="58" y1="92.4" x2="830" y2="92.4"></line>
+    <line x1="58" y1="57.7" x2="830" y2="57.7"></line>
+    <line x1="58" y1="22.9" x2="830" y2="22.9"></line>
+  </g>
+  <line x1="58" y1="266.0" x2="830" y2="266.0" stroke="var(--ink-2)" stroke-width="1"></line>
+  <g class="axis-label" text-anchor="end">
+    <text x="48" y="234.8">4.5%</text>
+    <text x="48" y="200.1">5.0%</text>
+    <text x="48" y="165.3">5.5%</text>
+    <text x="48" y="130.6">6.0%</text>
+    <text x="48" y="95.9">6.5%</text>
+    <text x="48" y="61.2">7.0%</text>
+    <text x="48" y="26.4">7.5%</text>
+  </g>
+  <path d="M 83.0 258.0 L 95.5 247.3 L 108.0 236.8 L 120.4 226.5 L 132.9 216.3 L 145.4 206.4 L 157.9 196.7 L 170.4 187.1 L 182.9 177.8 L 195.4 168.7 L 207.9 159.7 L 220.4 151.0 L 232.9 142.4 L 245.3 134.1 L 257.8 125.9 L 270.3 118.0 L 282.8 110.2 L 295.3 102.7 L 307.8 95.3 L 320.3 88.1 L 332.8 81.2 L 345.3 74.4 L 357.7 67.8 L 370.2 61.5 L 382.7 57.8 L 395.2 55.1 L 407.7 52.7 L 420.2 50.4 L 432.7 48.3 L 445.2 46.4 L 457.7 44.7 L 470.1 43.3 L 482.6 42.0 L 495.1 40.9 L 507.6 40.0 L 520.1 39.3 L 532.6 38.8 L 545.1 38.5 L 557.6 38.4 L 570.1 38.5 L 582.6 38.8 L 595.0 39.3 L 607.5 40.0 L 620.0 40.9 L 632.5 42.0 L 645.0 43.3 L 657.5 44.7 L 670.0 46.4 L 682.5 48.3 L 695.0 50.4 L 707.4 52.7 L 719.9 55.1 L 732.4 57.8 L 744.9 60.7 L 757.4 63.7 L 769.9 67.0 L 782.4 70.5 L 794.9 74.1 L 807.4 78.0 L 819.9 82.1" fill="none" stroke="var(--breach)" stroke-width="2" stroke-dasharray="5 3" stroke-linejoin="round"></path>
+  <path d="M 94.1 247.9 L 112.1 232.4 L 130.1 217.3 L 148.2 202.7 L 166.2 188.4 L 184.3 174.6 L 202.3 161.2 L 220.3 148.2 L 238.4 135.6 L 256.4 123.4 L 274.4 111.7 L 289.6 102.2 L 304.5 93.3 L 319.6 84.7 L 334.8 76.5 L 350.1 68.7 L 356.5 65.5 L 358.5 64.6 L 360.6 63.8 L 362.8 63.0 L 365.1 62.2 L 367.5 61.5 L 370.0 60.8 L 372.6 60.1 L 382.7 57.8 L 395.2 55.1 L 407.7 52.7 L 420.2 50.4 L 432.7 48.3 L 445.2 46.4 L 457.7 44.7 L 470.1 43.3 L 482.6 42.0 L 495.1 40.9 L 507.6 40.0 L 520.1 39.3 L 532.6 38.8 L 545.1 38.5 L 557.6 38.4 L 570.1 38.5 L 582.6 38.8 L 595.0 39.3 L 607.5 40.0 L 620.0 40.9 L 632.5 42.0 L 645.0 43.3 L 657.5 44.7 L 670.0 46.4 L 682.5 48.3 L 695.0 50.4 L 707.4 52.7 L 719.9 55.1 L 732.4 57.8 L 744.9 60.7 L 757.4 63.7 L 769.9 67.0 L 782.4 70.5 L 794.9 74.1 L 807.4 78.0 L 819.9 82.1" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linejoin="round"></path>
+  <circle cx="557.6" cy="38.4" r="5" fill="var(--panel)" stroke="var(--accent)" stroke-width="2.6"></circle>
+  <text class="plot-note" x="545.6" y="30.4" text-anchor="end" fill="var(--accent)">FULL KELLY &mdash; 7.28% at 21.4% vol, 1.58x gross</text>
+  <text class="plot-note" x="186.7" y="227.8" fill="var(--breach)">scaling gives up 0.71pp/yr here</text>
+  <text class="axis-label" x="58" y="286">0%</text>
+  <text class="axis-label" x="175.0" y="286" text-anchor="middle">5%</text>
+  <text class="axis-label" x="291.9" y="286" text-anchor="middle">10%</text>
+  <text class="axis-label" x="408.9" y="286" text-anchor="middle">15%</text>
+  <text class="axis-label" x="525.9" y="286" text-anchor="middle">20%</text>
+  <text class="axis-label" x="642.8" y="286" text-anchor="middle">25%</text>
+  <text class="axis-label" x="759.8" y="286" text-anchor="middle">30%</text>
+  <text class="axis-label" x="444.0" y="302" text-anchor="middle" style="letter-spacing:.1em">PORTFOLIO VOLATILITY</text>
+  <text class="plot-note" x="166.2" y="30" text-anchor="middle" fill="var(--gain)">CASH HELD</text>
+  <text class="plot-note" x="328.6" y="30" text-anchor="middle" fill="var(--accent)">1.00x</text>
+  <text class="plot-note" x="606.4" y="30" text-anchor="middle" fill="var(--muted)">BORROWING</text>
+  <text class="plot-note" x="58" y="328" fill="var(--ink-2)">WHAT THE FRONTIER PORTFOLIO HOLDS, AS A SHARE OF CAPITAL</text>
+  <path d="M 94.1 437.1 L 112.1 435.7 L 130.1 434.2 L 148.2 432.8 L 166.2 431.3 L 184.3 429.9 L 202.3 428.5 L 220.3 427.0 L 238.4 425.6 L 256.4 424.1 L 274.4 422.7 L 289.6 421.3 L 304.5 420.0 L 319.6 418.7 L 334.8 417.3 L 350.1 416.0 L 356.5 415.5 L 358.5 415.4 L 360.6 415.4 L 362.8 415.3 L 365.1 415.3 L 367.5 415.2 L 370.0 415.2 L 372.6 415.1 L 382.7 414.3 L 395.2 413.4 L 407.7 412.4 L 420.2 411.4 L 432.7 410.4 L 445.2 409.4 L 457.7 408.4 L 470.1 407.4 L 482.6 406.4 L 495.1 405.5 L 507.6 404.5 L 520.1 403.5 L 532.6 402.5 L 545.1 401.5 L 557.6 400.5 L 570.1 399.5 L 582.6 398.5 L 595.0 397.6 L 607.5 396.6 L 620.0 395.6 L 632.5 394.6 L 645.0 393.6 L 657.5 392.6 L 670.0 391.6 L 682.5 390.7 L 695.0 389.7 L 707.4 388.7 L 719.9 387.7 L 732.4 386.7 L 744.9 385.7 L 757.4 384.7 L 769.9 383.7 L 782.4 382.8 L 794.9 381.8 L 807.4 380.8 L 819.9 379.8 L 819.9 440.0 L 807.4 440.0 L 794.9 440.0 L 782.4 440.0 L 769.9 440.0 L 757.4 440.0 L 744.9 440.0 L 732.4 440.0 L 719.9 440.0 L 707.4 440.0 L 695.0 440.0 L 682.5 440.0 L 670.0 440.0 L 657.5 440.0 L 645.0 440.0 L 632.5 440.0 L 620.0 440.0 L 607.5 440.0 L 595.0 440.0 L 582.6 440.0 L 570.1 440.0 L 557.6 440.0 L 545.1 440.0 L 532.6 440.0 L 520.1 440.0 L 507.6 440.0 L 495.1 440.0 L 482.6 440.0 L 470.1 440.0 L 457.7 440.0 L 445.2 440.0 L 432.7 440.0 L 420.2 440.0 L 407.7 440.0 L 395.2 440.0 L 382.7 440.0 L 372.6 440.0 L 370.0 440.0 L 367.5 440.0 L 365.1 440.0 L 362.8 440.0 L 360.6 440.0 L 358.5 440.0 L 356.5 440.0 L 350.1 440.0 L 334.8 440.0 L 319.6 440.0 L 304.5 440.0 L 289.6 440.0 L 274.4 440.0 L 256.4 440.0 L 238.4 440.0 L 220.3 440.0 L 202.3 440.0 L 184.3 440.0 L 166.2 440.0 L 148.2 440.0 L 130.1 440.0 L 112.1 440.0 L 94.1 440.0 Z" fill="var(--accent)" opacity="0.95"></path>
+  <path d="M 94.1 435.4 L 112.1 433.1 L 130.1 430.8 L 148.2 428.5 L 166.2 426.3 L 184.3 424.0 L 202.3 421.7 L 220.3 419.4 L 238.4 417.1 L 256.4 414.8 L 274.4 412.5 L 289.6 410.4 L 304.5 408.2 L 319.6 406.1 L 334.8 404.0 L 350.1 401.9 L 356.5 401.1 L 358.5 401.0 L 360.6 400.9 L 362.8 400.8 L 365.1 400.8 L 367.5 400.7 L 370.0 400.6 L 372.6 400.5 L 382.7 399.3 L 395.2 397.7 L 407.7 396.1 L 420.2 394.6 L 432.7 393.0 L 445.2 391.4 L 457.7 389.9 L 470.1 388.3 L 482.6 386.7 L 495.1 385.2 L 507.6 383.6 L 520.1 382.0 L 532.6 380.5 L 545.1 378.9 L 557.6 377.3 L 570.1 375.8 L 582.6 374.2 L 595.0 372.6 L 607.5 371.1 L 620.0 369.5 L 632.5 367.9 L 645.0 366.4 L 657.5 364.8 L 670.0 363.2 L 682.5 361.7 L 695.0 360.1 L 707.4 358.5 L 719.9 357.0 L 732.4 355.4 L 744.9 353.8 L 757.4 352.3 L 769.9 350.7 L 782.4 349.1 L 794.9 347.6 L 807.4 346.0 L 819.9 344.4 L 819.9 379.8 L 807.4 380.8 L 794.9 381.8 L 782.4 382.8 L 769.9 383.7 L 757.4 384.7 L 744.9 385.7 L 732.4 386.7 L 719.9 387.7 L 707.4 388.7 L 695.0 389.7 L 682.5 390.7 L 670.0 391.6 L 657.5 392.6 L 645.0 393.6 L 632.5 394.6 L 620.0 395.6 L 607.5 396.6 L 595.0 397.6 L 582.6 398.5 L 570.1 399.5 L 557.6 400.5 L 545.1 401.5 L 532.6 402.5 L 520.1 403.5 L 507.6 404.5 L 495.1 405.5 L 482.6 406.4 L 470.1 407.4 L 457.7 408.4 L 445.2 409.4 L 432.7 410.4 L 420.2 411.4 L 407.7 412.4 L 395.2 413.4 L 382.7 414.3 L 372.6 415.1 L 370.0 415.2 L 367.5 415.2 L 365.1 415.3 L 362.8 415.3 L 360.6 415.4 L 358.5 415.4 L 356.5 415.5 L 350.1 416.0 L 334.8 417.3 L 319.6 418.7 L 304.5 420.0 L 289.6 421.3 L 274.4 422.7 L 256.4 424.1 L 238.4 425.6 L 220.3 427.0 L 202.3 428.5 L 184.3 429.9 L 166.2 431.3 L 148.2 432.8 L 130.1 434.2 L 112.1 435.7 L 94.1 437.1 Z" fill="var(--accent)" opacity="0.55"></path>
+  <path d="M 94.1 433.9 L 112.1 430.8 L 130.1 427.8 L 148.2 424.7 L 166.2 421.7 L 184.3 418.6 L 202.3 415.6 L 220.3 412.5 L 238.4 409.5 L 256.4 406.4 L 274.4 403.4 L 289.6 400.4 L 304.5 397.4 L 319.6 394.4 L 334.8 391.4 L 350.1 388.3 L 356.5 386.7 L 358.5 385.8 L 360.6 384.9 L 362.8 384.0 L 365.1 383.0 L 367.5 382.1 L 370.0 381.2 L 372.6 380.3 L 382.7 378.2 L 395.2 375.9 L 407.7 373.5 L 420.2 371.1 L 432.7 368.7 L 445.2 366.4 L 457.7 364.0 L 470.1 361.6 L 482.6 359.2 L 495.1 356.9 L 507.6 354.5 L 520.1 352.1 L 532.6 349.7 L 545.1 347.4 L 557.6 345.0 L 570.1 342.6 L 582.6 340.2 L 595.0 337.9 L 607.5 335.5 L 620.0 333.1 L 632.5 330.7 L 645.0 328.4 L 657.5 326.0 L 670.0 323.6 L 682.5 321.2 L 695.0 318.9 L 707.4 316.5 L 719.9 314.1 L 732.4 311.7 L 744.9 309.4 L 757.4 307.0 L 769.9 304.6 L 782.4 302.2 L 794.9 299.9 L 807.4 297.5 L 819.9 295.1 L 819.9 344.4 L 807.4 346.0 L 794.9 347.6 L 782.4 349.1 L 769.9 350.7 L 757.4 352.3 L 744.9 353.8 L 732.4 355.4 L 719.9 357.0 L 707.4 358.5 L 695.0 360.1 L 682.5 361.7 L 670.0 363.2 L 657.5 364.8 L 645.0 366.4 L 632.5 367.9 L 620.0 369.5 L 607.5 371.1 L 595.0 372.6 L 582.6 374.2 L 570.1 375.8 L 557.6 377.3 L 545.1 378.9 L 532.6 380.5 L 520.1 382.0 L 507.6 383.6 L 495.1 385.2 L 482.6 386.7 L 470.1 388.3 L 457.7 389.9 L 445.2 391.4 L 432.7 393.0 L 420.2 394.6 L 407.7 396.1 L 395.2 397.7 L 382.7 399.3 L 372.6 400.5 L 370.0 400.6 L 367.5 400.7 L 365.1 400.8 L 362.8 400.8 L 360.6 400.9 L 358.5 401.0 L 356.5 401.1 L 350.1 401.9 L 334.8 404.0 L 319.6 406.1 L 304.5 408.2 L 289.6 410.4 L 274.4 412.5 L 256.4 414.8 L 238.4 417.1 L 220.3 419.4 L 202.3 421.7 L 184.3 424.0 L 166.2 426.3 L 148.2 428.5 L 130.1 430.8 L 112.1 433.1 L 94.1 435.4 Z" fill="var(--breach)" opacity="0.45"></path>
+  <path d="M 94.1 431.9 L 112.1 427.9 L 130.1 423.8 L 148.2 419.8 L 166.2 415.7 L 184.3 411.7 L 202.3 407.7 L 220.3 403.6 L 238.4 399.6 L 256.4 395.5 L 274.4 391.5 L 289.6 386.3 L 304.5 380.9 L 319.6 375.6 L 334.8 370.2 L 350.1 364.8 L 356.5 363.1 L 358.5 363.1 L 360.6 363.1 L 362.8 363.1 L 365.1 363.1 L 367.5 363.1 L 370.0 363.1 L 372.6 363.1 L 382.7 360.8 L 395.2 357.7 L 407.7 354.7 L 420.2 351.6 L 432.7 348.6 L 445.2 345.5 L 457.7 342.5 L 470.1 339.4 L 482.6 336.4 L 495.1 333.3 L 507.6 330.3 L 520.1 327.2 L 532.6 324.2 L 545.1 321.1 L 557.6 318.1 L 570.1 315.0 L 582.6 312.0 L 595.0 308.9 L 607.5 305.9 L 620.0 302.8 L 632.5 299.8 L 645.0 296.8 L 657.5 293.7 L 670.0 290.7 L 682.5 287.6 L 695.0 284.6 L 707.4 281.5 L 719.9 278.5 L 732.4 275.4 L 744.9 272.4 L 757.4 269.3 L 769.9 266.3 L 782.4 263.2 L 794.9 260.2 L 807.4 257.1 L 819.9 254.1 L 819.9 295.1 L 807.4 297.5 L 794.9 299.9 L 782.4 302.2 L 769.9 304.6 L 757.4 307.0 L 744.9 309.4 L 732.4 311.7 L 719.9 314.1 L 707.4 316.5 L 695.0 318.9 L 682.5 321.2 L 670.0 323.6 L 657.5 326.0 L 645.0 328.4 L 632.5 330.7 L 620.0 333.1 L 607.5 335.5 L 595.0 337.9 L 582.6 340.2 L 570.1 342.6 L 557.6 345.0 L 545.1 347.4 L 532.6 349.7 L 520.1 352.1 L 507.6 354.5 L 495.1 356.9 L 482.6 359.2 L 470.1 361.6 L 457.7 364.0 L 445.2 366.4 L 432.7 368.7 L 420.2 371.1 L 407.7 373.5 L 395.2 375.9 L 382.7 378.2 L 372.6 380.3 L 370.0 381.2 L 367.5 382.1 L 365.1 383.0 L 362.8 384.0 L 360.6 384.9 L 358.5 385.8 L 356.5 386.7 L 350.1 388.3 L 334.8 391.4 L 319.6 394.4 L 304.5 397.4 L 289.6 400.4 L 274.4 403.4 L 256.4 406.4 L 238.4 409.5 L 220.3 412.5 L 202.3 415.6 L 184.3 418.6 L 166.2 421.7 L 148.2 424.7 L 130.1 427.8 L 112.1 430.8 L 94.1 433.9 Z" fill="var(--gain)" opacity="0.85"></path>
+  <path d="M 94.1 427.3 L 112.1 421.0 L 130.1 414.6 L 148.2 408.3 L 166.2 401.9 L 184.3 395.6 L 202.3 389.2 L 220.3 382.9 L 238.4 376.6 L 256.4 370.2 L 274.4 363.9 L 289.6 363.1 L 304.5 363.1 L 319.6 363.1 L 334.8 363.1 L 350.1 363.1 L 356.5 363.1 L 358.5 363.1 L 360.6 363.1 L 362.8 363.1 L 365.1 363.1 L 367.5 363.1 L 370.0 363.1 L 372.6 363.1 L 382.7 360.8 L 395.2 357.7 L 407.7 354.7 L 420.2 351.6 L 432.7 348.6 L 445.2 345.5 L 457.7 342.5 L 470.1 339.4 L 482.6 336.4 L 495.1 333.3 L 507.6 330.3 L 520.1 327.2 L 532.6 324.2 L 545.1 321.1 L 557.6 318.1 L 570.1 315.0 L 582.6 312.0 L 595.0 308.9 L 607.5 305.9 L 620.0 302.8 L 632.5 299.8 L 645.0 296.8 L 657.5 293.7 L 670.0 290.7 L 682.5 287.6 L 695.0 284.6 L 707.4 281.5 L 719.9 278.5 L 732.4 275.4 L 744.9 272.4 L 757.4 269.3 L 769.9 266.3 L 782.4 263.2 L 794.9 260.2 L 807.4 257.1 L 819.9 254.1 L 819.9 254.1 L 807.4 257.1 L 794.9 260.2 L 782.4 263.2 L 769.9 266.3 L 757.4 269.3 L 744.9 272.4 L 732.4 275.4 L 719.9 278.5 L 707.4 281.5 L 695.0 284.6 L 682.5 287.6 L 670.0 290.7 L 657.5 293.7 L 645.0 296.8 L 632.5 299.8 L 620.0 302.8 L 607.5 305.9 L 595.0 308.9 L 582.6 312.0 L 570.1 315.0 L 557.6 318.1 L 545.1 321.1 L 532.6 324.2 L 520.1 327.2 L 507.6 330.3 L 495.1 333.3 L 482.6 336.4 L 470.1 339.4 L 457.7 342.5 L 445.2 345.5 L 432.7 348.6 L 420.2 351.6 L 407.7 354.7 L 395.2 357.7 L 382.7 360.8 L 372.6 363.1 L 370.0 363.1 L 367.5 363.1 L 365.1 363.1 L 362.8 363.1 L 360.6 363.1 L 358.5 363.1 L 356.5 363.1 L 350.1 364.8 L 334.8 370.2 L 319.6 375.6 L 304.5 380.9 L 289.6 386.3 L 274.4 391.5 L 256.4 395.5 L 238.4 399.6 L 220.3 403.6 L 202.3 407.7 L 184.3 411.7 L 166.2 415.7 L 148.2 419.8 L 130.1 423.8 L 112.1 427.9 L 94.1 431.9 Z" fill="var(--gain)" opacity="0.45"></path>
+  <path d="M 94.1 427.3 L 112.1 421.0 L 130.1 414.6 L 148.2 408.3 L 166.2 401.9 L 184.3 395.6 L 202.3 389.2 L 220.3 382.9 L 238.4 376.6 L 256.4 370.2 L 274.4 363.9 L 289.6 363.1 L 304.5 363.1 L 319.6 363.1 L 334.8 363.1 L 350.1 363.1 L 356.5 363.1 L 358.5 363.1 L 360.6 363.1 L 362.8 363.1 L 365.1 363.1 L 367.5 363.1 L 370.0 363.1 L 372.6 363.1 L 382.7 360.8 L 395.2 357.7 L 407.7 354.7 L 420.2 351.6 L 432.7 348.6 L 445.2 345.5 L 457.7 342.5 L 470.1 339.4 L 482.6 336.4 L 495.1 333.3 L 507.6 330.3 L 520.1 327.2 L 532.6 324.2 L 545.1 321.1 L 557.6 318.1 L 570.1 315.0 L 582.6 312.0 L 595.0 308.9 L 607.5 305.9 L 620.0 302.8 L 632.5 299.8 L 645.0 296.8 L 657.5 293.7 L 670.0 290.7 L 682.5 287.6 L 695.0 284.6 L 707.4 281.5 L 719.9 278.5 L 732.4 275.4 L 744.9 272.4 L 757.4 269.3 L 769.9 266.3 L 782.4 263.2 L 794.9 260.2 L 807.4 257.1 L 819.9 254.1 L 819.9 254.1 L 807.4 257.1 L 794.9 260.2 L 782.4 263.2 L 769.9 266.3 L 757.4 269.3 L 744.9 272.4 L 732.4 275.4 L 719.9 278.5 L 707.4 281.5 L 695.0 284.6 L 682.5 287.6 L 670.0 290.7 L 657.5 293.7 L 645.0 296.8 L 632.5 299.8 L 620.0 302.8 L 607.5 305.9 L 595.0 308.9 L 582.6 312.0 L 570.1 315.0 L 557.6 318.1 L 545.1 321.1 L 532.6 324.2 L 520.1 327.2 L 507.6 330.3 L 495.1 333.3 L 482.6 336.4 L 470.1 339.4 L 457.7 342.5 L 445.2 345.5 L 432.7 348.6 L 420.2 351.6 L 407.7 354.7 L 395.2 357.7 L 382.7 360.8 L 372.6 363.1 L 370.0 363.1 L 367.5 363.1 L 365.1 363.1 L 362.8 363.1 L 360.6 363.1 L 358.5 363.1 L 356.5 363.1 L 350.1 363.1 L 334.8 363.1 L 319.6 363.1 L 304.5 363.1 L 289.6 363.1 L 274.4 363.9 L 256.4 370.2 L 238.4 376.6 L 220.3 382.9 L 202.3 389.2 L 184.3 395.6 L 166.2 401.9 L 148.2 408.3 L 130.1 414.6 L 112.1 421.0 L 94.1 427.3 Z" fill="var(--gain)" opacity="0.25"></path>
+  <path d="M 94.1 363.1 L 112.1 363.1 L 130.1 363.1 L 148.2 363.1 L 166.2 363.1 L 184.3 363.1 L 202.3 363.1 L 220.3 363.1 L 238.4 363.1 L 256.4 363.1 L 274.4 363.1 L 289.6 363.1 L 304.5 363.1 L 319.6 363.1 L 334.8 363.1 L 350.1 363.1 L 356.5 363.1 L 358.5 363.1 L 360.6 363.1 L 362.8 363.1 L 365.1 363.1 L 367.5 363.1 L 370.0 363.1 L 372.6 363.1 L 382.7 360.8 L 395.2 357.7 L 407.7 354.7 L 420.2 351.6 L 432.7 348.6 L 445.2 345.5 L 457.7 342.5 L 470.1 339.4 L 482.6 336.4 L 495.1 333.3 L 507.6 330.3 L 520.1 327.2 L 532.6 324.2 L 545.1 321.1 L 557.6 318.1 L 570.1 315.0 L 582.6 312.0 L 595.0 308.9 L 607.5 305.9 L 620.0 302.8 L 632.5 299.8 L 645.0 296.8 L 657.5 293.7 L 670.0 290.7 L 682.5 287.6 L 695.0 284.6 L 707.4 281.5 L 719.9 278.5 L 732.4 275.4 L 744.9 272.4 L 757.4 269.3 L 769.9 266.3 L 782.4 263.2 L 794.9 260.2 L 807.4 257.1 L 819.9 254.1 L 819.9 254.1 L 807.4 257.1 L 794.9 260.2 L 782.4 263.2 L 769.9 266.3 L 757.4 269.3 L 744.9 272.4 L 732.4 275.4 L 719.9 278.5 L 707.4 281.5 L 695.0 284.6 L 682.5 287.6 L 670.0 290.7 L 657.5 293.7 L 645.0 296.8 L 632.5 299.8 L 620.0 302.8 L 607.5 305.9 L 595.0 308.9 L 582.6 312.0 L 570.1 315.0 L 557.6 318.1 L 545.1 321.1 L 532.6 324.2 L 520.1 327.2 L 507.6 330.3 L 495.1 333.3 L 482.6 336.4 L 470.1 339.4 L 457.7 342.5 L 445.2 345.5 L 432.7 348.6 L 420.2 351.6 L 407.7 354.7 L 395.2 357.7 L 382.7 360.8 L 372.6 363.1 L 370.0 363.1 L 367.5 363.1 L 365.1 363.1 L 362.8 363.1 L 360.6 363.1 L 358.5 363.1 L 356.5 363.1 L 350.1 363.1 L 334.8 363.1 L 319.6 363.1 L 304.5 363.1 L 289.6 363.1 L 274.4 363.9 L 256.4 370.2 L 238.4 376.6 L 220.3 382.9 L 202.3 389.2 L 184.3 395.6 L 166.2 401.9 L 148.2 408.3 L 130.1 414.6 L 112.1 421.0 L 94.1 427.3 Z" fill="var(--muted)" opacity="0.3"></path>
+  <line x1="58" y1="363.1" x2="830" y2="363.1" stroke="var(--ink)" stroke-width="1" stroke-dasharray="3 3" opacity="0.55"></line>
+  <text class="axis-label" x="836" y="366.6">1.00x</text>
+  <text class="axis-label" x="836" y="443.5">0</text>
+  <line x1="58" y1="440.0" x2="830" y2="440.0" stroke="var(--ink-2)" stroke-width="1"></line>
+  <text class="axis-label" x="175.0" y="456" text-anchor="middle">5%</text>
+  <text class="axis-label" x="291.9" y="456" text-anchor="middle">10%</text>
+  <text class="axis-label" x="408.9" y="456" text-anchor="middle">15%</text>
+  <text class="axis-label" x="525.9" y="456" text-anchor="middle">20%</text>
+  <text class="axis-label" x="642.8" y="456" text-anchor="middle">25%</text>
+  <text class="axis-label" x="759.8" y="456" text-anchor="middle">30%</text>
+  <rect x="58.0" y="462" width="10" height="9" fill="US equities" opacity="var(--accent)"></rect>
+  <text class="axis-label" x="72.0" y="469.5">us_equity</text>
+  <rect x="134.0" y="462" width="10" height="9" fill="Intl equities" opacity="var(--accent)"></rect>
+  <text class="axis-label" x="148.0" y="469.5">intl_equity</text>
+  <rect x="222.0" y="462" width="10" height="9" fill="REITs" opacity="var(--breach)"></rect>
+  <text class="axis-label" x="236.0" y="469.5">reits</text>
+  <rect x="274.0" y="462" width="10" height="9" fill="Long Treasuries" opacity="var(--gain)"></rect>
+  <text class="axis-label" x="288.0" y="469.5">long_treasuries</text>
+  <rect x="386.0" y="462" width="10" height="9" fill="Intl bonds" opacity="var(--gain)"></rect>
+  <text class="axis-label" x="400.0" y="469.5">intl_bonds</text>
+  <rect x="468.0" y="462" width="10" height="9" fill="US bonds" opacity="var(--gain)"></rect>
+  <text class="axis-label" x="482.0" y="469.5">us_bonds</text>
+  <rect x="538.0" y="462" width="10" height="9" fill="Cash" opacity="var(--muted)"></rect>
+  <text class="axis-label" x="552.0" y="469.5">cash</text>
+</svg>
+    <figcaption>Slope method: at each Kelly fraction <code>f</code> the portfolio is re-solved as
+    <code>max w'&mu; &minus; (1/2f) w'&Sigma;w</code> under long-only, cap-weighted-equity and
+    financing-kink constraints &mdash; not scaled down from the full-Kelly weights. The two
+    constructions coincide once the book is levered and diverge below the kink, where cash and
+    aggregate bonds still have a role.</figcaption>
   </figure>
 </section>
 
@@ -413,50 +451,38 @@ footer{margin-top:80px; padding-top:24px; border-top:1px solid var(--rule); font
   <code>f&nbsp;=&nbsp;1</code> and a more risk-averse investor below it. Composition is allowed to
   change, not just size.</p>
 
-  <h3>What that reveals: bonds belong below 1&times;</h3>
+  <h3>What that reveals: the spread sorts the universe</h3>
   <p>The earlier conclusion &mdash; that bonds earn nothing &mdash; was a statement about a
-  <em>levered</em> book, and it stands: you cannot borrow at 5.00% to buy a 4.70% expected return.
-  But below 1&times; gross nothing is borrowed, so bonds stop competing against the margin rate and
-  start competing against a 3.80% Treasury bill. <strong>At that hurdle they win, and the scaling
-  construction can never find out, because it only ever dilutes a portfolio that holds no
-  bonds.</strong></p>
-  <div class="scroll">
-    <table>
-      <caption>The frontier portfolio at each Kelly fraction. Equity is held at market weights throughout.</caption>
-      <thead><tr><th>Fraction</th><th>Gross</th><th>Volatility</th><th>Geometric</th><th>US eq</th><th>Intl eq</th><th>US bonds</th><th>Intl bonds</th><th>Cash</th><th>vs scaling</th></tr></thead>
-      <tbody>
-        <tr><td>0.10&times;</td><td>0.42&times;</td><td>3.0%</td><td>4.64%</td><td>0.09</td><td>0.05</td><td>0.05</td><td>0.23</td><td>0.58</td><td class="pos">+0.35pp</td></tr>
-        <tr class="mark"><td>0.25&times;</td><td>1.00&times;</td><td>7.3%</td><td>5.70%</td><td>0.22</td><td>0.13</td><td>0.12</td><td>0.53</td><td>0.00</td><td class="pos"><b>+0.74pp</b></td></tr>
-        <tr><td>0.40&times;</td><td>1.00&times;</td><td>9.9%</td><td>6.17%</td><td>0.35</td><td>0.21</td><td>0.22</td><td>0.23</td><td>0.00</td><td class="pos">+0.62pp</td></tr>
-        <tr class="mark"><td>0.50&times; &mdash; half Kelly</td><td>1.00&times;</td><td>11.8%</td><td>6.43%</td><td>0.43</td><td>0.26</td><td>0.28</td><td>0.03</td><td>0.00</td><td class="pos">+0.52pp</td></tr>
-        <tr><td>0.70&times;</td><td>1.00&times;</td><td>15.6%</td><td>6.77%</td><td>0.60</td><td>0.35</td><td>0.05</td><td>0.00</td><td>0.00</td><td class="pos">+0.28pp</td></tr>
-        <tr><td>0.80&times;</td><td>1.00&times;</td><td>16.4%</td><td>6.82%</td><td>0.63</td><td>0.37</td><td>0.00</td><td>0.00</td><td>0.00</td><td class="pos">+0.10pp</td></tr>
-        <tr class="mark"><td>1.00&times; &mdash; full Kelly</td><td>1.18&times;</td><td>19.3%</td><td><b>6.86%</b></td><td>0.74</td><td>0.44</td><td>0.00</td><td>0.00</td><td>&minus;0.18</td><td>&mdash;</td></tr>
-        <tr><td>1.25&times;</td><td>1.48&times;</td><td>24.1%</td><td>6.74%</td><td>0.93</td><td>0.55</td><td>0.00</td><td>0.00</td><td>&minus;0.48</td><td>&mdash;</td></tr>
-        <tr><td>1.50&times;</td><td>1.77&times;</td><td>29.0%</td><td>6.40%</td><td>1.12</td><td>0.66</td><td>0.00</td><td>0.00</td><td>&minus;0.77</td><td>&mdash;</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <p class="note"><b>The correction is worth up to 0.74pp/yr of compound growth</b>, at a quarter
-  Kelly, and it is free &mdash; same risk, better composition. It matters most exactly where a
-  cautious investor would be operating.</p>
+  <em>levered</em> book, and the sharper version is a single test. <strong>A sleeve is worth holding
+  with borrowed money only if its premium clears the 1.2pp financing spread.</strong> The aggregate
+  bond sleeves earn about a point over cash, so they belong at or below 1&times; gross and nowhere
+  above it. Long Treasuries (+2.67%) and REITs (+4.70%) clear it comfortably and stay in the book at
+  every leverage level.</p>
+  <p>Below 1&times; nothing is borrowed at all, so the hurdle drops to the 3.80% bill rate and the
+  hedged foreign bond sleeve takes up to <b>30% of capital</b>. The scaling construction can never
+  find that, because it only ever dilutes a portfolio that holds none of it &mdash; which is what
+  costs it up to 0.71pp/yr of growth at the same volatility.</p>
+  <p class="note">US aggregate bonds take zero weight at every point, which is worth flagging rather
+  than celebrating: they are 0.92 correlated with long Treasuries, so the optimiser simply picks the
+  more concentrated form of the same duration. That is a corner solution of the kind a near-singular
+  pair reliably produces.</p>
 
   <h3>Three regimes, set by the borrowing spread</h3>
   <ul>
-    <li><strong>Below 6.7% volatility:</strong> cash and bonds do the work, with a small equity
-    sleeve. Cash is held only here.</li>
-    <li><strong>6.7% to 16.4% volatility &mdash; exactly 1.00&times; gross throughout.</strong> A
-    wide range of risk appetites all sit at fully invested, borrowing nothing and holding no cash;
-    what changes across the range is the <em>mix</em>, rotating out of bonds and into equity. This
-    flat spot is the borrowing spread's fingerprint: the first dollar of margin costs 1.2pp more
-    than the last dollar of cash earns, so the optimiser sits at the kink rather than crossing it.</li>
-    <li><strong>Above 16.4% volatility:</strong> the book is all equity and borrowing, and bonds are
-    gone for good.</li>
+    <li><strong>Below 9.3% volatility:</strong> cash and hedged foreign bonds do most of the work,
+    with a small sleeve of everything else. Cash is held only here.</li>
+    <li><strong>9.3% to 13.9% volatility &mdash; exactly 1.00&times; gross.</strong> A band of risk
+    appetites all sit at fully invested, borrowing nothing and holding no cash; what changes across
+    the band is the <em>mix</em>, rotating out of aggregate bonds and into equity and REITs. This
+    flat spot is the borrowing spread's fingerprint: the first dollar of margin costs 1.2pp more than
+    the last dollar of cash earns, so the optimiser sits at the kink rather than crossing it.</li>
+    <li><strong>Above 13.9% volatility:</strong> the book borrows, and holds only the four sleeves
+    whose premium beats the spread &mdash; the two equity sleeves, long Treasuries and REITs.</li>
   </ul>
-  <p class="note">Note where half Kelly lands under this construction: <b>1.00&times; gross, 43% US
-  equity, 26% international, 31% bonds</b> &mdash; a recognisable balanced portfolio, reached without
-  ever assuming one. The scaling construction would have called half Kelly &ldquo;59% global equity,
-  41% cash&rdquo; and left 0.52pp/yr on the table.</p>
+  <p class="note">Note where half Kelly lands under this construction: <b>1.00&times; gross, 32% US
+  equity, 19% international, 28% long Treasuries, 21% REITs</b> &mdash; a recognisable balanced
+  portfolio, reached without ever assuming one, and one the scaling construction could not have
+  produced at any fraction.</p>
 </section>
 
 <section>

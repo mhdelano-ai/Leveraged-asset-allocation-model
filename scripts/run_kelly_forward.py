@@ -154,7 +154,7 @@ def main() -> int:
     print(
         f"\n   The build-up assumes {_pct(cma.build_up.loc['us_equity', 'real growth'])} of"
         f" AGGREGATE real growth plus {_pct(cma.build_up.loc['us_equity', 'buyback'])} of buyback,"
-        f"\n   which is {_pct(implied['us_equity'])} PER SHARE -- the {pct:.0f}th percentile of"
+        f"\n   which is {_pct(implied['us_equity'])} PER SHARE -- the {_ordinal(round(pct))} percentile of"
         " that distribution.\n   The base case is an above-median growth forecast, not a"
         " pessimistic one."
     )
@@ -183,10 +183,10 @@ def main() -> int:
     display["gross"] = table["gross"].map(lambda v: f"{v:.2f}x")
     for col in ("vol", "geometric"):
         display[col] = table[col].map(lambda v: _pct(v))
-    short = {"us_equity": "US eq", "intl_equity": "Intl eq",
-             "us_bonds": "US bd", "intl_bonds": "Intl bd"}
+    short = {"us_equity": "US eq", "intl_equity": "Intl eq", "us_bonds": "US bd",
+             "intl_bonds": "Intl bd", "long_treasuries": "Long UST", "reits": "REITs"}
     for a in ASSETS:
-        display[short[a]] = table[a].map(lambda v: f"{v:5.2f}")
+        display[short.get(a, PRETTY[a])] = table[a].map(lambda v: f"{v:5.2f}")
     display["cash"] = table["cash"].map(lambda v: f"{v:5.2f}")
     display["vs scaling"] = table["vs scaling"].map(lambda v: f"{v * 100:+.2f}pp")
     print(display.to_string())
@@ -265,11 +265,20 @@ def main() -> int:
     print("\n" + "=" * 100)
     print(f"8. Forward account risk: {args.paths} bootstrapped {args.years}-year paths, Reg-T account")
     print("=" * 100)
-    equity = np.array([GLOBAL_EQUITY_WEIGHTS[0], GLOBAL_EQUITY_WEIGHTS[1], 0.0, 0.0])
+    # Run the ladder on the portfolio the model actually recommends -- the
+    # frontier's half-Kelly point -- rather than on pure equity, so the
+    # margin-call probabilities describe the book that would be held.
+    half = geometric_frontier(
+        cma, fractions=np.array([0.5]), financing_spread=args.spread,
+        equity_split=GLOBAL_EQUITY_WEIGHTS,
+    ).iloc[0]
+    holding = np.array([float(half[a]) for a in ASSETS])
+    holding = holding / np.abs(holding).sum()
+    print("   holding: " + "  ".join(f"{PRETTY[a]} {holding[i]:.0%}" for i, a in enumerate(ASSETS) if holding[i] > 0.005))
     ladder = forward_ladder(
         panel,
         cma,
-        equity,
+        holding,
         levels=(0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0),
         years=args.years,
         paths=args.paths,

@@ -872,7 +872,8 @@ python scripts/run_growth_robustness.py              # transfer, 1929, vehicles
 # Appendix — Kelly on the four-asset question
 
 **What is the Kelly-optimal portfolio of US equities, international ex-US
-equities, US bonds, international ex-US bonds and cash?**
+equities, US bonds, international ex-US bonds and cash?** — plus long Treasuries
+and REITs, the two sleeves that survived a screen of twelve further candidates.
 
 Full write-up: [`docs/kelly.html`](docs/kelly.html). Working papers behind it:
 [`kelly_findings.html`](docs/kelly_findings.html) (the historical estimate),
@@ -883,46 +884,90 @@ Reproduce with `python scripts/run_kelly_forward.py`; solvers in
 
 ## The answer
 
-Global equities at market weights, bonds instead of cash below 1× gross, and
-leverage stopping at about 1.2×.
+Global equities at market weights alongside long Treasuries and REITs, aggregate
+bonds instead of cash at low risk levels, and leverage stopping at about 1.6×.
 
-| | US eq | Intl eq | Bonds | Cash | Gross | Vol | Growth |
-|---|---|---|---|---|---|---|---|
-| Quarter Kelly | 0.23 | 0.13 | 0.64 | 0.00 | 1.00× | 7.3% | 5.70% |
-| **Half Kelly** | 0.43 | 0.25 | 0.31 | 0.00 | 1.00× | 11.8% | 6.43% |
-| All equity, no margin | 0.63 | 0.37 | 0.00 | 0.00 | 1.00× | 16.4% | 6.82% |
-| **Full Kelly** | 0.74 | 0.44 | 0.00 | −0.18 | 1.18× | 19.3% | **6.86%** |
-| Beyond it | 1.12 | 0.66 | 0.00 | −0.77 | 1.77× | 29.0% | 6.40% |
+| | US eq | Intl eq | Intl bd | Long UST | REITs | Cash | Gross | Vol | Growth |
+|---|---|---|---|---|---|---|---|---|---|
+| Quarter Kelly | 0.19 | 0.11 | 0.30 | 0.13 | 0.10 | 0.18 | 0.82× | 7.7% | 5.88% |
+| **Half Kelly** | 0.32 | 0.19 | 0.00 | 0.28 | 0.21 | 0.00 | 1.00× | 12.9% | 6.91% |
+| Three-quarter Kelly | 0.38 | 0.23 | 0.00 | 0.26 | 0.32 | −0.19 | 1.19× | 16.0% | 7.13% |
+| **Full Kelly** | 0.51 | 0.30 | 0.00 | 0.35 | 0.42 | −0.58 | 1.58× | 21.4% | **7.28%** |
+| Beyond it | 0.77 | 0.45 | 0.00 | 0.52 | 0.63 | −1.38 | 2.38× | 32.0% | 6.71% |
+
+## The universe screen
+
+Twelve candidates, each given a yield-anchored forward expected return the same
+way the original four were, then tested by adding them to the frontier over 5-
+and 10-year risk windows. Reference: global equity Sharpe 0.27.
+
+| Candidate | E[r] | Vol | Over cash | Corr to equity | Verdict |
+|---|---|---|---|---|---|
+| **Long Treasuries** (TLT) | 5.23% | 15.7% | +2.67% | 0.12 | **in** — +0.40 to +0.53pp |
+| **REITs** (VNQ) | 6.71% | 18.9% | +4.70% | 0.67 | **in** — +0.23 to +0.30pp |
+| IG credit (LQD) | 5.27% | 8.7% | +1.84% | 0.40 | rounding error |
+| TIPS (SCHP) | 4.69% | 6.1% | +1.08% | 0.20 | a *swap* for nominal bonds, not an addition |
+| High yield (HYG) | 4.74% | 7.5% | +1.22% | 0.73 | out — spread barely covers defaults, behaves like equity |
+| EM debt (EMB/EMLC) | 5.3–5.4% | 9–10% | +2.0% | 0.6 | out — squeezed out once other bonds are present |
+| EM equity (VWO) | 7.06% | 17.5% | +4.80% | 0.80 | already ~25% of VXUS — a tilt, not an addition |
+| Commodities (PDBC) | 3.80% | 19.2% | +1.85% | 0.18 | out — 19% vol to earn the collateral |
+| **Gold** (GLD) | 2.34% | 18.7% | +0.28% | 0.26 | **out — zero weight in every configuration** |
+| Managed futures (DBMF) | assumed | 12.4% | assumed | 0.06 | out — the whole result is the assumed premium |
+
+Gold has no cash flow, so a yield-anchored expected return is inflation and
+nothing more; it fails the 3.80% cash hurdle by construction. Managed futures is
+the one with genuinely independent returns (0.06 to equity, −0.40 to bonds) and
+the one whose expected return cannot be observed: at a 0% assumed trend premium
+it takes zero weight, at 2% it takes 0.93×, at 3% it takes over the portfolio.
+
+Adding long Treasuries and REITs lifts peak growth from 6.86% to **7.28%** and
+moves the growth-optimal leverage from 1.18× to **1.58×**.
 
 ## Three facts do all the work
 
-**Bonds are worth holding, until you borrow.** US bonds yield 4.85% and hedged
-foreign bonds 4.63% (foreign yield *plus* the FX hedge carry, worth +2.6pp on
-JGBs today). Cash pays 3.80%; margin costs 5.00%. So bonds beat cash and lose to
-the margin rate — they belong in every portfolio at or below 1× gross and none
-above it. Building fractional Kelly by *scaling* the full-Kelly weights and
-holding cash, rather than re-solving `max w'μ − (1/2f) w'Σw` at each fraction,
-gives up as much as **0.73pp/yr** at the same risk. The same spread produces the
-flat stretch in the frontier: between 6.7% and 16.4% volatility every solution
-sits at exactly 1.00× gross, rotating out of bonds into equity rather than
+**One number sorts the universe: the borrowing spread.** Cash pays 3.80%, margin
+costs 5.00%. Below 1× gross nothing is borrowed and every sleeve competes against
+the bill rate; above it, a sleeve must clear the 1.2pp *spread* to be worth
+holding with borrowed money. The aggregate bond sleeves earn ~1pp over cash, so
+they belong at or below 1× and nowhere above it — the hedged foreign sleeve takes
+up to 30% of capital at low risk levels. Long Treasuries (+2.67%) and REITs
+(+4.70%) clear the spread and stay in at every leverage level. Building
+fractional Kelly by *scaling* rather than re-solving `max w'μ − (1/2f) w'Σw` at
+each fraction gives up as much as **0.71pp/yr** at the same risk. The same spread
+produces the frontier's flat stretch: between 9.3% and 13.9% volatility every
+solution sits at exactly 1.00× gross, rotating between sleeves rather than
 changing exposure.
 
-**Leverage stops at 1.2× because the premium is 4.4pp, not 8.9pp.** Kelly
-leverage is premium over variance. Global equities are priced to return ~6.7%
-against 3.8% cash at 16.4% vol — 1.63× if you could borrow at the bill rate,
-**1.18×** once the broker's spread is paid. The 1993–2026 backtest recommends far
+One caveat: long Treasuries' *geometric* 5.23% only just clears the 5.00% margin
+rate. The Kelly maths correctly uses arithmetic returns, where a 15.7%-vol bond
+picks up 1.24pp from the variance term — not a reason to treat them as cheap
+leverage. And US aggregate bonds take zero weight throughout because long
+Treasuries are 0.92 correlated with them and more concentrated per unit of
+duration: a real result, and also the kind of corner a near-singular pair
+produces.
+
+**Leverage stops at 1.6× because the premium is 4.4pp, not 8.9pp.** Kelly
+leverage is premium over variance. Global equities alone are priced to return
+~6.7% against 3.8% cash at 16.4% vol, supporting **1.18×** once the broker's
+spread is paid; the two added sleeves lower volatility per unit of premium and
+move the optimum to **1.58×**. The 1993–2026 backtest recommends far
 more only because that period delivered an 8.9pp premium, mostly from a starting
 dividend yield of 4.4% against 1.17% today. Run on those historical means, full
 Kelly asks for **17.5× gross** and, refit in real time, was wiped out in
 September 2008.
 
-**Above 1.5× the broker decides.** Probability of at least one forced sale over
-400 simulated 10-year paths: 0% at 1.5×, 18% at 1.75×, **52% at 2×** (78% over
-twenty years). Driven by volatility, not expected return, so no growth assumption
-removes it. The backtest agrees from the other side: 1.5× was never force-sold in
-33 years; 2× was called six times from July 2002. An investor who declines to
-re-borrow after being sold out ends at 11.3%/yr against 10.9% for never having
-borrowed at all.
+**Above 1.75× the broker decides.** Probability of at least one forced sale over
+400 simulated 10-year paths of the half-Kelly holding: 0% up to 1.75×, **41% at
+2×**. Driven by volatility, not expected return, so no growth assumption removes
+it — though a better-diversified book pushes it further out (pure equity called
+at 1.75× in 18% of paths and at 2× in 52%). Median CAGR peaks at 1.50× (7.16%)
+with a −37.3% median worst drawdown.
+
+Run through a Reg-T account on 1993–2026, the same holding was **never
+force-sold at 1.5×**, returning 10.86%/yr at 18.6% vol — the same return as 100%
+US equity unlevered, which is what diversification looks like in an era one
+country won. At 1× it returned 8.79% at 12.2% vol and −45.6% worst drawdown,
+against 10.86% / 18.3% / −55.3% for the US equity book.
 
 ## The assumption that carries it
 
@@ -931,11 +976,11 @@ It is stated as *aggregate* growth plus a separate buyback yield; their sum is
 what compares to a historical EPS growth rate, and conflating the two double
 counts the share count.
 
-| Per-share real growth | Source | Equity return | Full Kelly |
-|---|---|---|---|
-| 1.68% | Median 30-year window since 1871 | 5.57% | 0.90× |
-| **2.80%** | **Used here** — modern growth + today's buybacks, margins flat | 6.69% | **1.18×** |
-| 3.86% | 1985–2023 repeated in full | 7.54% | 1.50× |
+| Per-share real growth | Source | Global equity | Peak growth | Full Kelly |
+|---|---|---|---|---|
+| 1.68% | Median 30-year window since 1871 | 5.57% | 6.80% | 1.21× |
+| **2.80%** | **Used here** — modern growth + today's buybacks, margins flat | 6.69% | **7.28%** | **1.58×** |
+| 3.86% | 1985–2023 repeated in full | 7.75% | 8.53% | 1.94× |
 
 The case that modern companies compound faster is half right, and that half is
 already in the base case. Dilution ran at **+2.12%/yr** against shareholders over
@@ -960,3 +1005,10 @@ Volatility enters squared, so 16% → 24% more than halves the answer.
 - Taxes are not modelled; all returns are pre-tax.
 - Thirty-three years of backtest contains about three real tests of a levered
   book.
+- Six sleeves is a harder estimation problem than four. Resampling the risk
+  estimate leaves the half-Kelly weights stable (long Treasuries 0.23–0.33, REITs
+  0.16–0.26 across 300 block-bootstrap draws) — but that holds the expected
+  returns fixed, and the means are the fragile part.
+- The REIT weight rests on an assumed 0.5% real growth on top of its distribution
+  yield, and REITs are 0.67 correlated with equities: much of the apparent
+  diversification is equity beta under another name.
