@@ -46,6 +46,18 @@ BOX = 20.0
 
 MODES = ("unconstrained", "long_only", "long_only_unlevered")
 
+# Fixed comparison portfolios, written as sleeve maps so adding a sleeve to the
+# universe cannot silently reweight a benchmark.
+BENCHMARKS = {
+    "60_40": {"us_equity": 0.36, "intl_equity": 0.24, "us_bonds": 0.28, "intl_bonds": 0.12},
+    "all_us_equity": {"us_equity": 1.0},
+}
+
+
+def _benchmark(name: str) -> np.ndarray:
+    weights = BENCHMARKS[name]
+    return np.array([weights.get(asset, 0.0) for asset in ASSETS], dtype=float)
+
 
 @dataclass(frozen=True)
 class KellySolution:
@@ -298,11 +310,11 @@ def walk_forward(
                     weights[f], step_excess, step_cash, financing_spread=financing_spread
                 )[0]
             )
-        sixty_forty = np.array([0.36, 0.24, 0.28, 0.12])
+        sixty_forty = _benchmark("60_40")
         out["60_40"].append(
             portfolio_returns(sixty_forty, step_excess, step_cash, financing_spread=financing_spread)[0]
         )
-        all_equity = np.array([1.0, 0.0, 0.0, 0.0])
+        all_equity = _benchmark("all_us_equity")
         out["all_us_equity"].append(
             portfolio_returns(all_equity, step_excess, step_cash, financing_spread=financing_spread)[0]
         )

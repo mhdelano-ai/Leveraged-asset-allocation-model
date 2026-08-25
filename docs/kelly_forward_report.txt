@@ -8,6 +8,8 @@ market inputs as of 2026-08-20
   Intl ex-US equities    distribution yield 2.90%
   US bonds               distribution yield 4.03%
   Intl ex-US bonds       distribution yield 4.57%
+  Long Treasuries        distribution yield 4.58%
+  REITs                  distribution yield 3.87%
 
 ====================================================================================================
 1. Forward expected returns, built up from those yields (risk from the last 5 years)
@@ -17,24 +19,28 @@ US equities           1.17%    1.30%        1.50%      2.34%      0.00%     0.00
 Intl ex-US equities   2.90%    0.60%        1.50%      2.34%      0.00%     0.00%      7.34%      16.37%       8.68%   4.89%  29.85%
 US bonds              4.85%    0.00%        0.00%      0.00%      0.00%    -0.15%      4.70%       6.03%       4.88%   1.08%  17.98%
 Intl ex-US bonds      4.63%    0.00%        0.00%      0.00%      0.00%    -0.05%      4.58%       4.92%       4.70%   0.91%  18.44%
+Long Treasuries       5.23%    0.00%        0.00%      0.00%      0.00%     0.00%      5.23%      15.74%       6.47%   2.67%  16.97%
+REITs                 3.87%    0.00%        0.50%      2.34%      0.00%     0.00%      6.71%      18.91%       8.50%   4.70%  24.87%
 
    cash (3m bill) 3.80% -- the hurdle every excess return above is measured over
 
    correlations:
-                     US equities  Intl ex-US equities  US bonds  Intl ex-US bonds
-US equities                 1.00                 0.81      0.22              0.18
-Intl ex-US equities         0.81                 1.00      0.27              0.22
-US bonds                    0.22                 0.27      1.00              0.82
-Intl ex-US bonds            0.18                 0.22      0.82              1.00
+                     US equities  Intl ex-US equities  US bonds  Intl ex-US bonds  Long Treasuries  REITs
+US equities                 1.00                 0.81      0.22              0.18             0.09   0.67
+Intl ex-US equities         0.81                 1.00      0.27              0.22             0.14   0.59
+US bonds                    0.22                 0.27      1.00              0.82             0.92   0.39
+Intl ex-US bonds            0.18                 0.22      0.82              1.00             0.76   0.33
+Long Treasuries             0.09                 0.14      0.92              0.76             1.00   0.29
+REITs                       0.67                 0.59      0.39              0.33             0.29   1.00
 
 ====================================================================================================
 2. Kelly on those inputs
 ====================================================================================================
-   unconstrained, no financing cost                   US -0.19   Intl  1.82     US  0.18   Intl  2.34   gross 4.53x
-   unconstrained, borrowing at bills + 1.2%           US -0.00   Intl  1.38     US -0.00   Intl -0.00   gross 1.38x
-   long_only                                         US  0.00   Intl  1.38     US  0.00   Intl  0.00   gross 1.38x
-   long_only <= 2x                                   US  0.00   Intl  1.38     US  0.00   Intl  0.00   gross 1.38x
-   long_only_unlevered                               US  0.00   Intl  1.00     US  0.00   Intl  0.00   gross 1.00x
+   unconstrained, no financing cost                   US -0.50   Intl  1.92     US -4.36   Intl  2.36   Long  1.63  REITs  0.60   gross 11.35x
+   unconstrained, borrowing at bills + 1.2%           US -0.00   Intl  1.10     US  0.00   Intl -0.00   Long  0.32  REITs  0.34   gross 1.76x
+   long_only                                         US  0.00   Intl  1.10     US  0.00   Intl  0.00   Long  0.32  REITs  0.34   gross 1.76x
+   long_only <= 2x                                   US  0.00   Intl  1.10     US  0.00   Intl  0.00   Long  0.32  REITs  0.34   gross 1.76x
+   long_only_unlevered                               US  0.00   Intl  0.74     US  0.00   Intl  0.00   Long  0.00  REITs  0.26   gross 1.00x
 
 ====================================================================================================
 3. The same question over two bundles instead of four sleeves
@@ -42,8 +48,8 @@ Intl ex-US bonds            0.18                 0.22      0.82              1.0
    global equity at cap weights (63% US / 37% intl):
       expected 6.69% geometric, excess 4.36%, vol 16.4%, Sharpe 0.27
       unlevered Kelly multiple  1.63x   (if you could borrow at the bill rate)
-      Kelly, at the bill rate          US  0.90   Intl  0.53     US  1.57   Intl  0.85   gross 3.85x
-      Kelly, at bills + 1.2%           US  0.74   Intl  0.44     US  0.00   Intl  0.00   gross 1.18x
+      Kelly, at the bill rate          US  0.77   Intl  0.45     US  0.00   Intl  0.00   Long  0.79  REITs  0.41   gross 2.42x
+      Kelly, at bills + 1.2%           US  0.51   Intl  0.30     US  0.00   Intl  0.00   Long  0.35  REITs  0.42   gross 1.58x
 
    For full Kelly to reach 1.5x, global equity would have to earn 5.21% over cash instead of 4.36%
    -- about 0.9%/yr more growth than the yields imply.
@@ -53,15 +59,15 @@ Intl ex-US bonds            0.18                 0.22      0.82              1.0
 ====================================================================================================
                                                  us_equity  intl_equity  bonds  gross  us_share_of_equity
 US expected return minus intl, vs the base case                                                          
--2.0pp                                                0.00         1.75    0.0   1.75                0.00
--1.5pp                                                0.00         1.66    0.0   1.66                0.00
--1.0pp                                                0.00         1.56    0.0   1.56                0.00
--0.5pp                                                0.00         1.47    0.0   1.47                0.00
-+0.0pp                                                0.00         1.38    0.0   1.38                0.00
-+0.5pp                                                0.10         1.19    0.0   1.30                0.08
-+1.0pp                                                0.55         0.71    0.0   1.26                0.44
-+1.5pp                                                1.00         0.23    0.0   1.22                0.81
-+2.0pp                                                1.25         0.00    0.0   1.25                1.00
+-2.0pp                                                0.00         1.68    0.0   2.05                0.00
+-1.5pp                                                0.00         1.54    0.0   1.98                0.00
+-1.0pp                                                0.00         1.39    0.0   1.91                0.00
+-0.5pp                                                0.00         1.25    0.0   1.83                0.00
++0.0pp                                                0.00         1.10    0.0   1.76                0.00
++0.5pp                                                0.00         0.96    0.0   1.68                0.00
++1.0pp                                                0.33         0.59    0.0   1.65                0.36
++1.5pp                                                0.83         0.11    0.0   1.63                0.88
++2.0pp                                                1.06         0.00    0.0   1.68                1.00
 
    The split is a knife edge: a 2pp swing in an unobservable growth assumption
    moves it from all-international to all-US. That is what an optimiser does with
@@ -84,7 +90,7 @@ period
       p5: -0.51%   p25: 1.22%   p50: 1.68%   p75: 2.41%   p95: 3.32%   max: 3.72%
 
    The build-up assumes 1.50% of AGGREGATE real growth plus 1.30% of buyback,
-   which is 2.80% PER SHARE -- the 83th percentile of that distribution.
+   which is 2.80% PER SHARE -- the 83rd percentile of that distribution.
    The base case is an above-median growth forecast, not a pessimistic one.
 
    For US equities to return 8% nominal, per-share real growth must be 4.49%
@@ -96,29 +102,29 @@ period
 ====================================================================================================
 5b. The geometric frontier -- fractional Kelly by slope, not by scaling
 ====================================================================================================
-          gross     vol geometric  US eq Intl eq  US bd Intl bd   cash vs scaling
-fraction                                                                         
-0.1       0.42x   2.98%     4.64%   0.09    0.05   0.05    0.23   0.58    +0.35pp
-0.2       0.84x   5.96%     5.40%   0.18    0.11   0.09    0.46   0.16    +0.65pp
-0.3       1.00x   8.11%     5.87%   0.27    0.16   0.15    0.42   0.00    +0.70pp
-0.4       1.00x   9.92%     6.17%   0.35    0.21   0.22    0.23   0.00    +0.62pp
-0.5       1.00x  11.84%     6.43%   0.43    0.25   0.28    0.03   0.00    +0.52pp
-0.6       1.00x  13.68%     6.62%   0.51    0.30   0.18    0.00   0.00    +0.41pp
-0.7       1.00x  15.55%     6.77%   0.60    0.35   0.05    0.00   0.00    +0.28pp
-0.8       1.00x  16.35%     6.82%   0.63    0.37   0.00    0.00  -0.00    +0.10pp
-0.9       1.06x  17.38%     6.84%   0.67    0.39   0.00    0.00  -0.06    +0.00pp
-1.0       1.18x  19.31%     6.86%   0.74    0.44   0.00    0.00  -0.18    +0.00pp
-1.1       1.30x  21.24%     6.84%   0.82    0.48   0.00    0.00  -0.30    +0.00pp
-1.2       1.42x  23.17%     6.79%   0.89    0.52   0.00    0.00  -0.42    -0.00pp
-1.3       1.53x  25.10%     6.69%   0.97    0.57   0.00    0.00  -0.53    -0.00pp
-1.4       1.65x  27.03%     6.56%   1.04    0.61   0.00    0.00  -0.65    -0.00pp
-1.5       1.77x  28.96%     6.40%   1.12    0.66   0.00    0.00  -0.77    -0.00pp
+          gross     vol geometric  US eq Intl eq  US bd Intl bd Long UST  REITs   cash vs scaling
+fraction                                                                                         
+0.1       0.33x   3.08%     4.70%   0.08    0.04   0.00    0.12     0.05   0.04   0.67    +0.28pp
+0.2       0.66x   6.17%     5.51%   0.15    0.09   0.00    0.24     0.10   0.08   0.34    +0.51pp
+0.3       0.99x   9.25%     6.22%   0.23    0.13   0.00    0.36     0.15   0.12   0.01    +0.69pp
+0.4       1.00x  11.83%     6.73%   0.29    0.17   0.00    0.09     0.27   0.16   0.00    +0.71pp
+0.5       1.00x  12.94%     6.91%   0.32    0.19   0.00    0.00     0.28   0.21   0.00    +0.45pp
+0.6       1.00x  13.34%     6.96%   0.32    0.19   0.00    0.00     0.24   0.25  -0.00    +0.10pp
+0.7       1.11x  14.95%     7.07%   0.36    0.21   0.00    0.00     0.24   0.29  -0.11    +0.00pp
+0.8       1.27x  17.08%     7.19%   0.41    0.24   0.00    0.00     0.28   0.34  -0.27    +0.00pp
+0.9       1.43x  19.22%     7.25%   0.46    0.27   0.00    0.00     0.31   0.38  -0.43    +0.00pp
+1.0       1.58x  21.35%     7.28%   0.51    0.30   0.00    0.00     0.35   0.42  -0.58    +0.00pp
+1.1       1.74x  23.49%     7.25%   0.56    0.33   0.00    0.00     0.38   0.46  -0.74    -0.00pp
+1.2       1.90x  25.63%     7.19%   0.62    0.36   0.00    0.00     0.42   0.50  -0.90    -0.00pp
+1.3       2.06x  27.76%     7.07%   0.67    0.39   0.00    0.00     0.45   0.55  -1.06    -0.00pp
+1.4       2.22x  29.90%     6.91%   0.72    0.42   0.00    0.00     0.49   0.59  -1.22    -0.00pp
+1.5       2.38x  32.03%     6.71%   0.77    0.45   0.00    0.00     0.52   0.63  -1.38    -0.00pp
 
-   Peak growth 6.86% at f = 1.00 (1.18x gross, 19.3% vol).
+   Peak growth 7.28% at f = 1.00 (1.58x gross, 21.4% vol).
    Bonds appear only where nothing is borrowed: they compete against the 3.80%
    bill rate below 1x gross, not the 5.00% margin rate above it. Scaling the
-   full-Kelly weights instead of re-optimising gives up as much as 0.70pp/yr.
-   Largest bond weight on the frontier: 57% of capital.
+   full-Kelly weights instead of re-optimising gives up as much as 0.71pp/yr.
+   Largest bond weight on the frontier: 36% of capital.
 
 ====================================================================================================
 6. Which parts of recent growth can repeat, and which cannot
@@ -139,31 +145,32 @@ era
    The same question under each named assumption set:
             US per-share growth global equity return over cash full Kelly half Kelly
 assumptions                                                                         
-base                      2.80%                6.69%     4.36%      1.18x      0.59x
-modern                    3.86%                7.54%     5.21%      1.50x      0.75x
-historical                1.68%                5.57%     3.24%      0.90x      0.45x
+base                      2.80%                6.69%     4.36%      0.81x      0.41x
+modern                    3.86%                7.54%     5.21%      1.41x      0.70x
+historical                1.68%                5.57%     3.24%      0.04x      0.02x
 
 ====================================================================================================
 7. If the equity premium is not what the yields imply
 ====================================================================================================
       equity geometric excess over cash full Kelly equity half Kelly
 shift                                                               
--2pp             4.69%            2.36%             0.56x      0.28x
--1pp             5.69%            3.36%             0.95x      0.48x
-+0pp             6.69%            4.36%             1.18x      0.59x
-+1pp             7.69%            5.36%             1.55x      0.78x
-+2pp             8.69%            6.36%             1.93x      0.96x
-+3pp             9.69%            7.36%             2.30x      1.15x
+-2pp             4.69%            2.36%             0.00x      0.00x
+-1pp             5.69%            3.36%             0.12x      0.06x
++0pp             6.69%            4.36%             0.81x      0.41x
++1pp             7.69%            5.36%             1.51x      0.75x
++2pp             8.69%            6.36%             1.89x      0.94x
++3pp             9.69%            7.36%             2.27x      1.13x
 
 ====================================================================================================
 8. Forward account risk: 400 bootstrapped 10-year paths, Reg-T account
 ====================================================================================================
-         median CAGR  5th pct 95th pct median max DD worst 5% max DD P(margin call) P(lose to cash) P(ruin)
-leverage                                                                                                   
-0.50           5.62%    1.16%    9.92%        -15.9%          -28.1%           0.0%           22.5%    0.0%
-0.75           6.20%   -0.53%   12.86%        -24.5%          -43.5%           0.0%           27.3%    0.0%
-1.00           6.64%   -2.42%   15.73%        -32.8%          -55.9%           0.0%           29.0%    0.0%
-1.25           6.65%   -4.68%   18.11%        -40.8%          -66.2%           0.0%           32.0%    0.0%
-1.50           6.53%   -7.33%   20.34%        -48.6%          -75.2%           0.0%           36.8%    0.0%
-1.75           6.18%   -9.96%   22.65%        -55.7%          -82.5%          17.8%           40.8%    0.0%
-2.00           5.73%  -12.61%   24.62%        -62.7%          -86.9%          52.2%           45.2%    0.0%
+   holding: US equities 32%  Intl ex-US equities 19%  Long Treasuries 28%  REITs 21%
+         median CAGR 5th pct 95th pct median max DD worst 5% max DD P(margin call) P(lose to cash) P(ruin)
+leverage                                                                                                  
+0.50           5.61%   2.70%    8.98%        -11.4%          -20.0%           0.0%           18.2%    0.0%
+0.75           6.31%   1.91%   11.47%        -18.0%          -31.4%           0.0%           19.8%    0.0%
+1.00           6.90%   1.00%   13.93%        -24.8%          -42.6%           0.0%           21.8%    0.0%
+1.25           7.09%  -0.30%   15.89%        -31.1%          -52.3%           0.0%           28.0%    0.0%
+1.50           7.16%  -1.68%   17.78%        -37.3%          -61.6%           0.0%           31.0%    0.0%
+1.75           7.07%  -3.18%   19.66%        -43.4%          -69.1%           0.0%           32.5%    0.0%
+2.00           6.82%  -4.90%   21.47%        -49.1%          -76.0%          41.0%           35.8%    0.0%

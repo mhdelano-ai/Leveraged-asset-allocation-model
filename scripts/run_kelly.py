@@ -38,6 +38,14 @@ MONTHS = 12
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def _sleeves(**weights: float) -> np.ndarray:
+    """A weight vector over the current universe, named by sleeve."""
+    unknown = set(weights) - set(ASSETS)
+    if unknown:
+        raise ValueError(f"unknown sleeves: {sorted(unknown)}")
+    return np.array([weights.get(asset, 0.0) for asset in ASSETS], dtype=float)
+
+
 def _pct(x: float, dp: int = 2) -> str:
     if x is None or (isinstance(x, float) and np.isnan(x)):
         return "  --  "
@@ -124,8 +132,8 @@ def solve_all(panel) -> pd.DataFrame:
                 panel,
             )
         )
-    rows.append(weight_row("60/40 global cap-weighted", [0.36, 0.24, 0.28, 0.12], panel))
-    rows.append(weight_row("100% US equity", [1.0, 0.0, 0.0, 0.0], panel))
+    rows.append(weight_row("60/40 global cap-weighted", _sleeves(us_equity=0.36, intl_equity=0.24, us_bonds=0.28, intl_bonds=0.12), panel))
+    rows.append(weight_row("100% US equity", _sleeves(us_equity=1.0), panel))
     return pd.DataFrame(rows).set_index("portfolio")
 
 

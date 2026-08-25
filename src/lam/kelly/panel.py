@@ -16,20 +16,27 @@ So there are two panels, and they are reported together because they disagree:
 ============  ==============  ====================================================
 Panel         Span            Composition
 ============  ==============  ====================================================
-``modern``    2013-06 ->      The real funds: VTI, VXUS, BND, BNDX. Nothing
-                              synthetic, nothing survivorship-selected -- and far
-                              too short, over a sample containing one bond bear
-                              market and no equity decade-long drawdown.
-``long``      1993-01 ->      Index funds where they exist (VFINX, VBMFX) and the
-                              longest-running hedged foreign bond fund (PFORX)
-                              plus an active international equity fund (VTRIX)
-                              where they do not. 33 years, at the cost of two
-                              actively managed, survivorship-selected sleeves.
+``modern``    2013-06 ->      The real funds: VTI, VXUS, BND, BNDX, TLT, VNQ.
+                              Nothing synthetic, nothing survivorship-selected --
+                              and far too short, over a sample containing one bond
+                              bear market and no equity decade-long drawdown.
+``long``      1993-01 ->      Index funds where they exist (VFINX, VBMFX, VUSTX)
+                              and the longest-running hedged foreign bond fund
+                              (PFORX) plus active international equity and real
+                              estate funds (VTRIX, FRESX) where they do not.
+                              33 years, at the cost of three actively managed,
+                              survivorship-selected sleeves.
 ============  ==============  ====================================================
 
-``long``'s two active sleeves survived to 2026 and were picked *because* they
+``long``'s three active sleeves survived to 2026 and were picked *because* they
 did, so treat their returns as optimistic -- roughly 50-100bp/yr on the
-international equity sleeve, which flatters its Kelly weight.
+international equity and real estate sleeves, which flatters their Kelly weights.
+
+Long Treasuries and REITs are the two sleeves that survived the screen in
+``docs/kelly.html``: both have an observable yield to anchor a forward expected
+return, both earn a weight on the frontier over 5- and 10-year risk windows, and
+both are held only below 1x gross, where they compete against the bill rate
+rather than the margin rate.
 
 Cash is the 3-month T-bill in bond-equivalent yield, the same series the rest of
 the project uses for the risk-free rate and as the base financing rate.
@@ -51,6 +58,8 @@ UNIVERSE: dict[str, tuple[str, str]] = {
     "intl_equity": ("VXUS", "VTRIX"),
     "us_bonds": ("BND", "VBMFX"),
     "intl_bonds": ("BNDX", "PFORX"),
+    "long_treasuries": ("TLT", "VUSTX"),
+    "reits": ("VNQ", "FRESX"),
 }
 
 ASSETS = list(UNIVERSE)
@@ -60,6 +69,8 @@ PRETTY = {
     "intl_equity": "Intl ex-US equities",
     "us_bonds": "US bonds",
     "intl_bonds": "Intl ex-US bonds",
+    "long_treasuries": "Long Treasuries",
+    "reits": "REITs",
 }
 
 # What each proxy actually is, so the caveats travel with the numbers.
@@ -72,6 +83,10 @@ PROXY_NOTES = {
     "VTRIX": "Vanguard International Value (ACTIVE, survivorship-selected)",
     "VBMFX": "Vanguard Total Bond Market Index (index, US aggregate)",
     "PFORX": "PIMCO Foreign Bond USD-Hedged (ACTIVE, survivorship-selected)",
+    "TLT": "iShares 20+ Year Treasury ETF (index)",
+    "VNQ": "Vanguard Real Estate ETF (index)",
+    "VUSTX": "Vanguard Long-Term Treasury (Treasury-only, duration proxy)",
+    "FRESX": "Fidelity Real Estate (ACTIVE, survivorship-selected)",
 }
 
 PANELS = {

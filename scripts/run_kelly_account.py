@@ -26,12 +26,25 @@ from lam.kelly import ASSETS, PRETTY, build_panel, empirical_kelly, score
 from lam.kelly.account import REG_T_MAX_LEVERAGE, call_threshold, leverage_ladder, simulate
 
 # Candidate allocations, as notional weights summing to 1x before leverage.
+def _sleeves(**weights: float) -> np.ndarray:
+    """A weight vector over the current universe, named by sleeve."""
+    unknown = set(weights) - set(ASSETS)
+    if unknown:
+        raise ValueError(f"unknown sleeves: {sorted(unknown)}")
+    return np.array([weights.get(asset, 0.0) for asset in ASSETS], dtype=float)
+
+
 CANDIDATES = {
-    "100% US equity": np.array([1.0, 0.0, 0.0, 0.0]),
-    "80/20 US/intl equity": np.array([0.8, 0.2, 0.0, 0.0]),
-    "70/30 US/intl equity": np.array([0.7, 0.3, 0.0, 0.0]),
-    "90/10 equity/bonds": np.array([0.72, 0.18, 0.07, 0.03]),
-    "60/40 global": np.array([0.36, 0.24, 0.28, 0.12]),
+    "100% US equity": _sleeves(us_equity=1.0),
+    "80/20 US/intl equity": _sleeves(us_equity=0.8, intl_equity=0.2),
+    "70/30 US/intl equity": _sleeves(us_equity=0.7, intl_equity=0.3),
+    "90/10 equity/bonds": _sleeves(us_equity=0.72, intl_equity=0.18, us_bonds=0.07, intl_bonds=0.03),
+    "60/40 global": _sleeves(us_equity=0.36, intl_equity=0.24, us_bonds=0.28, intl_bonds=0.12),
+    # The forward frontier's half-Kelly point, so the account simulation is run
+    # on the portfolio the model actually recommends rather than a stand-in.
+    "Frontier at half Kelly": _sleeves(
+        us_equity=0.32, intl_equity=0.19, long_treasuries=0.28, reits=0.21
+    ),
 }
 
 LEVELS = (1.0, 1.25, 1.5, 1.75, 2.0)

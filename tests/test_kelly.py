@@ -19,6 +19,14 @@ from lam.kelly import (
 from lam.kelly.solve import portfolio_returns
 
 
+def _only(first: float, *rest: float) -> np.ndarray:
+    """A weight vector over the whole universe, padded with zeros."""
+    w = np.zeros(len(ASSETS))
+    for i, v in enumerate((first, *rest)):
+        w[i] = v
+    return w
+
+
 def _panel(returns: np.ndarray, cash_rate: float = 0.0) -> KellyPanel:
     index = pd.date_range("2000-01-31", periods=len(returns), freq="ME")
     frame = pd.DataFrame(returns, columns=ASSETS, index=index)
@@ -27,13 +35,15 @@ def _panel(returns: np.ndarray, cash_rate: float = 0.0) -> KellyPanel:
 
 
 def _lognormal_panel(mu: float, sigma: float, n: int = 4000, seed: int = 0) -> KellyPanel:
-    """One asset with known drift and vol; the rest are zero-premium noise.
+    """One live asset with known drift and vol; every other sleeve is flat.
 
-    The others are noise rather than literal zeros so the sample covariance stays
-    invertible -- a degenerate column is a different test, below.
+    Flat rather than noisy on purpose: with several zero-premium noise sleeves the
+    optimiser finds spurious diversification and the single-asset Kelly identity
+    stops being the thing under test. The singular covariance this creates is
+    handled by the solver, which falls back to search when the closed form fails.
     """
     rng = np.random.default_rng(seed)
-    returns = rng.normal(0.0, 0.01, size=(n, len(ASSETS)))
+    returns = np.zeros((n, len(ASSETS)))
     returns[:, 0] = rng.normal(mu / 12.0, sigma / np.sqrt(12.0), size=n)
     return _panel(returns)
 
@@ -57,9 +67,9 @@ def test_single_asset_kelly_approaches_mu_over_sigma_squared():
 
 
 def test_growth_rate_matches_the_definition():
-    returns = np.tile(np.array([[0.02, 0.0, 0.0, 0.0], [-0.01, 0.0, 0.0, 0.0]]), (5, 1))
+    returns = np.tile(np.vstack([_only(0.02), _only(-0.01)]), (5, 1))
     panel = _panel(returns)
-    w = np.array([1.0, 0.0, 0.0, 0.0])
+    w = _only(1.0)
     realised = portfolio_returns(w, panel.excess.to_numpy(), panel.cash.to_numpy())
     expected = 12 * np.mean(np.log1p(realised))
     assert growth_rate(w, panel.excess.to_numpy(), panel.cash.to_numpy()) == pytest.approx(expected)
@@ -69,7 +79,7 @@ def test_growth_rate_is_minus_infinity_when_a_month_wipes_the_account_out():
     returns = np.zeros((24, len(ASSETS)))
     returns[5, 0] = -0.30
     panel = _panel(returns)
-    assert growth_rate(np.array([4.0, 0, 0, 0]), panel.excess.to_numpy(), panel.cash.to_numpy()) == -np.inf
+    assert growth_rate(_only(4.0), panel.excess.to_numpy(), panel.cash.to_numpy()) == -np.inf
 
 
 def test_no_leverage_mode_never_borrows_or_shorts():
@@ -153,7 +163,7 @@ def test_unlevered_account_compounds_the_holding_and_is_never_called():
     daily = np.zeros((500, len(ASSETS)))
     daily[:, 0] = 0.0004
     panel = _daily_panel(daily)
-    result = simulate(panel, np.array([1.0, 0, 0, 0]), financing_spread=0.05)
+    result = simulate(panel, _only(1.0), financing_spread=0.05)
     assert len(result.calls) == 0
     assert not result.ruined
     # No debt, so the broker's spread must not touch the result.
@@ -162,8 +172,8 @@ def test_unlevered_account_compounds_the_holding_and_is_never_called():
 
 def test_leverage_costs_the_broker_spread_on_the_borrowed_part_only():
     panel = _daily_panel(np.zeros((252, len(ASSETS))))
-    flat = simulate(panel, np.array([1.0, 0, 0, 0]), target_leverage=1.0, financing_spread=0.02)
-    levered = simulate(panel, np.array([1.0, 0, 0, 0]), target_leverage=2.0, financing_spread=0.02)
+    flat = simulate(panel, _only(1.0), target_leverage=1.0, financing_spread=0.02)
+    levered = simulate(panel, _only(1.0), target_leverage=2.0, financing_spread=0.02)
     assert flat.equity.iloc[-1] == pytest.approx(1.0, rel=1e-9)
     # One turn of borrowed capital at 2% for a year.
     assert levered.equity.iloc[-1] == pytest.approx(1.0 - 0.02, abs=2e-3)
@@ -173,7 +183,7 @@ def test_a_crash_forces_a_sale_and_cuts_leverage():
     daily = np.zeros((60, len(ASSETS)))
     daily[30, 0] = -0.35
     panel = _daily_panel(daily)
-    result = simulate(panel, np.array([1.0, 0, 0, 0]), target_leverage=2.0)
+    result = simulate(panel, _only(1.0), target_leverage=2.0)
     assert len(result.calls) == 1
     assert result.calls[0] == panel.daily.index[30]
     # The crash alone takes leverage to 1.30/0.30 = 4.33x. The broker sells only
@@ -186,7 +196,7 @@ def test_no_call_when_the_same_crash_is_held_unlevered():
     daily = np.zeros((60, len(ASSETS)))
     daily[30, 0] = -0.35
     panel = _daily_panel(daily)
-    result = simulate(panel, np.array([1.0, 0, 0, 0]), target_leverage=1.0)
+    result = simulate(panel, _only(1.0), target_leverage=1.0)
     assert len(result.calls) == 0
     assert result.equity.iloc[-1] == pytest.approx(0.65, rel=1e-6)
 
@@ -195,7 +205,7 @@ def test_a_move_larger_than_the_equity_cushion_is_ruin():
     daily = np.zeros((30, len(ASSETS)))
     daily[10, 0] = -0.60
     panel = _daily_panel(daily)
-    result = simulate(panel, np.array([1.0, 0, 0, 0]), target_leverage=2.0)
+    result = simulate(panel, _only(1.0), target_leverage=2.0)
     assert result.ruined
     assert result.ruin_date == panel.daily.index[10]
     assert result.equity.iloc[-1] == 0.0
@@ -206,7 +216,7 @@ def test_declining_to_relever_leaves_the_account_unlevered_afterwards():
     daily[30, 0] = -0.35
     panel = _daily_panel(daily)
     result = simulate(
-        panel, np.array([1.0, 0, 0, 0]), target_leverage=2.0, relever_after_call=False
+        panel, _only(1.0), target_leverage=2.0, relever_after_call=False
     )
     assert result.leverage.iloc[-1] == pytest.approx(1.0, abs=1e-6)
 
@@ -220,7 +230,7 @@ def test_ladder_is_monotone_in_risk_when_nothing_is_ever_called():
     daily = np.zeros((2000, len(ASSETS)))
     daily[:, 0] = rng.normal(0.0004, 0.006, size=2000)
     panel = _daily_panel(daily)
-    table = leverage_ladder(panel, np.array([1.0, 0, 0, 0]), levels=(1.0, 1.5, 2.0))
+    table = leverage_ladder(panel, _only(1.0), levels=(1.0, 1.5, 2.0))
     assert (table["margin_calls"] == 0).all()
     assert table["vol"].is_monotonic_increasing
     assert table["max_drawdown"].is_monotonic_decreasing
@@ -250,7 +260,7 @@ def test_call_threshold_agrees_with_the_simulation():
         panel = _daily_panel(daily)
         result = simulate(
             panel,
-            np.array([1.0, 0, 0, 0]),
+            _only(1.0),
             target_leverage=2.0,
             intraday_stress=1.0,
             procyclicality=0.0,
@@ -265,7 +275,7 @@ def test_uninvested_cash_earns_the_bill_rate():
     # a real panel carries the calendar day count inside daily_cash instead.
     daily_rate = 1.05 ** (1 / 252) - 1
     panel = _daily_panel(np.zeros((252, len(ASSETS))), cash_rate=daily_rate)
-    result = simulate(panel, np.array([0.5, 0, 0, 0]), financing_spread=0.02)
+    result = simulate(panel, _only(0.5), financing_spread=0.02)
     assert result.equity.iloc[-1] == pytest.approx(1.0 + 0.5 * 0.05, abs=3e-3)
 
 
@@ -285,6 +295,8 @@ def _market_inputs() -> fwd.MarketInputs:
             "intl_equity": 0.0290,
             "us_bonds": 0.0403,
             "intl_bonds": 0.0457,
+            "long_treasuries": 0.0458,
+            "reits": 0.0387,
         },
         foreign_long={"euro": 0.0305, "japan": 0.0265, "uk": 0.0494},
         foreign_short={"euro": 0.0223, "japan": 0.0124, "uk": 0.0375},
@@ -461,19 +473,33 @@ def test_slope_and_scaling_agree_above_one_times_and_differ_below():
     assert gain[~levered].max() > 0.001
 
 
-def test_bonds_enter_the_frontier_only_below_one_times_gross():
+def test_a_sleeve_is_levered_only_if_it_out_earns_the_borrowing_spread():
+    """The financing kink sorts the universe, and the rule is exactly one number.
+
+    Below 1x gross nothing is borrowed, so every sleeve competes against the bill
+    rate. Above it, a sleeve has to clear the *spread* to be worth holding with
+    borrowed money -- which is why the aggregate bond sleeves drop out at the kink
+    while long Treasuries and REITs, whose premia are several times the spread,
+    do not.
+    """
+    spread = 0.012
     cma = fwd.build_cma(_forward_panel(), inputs=_market_inputs())
     frontier = fwd.geometric_frontier(
         cma,
         fractions=np.round(np.arange(0.2, 1.31, 0.1), 3),
-        financing_spread=0.012,
+        financing_spread=spread,
         equity_split=fwd.GLOBAL_EQUITY_WEIGHTS,
     )
-    bonds = frontier["us_bonds"] + frontier["intl_bonds"]
-    # Nothing is borrowed below 1x, so bonds compete against the bill rate rather
-    # than the margin rate -- and win. Above the kink they must be absent.
-    assert bonds[frontier["gross"] > 1.001].max() < 1e-6
-    assert bonds[frontier["gross"] <= 1.001].max() > 0.05
+    levered = frontier["gross"] > 1.001
+    for asset in ASSETS:
+        if cma.excess[asset] < spread:
+            assert frontier.loc[levered, asset].max() < 1e-6, asset
+
+    # And below the kink the book is not all equity: something that yields more
+    # than a bill earns a place.
+    unlevered = frontier["gross"] <= 1.001
+    diversifiers = frontier[[a for a in ASSETS if not a.endswith("equity")]].sum(axis=1)
+    assert diversifiers[unlevered].max() > 0.05
 
 
 def test_frontier_respects_the_cap_weighted_equity_split():

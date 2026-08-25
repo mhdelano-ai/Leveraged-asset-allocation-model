@@ -43,6 +43,8 @@ MAINTENANCE = {
     "intl_equity": 0.25,
     "us_bonds": 0.25,
     "intl_bonds": 0.25,
+    "long_treasuries": 0.25,
+    "reits": 0.25,
 }
 
 REG_T_MAX_LEVERAGE = 2.0
