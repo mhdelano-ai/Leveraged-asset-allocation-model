@@ -58,6 +58,16 @@ class AccountResult:
     ruined: bool
     ruin_date: pd.Timestamp | None
     target_leverage: float
+    contributed: float = 0.0
+    flow_months: tuple[int, ...] = ()
+    flow_amounts: tuple[float, ...] = ()
+
+    @property
+    def irr(self) -> float:
+        """Money-weighted annual return over the whole flow schedule."""
+        months = [0] + list(self.flow_months) + [len(self.equity) // 21]
+        amounts = [-1.0] + [-a for a in self.flow_amounts] + [float(self.equity.iloc[-1])]
+        return _irr(np.asarray(months, dtype=float), np.asarray(amounts, dtype=float))
 
     @property
     def summary(self) -> dict:
@@ -78,9 +88,39 @@ class AccountResult:
             if out["final_multiple"] > 0
             else float("nan")
         )
+        out["contributed"] = self.contributed
+        # With external flows the account's growth rate is not the investor's
+        # return -- a deposit raises the balance without earning anything, and a
+        # withdrawal lowers it without losing anything. The money-weighted return
+        # is the one number that is comparable across flow patterns.
+        out["irr"] = self.irr
         daily = eq.pct_change().dropna()
         out["vol"] = float(daily.std(ddof=1) * np.sqrt(252))
         return out
+
+
+def _irr(months: np.ndarray, amounts: np.ndarray) -> float:
+    """Money-weighted annual return, by bisection on the monthly discount rate.
+
+    Bisection rather than a polynomial root: the cash-flow sign pattern here is
+    well behaved (one outflow at the start, then flows of one sign, then the
+    terminal value), so the NPV is monotone in the rate and bracketing is both
+    safe and fast.
+    """
+
+    def npv(monthly_rate: float) -> float:
+        return float(np.sum(amounts / (1.0 + monthly_rate) ** months))
+
+    lo, hi = -0.99 / 12.0, 1.0
+    if npv(lo) < 0 or npv(hi) > 0:
+        return float("nan")
+    for _ in range(200):
+        mid = 0.5 * (lo + hi)
+        if npv(mid) > 0:
+            lo = mid
+        else:
+            hi = mid
+    return float((1.0 + 0.5 * (lo + hi)) ** 12 - 1.0)
 
 
 def simulate(
@@ -96,6 +136,10 @@ def simulate(
     rebalance_slippage: float = 0.0005,
     liquidation_buffer: float = 0.10,
     relever_after_call: bool = True,
+    deposit_rate: float = 0.0,
+    withdrawal_rate: float = 0.0,
+    flows_are_proportional: bool = False,
+    flow_growth: float = 0.0234,
 ) -> AccountResult:
     """Hold ``weights`` in a Reg-T margin account, rebalanced monthly.
 
@@ -103,6 +147,23 @@ def simulate(
     vector is rescaled to that gross exposure. ``relever_after_call=False`` is the
     behavioural case: the investor who has just been sold out at the bottom does
     not put the leverage back on.
+
+    **External flows.** ``deposit_rate`` and ``withdrawal_rate`` are annual rates
+    against the *opening* equity, paid in twelve monthly instalments at each
+    rebalance. Two conventions, and the difference is the whole subject:
+
+    * ``flows_are_proportional=False`` (default) -- fixed real amounts, growing at
+      ``flow_growth`` to hold their purchasing power. A salary contribution or a
+      retirement drawdown works this way, and it **breaks Kelly's scale
+      invariance**: the flow is a fixed size against a portfolio that is not, so
+      the same percentage loss hurts more after a drawdown than before it.
+    * ``flows_are_proportional=True`` -- a fixed percentage of current equity.
+      This keeps the problem scale-invariant, and the Kelly fraction is then
+      unchanged by the flow, which is worth knowing precisely because it is the
+      case almost nobody is actually in.
+
+    A withdrawal larger than the remaining equity is ruin, and is recorded as
+    such rather than allowed to run the account negative.
     """
     if panel.daily is None or panel.daily_cash is None:
         raise ValueError("panel has no daily data; rebuild it with build_panel()")
@@ -124,6 +185,11 @@ def simulate(
     equity = 1.0
     positions = equity * w  # dollar notional per sleeve
     debt = positions.sum() - equity
+    opening_equity = equity
+    net_flow_rate = deposit_rate - withdrawal_rate
+    contributed = 0.0
+    flow_months: list[float] = []
+    flow_amounts: list[float] = []
 
     equity_path = np.empty(len(index))
     leverage_path = np.empty(len(index))
@@ -160,6 +226,9 @@ def simulate(
                 ruined=True,
                 ruin_date=ruin_date,
                 target_leverage=target,
+                contributed=contributed,
+                flow_months=tuple(flow_months),
+                flow_amounts=tuple(flow_amounts),
             )
 
         if debt > 0:
@@ -184,6 +253,39 @@ def simulate(
 
         month_end = t + 1 == len(index) or months[t + 1] != months[t]
         if month_end and equity > 0:
+            if net_flow_rate:
+                if flows_are_proportional:
+                    flow = equity * net_flow_rate / 12.0
+                else:
+                    years = (index[t] - index[0]).days / 365.25
+                    flow = (
+                        opening_equity
+                        * net_flow_rate
+                        / 12.0
+                        * (1.0 + flow_growth) ** years
+                    )
+                if equity + flow <= 0:
+                    # The withdrawal is larger than what is left: the account is
+                    # gone, and saying so is more useful than a negative balance.
+                    ruin_date = index[t]
+                    equity_path[t:] = 0.0
+                    leverage_path[t:] = np.nan
+                    return AccountResult(
+                        equity=pd.Series(equity_path, index=index),
+                        leverage=pd.Series(leverage_path, index=index),
+                        calls=pd.DatetimeIndex(calls),
+                        ruined=True,
+                        ruin_date=ruin_date,
+                        target_leverage=target,
+                        contributed=contributed,
+                        flow_months=tuple(flow_months),
+                        flow_amounts=tuple(flow_amounts),
+                    )
+                equity += flow
+                contributed += flow
+                flow_months.append((index[t] - index[0]).days / 30.4375)
+                flow_amounts.append(flow)
+                equity_path[t] = equity
             goal = w if levered else w / target
             desired = equity * goal
             turnover = np.abs(desired - positions).sum()
@@ -198,6 +300,9 @@ def simulate(
         ruined=False,
         ruin_date=None,
         target_leverage=target,
+        contributed=contributed,
+        flow_months=tuple(flow_months),
+        flow_amounts=tuple(flow_amounts),
     )
 
 
