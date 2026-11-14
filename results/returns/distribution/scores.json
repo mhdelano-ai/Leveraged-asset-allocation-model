@@ -1,0 +1,48 @@
+{
+ "label": "Replication on the 12-asset panel, frozen models unchanged; both holdouts already spent, so not out-of-sample evidence",
+ "note": "dist_hm_af was designed after both holdouts had been seen; these scores describe it, they are not out-of-sample evidence. Portfolio rows compare against a portfolio hist_mean analogue (static Gaussian scale).",
+ "periods": {
+  "dev": [
+   "1900-01-31",
+   "2013-12-31"
+  ],
+  "holdout": [
+   "2014-01-31",
+   "2025-10-31"
+  ],
+  "holdout_ap": [
+   "2015-01-31",
+   "2025-10-31"
+  ],
+  "post": [
+   "2025-11-30",
+   "2099-12-31"
+  ],
+  "oos": [
+   "2026-11-30",
+   "2099-12-31"
+  ],
+  "1990s": [
+   "1990-01-01",
+   "1999-12-31"
+  ],
+  "2000s": [
+   "2000-01-01",
+   "2009-12-31"
+  ],
+  "2010s": [
+   "2010-01-01",
+   "2019-12-31"
+  ],
+  "2020s": [
+   "2020-01-01",
+   "2029-12-31"
+  ]
+ },
+ "mt_periods": [
+  "full",
+  "dev",
+  "holdout",
+  "holdout_ap"
+ ]
+}

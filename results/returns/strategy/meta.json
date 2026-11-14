@@ -1,0 +1,192 @@
+{
+ "label": "Replication on the 12-asset panel, frozen models unchanged; both holdouts already spent, so not out-of-sample evidence",
+ "max_date": null,
+ "results_dir": "/home/user/Leveraged-asset-allocation-model/results/returns",
+ "assets": [
+  "us_large",
+  "us_small",
+  "intl_dev",
+  "em",
+  "ust_int",
+  "ust_long",
+  "tips",
+  "ig_credit",
+  "hy_credit",
+  "reits",
+  "gold",
+  "commodities"
+ ],
+ "mean_models": [
+  "ridge_z",
+  "combo_z",
+  "gbm_z",
+  "rf_z",
+  "ens_z",
+  "gbm_z.price",
+  "gbm_z.nohind",
+  "combo_z.nohind"
+ ],
+ "bench_mean": "hist_mean",
+ "cov_model": "af_primary",
+ "risk_models": [
+  "af_primary"
+ ],
+ "static_cov": "sample",
+ "horizons": [
+  12
+ ],
+ "universes": {
+  "all": [],
+  "ex_hy": [
+   "hy_credit"
+  ]
+ },
+ "sixty_forty": [
+  "us_large",
+  "ust_int"
+ ],
+ "rule_settings": {
+  "gamma": 5.0,
+  "max_weight": 1.0,
+  "max_gross": 2.0,
+  "vol_target": 0.1,
+  "timing_cap": 1.5
+ },
+ "cost_bp_one_way": {
+  "us_large": 5,
+  "us_small": 10,
+  "intl_dev": 10,
+  "em": 25,
+  "ust_int": 3,
+  "ust_long": 5,
+  "tips": 10,
+  "ig_credit": 20,
+  "hy_credit": 40,
+  "reits": 20,
+  "gold": 10,
+  "commodities": 10
+ },
+ "cost_new_judgements": {
+  "us_small": "10bp one-way: new asset at the merge, a judgement made then (twice US large caps, for the wider spreads and higher impact of small-cap futures/ETFs, especially in the 1990s); not part of assetpred's pre-declared table"
+ },
+ "financing_spread_annual": 0.005,
+ "boot_reps": 999,
+ "seed": 20261114,
+ "subperiods": [
+  [
+   "1990s",
+   "1990-01-01",
+   "1999-12-31"
+  ],
+  [
+   "2000s",
+   "2000-01-01",
+   "2009-12-31"
+  ],
+  [
+   "2010s",
+   "2010-01-01",
+   "2019-12-31"
+  ],
+  [
+   "2020s",
+   "2020-01-01",
+   "2029-12-31"
+  ]
+ ],
+ "n_strategies": 67,
+ "n_comparisons": 56,
+ "periods": {
+  "dev": [
+   "1900-01-31",
+   "2013-12-31"
+  ],
+  "holdout": [
+   "2014-01-31",
+   "2025-10-31"
+  ],
+  "holdout_ap": [
+   "2015-01-31",
+   "2025-10-31"
+  ]
+ },
+ "period_rule": "periods are ranges of sleeve formation dates (origins): a holding month belongs to (first, last) if every sleeve in its position was formed in it, i.e. formation - 11 months >= first and formation <= last; straddling months are only in 'full'; decades are by holding month",
+ "static_rule": "ew and sixty_forty hold their monthly target (no sleeves) over the same months",
+ "bh_family": [
+  "ridge_z",
+  "combo_z",
+  "gbm_z",
+  "rf_z",
+  "ens_z",
+  "gbm_z.price"
+ ],
+ "not_in_bh_family": [
+  "gbm_z.nohind",
+  "combo_z.nohind"
+ ],
+ "diagnostics": {
+  "first_formation_month": "1990-02-28",
+  "last_month": "2025-11-30",
+  "n_origins": 430,
+  "eligible_assets_first": [
+   "us_large",
+   "us_small",
+   "intl_dev",
+   "ust_int",
+   "ust_long",
+   "ig_credit",
+   "hy_credit",
+   "reits",
+   "gold",
+   "commodities"
+  ],
+  "eligible_assets_last": [
+   "us_large",
+   "us_small",
+   "intl_dev",
+   "em",
+   "ust_int",
+   "ust_long",
+   "tips",
+   "ig_credit",
+   "hy_credit",
+   "reits",
+   "gold",
+   "commodities"
+  ],
+  "avg_eligible_assets": 11.54186046511628,
+  "asset_entry": {
+   "us_large": "1990-01-31",
+   "us_small": "1990-01-31",
+   "intl_dev": "1990-01-31",
+   "em": "1994-06-30",
+   "ust_int": "1990-01-31",
+   "ust_long": "1990-01-31",
+   "tips": "2002-01-31",
+   "ig_credit": "1990-01-31",
+   "hy_credit": "1990-01-31",
+   "reits": "1990-01-31",
+   "gold": "1990-01-31",
+   "commodities": "1990-01-31"
+  },
+  "effective_n_assets_all": 3.715519292432615,
+  "effective_n_assets_all_months": 430,
+  "effective_n_assets_all_12_common_window": 3.54717434322871,
+  "effective_n_assets_all_12_common_window_months": 346,
+  "ac1_monthly_excess": {
+   "us_large": 0.004162268883872425,
+   "us_small": 0.048013360542199346,
+   "intl_dev": 0.0576144060405905,
+   "em": 0.09620707163038986,
+   "ust_int": 0.07577841015202529,
+   "ust_long": 0.06192295417449951,
+   "tips": -0.020718973409901763,
+   "ig_credit": 0.025297385104863332,
+   "hy_credit": 0.033146745595115976,
+   "reits": 0.02593260388922411,
+   "gold": -0.06697188683749689,
+   "commodities": 0.10129382545453665
+  }
+ },
+ "runtime_s": 16.0
+}

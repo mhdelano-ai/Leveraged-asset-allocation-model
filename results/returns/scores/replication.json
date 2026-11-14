@@ -1,0 +1,93 @@
+{
+ "label": "Replication on the 12-asset panel, frozen models unchanged; both holdouts already spent, so not out-of-sample evidence",
+ "frozen_at": "2026-11-14",
+ "oos_origin_start": "2026-11-30",
+ "models": [
+  "hist_mean",
+  "vol_ewma",
+  "hist_quantile",
+  "vol_ewma_fhs",
+  "zero",
+  "ridge_z",
+  "combo_z",
+  "gbm_z",
+  "rf_z",
+  "ens_z",
+  "gbm_z.price",
+  "gbm_z.nohind",
+  "combo_z.nohind"
+ ],
+ "horizons": [
+  12
+ ],
+ "max_date": null,
+ "settings": {
+  "oos_start": "1990-01-31",
+  "refit_every": 12,
+  "min_history": 60,
+  "end": null
+ },
+ "periods": {
+  "dev": [
+   "1900-01-31",
+   "2013-12-31"
+  ],
+  "holdout": [
+   "2014-01-31",
+   "2025-10-31"
+  ],
+  "holdout_ap": [
+   "2015-01-31",
+   "2025-10-31"
+  ],
+  "post": [
+   "2025-11-30",
+   "2099-12-31"
+  ],
+  "oos": [
+   "2026-11-30",
+   "2099-12-31"
+  ],
+  "1990s": [
+   "1990-01-01",
+   "1999-12-31"
+  ],
+  "2000s": [
+   "2000-01-01",
+   "2009-12-31"
+  ],
+  "2010s": [
+   "2010-01-01",
+   "2019-12-31"
+  ],
+  "2020s": [
+   "2020-01-01",
+   "2029-12-31"
+  ]
+ },
+ "mt_periods": [
+  "full",
+  "dev",
+  "holdout",
+  "holdout_ap"
+ ],
+ "feature_columns": 82,
+ "assets": [
+  "us_large",
+  "us_small",
+  "intl_dev",
+  "em",
+  "ust_int",
+  "ust_long",
+  "tips",
+  "ig_credit",
+  "hy_credit",
+  "reits",
+  "gold",
+  "commodities"
+ ],
+ "first_return": "1926-07-31",
+ "last_return": "2026-10-31",
+ "data": "2625877c90ca82ce",
+ "reps": 999
+}
