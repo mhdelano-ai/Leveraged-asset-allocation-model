@@ -387,7 +387,6 @@ def cov_columns_path(name: str = COV_NAME, horizon: int = 12) -> Path:
 
 # ------------------------------------------------------------------ CLI
 def main(argv=None):
-    global paths
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--model", default=PRIMARY)
     ap.add_argument("--bridge", default=BRIDGE)
@@ -398,7 +397,7 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if a.max_date:
         os.environ[_MAX_ENV] = str(pd.Timestamp(a.max_date).date())
-        paths = importlib.reload(paths)
+        importlib.reload(paths)   # RESULTS_COV / RESULTS_RETURNS move under results/dev
     hist, origins = build(a.model, a.bridge, a.results)
     checks = check_matrices(hist)
     if not checks["all_pd"]:
