@@ -4,8 +4,8 @@ import pytest
 
 from volmodel.data.synthetic import make_synthetic_panel
 from volmodel.eval.harness import load_forecasts_long, run_model
-from volmodel.eval.losses import (compute_losses, corr_losses, cov_losses, loss_matrix, scoreboard,
-                                  vol_losses)
+from volmodel.eval.losses import (DEFAULT_SUBSETS, _qlike_frob, compute_losses, corr_losses, cov_losses,
+                                  loss_matrix, robustness_note, scoreboard, vol_losses)
 from volmodel.eval.targets import Targets, compute_targets
 from volmodel.models.base import CorrForecaster, CovForecaster, VolForecaster
 
@@ -56,7 +56,7 @@ class OracleCov(CovForecaster):
         return pd.DataFrame(C * np.outer(v, v) * self.k, index=assets, columns=assets)
 
 
-def test_oracle_scores_zero(setup):
+def test_oracle_scores_perfectly(setup):
     p, T, rd = setup
     run_model(OracleVol(T), "vol", p, results_dir=rd)
     run_model(OracleCorr(T), "corr", p, results_dir=rd)
@@ -70,22 +70,81 @@ def test_oracle_scores_zero(setup):
     Lv = compute_losses("cov", ["t_oracle_cov"], T, rd)
     pooled = Lv["pooled"]
     assert set(pooled["subset"]) >= {"daily", "stock_bond", "full12"}
-    assert np.abs(pooled[["stein", "frob_scaled"]].to_numpy()).max() < 1e-9
-    assert pooled["target_pd"].all()
+    assert list(pooled.columns[-3:]) == ["qlike_rel", "qlike", "frob_scaled"]
+    assert np.abs(pooled["frob_scaled"]).max() < 1e-20
+    # H = S: the un-normalized QLIKE is (log det S + N) / N, and qlike_rel = log det(C_r) / N
+    # (<= 0 by Hadamard) - per-origin constants that do not depend on any model
+    fc = load_forecasts_long("cov", "t_oracle_cov", rd)
+    for r in pooled.sample(20, random_state=0).itertuples():
+        have = set(fc.loc[fc["origin"] == r.origin, "asset_i"])
+        members = have if r.subset == "daily" else set(DEFAULT_SUBSETS[r.subset])
+        S = T.cov_array(r.origin, [a for a in T.complete_daily_set(r.origin) if a in have and a in members])
+        assert len(S) == r.dim
+        d = np.sqrt(np.diag(S))
+        assert r.qlike == pytest.approx((np.linalg.slogdet(S)[1] + len(S)) / len(S), rel=1e-9, abs=1e-9)
+        assert r.qlike_rel == pytest.approx(np.linalg.slogdet(S / np.outer(d, d))[1] / len(S), abs=1e-9)
+    assert (pooled["qlike_rel"] <= 1e-12).all()
     # the cov model's implied vols score zero against the vol targets on daily rows
     Lx = compute_losses("vol", ["cov:t_oracle_cov"], T, rd)
     assert np.abs(Lx["asset"]["qlike"]).max() < 1e-12
 
 
-def test_stein_is_dimension_comparable(setup):
+def test_qlike_differences_are_dimension_comparable(setup):
     p, T, rd = setup
     k = 1.3
     fc = load_forecasts_long("cov", "t_oracle_cov", rd)
-    fc = fc.assign(cov=fc["cov"] * k)
-    pooled = cov_losses(fc, T, "scaled")["pooled"]
+    base = cov_losses(fc, T, "base")["pooled"]
+    pooled = cov_losses(fc.assign(cov=fc["cov"] * k), T, "scaled")["pooled"]
     expected = 1 / k + np.log(k) - 1
-    assert np.allclose(pooled["stein"], expected)
+    assert np.allclose(pooled["qlike"] - base["qlike"], expected)
+    assert np.allclose(pooled["qlike_rel"] - base["qlike_rel"], expected)
     assert pooled["dim"].nunique() >= 3                  # same value at every dimension
+
+
+def test_qlike_rel_of_diagonal_forecast_is_mean_vol_qlike():
+    rng = np.random.default_rng(1)
+    A = rng.standard_normal((40, 5))
+    S = A.T @ A / 40
+    h = np.diag(S) * rng.uniform(0.5, 2.0, 5)
+    q, qr, _ = _qlike_frob(np.diag(h), S, np.ones(5))
+    x = np.diag(S) / h
+    assert qr == pytest.approx(np.mean(x - np.log(x) - 1), rel=1e-12)
+    assert q - qr == pytest.approx((np.log(np.diag(S)).sum() + 5) / 5)
+
+
+def test_true_expected_matrix_scores_lowest_on_average():
+    """With a noisy-but-unbiased realized matrix (here ~15 effective observations
+    for 8 assets, like a 12-month window of 21-day returns) the un-normalized
+    QLIKE no longer scores the truth at zero, but E[loss] is minimized by
+    E[S]; so is the fixed-scale Frobenius loss. Losses that invert or take
+    log det of the realized matrix would not be usable here: it is often
+    near-singular."""
+    rng = np.random.default_rng(0)
+    n, dof, reps = 8, 15, 4000
+    vols = np.linspace(0.05, 0.25, n)
+    B = rng.standard_normal((n, 2))
+    C = B @ B.T + np.eye(n)
+    d = np.sqrt(np.diag(C))
+    C = C / np.outer(d, d)
+    Sig = C * np.outer(vols, vols)
+    Lc = np.linalg.cholesky(Sig)
+    Z = rng.standard_normal((reps, dof, n)) @ Lc.T
+    S_draws = np.einsum("rti,rtj->rij", Z, Z) / dof                    # E[S] = Sig
+    cond = np.linalg.cond(S_draws)
+    assert np.median(cond) > 2 * np.linalg.cond(Sig)                  # realized matrices are ill-conditioned
+    cands = {"true": Sig, "low": 0.8 * Sig, "high": 1.25 * Sig,
+             "corr_shrunk": (0.5 * C + 0.5 * np.eye(n)) * np.outer(vols, vols),
+             "corr_extreme": (1.3 * C - 0.3 * np.eye(n)) * np.outer(vols, vols),
+             "vols_tilted": C * np.outer(vols * np.linspace(0.85, 1.15, n), vols * np.linspace(0.85, 1.15, n))}
+    for nm, H in cands.items():
+        assert np.linalg.eigvalsh(H).min() > 0, nm
+    res = {nm: np.mean([_qlike_frob(H, S, vols)[0:3:2] for S in S_draws[:1500]], axis=0)
+           for nm, H in cands.items()}
+    q = {nm: v[0] for nm, v in res.items()}
+    fr = {nm: v[1] for nm, v in res.items()}
+    assert min(q, key=q.get) == "true" and min(fr, key=fr.get) == "true"
+    assert q["true"] > (np.linalg.slogdet(Sig)[1] + n) / n - 1e-9 - 0.01   # E qlike(true) = (log det Sig + N) / N
+    assert q["true"] == pytest.approx((np.linalg.slogdet(Sig)[1] + n) / n, abs=0.01)
 
 
 def test_qlike_minimized_by_true_variance_under_noisy_proxy():
@@ -137,6 +196,9 @@ def test_corr_losses_and_scoreboard_common_origins(setup):
     assert ov.loc["t_biased", "log_err"] == pytest.approx(np.log(1.2))
     assert list(sb["by_era"].columns) == ["start..1999-12", "2000-01..end"]
     assert sb["by_asset"].shape[0] == 2
+    # the non-robust metrics are flagged wherever the scoreboard is shown
+    note = ov.attrs["note"]
+    assert note == robustness_note("vol", list(ov.columns)) and "se_logvol" in note and "log_err" in note and "qlike " not in note
     # corr: identity forecast vs realized gives err = -corr_r
     fc = load_forecasts_long("corr", "t_oracle_corr", rd)
     eye = fc.assign(corr=(fc["asset_i"] == fc["asset_j"]).astype(float))

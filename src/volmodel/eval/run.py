@@ -1,10 +1,10 @@
 """Command line for the evaluation core.
 
-    python -m volmodel.eval.run targets [--synthetic] [--rebuild]
+    python -m volmodel.eval.run targets [--synthetic] [--rebuild] [--horizon-days 21]
     python -m volmodel.eval.run forecast --kind vol --model NAME [NAME ...] | --all
            [--start YYYY-MM-DD] [--end YYYY-MM-DD] [--step K] [--jobs J] [--synthetic] [--force]
     python -m volmodel.eval.run score --kind vol [--models A B cov:C ...] [--subset daily]
-           [--eras 1999-12-31 2009-12-31] [--synthetic]
+           [--eras 1999-12-31 2009-12-31] [--synthetic] [--horizon-days 21]
 
 ``--synthetic`` uses ``make_synthetic_panel(seed=0)`` and writes under
 ``results/synthetic/`` so test runs never touch real results.
@@ -20,7 +20,7 @@ import pandas as pd
 from ..paths import RESULTS
 from .harness import KINDS, _panel_from_source, run_models, stored_models
 from .losses import PRIMARY, compute_losses, coverage_summary, scoreboard
-from .targets import get_targets
+from .targets import HORIZON_DAYS, get_targets
 
 
 def _results_dir(synthetic: bool):
@@ -34,10 +34,11 @@ def _source(synthetic: bool) -> str:
 def cmd_targets(a) -> int:
     panel = _panel_from_source(_source(a.synthetic))
     t0 = time.perf_counter()
-    T = get_targets(panel, _results_dir(a.synthetic), rebuild=a.rebuild)
+    T = get_targets(panel, _results_dir(a.synthetic), rebuild=a.rebuild, horizon_days=a.horizon_days)
     dt = time.perf_counter() - t0
     v = T.vol
-    print(f"targets in {_results_dir(a.synthetic) / 'targets'} ({dt:.2f}s)")
+    print(f"targets ({T.meta['horizon_days']}-day definition, version {T.meta['version']}) "
+          f"in {_results_dir(a.synthetic)} ({dt:.2f}s)")
     print(f"observed through {T.meta['observed_through']}; origins {v['origin'].min():%Y-%m}..{v['origin'].max():%Y-%m}"
           f" ({v['origin'].nunique()}); vol rows {len(v)} ({int(v['proxy'].sum())} monthly proxy);"
           f" corr pairs {len(T.corr)}")
@@ -71,7 +72,7 @@ def cmd_score(a) -> int:
     if not models:
         print(f"no stored {a.kind} forecasts in {rd / 'forecasts' / a.kind}", file=sys.stderr)
         return 2
-    T = get_targets(_panel_from_source(_source(a.synthetic)), rd)
+    T = get_targets(_panel_from_source(_source(a.synthetic)), rd, horizon_days=a.horizon_days)
     L = compute_losses(a.kind, models, T, rd)
     sb = scoreboard(L, a.kind, subset=a.subset, eras=a.eras)
     with pd.option_context("display.width", 220, "display.max_columns", 50,
@@ -79,6 +80,8 @@ def cmd_score(a) -> int:
         print(f"== {a.kind} scoreboard, subset={a.subset!r}, primary={PRIMARY[a.kind]} "
               f"(common origins only) ==")
         print(sb["overall"].to_string())
+        if sb["overall"].attrs.get("note"):
+            print(sb["overall"].attrs["note"])
         for k in ("by_era", "by_asset"):
             if k in sb:
                 print(f"\n-- {k} ({PRIMARY[a.kind]}) --")
@@ -93,6 +96,7 @@ def main(argv=None) -> int:
     t = sub.add_parser("targets", help="compute and cache realized targets")
     t.add_argument("--synthetic", action="store_true")
     t.add_argument("--rebuild", action="store_true")
+    t.add_argument("--horizon-days", type=int, default=HORIZON_DAYS)
 
     f = sub.add_parser("forecast", help="walk-forward forecasts for registered models")
     f.add_argument("--kind", required=True, choices=KINDS)
@@ -111,6 +115,7 @@ def main(argv=None) -> int:
     s.add_argument("--subset", default="daily")
     s.add_argument("--eras", nargs="+")
     s.add_argument("--synthetic", action="store_true")
+    s.add_argument("--horizon-days", type=int, default=HORIZON_DAYS)
 
     a = ap.parse_args(argv)
     return {"targets": cmd_targets, "forecast": cmd_forecast, "score": cmd_score}[a.cmd](a)

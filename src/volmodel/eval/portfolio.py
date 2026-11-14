@@ -3,8 +3,8 @@ used the way planners use it, to build portfolios and predict their risk?
 
 Statistical losses on individual vols and correlations live elsewhere in
 ``volmodel.eval``. This module asks four questions of each forecast matrix
-``H_t`` (annualized covariance of daily log excess returns over the window
-``(t, t + 12 months]``, see ARCHITECTURE.md):
+``H_t`` (annualized covariance of overlapping 21-trading-day log excess
+returns over the window ``(t, t + 12 months]``, see ARCHITECTURE.md):
 
 1. **Risk prediction.** For a fixed set of portfolios built from ``H_t``,
    is the predicted vol ``sqrt(w'H w)`` close to the vol realized in the
@@ -29,26 +29,35 @@ Conventions (all binding for interpretation of the numbers)
   in the ``dropped`` column of every output row.
 * **Holding rule.** Weights are held FIXED with DAILY rebalancing over the
   whole window. Portfolio daily log excess return is approximated by the
-  weighted sum of asset daily log excess returns, ``r_p = w'r``. Under that
-  rule realized portfolio variance is the quadratic form ``w' S w`` with a
-  realized covariance ``S``.
-* **Realized measure.** PRIMARY: ``S = D C D`` exactly as the ``cov_rv``
-  target: variances are uncentered ``sum(r^2) * 252 / n_obs`` from daily
-  returns; correlations come from overlapping 3-day log excess returns
-  (uncentered by default) to undo the asynchronous-close bias. DIRECT
-  (secondary, ``*_direct`` metrics): ``S = X'X * 252 / n_days`` from
-  same-day daily returns with missing days set to 0 (this is exactly the
-  uncentered realized variance of the daily series ``r_p = w'r``); it is
-  biased low for portfolios mixing US and non-US assets.
+  weighted sum of asset daily log excess returns, ``r_p = w'r``, so its
+  21-day log excess return is ``w's`` (``s`` = the assets' 21-day sums).
+  Realized portfolio variance is then the quadratic form ``w' S w``.
+* **Realized measure.** PRIMARY: ``S`` is exactly the ``cov_rv`` target
+  matrix (``targets.realized_kday_cov``): ``(252/21) * mean s s'`` over the
+  overlapping 21-day sums lying inside the window, uncentered. So
+  ``w'Sw`` is the uncentered annualized variance of the portfolio's
+  overlapping 21-day returns. It is insensitive to asynchronous closes and
+  to smoothed / overreacting pricing conventions, and as noisy as the target
+  (~17% SE on a realized vol). DIRECT (secondary, ``*_direct`` metrics,
+  DIAGNOSTIC ONLY): ``S = X'X * 252 / n_days`` from same-day 1-day returns
+  with missing days set to 0. It is CONVENTION-DEPENDENT: it depends on how
+  each source is priced (smoothed NAVs read low, ETFs of foreign/illiquid
+  assets read high), is biased low for portfolios mixing US and non-US
+  assets, and is NOT what forecasts target; never rank models on it.
 * **Missing data.** An asset is in the window's daily test universe if it
   has a daily observation on at least ``min_coverage`` (default 90%) of the
-  window's panel days. Isolated missing days of kept assets (holidays) are
-  treated as zero returns in the 3-day sums and in the direct measure.
+  window's panel days and at least ``min_days_per_month`` (10) in every
+  calendar month of the window (the same rules as the targets). Missing
+  days of kept assets mean "did not trade; the next return spans the gap",
+  so they contribute 0 to the 21-day sums and to the direct measure.
 * **Losses** (``PV`` predicted variance, ``RV`` realized variance):
-  ``log_ratio = log(sqrt(RV)/sqrt(PV))`` (bias statistic; 0 is unbiased,
-  > 0 means risk was under-predicted); ``qlike = RV/PV - log(RV/PV) - 1``
-  (Patton's robust QLIKE, >= 0, 0 when exact); ``sq_log_err = log(RV/PV)^2``
-  (on VARIANCES, = 4 * log_ratio^2).
+  ``qlike = RV/PV - log(RV/PV) - 1`` (Patton's robust QLIKE, >= 0, 0 when
+  exact) and ``var_ratio = RV/PV`` (bias statistic whose mean is 1 for an
+  unbiased forecast) are consistent under the noisy realized measure.
+  ``log_ratio = log(sqrt(RV)/sqrt(PV))`` and ``sq_log_err = log(RV/PV)^2``
+  are NOT: with ~17% noise on a realized vol a perfect forecast has mean
+  ``log_ratio`` of about -0.03 (Jensen) and ``sq_log_err`` favours
+  forecasts biased low. Read them as descriptive only.
 * **Turnover** of optimized weights is one-way, ``0.5 * sum|w_t - w_{t-1}|``
   between consecutive month-end origins of the same model (target weights,
   ignoring drift; assets entering or leaving the universe count as trades).
@@ -69,6 +78,7 @@ import pandas as pd
 from ..data.panel import Panel
 from ..paths import FORECASTS
 from ..universe import ASSET_IDS, HORIZON_MONTHS, TRADING_DAYS
+from .targets import HORIZON_DAYS, MIN_DAILY_FRAC, MIN_DAYS_PER_MONTH, realized_kday_cov
 
 __all__ = [
     "POLICIES", "PORTFOLIOS", "METRICS",
@@ -105,17 +115,18 @@ PORTFOLIOS = (*DETERMINISTIC, *POLICIES, "random", VT_NAME)       # names when r
 
 METRICS = (
     "pred_vol",          # sqrt(w'Hw)
-    "real_vol",          # sqrt(w'DCDw), primary realized
-    "real_var",          # w'DCDw (Engle-Colacito: lower is better for gmv/gmv_long)
-    "log_ratio",         # log(real_vol / pred_vol), bias statistic
-    "qlike",             # RV/PV - log(RV/PV) - 1 on variances
-    "sq_log_err",        # log(RV/PV)^2 on variances
-    "real_vol_direct",   # sqrt of uncentered realized variance of same-day w'r
+    "real_vol",          # sqrt(w'Sw), S = realized 21-day target matrix (primary)
+    "real_var",          # w'Sw (Engle-Colacito: lower is better for gmv/gmv_long)
+    "log_ratio",         # log(real_vol / pred_vol), bias statistic (NOT noise-robust: < 0 on average when exact)
+    "qlike",             # RV/PV - log(RV/PV) - 1 on variances (robust)
+    "sq_log_err",        # log(RV/PV)^2 on variances (NOT noise-robust)
+    "real_vol_direct",   # DIAGNOSTIC, convention-dependent: sqrt of uncentered 1-day variance of same-day w'r
     "log_ratio_direct",
     "qlike_direct",
     "gross",             # sum |w| (leverage for erc_vt, short exposure for gmv)
     "turnover",          # 0.5 * sum |w_t - w_{t-1}| (optimized portfolios only)
     "vt_abs_err",        # |real_vol - target| (erc_vt only)
+    "var_ratio",         # RV/PV (robust bias statistic: mean 1 when unbiased)
 )
 _M = {m: i for i, m in enumerate(METRICS)}
 
@@ -361,8 +372,9 @@ class RealizedWindow:
 
     assets        daily test universe (panel column order)
     dropped       panel assets with insufficient daily data in the window
-    cov           primary realized covariance D C D (annualized), aligned to ``assets``
-    cov_direct    X'X * 252 / n_days from same-day returns (missing = 0)
+    cov           primary realized covariance: the 21-day target matrix, aligned to ``assets``
+    cov_direct    DIAGNOSTIC: X'X * 252 / n_days from same-day 1-day returns (missing = 0);
+                  depends on the sources' pricing conventions
     n_days        panel daily rows in the window
     complete      the daily window is fully observed in the panel
     annual_assets assets with all 12 monthly observations in the window
@@ -389,10 +401,13 @@ class RealizedCache:
     """Computes and memoizes ``RealizedWindow`` per origin (shared across models).
 
     Reads only ``panel.excess_daily`` / ``panel.excess_monthly``.
+    ``horizon_days`` is the target's summing horizon (21); coverage defaults
+    match ``volmodel.eval.targets``.
     """
 
-    def __init__(self, panel: Panel, *, min_coverage: float = 0.9, overlap: int = 3,
-                 center_corr: bool = False, min_days: int = 100):
+    def __init__(self, panel: Panel, *, min_coverage: float = MIN_DAILY_FRAC,
+                 horizon_days: int = HORIZON_DAYS, min_days_per_month: int = MIN_DAYS_PER_MONTH,
+                 min_days: int = 100):
         xd = panel.excess_daily
         xm = panel.excess_monthly
         self.columns = list(xd.columns)
@@ -401,8 +416,9 @@ class RealizedCache:
         self.m_columns = list(xm.columns)
         self.m_index = xm.index
         self.m_values = xm.to_numpy(dtype=float)
-        self.min_coverage, self.overlap = min_coverage, overlap
-        self.center_corr, self.min_days = center_corr, min_days
+        self.min_coverage, self.horizon_days = min_coverage, int(horizon_days)
+        self.min_days_per_month, self.min_days = min_days_per_month, min_days
+        self._month_code = (self.d_index.year * 12 + self.d_index.month).to_numpy()
         self._memo: dict[pd.Timestamp, RealizedWindow] = {}
 
     def get(self, origin) -> RealizedWindow:
@@ -420,26 +436,22 @@ class RealizedCache:
         complete = len(idx) > 0 and idx[-1] >= pd.offsets.BDay().rollback(end)
         X = self.d_values[lo:hi]
         n_days = X.shape[0]
-        nobs = np.isfinite(X).sum(axis=0)
-        keep = (nobs >= max(self.min_coverage * n_days, self.min_days)) if complete else np.zeros(len(self.columns), bool)
+        okX = np.isfinite(X)
+        nobs = okX.sum(axis=0)
+        if complete and n_days >= self.horizon_days:
+            _, inv = np.unique(self._month_code[lo:hi], return_inverse=True)
+            per_month = np.zeros((inv.max() + 1, X.shape[1]))
+            np.add.at(per_month, inv, okX.astype(float))
+            keep = (nobs >= max(self.min_coverage * n_days, self.min_days)) \
+                & (per_month.min(axis=0) >= self.min_days_per_month)
+        else:
+            keep = np.zeros(len(self.columns), bool)
         assets = tuple(a for a, k in zip(self.columns, keep) if k)
         dropped = tuple(a for a, k in zip(self.columns, keep) if not k)
         if assets:
             Xk = X[:, keep]
+            cov, _ = realized_kday_cov(Xk, self.horizon_days)
             X0 = np.where(np.isfinite(Xk), Xk, 0.0)
-            var = (X0 ** 2).sum(axis=0) * TRADING_DAYS / nobs[keep]
-            k = self.overlap
-            S = X0[k - 1:].copy()
-            for j in range(1, k):
-                S += X0[k - 1 - j:n_days - j]
-            if self.center_corr:
-                S = S - S.mean(axis=0)
-            G = S.T @ S
-            dg = np.sqrt(np.diag(G))
-            C = G / np.outer(dg, dg)
-            np.fill_diagonal(C, 1.0)
-            sd = np.sqrt(var)
-            cov = C * np.outer(sd, sd)
             cov_direct = X0.T @ X0 * TRADING_DAYS / n_days
         else:
             cov = cov_direct = np.empty((0, 0))
@@ -492,6 +504,8 @@ def _fill_metrics(out: np.ndarray, W: np.ndarray, H: np.ndarray, S: np.ndarray, 
     out[:, _M["log_ratio_direct"]] = lrd
     out[:, _M["qlike_direct"]] = qld
     out[:, _M["gross"]] = np.abs(W).sum(axis=1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        out[:, _M["var_ratio"]] = rv / pv
 
 
 def _subset(cov: pd.DataFrame, universe: tuple) -> tuple[list, list, np.ndarray | None]:
@@ -530,7 +544,7 @@ def score_portfolios(panel: Panel, forecasts: Mapping[str, Mapping], *,
     ----------
     panel        full Panel (realized returns are read from it, never weights)
     forecasts    ``{model: {origin: N x N DataFrame}}`` of annualized covariance
-                 of daily log excess returns (use ``cov_forecasts_from_long`` /
+                 of 21-day log excess returns (the ``cov_rv`` target) (use ``cov_forecasts_from_long`` /
                  ``load_cov_forecasts`` for the stored parquet format)
     cache        a shared ``RealizedCache`` (pass one when scoring models in
                  several calls; it also sets ``min_coverage`` etc.)

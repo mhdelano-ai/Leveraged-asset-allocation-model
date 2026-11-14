@@ -6,6 +6,7 @@ import pytest
 from volmodel.data.panel import PREDICTOR_COLUMNS, Panel
 from volmodel.data.synthetic import make_synthetic_panel
 from volmodel.eval import portfolio as pf
+from volmodel.eval.targets import compute_targets
 from volmodel.universe import ASSET_IDS
 
 VOLS = np.array([0.16, 0.21, 0.17, 0.23, 0.06, 0.12, 0.06, 0.07, 0.09, 0.20, 0.16, 0.18])
@@ -72,18 +73,27 @@ def test_true_matrix_unbiased_and_beats_wrong(setup):
                                       "corr": const_forecasts(origins, wrong_corr)}, cache=cache)
     ports = [p for p in pf.PORTFOLIOS]
     assert set(res.portfolio.astype(str)) == set(ports)
+    n_checked = 0
     for p in ports:
-        assert abs(_mean(res, "true", p, "log_ratio")) < 0.02, p
+        # unbiased on the variance scale; log_ratio is biased low by the target's noise (Jensen)
+        assert abs(_mean(res, "true", p, "var_ratio") - 1) < 0.1, p
+        assert -0.06 < _mean(res, "true", p, "log_ratio") < 0.02, p    # E = -0.03
         for wrong in ("scale", "corr"):
+            # only where the wrong matrix predicts a materially different risk for this portfolio
+            # (e.g. shrinking correlations barely changes 60/40, whose stock-bond corr is ~0)
+            if abs(np.log(_mean(res, wrong, p, "pred_vol") / _mean(res, "true", p, "pred_vol"))) < 0.05:
+                continue
+            n_checked += 1
             for metric in ("qlike", "sq_log_err"):
                 assert _mean(res, "true", p, metric) < _mean(res, wrong, p, metric), (p, wrong, metric)
             r = res[(res.portfolio == p) & (res.metric == "log_ratio")]
             assert r[r.model == "true"].value.abs().mean() < r[r.model == wrong].value.abs().mean()
+    assert n_checked >= 2 * len(ports) - 4
     # Engle-Colacito: true GMV realizes lower variance than GMV from wrong correlations
     for p in ("gmv", "gmv_long"):
         assert _mean(res, "true", p, "real_var") < _mean(res, "corr", p, "real_var")
-    # vol targeting lands near 10% with the true matrix
-    assert abs(_mean(res, "true", "erc_vt", "real_vol") - 0.10) < 0.003
+    # vol targeting lands near 10% with the true matrix (on the variance scale)
+    assert abs(_mean(res, "true", "erc_vt", "real_var") / 0.10 ** 2 - 1) < 0.1
     assert _mean(res, "true", "erc_vt", "vt_abs_err") < _mean(res, "scale", "erc_vt", "vt_abs_err")
     # constant forecasts -> zero turnover after the first origin
     t = res[(res.model == "true") & (res.metric == "turnover")]
@@ -113,15 +123,22 @@ def test_realized_cov_matches_target_definition(setup):
     rw = cache.get(t)
     X = panel.excess_daily.loc[(panel.excess_daily.index > t) & (panel.excess_daily.index <= rw.end)]
     assert rw.end == pd.Timestamp("2001-06-30") and rw.n_days == len(X)
-    var = (X ** 2).sum() * 252 / len(X)
-    S3 = X.rolling(3).sum().dropna()
-    G = S3.T @ S3
-    Cr = G / np.sqrt(np.outer(np.diag(G), np.diag(G)))
-    expected = Cr.values * np.sqrt(np.outer(var, var))
-    assert np.allclose(rw.cov, expected)
+    S21 = X.rolling(21).sum().dropna()                               # overlapping 21-day sums in the window
+    expected = S21.T @ S21 * (252 / 21) / len(S21)
+    assert np.allclose(rw.cov, expected, rtol=1e-12)
+    # realized portfolio variance = uncentered annualized variance of the portfolio's 21-day returns
+    w = np.linspace(1, 2, 12) / np.linspace(1, 2, 12).sum()
+    assert w @ rw.cov @ w == pytest.approx(((S21 @ w) ** 2).mean() * 252 / 21, rel=1e-12)
     assert np.allclose(rw.cov_direct, X.T @ X * 252 / len(X))
-    # an annualized realized vol is near the truth
-    assert np.allclose(np.sqrt(np.diag(rw.cov)), np.sqrt(np.diag(S)), rtol=0.15)
+    # ... and it is the very matrix the cov_rv target uses
+    T = compute_targets(panel)
+    for o in (t, pd.Timestamp("1995-12-31"), pd.Timestamp("2007-03-31")):
+        r = cache.get(o)
+        assert list(r.assets) == T.daily_assets(o)
+        assert np.allclose(r.cov, T.cov_array(o, list(r.assets)), rtol=1e-10, atol=0)
+    # realized vols are unbiased for the truth on average (each one has ~17% noise)
+    V = np.array([np.diag(cache.get(o).cov) for o in origins_of(panel)[::3]])
+    assert abs(np.mean(V.mean(axis=0) / np.diag(S)) - 1) < 0.05
     # a window running past the panel end is not complete and is skipped
     assert not cache.get(pd.Timestamp("2009-06-30")).complete
 

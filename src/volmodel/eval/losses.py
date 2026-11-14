@@ -1,5 +1,16 @@
 """Per-origin losses from stored forecasts and cached targets, plus a scoreboard.
 
+The realized target is the annualized covariance of overlapping 21-day log
+excess returns over the next 12 months (see ``targets``). It is UNBIASED but
+NOISY: about 17% standard error on a realized vol, and the realized matrix
+rests on only ~12-18 effective independent observations for up to 12 assets,
+so its small eigenvalues are badly estimated. Every loss below is therefore
+judged by one property: is its expectation, under a noisy-but-unbiased
+realized matrix, minimized by the true expected matrix E[Sigma]? (Patton
+2011; Laurent, Rombouts and Violante 2013.) Losses that are NOT are flagged
+in :data:`NOT_ROBUST`, printed by the CLI scoreboard, and should be read as
+descriptive only.
+
 All loss frames are TIDY: one row per (model, origin[, asset | pair | subset])
 with loss columns, so the inference code can pivot to origin x model with
 :func:`loss_matrix`. Every row carries ``origin``, ``dim`` (number of assets
@@ -7,28 +18,30 @@ behind the row) and the proxy information (``proxy`` for per-asset rows,
 ``n_proxy`` / ``n_proxy_excluded`` for pooled rows).
 
 Vol (per asset; v = variance, s = vol; f = forecast, r = realized)
-    qlike         v_r/v_f - log(v_r/v_f) - 1      (0 iff perfect; scale-free)
-    se_vol        (s_f - s_r)^2                   (scale-DEPENDENT)
+    qlike         v_r/v_f - log(v_r/v_f) - 1      (scale-free; ROBUST; headline)
+    se_var_scaled ((v_f - v_r) / c_a^2)^2         (MSE on variance, fixed scale; ROBUST)
     se_vol_scaled ((s_f - s_r) / c_a)^2, c_a = the asset's mean realized vol
-                  over all origins (a fixed constant per asset)
-    se_var_scaled ((v_f - v_r) / c_a^2)^2  (MSE on variance, fixed scale)
-    se_logvol     (log s_f - log s_r)^2           (scale-free)
-    log_err       log(s_f / s_r)                  (signed bias; > 0 = over-forecast)
+                  over all origins (a fixed constant per asset)   NOT robust
+    se_vol        (s_f - s_r)^2                   (scale-DEPENDENT)  NOT robust
+    se_logvol     (log s_f - log s_r)^2           (scale-free)       NOT robust
+    log_err       log(s_f / s_r)                  (signed bias; > 0 = over-forecast)  NOT robust
+
+Robustness of the vol losses. QLIKE and MSE on VARIANCE are minimized in
+expectation by s_f^2 = E[v_r] for any unbiased variance proxy. Losses on vol
+or log vol are minimized by E[s_r] or exp(E[log s_r]) instead, which lie
+BELOW sqrt(E[v_r]) by Jensen's inequality: with the 21-day target's noise
+(~17% SE on a vol) se_logvol is minimized by a forecast ~3% too low and
+se_vol by one ~1.5% too low, and ``log_err`` of a perfect forecast averages
+about +0.03 rather than 0. This now applies to EVERY row (daily-based targets
+are noisy too, not only monthly-proxy rows). Use ``qlike`` / ``se_var_scaled``
+for rankings; read ``log_err`` as a bias statistic only after allowing for
+that offset (or use the variance ratio, ``mean(v_r) / mean(v_f)``).
 
 Pooling across assets (vol): equal-weight MEAN over the assets in a subset.
 QLIKE and log errors are scale-free, so an equal-weight mean treats a 6% vol
 bond fund and a 25% vol EM fund alike. Plain ``se_vol`` is dominated by the
-high-vol assets, so it is reported but the comparable pooled MSE is
-``se_vol_scaled``: dividing by a fixed per-asset constant keeps it a
-consistent loss under noisy unbiased targets (Patton 2011) — unlike dividing
-by the realized value, which would not. QLIKE is the headline metric.
-
-Robustness to target noise (matters for monthly-proxy rows): QLIKE and MSE on
-VARIANCE (``se_var_scaled``) rank forecasts correctly under any unbiased
-variance proxy (Patton 2011). Squared errors of vol / log vol and ``log_err``
-are NOT robust: with a noisy proxy they favour forecasts biased towards the
-proxy's median. They are fine on daily-based targets (small noise) but read
-them on the "daily" subset; ``log_err`` on proxy rows is biased downwards.
+high-vol assets; dividing by a FIXED per-asset constant (``se_*_scaled``)
+keeps a loss's consistency property, unlike dividing by the realized value.
 
 Subsets (rows of the ``pooled`` frames, column ``subset``):
     "daily"   all assets with a DAILY-based target at that origin (vol/corr/cov)
@@ -39,16 +52,37 @@ Subsets (rows of the ``pooled`` frames, column ``subset``):
               like. ``n_proxy`` counts proxy targets inside a vol subset.
 Because the eligible set grows through time, compare eras on a named subset.
 
-Corr: per pair ``err = corr_f - corr_r``, ``se = err^2`` on pairs with a
-realized value (both assets daily-based); pooled ``mse`` (mean over pairs) and
-``bias`` (mean err).
+Corr: per pair ``err = corr_f - corr_r``, ``se = err^2`` against the realized
+21-day correlation (both assets daily-based); pooled ``mse`` (mean over
+pairs) and ``bias`` (mean err). A single realized correlation from ~12-18
+effective observations is very noisy (SE ~ (1 - rho^2) / sqrt(n_eff), about
+0.2 for rho = 0.3): per-origin values mean little; AVERAGES OVER MANY ORIGINS
+are what matter. Squared error is minimized in expectation by E[corr_r],
+which differs from the correlation implied by E[Sigma] by O(1/n_eff)
+(roughly -rho (1 - rho^2) / (2 n_eff), under 0.02 in absolute terms): close
+to consistent, but flagged.
 
 Cov (on the daily-based set, H forecast, S realized, N = dim):
-    stein        [tr(H^-1 S) - log det(H^-1 S) - N] / N   (0 iff H == S; per-asset
-                 normalization makes it comparable across dimensions; ranks like
-                 the multivariate QLIKE log det H + tr(H^-1 S))
-    frob_scaled  mean_ij ((H_ij - S_ij) / (c_i c_j))^2 = ||C^-1 (H-S) C^-1||_F^2 / N^2
-    target_pd    whether S was positive definite (stein is NaN otherwise)
+    qlike      [log det H + tr(H^-1 S)] / N. The multivariate QLIKE: minimized
+               in expectation at H = E[S] for any unbiased noisy S, and uses
+               S only LINEARLY - it never inverts S or takes its determinant
+               (S is PSD but ill-conditioned; log det S is unreliable).
+    qlike_rel  qlike(H, S) - qlike(diag(S), S)
+               = [log det H + tr(H^-1 S) - sum_i log S_ii - N] / N.
+               The reference diag(S) does not depend on the model, so
+               differences between models (and every DM / MCS test) are
+               identical to those of ``qlike``; only the level is readable:
+               for a DIAGONAL H it equals the mean per-asset vol QLIKE, and
+               it is negative when the forecast's correlations earn more
+               than knowing every realized variance exactly but ignoring
+               correlations. (The perfect H = S scores log det(C_r) / N
+               there, not 0 - unreliable, but it is not a forecast anyone
+               can make.) Headline cov metric.
+    frob_scaled  mean_ij ((H_ij - S_ij) / (c_i c_j))^2 with fixed c (mean
+               realized vols): ROBUST (MSE with fixed weights).
+The former ``stein`` loss [tr(H^-1 S) - log det(H^-1 S) - N] / N equals
+``qlike`` minus [log det S + N] / N: it ranks identically but its level
+depends on log det S, so it is no longer reported.
 
 Public API::
 
@@ -58,6 +92,7 @@ Public API::
     compute_losses(kind, models, targets, results_dir=None, subsets=None) -> dict of frames
     loss_matrix(frame, metric, subset="daily", asset=None, pair=None) -> origin x model
     scoreboard(losses, kind, subset="daily", eras=None, metrics=None) -> dict of tables
+    robustness_note(kind, metrics=None) -> str
 """
 from __future__ import annotations
 
@@ -70,20 +105,49 @@ from ..universe import ASSET_IDS
 from .harness import load_forecasts_long
 from .targets import Targets
 
-#: Fixed named subsets for like-for-like comparisons across eras. These are
-#: placeholders chosen before the real panel exists; revisit once its
-#: coverage is known (``coverage_summary(targets)`` shows when each asset's
-#: daily targets start).
+#: Fixed named subsets for like-for-like comparisons across eras, nested, each
+#: starting where its LAST member gets daily-based 21-day targets on the real
+#: panel (``coverage_summary``, panel of 2026-11-14; once an asset's daily
+#: target starts it never falls back to the proxy). us_large / us_small were
+#: not yet in that panel; their daily history (CRSP via French, from 1926-07)
+#: is assumed not to bind - re-check when they land.
+#:   stock_bond  first common daily origin 1961-12 (ust_int)   ~767 origins
+#:   sbg4        1971-08 (gold)                                ~651
+#:   core9       1986-11 (reits; intl_dev 1985-12, hy 1984-12)  ~468
+#:   full12      1997-01 (tips; em 1994-05, commodities 1991-01) ~346
 DEFAULT_SUBSETS: dict[str, list[str]] = {
     "stock_bond": ["us_large", "ust_int"],
-    "core6": ["us_large", "us_small", "intl_dev", "ust_int", "ust_long", "gold"],
+    "sbg4": ["us_large", "ust_int", "ust_long", "gold"],
+    "core9": ["us_large", "us_small", "intl_dev", "ust_int", "ust_long", "ig_credit", "hy_credit",
+              "reits", "gold"],
     "full12": list(ASSET_IDS),
 }
 
 VOL_METRICS = ["qlike", "se_logvol", "log_err", "se_var_scaled", "se_vol_scaled", "se_vol"]
 CORR_METRICS = ["mse", "bias"]
-COV_METRICS = ["stein", "frob_scaled"]
-PRIMARY = {"vol": "qlike", "corr": "mse", "cov": "stein"}
+COV_METRICS = ["qlike_rel", "qlike", "frob_scaled"]
+PRIMARY = {"vol": "qlike", "corr": "mse", "cov": "qlike_rel"}
+
+#: Reported metrics whose expectation is NOT minimized by the true expected
+#: target under noisy-but-unbiased realized values (see module docstring).
+NOT_ROBUST: dict[str, dict[str, str]] = {
+    "vol": {"se_vol": "minimized by E[s_r] < sqrt(E v_r): favours forecasts ~1.5% too low",
+            "se_vol_scaled": "as se_vol",
+            "se_logvol": "minimized by exp(E log s_r): favours forecasts ~3% too low",
+            "log_err": "a perfect forecast averages ~+0.03 (Jensen); bias statistic only"},
+    "corr": {"mse": "consistent for E[corr_r], which is within ~0.02 of the corr of E[Sigma]",
+             "bias": "as mse"},
+    "cov": {},
+}
+
+
+def robustness_note(kind: str, metrics=None) -> str:
+    """One-line warning listing reported metrics that are not noise-robust."""
+    nr = NOT_ROBUST.get(kind, {})
+    items = [f"{m} ({nr[m]})" for m in (metrics or nr) if m in nr]
+    if not items:
+        return ""
+    return "NOTE - not noise-robust under the 21-day target: " + "; ".join(items)
 
 
 def _subsets(subsets):
@@ -175,15 +239,21 @@ def corr_losses(fc: pd.DataFrame, targets: Targets, model: str,
 
 
 # ---------------------------------------------------------------------- cov
-def _stein_frob(H: np.ndarray, S: np.ndarray, c: np.ndarray):
+def _qlike_frob(H: np.ndarray, S: np.ndarray, c: np.ndarray):
+    """(qlike, qlike_rel, frob_scaled) for forecast H and realized S. Never inverts S."""
     n = len(H)
     frob = float(np.mean(((H - S) / np.outer(c, c)) ** 2))
-    sign_s, logdet_s = np.linalg.slogdet(S)
-    if sign_s <= 0 or not np.isfinite(logdet_s):
-        return np.nan, frob, False
-    _, logdet_h = np.linalg.slogdet(H)
-    tr = float(np.trace(np.linalg.solve(H, S)))
-    return (tr - (logdet_s - logdet_h) - n) / n, frob, True
+    try:
+        L = np.linalg.cholesky(H)
+    except np.linalg.LinAlgError:
+        return np.nan, np.nan, frob
+    logdet_h = 2.0 * float(np.log(np.diag(L)).sum())
+    Z = np.linalg.solve(L, S)                       # L^-1 S
+    tr = float(np.trace(np.linalg.solve(L, Z.T)))   # tr(L^-1 S L^-T) = tr(H^-1 S)
+    q = (logdet_h + tr) / n
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ref = (float(np.log(np.diag(S)).sum()) + n) / n   # qlike(diag(S), S)
+    return q, q - ref, frob
 
 
 def cov_losses(fc: pd.DataFrame, targets: Targets, model: str,
@@ -226,9 +296,9 @@ def cov_losses(fc: pd.DataFrame, targets: Targets, model: str,
             S, c = cache[sk]
             ix = [fpos[a] for a in S_assets]
             H = F[np.ix_(ix, ix)]
-            st, fr, ok = _stein_frob(H, S, c)
-            rows.append((model, o, name, len(S_assets), n_px, st, fr, ok))
-    cols = ["model", "origin", "subset", "dim", "n_proxy_excluded"] + COV_METRICS + ["target_pd"]
+            q, qr, fr = _qlike_frob(H, S, c)
+            rows.append((model, o, name, len(S_assets), n_px, qr, q, fr))
+    cols = ["model", "origin", "subset", "dim", "n_proxy_excluded"] + COV_METRICS
     pooled = pd.DataFrame(rows, columns=cols)
     pooled["origin"] = pooled["origin"].astype("datetime64[ns]")
     return {"pooled": pooled.sort_values(["origin", "subset"], kind="stable").reset_index(drop=True)}
@@ -299,6 +369,8 @@ def scoreboard(losses: dict[str, pd.DataFrame], kind: str, subset: str = "daily"
     the caller's boundary dates, each boundary closing an era) and, for vol,
     ``by_asset`` (model x asset, QLIKE, on (origin, asset) pairs common to all
     models within the common origins); for corr, ``by_pair`` (mse per pair).
+    ``overall.attrs["note"]`` carries :func:`robustness_note` for the metrics
+    shown (the CLI prints it).
     """
     metrics = metrics or {"vol": VOL_METRICS, "corr": CORR_METRICS, "cov": COV_METRICS}[kind]
     primary = metrics[0]
@@ -315,6 +387,7 @@ def scoreboard(losses: dict[str, pd.DataFrame], kind: str, subset: str = "daily"
         overall.insert(1, "first", common.min().strftime("%Y-%m"))
         overall.insert(2, "last", common.max().strftime("%Y-%m"))
     out["overall"] = overall.sort_values(primary)
+    out["overall"].attrs["note"] = robustness_note(kind, metrics)
 
     if eras:
         lab = _era_labels(p["origin"], eras)
