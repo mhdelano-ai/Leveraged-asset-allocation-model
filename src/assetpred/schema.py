@@ -18,8 +18,10 @@ Conventions
   heads). ``predictor_meta``: one row per column; ``hindsight`` marks series
   estimated over the full sample, which embed future information even when
   lagged and are dropped in the robustness check.
-* ``features``: long, MultiIndex (date, asset), float columns. Global features
-  repeat across assets. ``feature_meta``: one row per column.
+* ``features``: long, MultiIndex (date, asset), float columns, one row per month
+  in which the asset has a return. Global features repeat across assets.
+  Missing values stay NaN; models must cope. Any standardization uses past data
+  only. ``feature_meta``: one row per column.
 * Forecasts: long, columns FORECAST_COLUMNS. ``date`` is the origin t. ``mean``
   and ``sd`` describe the predictive distribution of ``y``; ``q01``..``q99`` are
   its quantiles and must be non-decreasing.
@@ -80,6 +82,13 @@ def make_targets(xr: pd.DataFrame, horizon: int) -> pd.DataFrame:
     """Forward h-month excess log return, dated at the forecast origin."""
     fwd = xr.rolling(horizon, min_periods=horizon).sum().shift(-horizon)
     return fwd
+
+
+def make_targets_long(xr: pd.DataFrame, horizon: int) -> pd.Series:
+    """`make_targets` as a Series indexed (date, asset), realized targets only."""
+    y = make_targets(xr, horizon).stack().dropna()
+    y.index = y.index.set_names(["date", "asset"])
+    return y.rename("y")
 
 
 def load_predictors() -> pd.DataFrame:

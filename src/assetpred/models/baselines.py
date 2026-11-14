@@ -9,13 +9,15 @@ features.
 Definitions at origin t for asset a, horizon h (``xr`` monthly excess log
 returns through t, ``Y`` the realized h-month targets, i.e. rows s <= t-h):
 
-* ``hist_mean``   mean = h * mean(xr[:t]); sd = sd(Y); Gaussian.
+* ``hist_mean``   mean = h * mean(xr[:t]); sd = sd(Y) * sqrt(1 + h/T) (the
+                  factor adds the estimation error of the mean; T = months of
+                  history); Gaussian.
                   THE benchmark (Campbell-Thompson / Goyal-Welch). Using the
                   monthly mean times h rather than the mean of the overlapping
                   realized h-month targets uses the last h-1 months too; the two
                   agree for h = 1.
 * ``hist_quantile`` mean as ``hist_mean``; quantiles = mean + empirical
-                  quantiles of (Y - mean(Y)); sd = sd(Y).
+                  quantiles of (Y - mean(Y)), both widened by sqrt(1 + h/T).
 * ``zero``        mean = 0; sd = sqrt(mean(Y^2)); Gaussian. ("Excess returns
                   are unpredictable and have no premium.")
 * ``vol_ewma``    mean as ``hist_mean``; scale from an EWMA of squared monthly
@@ -23,7 +25,8 @@ returns through t, ``Y`` the realized h-month targets, i.e. rows s <= t-h):
                   the variance mean-reverting to its expanding average at rate
                   phi = 0.9 per month, times the variance ratio
                   var(Y) / (h * var(xr)) to carry any serial correlation in
-                  monthly returns into the h-month scale; Gaussian.
+                  monthly returns into the h-month scale, times sqrt(1 + h/T);
+                  Gaussian.
 * ``vol_ewma_fhs`` as ``vol_ewma`` but with the shape from empirical quantiles
                   of past standardized h-month returns (filtered historical
                   simulation).
@@ -62,6 +65,12 @@ class _Baseline(Forecaster):
             raise KeyError(f"{type(self).__name__}: asset {e} not seen at fit") from None
 
 
+def _mean_uncertainty(train: TrainingSet, xr: pd.DataFrame) -> pd.Series:
+    """sqrt(1 + h / T): widens the predictive sd for the estimation error of the
+    mean (Var(h * mean(xr)) = h^2 sigma^2 / T = Var(Y) h / T)."""
+    return np.sqrt(1.0 + train.horizon / xr.notna().sum().clip(lower=1))
+
+
 def _history(train: TrainingSet):
     xr = train.xr.dropna(axis=1, how="all")
     if xr.empty:
@@ -76,7 +85,7 @@ class HistoricalMean(_Baseline):
     def fit(self, train: TrainingSet):
         xr, Y = _history(train)
         self._mean = (train.horizon * xr.mean()).to_dict()
-        self._sd = Y.std(ddof=1).to_dict()
+        self._sd = (Y.std(ddof=1) * _mean_uncertainty(train, xr)).to_dict()
         return self
 
     def predict(self, X):
@@ -89,11 +98,13 @@ class HistoricalQuantile(_Baseline):
     def fit(self, train: TrainingSet):
         xr, Y = _history(train)
         self._mean = (train.horizon * xr.mean()).to_dict()
-        self._sd = Y.std(ddof=1).to_dict()
+        infl = _mean_uncertainty(train, xr)
+        self._sd = (Y.std(ddof=1) * infl).to_dict()
         self._dq = {}
         for a in Y.columns:
             v = Y[a].dropna().to_numpy()
-            self._dq[a] = np.quantile(v - v.mean(), TAUS) if len(v) >= 2 else np.full(len(TAUS), np.nan)
+            self._dq[a] = (np.quantile(v - v.mean(), TAUS) * infl[a] if len(v) >= 2
+                           else np.full(len(TAUS), np.nan))
         return self
 
     def predict(self, X):
@@ -137,7 +148,7 @@ class VolEWMA(_Baseline):
         vr = (Y.var(ddof=1) / (h * lr_var)).clip(0.25, 4.0).fillna(1.0)
         self._mean = (h * mu).to_dict()
         hv = self._h_var(ewma.iloc[-1], lr_var, vr, h).clip(lower=0.05 * h * lr_var)
-        self._sd = np.sqrt(hv).to_dict()
+        self._sd = (np.sqrt(hv) * _mean_uncertainty(train, xr)).to_dict()
         if self.shape == "gaussian":
             self._zq = None
         else:

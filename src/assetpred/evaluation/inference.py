@@ -95,27 +95,57 @@ def diebold_mariano(loss_model, loss_bench, h: int, dates=None) -> tuple[float, 
     return t, p1, p2
 
 
-def kupiec(hits, p: float, h: int) -> tuple[float, float, float]:
-    """Kupiec (1995) unconditional coverage LR test, adjusted for overlap.
+def cauchy_combine(pvalues) -> float:
+    """Cauchy combination of p-values (Liu & Xie 2020): valid for dependent
+    tests, which the h overlapping-offset subsamples below are."""
+    p = np.asarray(pvalues, dtype=float)
+    p = p[np.isfinite(p)]
+    if len(p) == 0:
+        return np.nan
+    p = np.clip(p, 1e-15, 1 - 1e-15)
+    T = np.mean(np.tan((0.5 - p) * np.pi))
+    return float(np.clip(0.5 - np.arctan(T) / np.pi, 0.0, 1.0))
 
-    Overlapping targets make hits autocorrelated even with a correct model, so
-    the iid LR statistic is divided by the variance inflation factor
-    ``VIF = LRV(hits - p) / (p (1 - p))`` (floored at 1) before comparing with
-    chi2(1). Returns (hit_rate, LR_adjusted, p_value).
-    """
-    x = np.asarray(hits, dtype=float)
-    x = x[np.isfinite(x)]
-    n = len(x)
-    if n < 10:
-        return np.nan, np.nan, np.nan
-    k = x.sum()
+
+def _kupiec_lr(x: np.ndarray, p: float) -> float:
+    n, k = len(x), x.sum()
     pi = k / n
     ll0 = xlogy(n - k, 1 - p) + xlogy(k, p)
     ll1 = xlogy(n - k, 1 - pi) + xlogy(k, pi)
-    lr = max(-2.0 * (ll0 - ll1), 0.0)
-    vif = max(long_run_variance(x - p, hac_lags(h, n)) / (p * (1 - p)), 1.0) if h > 1 else 1.0
-    lr_adj = lr / vif
-    return float(pi), float(lr_adj), float(stats.chi2.sf(lr_adj, 1))
+    return float(stats.chi2.sf(max(-2.0 * (ll0 - ll1), 0.0), 1))
+
+
+def kupiec(hits, p: float, h: int) -> tuple[float, float]:
+    """Kupiec (1995) unconditional coverage test, overlap-robust.
+
+    Hits of overlapping h-month targets are autocorrelated even for a correct
+    model, and HAC corrections of a rare-event indicator are badly oversized
+    with ~n/h effective observations. Instead the LR test is run on each of
+    the h non-overlapping subsequences (origins h months apart, independent
+    under a correct conditional distribution) and the h p-values are combined
+    with :func:`cauchy_combine`. For h = 1 this is the usual test. Monte Carlo
+    size at 5%: ~5% (h=1), conservative for h = 3, 12.
+    Returns (hit_rate, p_value).
+    """
+    x = np.asarray(hits, dtype=float)
+    x = x[np.isfinite(x)]
+    if len(x) < 10 * h:
+        return (float(x.mean()) if len(x) else np.nan), np.nan
+    return float(x.mean()), cauchy_combine([_kupiec_lr(x[o::h], p) for o in range(h)])
+
+
+def kupiec_pooled(hits, p: float, h: int, dates) -> float:
+    """Pooled-across-assets coverage test: per-date mean of (hit - p), t-tests
+    on the h non-overlapping subsequences of dates, Cauchy-combined."""
+    dev = pd.Series(np.asarray(hits, dtype=float) - p).groupby(np.asarray(dates)).mean().to_numpy()
+    ps = []
+    for o in range(h):
+        d = dev[o::h]
+        if len(d) < 10 or d.std(ddof=1) == 0:
+            continue
+        t = d.mean() / (d.std(ddof=1) / math.sqrt(len(d)))
+        ps.append(2 * stats.t.sf(abs(t), len(d) - 1))
+    return cauchy_combine(ps)
 
 
 def _christoffersen_lr(x: np.ndarray) -> float:
@@ -133,46 +163,57 @@ def _christoffersen_lr(x: np.ndarray) -> float:
 
 
 def christoffersen(hits, h: int) -> float:
-    """Christoffersen (1998) independence test p-value, adjusted for overlap.
+    """Christoffersen (1998) independence test p-value, overlap-robust.
 
-    For h > 1 consecutive hits share h-1 months of returns, so the test is run
-    on the h non-overlapping subsequences (every h-th origin) and the smallest
-    p-value is Bonferroni-corrected (times the number of usable subsequences).
-    NaN when there are too few hits to form the transition table.
+    For h > 1 consecutive hits share h-1 months of returns, so the first-order
+    Markov test is run on the h non-overlapping subsequences (hits h months
+    apart) and the p-values are Cauchy-combined. NaN when no subsequence has
+    enough hits to form the transition table (common for 1% tails).
     """
     x = np.asarray(hits, dtype=float)
     x = x[np.isfinite(x)]
-    ps = []
-    for off in range(h):
-        lr = _christoffersen_lr(x[off::h])
-        if np.isfinite(lr):
-            ps.append(stats.chi2.sf(lr, 1))
-    if not ps:
-        return np.nan
-    return float(min(1.0, min(ps) * len(ps)))
+    ps = [stats.chi2.sf(lr, 1) for o in range(h)
+          if np.isfinite(lr := _christoffersen_lr(x[o::h]))]
+    return cauchy_combine(ps)
 
 
-def calibration_test(bins, probs, h: int, dates=None) -> tuple[float, float]:
-    """HAC Wald test that realizations fall in the quantile-grid bins with the
-    nominal probabilities (a PIT uniformity test robust to overlap).
+CALIBRATION_QUANTILES = ("q10", "q50", "q90")
 
-    ``bins`` are bin indices 0..K (``metrics.pit_bins``); ``probs`` the K+1
-    nominal probabilities. With ``dates``, deviations are averaged per date.
-    Returns (Wald, p) with chi2(K) reference.
+
+def calibration_test(y, Q, h: int, dates=None, qcols=CALIBRATION_QUANTILES) -> tuple[float, float]:
+    """Joint test that y falls below q10, q50, q90 with probability .1, .5, .9.
+
+    Moment conditions ``1{y <= q_tau} - tau`` (a PIT-uniformity test at three
+    points), HAC (Bartlett, ``hac_lags``) Wald statistic with a Hotelling-type
+    F correction using ``n_eff = n / h`` non-overlapping observations:
+    ``F = (n_eff - k) / (k (n_eff - 1)) W ~ F(k, n_eff - k)``. A finer grid is
+    not used because its covariance cannot be estimated from ~n/h effective
+    observations (the 9-bin version rejected a correct model >50% of the time
+    at h = 12 in Monte Carlo); tails are covered by :func:`kupiec`.
+    With ``dates`` the moments are averaged per date (pooled panel).
+    Returns (F, p).
     """
-    bins = np.asarray(bins)
-    K1 = len(probs)
-    D = (bins[:, None] == np.arange(K1)[None, :]).astype(float) - np.asarray(probs)[None, :]
-    D = D[:, :-1]
+    from .metrics import QCOLS, TAUS
+    y = np.asarray(y, dtype=float)
+    Q = np.asarray(Q, dtype=float)
+    idx = [QCOLS.index(c) for c in qcols]
+    M = np.column_stack([(y <= Q[:, j]).astype(float) - TAUS[j] for j in idx])
     if dates is not None:
-        D = pd.DataFrame(D).groupby(np.asarray(dates)).mean().to_numpy()
-    n = len(D)
-    if n < 20:
+        M = pd.DataFrame(M).groupby(np.asarray(dates)).mean().to_numpy()
+    n, k = M.shape
+    n_eff = n / h
+    if n_eff <= k + 2:
         return np.nan, np.nan
-    S = long_run_variance(D, hac_lags(h, n))
-    m = D.mean(axis=0)
+    Mc = M  # moments are centred under the null
+    S = Mc.T @ Mc / n
+    L = hac_lags(h, n)
+    for j in range(1, min(L, n - 1) + 1):
+        G = Mc[j:].T @ Mc[:-j] / n
+        S += (1.0 - j / (L + 1.0)) * (G + G.T)
+    m = M.mean(axis=0)
     W = float(n * m @ np.linalg.pinv(S) @ m)
-    return W, float(stats.chi2.sf(W, D.shape[1]))
+    F = (n_eff - k) / (k * (n_eff - 1)) * W
+    return float(F), float(stats.f.sf(F, k, n_eff - k))
 
 
 def spa_test(bench_loss, model_losses: pd.DataFrame, h: int, reps: int = 999,

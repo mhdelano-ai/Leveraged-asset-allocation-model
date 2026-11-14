@@ -18,13 +18,20 @@ Metrics (``benchmark == "none"``):
   n_obs, n_dates, n_indep (= n_dates / h, the non-overlapping observations),
   r2_detectable (rough OOS R^2 needed for 5% significance given n_indep),
   mse, crps (grid CRPS), mean_sd, pinball_qXX, cover_50/80/90/98,
-  calib_wald / calib_p (HAC PIT-bin test), hit_qXX / kupiec_p_qXX /
-  christoffersen_p_qXX for the tail quantiles, mcs_p_mse / in_mcs_mse and
+  calib_f / calib_p (PIT test at q10/q50/q90, ``inference.calibration_test``),
+  hit_qXX / kupiec_p_qXX / christoffersen_p_qXX (assets only) for the tail
+  quantiles, mcs_p_mse / in_mcs_mse and
   mcs_p_crps / in_mcs_crps (model confidence set at 10%, full period).
 Metrics vs ``hist_mean``:
   r2_oos, cw_stat, cw_p (one-sided), dm_mse_stat, dm_mse_p (two-sided),
-  cw_q_bh (BH across this model's asset x horizon cells),
-  cw_q_by_all (BY across all models and cells).
+  dm_mse_p1 (one-sided, model better), cw_q_bh (BH across this model's
+  asset x horizon cells), cw_q_by_all (BY across all models and cells).
+  Read cw_p only together with r2_oos: Clark-West tests the population null
+  that the extra predictors have no coefficient, and a model with very noisy
+  forecasts can get a small cw_p while its OOS R^2 is far below zero (the
+  harness tests show a memorizing model with R^2 = -0.56 and cw_p = 0.02).
+  A model has beaten the benchmark in a cell only if r2_oos > 0 *and* the
+  multiple-testing-adjusted evidence (cw_q_bh, spa_p_*) holds up.
 Metrics vs ``hist_mean`` and vs ``vol_ewma``:
   crps_skill (1 - CRPS/CRPS_bench), dm_crps_stat, dm_crps_p (one-sided,
   model better), dm_crps_q_bh (BH across this model's cells), pinball_skill_qXX.
@@ -93,18 +100,15 @@ def _absolute(b: _Block, y, sel, dates, h, pooled, out):
         out[f"pinball_{c}"] = pin[k]
     for lvl in mt.INTERVALS:
         out[f"cover_{lvl}"] = mt.coverage(ys, Qs, lvl)
-    bins = mt.pit_bins(ys, Qs)
-    w, p = inf.calibration_test(bins, mt.bin_probabilities(), h, dates=d if pooled else None)
-    out["calib_wald"], out["calib_p"] = w, p
+    f, p = inf.calibration_test(ys, Qs, h, dates=d if pooled else None)
+    out["calib_f"], out["calib_p"] = f, p
     for c in mt.TAIL_QUANTILES:
         hits, prob = mt.tail_hits(ys, Qs, c)
         out[f"hit_{c}"] = hits.mean()
         if pooled:
-            dev = pd.Series(hits - prob).groupby(d).mean().to_numpy()
-            _, _, p2, _ = inf.mean_test(dev, h)
-            out[f"kupiec_p_{c}"] = p2
+            out[f"kupiec_p_{c}"] = inf.kupiec_pooled(hits, prob, h, d)
         else:
-            out[f"kupiec_p_{c}"] = inf.kupiec(hits, prob, h)[2]
+            out[f"kupiec_p_{c}"] = inf.kupiec(hits, prob, h)[1]
             out[f"christoffersen_p_{c}"] = inf.christoffersen(hits, h)
 
 
@@ -114,8 +118,8 @@ def _relative(b: _Block, bb: _Block, y, sel, dates, h, pooled, point, out):
         sse_b = bb.se[sel].sum()
         out["r2_oos"] = 1 - b.se[sel].sum() / sse_b if sse_b > 0 else np.nan
         out["cw_stat"], out["cw_p"] = inf.clark_west(y[sel], bb.mean[sel], b.mean[sel], h, dates=d)
-        s, _, p2 = inf.diebold_mariano(b.se[sel], bb.se[sel], h, dates=d)
-        out["dm_mse_stat"], out["dm_mse_p"] = s, p2
+        s, p1, p2 = inf.diebold_mariano(b.se[sel], bb.se[sel], h, dates=d)
+        out["dm_mse_stat"], out["dm_mse_p"], out["dm_mse_p1"] = s, p2, p1
     cb = bb.crps[sel].sum()
     out["crps_skill"] = 1 - b.crps[sel].sum() / cb if cb > 0 else np.nan
     s, p1, _ = inf.diebold_mariano(b.crps[sel], bb.crps[sel], h, dates=d)
@@ -266,6 +270,7 @@ def summary(scores: pd.DataFrame) -> pd.DataFrame:
     pick = {
         ("r2_oos", BENCHMARK): "r2_oos",
         ("cw_p", BENCHMARK): "cw_p",
+        ("dm_mse_p1", BENCHMARK): "dm_mse_p1",
         ("crps_skill", BENCHMARK): "crps_skill_vs_hist",
         ("crps_skill", VOL_BENCHMARK): "crps_skill_vs_vol",
         ("cover_90", "none"): "cover_90",

@@ -287,7 +287,9 @@ def run_many(names: Iterable[str], horizons: Iterable[int], features: pd.DataFra
     models with their own thread pools (e.g. LightGBM ``n_jobs``) should
     default to 1 thread. Factories are sent to workers by pickling, so they
     must be module-level classes/functions or ``functools.partial`` objects,
-    not lambdas or closures. Returns a table of (model, horizon, status).
+    not lambdas or closures; and a script that calls this must guard its entry
+    point with ``if __name__ == "__main__":``. Returns a table of
+    (model, horizon, status).
     """
     settings = settings or WalkForwardSettings()
     results_dir = Path(results_dir) if results_dir is not None else config.RESULTS  # resolve here, not in workers
