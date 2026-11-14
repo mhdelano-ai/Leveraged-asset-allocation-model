@@ -1,0 +1,5 @@
+{
+  "trigger_id": "trig_01QAhZtC33SBoTWUAugtP1AL",
+  "connector": "Claude Code Remote",
+  "note": "The scheduled task the page's Refresh forecast button starts (claude.ai scheduled tasks). Delete this file to build the page without the button."
+}
