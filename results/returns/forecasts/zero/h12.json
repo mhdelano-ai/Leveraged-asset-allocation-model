@@ -1,0 +1,21 @@
+{
+ "fingerprint": {
+  "model": "zero",
+  "horizon": 12,
+  "class": "ZeroMean",
+  "params": {},
+  "data": "2625877c90ca82ce",
+  "settings": {
+   "oos_start": "1990-01-31",
+   "refit_every": 12,
+   "min_history": 60,
+   "end": null
+  },
+  "code": "505856406788d25d"
+ },
+ "rows": 5107,
+ "seconds": 1.84,
+ "first_origin": "1990-01-31",
+ "last_origin": "2026-10-31",
+ "written": "2026-11-14T20:29:54+00:00"
+}
