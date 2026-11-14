@@ -120,6 +120,7 @@ def test_est_date():
 
 
 # -------------------------------------------------------- forecaster contract
+@pytest.mark.slow
 @pytest.mark.parametrize("name", NAMES)
 def test_valid_at_every_stage(panel, name):
     m = get_model("vol", name)
@@ -131,6 +132,7 @@ def test_valid_at_every_stage(panel, name):
         assert (v < 1.5).all() and (v > 0.01).all()
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("name", NAMES)
 def test_cold_equals_warm_in_any_order(panel, name):
     ts = [MIDDLE, "2009-06-30", LATE]
@@ -144,6 +146,7 @@ def test_cold_equals_warm_in_any_order(panel, name):
         pd.testing.assert_series_equal(cold, fb[t])
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("name", NAMES)
 def test_no_lookahead(panel, name):
     t = pd.Timestamp(LATE)
