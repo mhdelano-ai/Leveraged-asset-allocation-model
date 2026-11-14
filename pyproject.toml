@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "assetpred"
+version = "0.1.0"
+description = "Out-of-sample prediction of asset-class excess returns at 1, 3 and 12 months"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy", "pandas>=2.2", "scipy", "scikit-learn", "lightgbm", "statsmodels",
+    "pyarrow", "requests", "openpyxl", "xlrd", "arch", "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+assetpred = ["dashboard/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["network: needs internet access to re-download source data"]
+addopts = "-q -m 'not network'"
