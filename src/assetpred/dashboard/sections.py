@@ -36,63 +36,95 @@ def periods(sc: Scores, cum: pd.DataFrame | None, dev: bool) -> dict:
             span[int(h)] = [pd.Timestamp(g.date.min()).strftime("%Y-%m"), pd.Timestamp(g.date.max()).strftime("%Y-%m")]
     hs = pd.Timestamp(config.HOLDOUT_START).strftime("%Y-%m")
     de = pd.Timestamp(config.DEV_END).strftime("%Y-%m")
+    t12 = (pd.Timestamp(config.DEV_END) + pd.offsets.MonthEnd(12)).strftime("%Y-%m")
     labels = {
         "holdout": f"Holdout (origins from {hs})",
-        "pre_holdout": f"Development period (origins to {de})",
+        "pre_holdout": f"Development period (origins to {de}; 3- and 12-month targets end as late as {t12})",
         "full": ("Development sample (all scored origins)" if dev or not holdout
                  else "Whole sample (development + holdout)"),
-        **{d: d for d in DECADES},
+        **{d: f"{d} origins" for d in DECADES},
     }
+    if holdout:
+        labels["2010s"] = "2010s origins (straddle development and holdout)"
+        labels["2020s"] = "2020s origins (holdout)"
+    else:
+        labels["2010s"] = f"2010s origins (to {de} only)"
     return {"have": have, "headline": headline, "context": context, "order": order, "labels": labels,
             "holdout_present": holdout, "span": span}
 
 
-def _adj_period(sc: Scores, period: str, metric: str) -> str:
-    """Multiple-testing rows exist only for some periods (in practice 'full').
-    Use the headline period when present, else 'full'."""
+def _adj_period(sc: Scores, period: str, metric: str, label: str | None = None) -> str:
+    """Multiple-testing rows (SPA, MCS, q-values) exist only for the periods in
+    the run's ``mt_periods``. Use the headline period when it has them, else 'full'."""
     d = sc.df
-    if not d[(d.metric == metric) & (d.period == period)].empty:
-        return period
-    return "full"
+    g = d[(d.metric == metric) & (d.period == period)]
+    if label is not None:
+        g = g[g.model == label]
+    return period if not g.empty else "full"
+
+
+ROBUST_PARENT = {m: m.split(".", 1)[0] for m in getattr(config, "ROBUSTNESS", ())}
+
+
+def _hindsight_names() -> list[str]:
+    """Features flagged as estimated with hindsight (the ones the .nohind rows drop)."""
+    try:
+        fm = pd.read_csv(schema.FEATURE_META)
+        return sorted(fm.loc[fm.hindsight.astype(str).str.lower() == "true", "name"].tolist())
+    except Exception:
+        return []
 
 
 # --------------------------------------------------------------------------- mean
 
 def mean_section(sc: Scores, cum: pd.DataFrame | None, P: dict) -> dict | None:
-    models = [m for m in (*config.FROZEN_MEAN, config.COMPOSITE) if sc.has(m)]
-    if not models:
+    family = [m for m in config.FROZEN_MEAN if sc.has(m)]
+    if not family:
         return None
+    extra = [m for m in (config.COMPOSITE,) if sc.has(m)]
+    robust = [m for m in ROBUST_PARENT if sc.has(m)]
     refs = [m for m in ("zero",) if sc.has(m)]
+    models = family + extra
     hp, cp = P["headline"], P["context"]
     q_period = _adj_period(sc, hp, "cw_q_bh")
-    spa_period = _adj_period(sc, hp, "spa_p_mse")
-    out = {"models": models, "refs": refs, "q_period": q_period, "spa_period": spa_period,
-           "pooled": {}, "grid": {}, "sub": {}, "cum": {}, "info": {}}
+    spa_period = _adj_period(sc, hp, "spa_p_mse", "*mean")
+    mcs_period = _adj_period(sc, hp, "in_mcs_mse")
+    out = {"models": models, "family": family, "extra": extra, "robust": robust, "robust_parent": ROBUST_PARENT,
+           "refs": refs, "q_period": q_period, "spa_period": spa_period, "mcs_period": mcs_period,
+           "hindsight_features": _hindsight_names(),
+           "pooled": {}, "grid": {}, "sub": {}, "cum": {}, "info": {}, "weights": {}}
     for h in HORIZONS:
+        spa = sc.star("spa_p_mse", h, POOLED, BENCH, spa_period, family, label="*mean")
+        spa_all = sc.star("spa_p_mse", h, POOLED, BENCH, spa_period, family, label="*")
         out["info"][h] = {
             "n_indep": clean(sc.get(BENCH, h, POOLED, hp, "none", "n_indep")),
             "n_dates": clean(sc.get(BENCH, h, POOLED, hp, "none", "n_dates")),
             "r2_detectable": clean(sc.get(BENCH, h, POOLED, hp, "none", "r2_detectable")),
-            "spa_p": clean(sc.star("spa_p_mse", h, POOLED, BENCH, spa_period, models)[0]),
-            "spa_run": sc.star("spa_p_mse", h, POOLED, BENCH, spa_period, models)[1],
+            "spa_p": clean(spa[0]), "spa_run": spa[1], "spa_n": len(family) if spa[1] else None,
+            "spa_all_p": clean(spa_all[0]), "spa_all_n": sc.run_size(spa_all[1], BENCH),
         }
-        out["info"][h]["spa_n"] = sc.run_size(out["info"][h]["spa_run"], BENCH)
+        role = {**{m: "family" for m in family}, **{m: "composite" for m in extra},
+                **{m: "robust" for m in robust}, **{m: "ref" for m in refs}}
         rows = []
-        for m in models + refs:
+        for m in family + extra + robust + refs:
             rows.append({
-                "model": m, "ref": m in refs,
+                "model": m, "role": role[m], "ref": m in refs, "parent": ROBUST_PARENT.get(m),
                 "r2": clean(sc.get(m, h, POOLED, hp, BENCH, "r2_oos")),
                 "r2_ctx": clean(sc.get(m, h, POOLED, cp, BENCH, "r2_oos")) if cp else None,
                 "cw_p": clean(sc.get(m, h, POOLED, hp, BENCH, "cw_p")),
                 "dm_p": clean(sc.get(m, h, POOLED, hp, BENCH, "dm_mse_p1")),
-                "in_mcs": clean(sc.get(m, h, POOLED, "full", "none", "in_mcs_mse")),
-                "mcs_p": clean(sc.get(m, h, POOLED, "full", "none", "mcs_p_mse")),
+                "in_mcs": clean(sc.get(m, h, POOLED, mcs_period, "none", "in_mcs_mse")),
+                "mcs_p": clean(sc.get(m, h, POOLED, mcs_period, "none", "mcs_p_mse")),
             })
         out["pooled"][h] = rows
+        # share of the benchmark's squared error each asset carries in the pooled R² (display reduction)
+        sse = {a: sc.get(BENCH, h, a, hp, "none", "mse") * sc.get(BENCH, h, a, hp, "none", "n_obs") for a in ASSETS}
+        tot = sum(v for v in sse.values() if np.isfinite(v))
+        out["weights"][h] = {a: clean(v / tot) if tot > 0 and np.isfinite(v) else None for a, v in sse.items()}
         grid = {"assets": ASSETS, "detectable": {}, "cells": {}}
         for a in ASSETS:
             grid["detectable"][a] = clean(sc.get(BENCH, h, a, hp, "none", "r2_detectable"))
-        for m in models:
+        for m in models + robust:
             grid["cells"][m] = {a: {"r2": clean(sc.get(m, h, a, hp, BENCH, "r2_oos")),
                                     "cw_p": clean(sc.get(m, h, a, hp, BENCH, "cw_p")),
                                     "q": clean(sc.get(m, h, a, q_period, BENCH, "cw_q_bh")),
@@ -100,47 +132,51 @@ def mean_section(sc: Scores, cum: pd.DataFrame | None, P: dict) -> dict | None:
                                 for a in ASSETS}
         out["grid"][h] = grid
         out["sub"][h] = {m: {p: clean(sc.get(m, h, POOLED, p, BENCH, "r2_oos")) for p in P["order"]}
-                         for m in models + refs}
-        out["sub_detectable"] = out.get("sub_detectable", {})
-        out["sub_detectable"][h] = {p: clean(sc.get(BENCH, h, POOLED, p, "none", "r2_detectable"))
-                                    for p in P["order"]}
+                         for m in models + robust + refs}
+        out.setdefault("sub_detectable", {})[h] = {p: clean(sc.get(BENCH, h, POOLED, p, "none", "r2_detectable"))
+                                                   for p in P["order"]}
         if cum is not None:
-            ch = cum[(cum.horizon == h) & cum.model.isin(models)]
-            out["cum"][h] = {m: {a: series_points(g.date, g.cum_dsse) for a, g in gm.groupby("asset")}
+            ch = cum[(cum.horizon == h) & cum.model.isin(models + robust)]
+            out["cum"][h] = {m: {a: series_points(g.date, g.cum_dsse, 4) for a, g in gm.groupby("asset")}
                              for m, gm in ch.groupby("model")}
-    out["n_cells"] = int(len(models) * len(HORIZONS) * len(ASSETS))
     return out
 
 
 # --------------------------------------------------------------------------- distribution
 
 def dist_section(sc: Scores, P: dict) -> dict | None:
-    models = [m for m in (*config.FROZEN_DIST, config.COMPOSITE) if sc.has(m)]
-    if not models:
+    family = [m for m in config.FROZEN_DIST if sc.has(m)]
+    if not family:
         return None
+    extra = [m for m in (config.COMPOSITE,) if sc.has(m)]
+    models = family + extra
     refs = [m for m in ("vol_ewma_fhs", "hist_quantile", VOL_BENCH, BENCH) if sc.has(m)]
     hp, cp = P["headline"], P["context"]
     q_period = _adj_period(sc, hp, "dm_crps_q_bh")
-    spa_period = _adj_period(sc, hp, "spa_p_crps")
-    out = {"models": models, "refs": refs, "q_period": q_period, "spa_period": spa_period,
+    spa_period = _adj_period(sc, hp, "spa_p_crps", "*dist")
+    mcs_period = _adj_period(sc, hp, "in_mcs_crps")
+    out = {"models": models, "family": family, "extra": extra, "refs": refs, "q_period": q_period,
+           "spa_period": spa_period, "mcs_period": mcs_period,
            "pooled": {}, "grid": {}, "info": {}, "pinball": {}, "tails": {}}
     for h in HORIZONS:
+        sv = sc.star("spa_p_crps", h, POOLED, VOL_BENCH, spa_period, family, label="*dist")
+        sh = sc.star("spa_p_crps", h, POOLED, BENCH, spa_period, family, label="*dist")
+        sa = sc.star("spa_p_crps", h, POOLED, VOL_BENCH, spa_period, family, label="*")
         out["info"][h] = {
-            "spa_vol": clean(sc.star("spa_p_crps", h, POOLED, VOL_BENCH, spa_period, models)[0]),
-            "spa_hist": clean(sc.star("spa_p_crps", h, POOLED, BENCH, spa_period, models)[0]),
-            "spa_run": sc.star("spa_p_crps", h, POOLED, VOL_BENCH, spa_period, models)[1],
+            "spa_vol": clean(sv[0]), "spa_hist": clean(sh[0]), "spa_run": sv[1],
+            "spa_n": len(family) if sv[1] else None,
+            "spa_all_vol": clean(sa[0]), "spa_all_n": sc.run_size(sa[1], VOL_BENCH),
             "n_indep": clean(sc.get(BENCH, h, POOLED, hp, "none", "n_indep")),
         }
-        out["info"][h]["spa_n"] = sc.run_size(out["info"][h]["spa_run"], VOL_BENCH)
         rows = []
         for m in models + refs:
-            r = {"model": m, "ref": m in refs,
+            r = {"model": m, "ref": m in refs, "role": "family" if m in family else "composite" if m in extra else "ref",
                  "skill_vol": clean(sc.get(m, h, POOLED, hp, VOL_BENCH, "crps_skill")),
                  "skill_vol_ctx": clean(sc.get(m, h, POOLED, cp, VOL_BENCH, "crps_skill")) if cp else None,
                  "skill_hist": clean(sc.get(m, h, POOLED, hp, BENCH, "crps_skill")),
                  "p_vol": clean(sc.get(m, h, POOLED, hp, VOL_BENCH, "dm_crps_p")),
                  "p_hist": clean(sc.get(m, h, POOLED, hp, BENCH, "dm_crps_p")),
-                 "in_mcs": clean(sc.get(m, h, POOLED, "full", "none", "in_mcs_crps")),
+                 "in_mcs": clean(sc.get(m, h, POOLED, mcs_period, "none", "in_mcs_crps")),
                  "calib_p": clean(sc.get(m, h, POOLED, hp, "none", "calib_p")),
                  "mean_sd": clean(sc.get(m, h, POOLED, hp, "none", "mean_sd"))}
             for lv in COVER_LEVELS:
@@ -164,15 +200,18 @@ def dist_section(sc: Scores, P: dict) -> dict | None:
 
 # --------------------------------------------------------------------------- covariance
 
-def cov_section(cs: pd.DataFrame | None, per_date: pd.DataFrame | None, P: dict) -> dict | None:
+def cov_section(cs: pd.DataFrame | None, per_date: pd.DataFrame | None, P: dict, meta: dict | None = None) -> dict | None:
     if cs is None or cs.empty:
         return None
     have = set(cs.period)
     hp = "holdout" if "holdout" in have else "full"
     cp = "pre_holdout" if "pre_holdout" in have else None
-    present = [m for m in pd.unique(cs.model) if m != "*"]
+    star_rows = cs.model.astype(str).str.startswith("*")
+    present = [m for m in pd.unique(cs.model) if not str(m).startswith("*")]
     models = [m for m in config.FROZEN_COV if m in present] + sorted(m for m in present if "__sd_" in m)
-    ix = cs[cs.model != "*"].set_index(["model", "horizon", "asset", "period", "benchmark", "metric"])["value"]
+    benches = [b for b in (COV_BENCH, "lw") if b in set(cs.benchmark)]
+    static = "lw" if "lw" in benches else COV_BENCH   # the benchmark the verdict rests on
+    ix = cs[~star_rows].set_index(["model", "horizon", "asset", "period", "benchmark", "metric"])["value"]
     ix = ix[~ix.index.duplicated()]
 
     def g(m, h, a, p, b, k):
@@ -182,46 +221,59 @@ def cov_section(cs: pd.DataFrame | None, per_date: pd.DataFrame | None, P: dict)
             return None
 
     def star(h, a, p, k, b=COV_BENCH):
-        s = cs[(cs.model == "*") & (cs.horizon == h) & (cs.asset == a) & (cs.period == p) & (cs.metric == k)]
-        if b is not None and "benchmark" in s:
-            s2 = s[s.benchmark == b]
-            s = s2 if not s2.empty else s
+        s = cs[star_rows & (cs.horizon == h) & (cs.asset == a) & (cs.period == p) & (cs.metric == k)]
+        if b is not None:
+            s = s[s.benchmark == b]
         return clean(s.value.iloc[0]) if len(s) else None
 
-    q_period = hp if not cs[(cs.metric == "dm_q_bh_nll") & (cs.period == hp)].empty else "full"
-    spa_period = hp if not cs[(cs.metric == "spa_p_nll") & (cs.period == hp)].empty else "full"
+    def mt(metric):
+        return hp if not cs[(cs.metric == metric) & (cs.period == hp)].empty else "full"
+
+    q_period, spa_period, mcs_period = mt("dm_q_bh_nll"), mt("spa_p_nll"), mt("in_mcs_nll")
     periods_order = [p for p in ("holdout", "pre_holdout", *DECADES, "full") if p in have]
+    fam = (meta or {}).get("spa_family", {}).get("lw") or [m for m in config.FROZEN_COV if m != "lw"]
     out = {"models": models, "headline": hp, "context": cp, "q_period": q_period, "spa_period": spa_period,
+           "mcs_period": mcs_period, "benches": benches, "static": static, "lw_family": fam,
            "periods": periods_order, "joint": {}, "sb": {}, "ports": {}, "info": {}, "sb_series": {}}
     for h in HORIZONS:
-        out["info"][h] = {"spa_p": star(h, "joint", spa_period, "spa_p_nll"),
-                          "n_indep": star(h, "joint", hp, "n_indep", None),
-                          "n_assets": star(h, "joint", hp, "n_assets_mean", None)}
+        out["info"][h] = {"spa": {b: {"joint": star(h, "joint", spa_period, "spa_p_nll", b),
+                                      "sb": star(h, "sb", spa_period, "spa_p_nll", b)} for b in benches},
+                          "n_indep": star(h, "joint", hp, "n_indep", "none"),
+                          "n_assets": star(h, "joint", hp, "n_assets_mean", "none")}
         rows = []
-        for m in [*models, COV_BENCH]:
-            rows.append({"model": m, "ref": m == COV_BENCH,
-                         "nll": g(m, h, "joint", hp, "none", "nll"),
-                         "diff": g(m, h, "joint", hp, COV_BENCH, "diff_nll"),
-                         "diff_ctx": g(m, h, "joint", cp, COV_BENCH, "diff_nll") if cp else None,
-                         "p": g(m, h, "joint", hp, COV_BENCH, "dm_p_nll"),
-                         "q": g(m, h, "joint", q_period, COV_BENCH, "dm_q_bh_nll"),
-                         "in_mcs": g(m, h, "joint", "full", "none", "in_mcs_nll"),
-                         "mahal": g(m, h, "joint", hp, "none", "mahal"),
-                         "cover90": g(m, h, "joint", hp, "none", "cover90"),
-                         "cond": g(m, h, "joint", hp, "none", "cond_median")})
+        for m in [*models, *[b for b in benches if b not in models]]:
+            r = {"model": m, "ref": m == COV_BENCH, "in_family": m in fam,
+                 "nll": g(m, h, "joint", hp, "none", "nll"),
+                 "in_mcs": g(m, h, "joint", mcs_period, "none", "in_mcs_nll"),
+                 "mahal": g(m, h, "joint", hp, "none", "mahal"),
+                 "cover90": g(m, h, "joint", hp, "none", "cover90"),
+                 "cond": g(m, h, "joint", hp, "none", "cond_median"), "vs": {}}
+            for b in benches:
+                if b == m:
+                    continue
+                r["vs"][b] = {"diff": g(m, h, "joint", hp, b, "diff_nll"),
+                              "diff_ctx": g(m, h, "joint", cp, b, "diff_nll") if cp else None,
+                              "p": g(m, h, "joint", hp, b, "dm_p_nll"),
+                              "q": g(m, h, "joint", q_period, b, "dm_q_bh_nll"),
+                              "strand": g(m, h, "joint", hp, b, "strand_p_median_nll")}
+            rows.append(r)
         out["joint"][h] = rows
         out["sb"][h] = {
             "real": {p: star(h, "sb", p, "corr_real", None) for p in periods_order},
-            "rows": [{"model": m, "ref": m == COV_BENCH,
+            "rows": [{"model": m, "ref": m in benches,
                       "pred": {p: g(m, h, "sb", p, "none", "corr_pred") for p in periods_order},
-                      "diff": {p: g(m, h, "sb", p, COV_BENCH, "diff_nll") for p in periods_order},
-                      "p": {p: g(m, h, "sb", p, COV_BENCH, "dm_p_nll") for p in periods_order}}
-                     for m in [*models, COV_BENCH]]}
+                      "vs": {b: {"diff": {p: g(m, h, "sb", p, b, "diff_nll") for p in periods_order},
+                                 "p": {p: g(m, h, "sb", p, b, "dm_p_nll") for p in periods_order},
+                                 "q": g(m, h, "sb", q_period, b, "dm_q_bh_nll")}
+                             for b in benches if b != m}}
+                     for m in [*models, *[b for b in benches if b not in models]]]}
         prow = []
         for m in models:
-            r = {"model": m}
+            if m == static:
+                continue
+            r = {"model": m, "bench": static}
             for a, k in (("port_ew", "qlike"), ("port_6040", "qlike"), ("port_iv", "qlike"), ("mvp", "mvp_sq")):
-                r[a] = {"diff": g(m, h, a, hp, COV_BENCH, f"diff_{k}"), "p": g(m, h, a, hp, COV_BENCH, f"dm_p_{k}")}
+                r[a] = {"diff": g(m, h, a, hp, static, f"diff_{k}"), "p": g(m, h, a, hp, static, f"dm_p_{k}")}
             r["mvp_real"] = g(m, h, "mvp", hp, "none", "realized_vol")
             r["mvp_pred"] = g(m, h, "mvp", hp, "none", "pred_vol")
             prow.append(r)
@@ -326,6 +378,8 @@ def strategy_section(st: dict | None) -> dict | None:
     if st is None:
         return None
     m = st["metrics"]
+    meta = st.get("meta", {})
+    bh_family = list(meta.get("bh_family") or config.FROZEN_MEAN)
     have = set(m.period)
     hp = "holdout" if "holdout" in have else "full"
     net = m[(m.period == hp) & (m.basis == "net")]
@@ -337,6 +391,9 @@ def strategy_section(st: dict | None) -> dict | None:
     for _, r in t.iterrows():
         d = {k: (int(r[k]) if k == "horizon" else r[k]) for k in keys}
         d.update({k: clean(r.get(k)) for k in STRAT_KEEP})
+        mm = d["mean_model"]
+        d["role"] = ("family" if mm in bh_family else "composite" if mm == config.COMPOSITE
+                     else "robust" if mm in ROBUST_PARENT else "bench" if mm in ("hist_mean", "none") else "other")
         rows.append(d)
     lv = net[(net.benchmark == "none") & net.metric.isin(LEVEL_KEEP)].pivot_table(
         index=["strategy", "family", "horizon", "universe", "rule", "mean_model", "cov_model"],
@@ -354,8 +411,7 @@ def strategy_section(st: dict | None) -> dict | None:
         for s, g in sel.groupby("strategy"):
             g = g.sort_values("date")
             series[s] = series_points(g.date, g.net, 4)
-    meta = st.get("meta", {})
-    return {"period": hp, "has_holdout_period": "holdout" in have, "rows": rows, "levels": levels,
+    return {"period": hp, "bh_family": bh_family, "period_rule": meta.get("period_rule"), "has_holdout_period": "holdout" in have, "rows": rows, "levels": levels,
             "series": series,
             "meta": {k: meta.get(k) for k in ("cov_model", "rule_settings", "cost_bp_one_way",
                                               "financing_spread_annual", "n_strategies", "n_comparisons",

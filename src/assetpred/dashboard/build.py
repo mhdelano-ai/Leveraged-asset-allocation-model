@@ -83,7 +83,7 @@ def build_context(root: Path, dev: bool, score_runs: list[str], cov_run: str | N
     ctx = {
         "mean": sections.mean_section(sc, cum, P),
         "dist": sections.dist_section(sc, P),
-        "cov": sections.cov_section(cs, per_date, P),
+        "cov": sections.cov_section(cs, per_date, P, cov_meta),
         "strategy": sections.strategy_section(st),
     }
     now = sections.now_section(root, sc)

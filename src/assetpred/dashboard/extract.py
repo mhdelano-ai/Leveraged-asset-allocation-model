@@ -72,8 +72,8 @@ def load_score_runs(root: Path, runs: list[str]) -> tuple[pd.DataFrame, pd.DataF
         metas[r] = json.loads(mp.read_text()) if mp.exists() and mp.read_text().strip() else {}
     s = pd.concat(frames, ignore_index=True)
     s["horizon"] = s["horizon"].astype(int)
-    star = s[s.model == "*"]
-    real = s[s.model != "*"].drop_duplicates(KEY, keep="first")
+    star = s[is_set_label(s.model)]
+    real = s[~is_set_label(s.model)].drop_duplicates(KEY, keep="first")
     s = pd.concat([real, star], ignore_index=True)
     cum = pd.concat(cums, ignore_index=True).drop_duplicates(
         ["model", "horizon", "asset", "date"], keep="first") if cums else None
@@ -139,6 +139,11 @@ def load_csv(path: Path) -> pd.DataFrame | None:
 
 # --------------------------------------------------------------------------- lookup
 
+def is_set_label(models: pd.Series) -> pd.Series:
+    """Rows about a set of models ('*', '*mean', '*dist', ...), not one model."""
+    return models.astype(str).str.startswith("*")
+
+
 @dataclass
 class Scores:
     """Indexed access to a tidy scores table."""
@@ -147,7 +152,7 @@ class Scores:
     _ix: pd.Series = field(init=False, repr=False)
 
     def __post_init__(self):
-        real = self.df[self.df.model != "*"]
+        real = self.df[~is_set_label(self.df.model)]
         self._ix = real.set_index(KEY)["value"].sort_index()
 
     @property
@@ -156,7 +161,7 @@ class Scores:
 
     @property
     def models(self) -> list[str]:
-        return sorted(m for m in pd.unique(self.df["model"]) if m != "*")
+        return sorted(m for m in pd.unique(self.df["model"]) if not str(m).startswith("*"))
 
     def has(self, model: str) -> bool:
         return model in set(self.df["model"])
@@ -165,7 +170,7 @@ class Scores:
         """Number of models in a scores run other than ``exclude`` (the set an SPA test searched)."""
         if run is None or "run" not in self.df:
             return None
-        ms = set(self.df.loc[(self.df.run == run) & (self.df.model != "*"), "model"])
+        ms = set(self.df.loc[(self.df.run == run) & ~is_set_label(self.df.model), "model"])
         ms.discard(exclude)
         return len(ms)
 
@@ -178,18 +183,20 @@ class Scores:
             v = v.iloc[0]
         return float(v)
 
-    def star(self, metric, h, asset=POOLED, bench=BENCH, period="full", prefer_models=()) -> tuple[float, str | None]:
-        """Value of a set-level row (model '*'); among several runs, the one
-        whose models overlap ``prefer_models`` most."""
+    def star(self, metric, h, asset=POOLED, bench=BENCH, period="full", prefer_models=(),
+             label: str = "*") -> tuple[float, str | None]:
+        """Value of a set-level row (model ``label``: '*' for every model in the
+        run, '*mean' / '*dist' for a pre-registered SPA family); among several
+        runs, the one whose models overlap ``prefer_models`` most."""
         d = self.df
-        g = d[(d.model == "*") & (d.metric == metric) & (d.horizon == int(h)) & (d.asset == asset)
+        g = d[(d.model == label) & (d.metric == metric) & (d.horizon == int(h)) & (d.asset == asset)
               & (d.benchmark == bench) & (d.period == period)]
         if g.empty:
             return float("nan"), None
         if "run" in g and g["run"].nunique() > 1 and prefer_models:
             best, score = None, -1
             for r in g["run"].unique():
-                ms = set(self.df.loc[(self.df.run == r) & (self.df.model != "*"), "model"])
+                ms = set(self.df.loc[(self.df.run == r) & ~is_set_label(self.df.model), "model"])
                 k = len(ms & set(prefer_models))
                 if k > score:
                     best, score = r, k
