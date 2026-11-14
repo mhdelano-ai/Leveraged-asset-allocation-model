@@ -17,7 +17,19 @@ Run ``python -m assetforecast.data.assemble`` (idempotent). It reads whatever ex
 * ``segments.csv`` provenance of every spliced segment, derived from the ``source``
   column of the files, with notes from the tracks.
 * ``predictors.parquet`` and ``predictors_catalog.csv``: all predictor files in
-  standard units (rates, yields, spreads, breakevens, vols as decimals).
+  standard units (rates, yields, spreads, breakevens, vols as decimals). The
+  exception is the return-side track ``predictors/returns.parquet`` (series
+  ``rp_*``, built by ``assetforecast.data.sources.return_predictors``): it passes
+  through unscaled, in the native units the return-side feature formulas assume,
+  and its sidecar ``returns_meta.csv`` fills the catalog columns ``family, scope,
+  asset, lag_months, realtime, hindsight`` (blank, and ``hindsight`` False, for
+  every other track).
+
+``--out-dir DIR`` writes the data files to ``DIR`` and the reports to
+``DIR/reports`` instead (``data/processed`` and ``reports/data`` are untouched);
+``--pred-dir DIR`` reads the predictor track files from ``DIR``.
+``--predictors-only`` writes only ``predictors.parquet``, ``predictors_catalog.csv``
+and ``panel.md`` (the asset panel and ``segments.csv`` are left as they are).
 
 It also writes ``reports/data/panel.md`` and ``reports/data/horizon_evidence.md``
 (``--no-evidence`` skips the latter).
@@ -43,7 +55,11 @@ TIER_ORDER = "ABCD"
 SEP = " ||| "
 SEGMENT_COLUMNS = ["asset", "start", "end", "freq", "source", "tier", "notes"]
 PREDICTOR_COLUMNS = ["obs_date", "available_date", "series", "value"]
-CATALOG_COLUMNS = ["series", "group", "unit", "freq", "start", "end", "live", "notes"]
+CATALOG_COLUMNS = ["series", "group", "unit", "freq", "start", "end", "live", "notes",
+                   "family", "scope", "asset", "lag_months", "realtime", "hindsight"]
+# Return-side predictor track (see assetforecast.data.sources.return_predictors).
+RETURN_TRACK = "returns"
+RETURN_PREFIX = "rp_"
 HORIZONS = [1, 2, 3, 5, 10, 21, 63]
 PAIRS = [("us_large", "intl_dev"), ("us_large", "em"), ("us_large", "ust_long"),
          ("us_large", "hy_credit"), ("us_large", "reits"), ("ust_int", "ig_credit"),
@@ -556,7 +572,19 @@ IMPLIED_UNITS = {"iv_skew_index": ("index level (not a vol)", "Cboe SKEW"),
                  "iv_vxo": ("decimal vol", "old VIX methodology (OEX ATM, trading-day); dead 2021"),
                  "iv_move": ("decimal yield vol (bp vol / 1e4)", "ICE MOVE")}
 GROUP_OF_FILE = {"treasury_curve": "treasury", "tips_real_yields": "tips", "credit_spreads": "credit",
-                 "macro": "macro", "implied": "implied"}
+                 "macro": "macro", "implied": "implied", RETURN_TRACK: RETURN_TRACK}
+RETURN_META_FIELDS = ["family", "scope", "asset", "lag_months", "realtime", "hindsight"]
+
+
+def _return_track_meta(pred_dir: Path) -> dict[str, dict]:
+    """``rp_<name>`` -> sidecar row (``returns_meta.csv`` next to the track file)."""
+    path = pred_dir / f"{RETURN_TRACK}_meta.csv"
+    if not path.exists():
+        raise FileNotFoundError(f"{path} missing: the {RETURN_TRACK} track needs its sidecar")
+    m = pd.read_csv(path, keep_default_na=False, dtype=str)
+    m["lag_months"] = m["lag_months"].astype(int)
+    m["hindsight"] = m["hindsight"] == "True"
+    return {RETURN_PREFIX + r["name"]: r for r in m.to_dict("records")}
 
 
 def _implied_desc(series: str) -> str:
@@ -589,8 +617,19 @@ def build_predictors(ref_end: pd.Timestamp, pred_dir: Path = PREDICTOR_DIR):
         df["available_date"] = _dt_index(df["available_date"])
         df["series"] = df["series"].astype(str)
         spec = PRED_SPEC.get(stem, {})
+        rmeta = _return_track_meta(pred_dir) if stem == RETURN_TRACK else {}
+        if stem == RETURN_TRACK and set(rmeta) != set(df["series"]):
+            raise ValueError(f"{p.name} and its sidecar list different series: "
+                             f"{sorted(set(rmeta) ^ set(df['series']))}")
         for s, g in df.groupby("series", sort=True):
-            if stem == "implied":
+            extra = dict(family="", scope="", asset="", lag_months=None, realtime="", hindsight=False)
+            if stem == RETURN_TRACK:
+                r = rmeta[s]
+                extra = {k: r[k] for k in RETURN_META_FIELDS}
+                unit = "native (return-side track, unscaled)"
+                desc = f"{r['description'].rstrip('.')}. Source: {r['source']}"
+                new, scale = s, 1.0
+            elif stem == "implied":
                 unit, desc = IMPLIED_UNITS.get(s, ("decimal vol", ""))
                 desc = _implied_desc(s) or desc
                 new, scale = s, 1.0
@@ -623,10 +662,11 @@ def build_predictors(ref_end: pd.Timestamp, pred_dir: Path = PREDICTOR_DIR):
             if scale != 1:
                 note += f"; converted from percent (x{scale:g})"
             cat.append(dict(series=new, group=group, unit=unit, freq=fq, start=str(g["obs_date"].min().date()),
-                            end=str(end.date()), live=live, notes=note))
+                            end=str(end.date()), live=live, notes=note, **extra))
     pred = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=PREDICTOR_COLUMNS)
     pred = pred.sort_values(["available_date", "series", "obs_date"], kind="stable").reset_index(drop=True)
     catalog = pd.DataFrame(cat, columns=CATALOG_COLUMNS).sort_values(["group", "series"]).reset_index(drop=True)
+    catalog["lag_months"] = catalog["lag_months"].astype("Int64")
     if catalog["series"].duplicated().any():
         raise ValueError(f"duplicate series names: {catalog.series[catalog.series.duplicated()].tolist()}")
     return pred, catalog, issues, conv
@@ -736,10 +776,27 @@ def validate(A: Assembled, seg: pd.DataFrame, pred: pd.DataFrame, catalog: pd.Da
     return v
 
 
-def panel_asof_smoke() -> dict:
+def _panel_from(out_dir: Path):
+    """The Panel ``load_panel()`` would build from the files in ``out_dir`` (no
+    max_date, no dropped tiers): lets the smoke test run on an ``--out-dir`` build."""
+    from .panel import Panel
+    daily = pd.read_parquet(out_dir / "panel_daily.parquet")
+    monthly = pd.read_parquet(out_dir / "panel_monthly.parquet")
+    pred = pd.read_parquet(out_dir / "predictors.parquet")[PREDICTOR_COLUMNS]
+    pred["obs_date"] = pd.to_datetime(pred["obs_date"])
+    pred["available_date"] = pd.to_datetime(pred["available_date"])
+    cols = [a for a in ASSET_IDS if a in daily.columns or a in monthly.columns]
+    return Panel(daily=daily.reindex(columns=cols), monthly=monthly.reindex(columns=cols),
+                 cash_daily=pd.read_parquet(out_dir / "cash_daily.parquet")["cash"].reindex(daily.index),
+                 cash_monthly=pd.read_parquet(out_dir / "cash_monthly.parquet")["cash"].reindex(monthly.index),
+                 tiers=pd.read_parquet(out_dir / "tiers_monthly.parquet").reindex(columns=cols),
+                 predictors=pred)
+
+
+def panel_asof_smoke(out_dir: Path = PROCESSED) -> dict:
     """load_panel() + Panel.asof behaviour on the files just written."""
     from .panel import load_panel
-    p = load_panel()
+    p = load_panel() if Path(out_dir) == PROCESSED else _panel_from(Path(out_dir))
     out = {"loaded": True, "daily_shape": p.daily.shape, "monthly_shape": p.monthly.shape,
            "n_predictor_series": int(p.predictors["series"].nunique())}
     t = pd.Timestamp("2008-10-15")
@@ -1272,27 +1329,38 @@ def write_evidence_report(seg_t: pd.DataFrame, jump_t: pd.DataFrame, pair_t: pd.
 
 
 # ============================================================== main
-def build(write: bool = True, evidence: bool = True, verbose: bool = True) -> dict:
+def build(write: bool = True, evidence: bool = True, verbose: bool = True,
+          out_dir: Path | None = None, pred_dir: Path = PREDICTOR_DIR, write_panel: bool = True) -> dict:
+    """Assemble and (``write``) save. ``out_dir`` (default ``data/processed``) receives
+    the data files; reports go to ``reports/data``, or to ``out_dir/reports`` when
+    ``out_dir`` is given. ``pred_dir`` is where the predictor track files are read.
+    ``write_panel=False`` writes only the predictor store, its catalog and ``panel.md``."""
+    out_dir = PROCESSED if out_dir is None else Path(out_dir)
+    rep_dir = REPORTS / "data" if out_dir == PROCESSED else out_dir / "reports"
     cash_d, cash_m, assets = load_inputs()
     A = assemble(cash_d, cash_m, assets)
     seg, seg_issues = build_segments(A, assets, cash_d, cash_m)
-    pred, catalog, pred_issues, conv = build_predictors(A.daily.index[-1])
+    pred, catalog, pred_issues, conv = build_predictors(A.daily.index[-1], Path(pred_dir))
+    if write and not write_panel and not (out_dir / "panel_daily.parquet").exists():
+        raise FileNotFoundError(f"{out_dir}: no assembled panel to go with a predictors-only write")
+    if write and write_panel:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        A.daily.astype(float).to_parquet(out_dir / "panel_daily.parquet")
+        A.monthly.astype(float).to_parquet(out_dir / "panel_monthly.parquet")
+        A.cash_daily.to_frame().to_parquet(out_dir / "cash_daily.parquet")
+        A.cash_monthly.to_frame().to_parquet(out_dir / "cash_monthly.parquet")
+        A.tiers.astype(object).where(A.tiers.notna(), None).to_parquet(out_dir / "tiers_monthly.parquet")
+        seg.to_csv(out_dir / "segments.csv", index=False)
     if write:
-        PROCESSED.mkdir(parents=True, exist_ok=True)
-        A.daily.astype(float).to_parquet(PROCESSED / "panel_daily.parquet")
-        A.monthly.astype(float).to_parquet(PROCESSED / "panel_monthly.parquet")
-        A.cash_daily.to_frame().to_parquet(PROCESSED / "cash_daily.parquet")
-        A.cash_monthly.to_frame().to_parquet(PROCESSED / "cash_monthly.parquet")
-        A.tiers.astype(object).where(A.tiers.notna(), None).to_parquet(PROCESSED / "tiers_monthly.parquet")
-        seg.to_csv(PROCESSED / "segments.csv", index=False)
-        pred.to_parquet(PROCESSED / "predictors.parquet", index=False)
-        catalog.to_csv(PROCESSED / "predictors_catalog.csv", index=False)
+        pred.to_parquet(out_dir / "predictors.parquet", index=False)
+        catalog.to_csv(out_dir / "predictors_catalog.csv", index=False)
     v = validate(A, seg, pred, catalog, cash_d.index)
-    smoke = panel_asof_smoke() if write else None
+    smoke = panel_asof_smoke(out_dir) if write else None
     out = dict(A=A, segments=seg, seg_issues=seg_issues, predictors=pred, catalog=catalog,
                pred_issues=pred_issues, conversions=conv, validation=v, smoke=smoke)
     if write:
-        write_panel_report(A, seg, catalog, v, seg_issues, pred_issues, conv, smoke, REPORTS / "data" / "panel.md")
+        rep_dir.mkdir(parents=True, exist_ok=True)
+        write_panel_report(A, seg, catalog, v, seg_issues, pred_issues, conv, smoke, rep_dir / "panel.md")
     if evidence:
         X, S = log_excess_daily(A)
         seg_t = segment_vol_table(X, S)
@@ -1303,10 +1371,9 @@ def build(write: bool = True, evidence: bool = True, verbose: bool = True) -> di
         add_noise_z(seg_t, pair_t, noise)
         out.update(seg_vol=seg_t, splice_jumps=jump_t, pair_corr=pair_t, se=se_t, noise=noise)
         if write:
-            ev = write_evidence_report(seg_t, jump_t, pair_t, se_t, noise, A,
-                                       REPORTS / "data" / "horizon_evidence.md")
+            ev = write_evidence_report(seg_t, jump_t, pair_t, se_t, noise, A, rep_dir / "horizon_evidence.md")
             out["evidence"] = ev
-            _insert_narrative(REPORTS / "data" / "horizon_evidence.md", ev, seg_t, jump_t, pair_t)
+            _insert_narrative(rep_dir / "horizon_evidence.md", ev, seg_t, jump_t, pair_t)
     if verbose:
         _print_summary(out)
     return out
@@ -1438,10 +1505,17 @@ def _print_summary(out: dict) -> None:
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--no-evidence", action="store_true", help="skip reports/data/horizon_evidence.md")
+    ap.add_argument("--out-dir", type=Path, default=None,
+                    help="write the data files here (reports to OUT_DIR/reports) instead of data/processed")
+    ap.add_argument("--pred-dir", type=Path, default=PREDICTOR_DIR,
+                    help="read the predictor track files from here (default data/processed/predictors)")
+    ap.add_argument("--predictors-only", action="store_true",
+                    help="write only predictors.parquet, predictors_catalog.csv and panel.md (implies --no-evidence)")
     a = ap.parse_args(argv)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=RuntimeWarning)
-        build(evidence=not a.no_evidence)
+        build(evidence=not (a.no_evidence or a.predictors_only), out_dir=a.out_dir, pred_dir=a.pred_dir,
+              write_panel=not a.predictors_only)
 
 
 if __name__ == "__main__":

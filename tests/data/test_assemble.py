@@ -187,13 +187,28 @@ def test_segments_agree_with_files(panel, seg):
 @need
 def test_predictors_clean_and_in_standard_units():
     p = pd.read_parquet(PROCESSED / "predictors.parquet")
-    cat = pd.read_csv(PROCESSED / "predictors_catalog.csv")
+    cat = pd.read_csv(PROCESSED / "predictors_catalog.csv", keep_default_na=False)
     assert list(p.columns) == am.PREDICTOR_COLUMNS
-    assert list(cat.columns) == am.CATALOG_COLUMNS
+    rp = p["series"].str.startswith(am.RETURN_PREFIX)
+    if rp.any():
+        assert list(cat.columns) == am.CATALOG_COLUMNS
+        ret = cat["group"] == am.RETURN_TRACK
+        assert set(cat.loc[ret, "series"]) == set(p.loc[rp, "series"])
+        assert (cat.loc[ret, ["family", "scope", "realtime", "lag_months"]] != "").all().all()
+        assert (cat.loc[~ret, ["family", "scope", "asset", "realtime", "lag_months"]] == "").all().all()
+        assert (cat.loc[~ret, "hindsight"].astype(str) == "False").all()
+    else:
+        # a store assembled before the return-side track (the legacy catalog columns);
+        # migrate with `python -m assetforecast.data.sources.return_predictors --from-committed`
+        assert list(cat.columns) == am.CATALOG_COLUMNS[:8]
     assert (p["available_date"] >= p["obs_date"]).all()
     assert not p.duplicated(["series", "obs_date"]).any()
     assert cat["series"].is_unique and set(cat["series"]) == set(p["series"])
-    assert not p["series"].str.contains("excess_bond_premium").any()
+    # the look-ahead GZ excess bond premium is excluded from the covariance-side tracks; the
+    # return-side track keeps assetpred's copy (frozen feature set) flagged as hindsight
+    assert not p.loc[~rp, "series"].str.contains("excess_bond_premium").any()
+    if rp.any():
+        assert cat.loc[cat.series == "rp_excess_bond_premium", "hindsight"].astype(str).tolist() == ["True"]
     assert cat["notes"].str.contains("excess bond premium", case=False).any()
     q = p.groupby("series")["value"].apply(lambda s: s.abs().quantile(0.99))
     dec = cat.loc[cat.unit.str.startswith("decimal") & ~cat.unit.str.startswith("decimal vol"), "series"]
@@ -202,6 +217,54 @@ def test_predictors_clean_and_in_standard_units():
     assert (q[vols] < 4).all() and (p[p.series.isin(vols)]["value"] > 0).all()
     dur = cat.loc[cat.unit == "years", "series"]
     assert ((q[dur] > 3) & (q[dur] < 30)).all()
+
+
+def _long(series, dates, values):
+    d = pd.DatetimeIndex(dates)
+    return pd.DataFrame({"obs_date": d, "available_date": d, "series": series, "value": values})
+
+
+def test_catalog_columns_and_return_track(tmp_path):
+    """The return-side track passes through unscaled and fills the extra catalog
+    columns from its sidecar; every other track leaves them blank / False."""
+    from assetforecast.data.sources import return_predictors as rp
+    me = pd.date_range("2000-01-31", periods=4, freq="ME")
+    _long("macro_unrate", me, [4.0, 4.1, 4.2, 4.3]).to_parquet(tmp_path / "macro.parquet", index=False)
+    wide = pd.DataFrame({"tbill_3m": [5.0, np.nan, 5.2, 5.3], "us_cape": [30.0, 31.0, np.nan, np.nan]},
+                        index=pd.DatetimeIndex(me, name="date"))
+    rp.to_long(wide).to_parquet(tmp_path / "returns.parquet", index=False)
+    meta = pd.DataFrame([
+        dict(name="tbill_3m", family="valuation_carry", scope="global", asset="", source="FRED DTB3", lag_months=0,
+             realtime="market", hindsight=False, first_date="2000-01-31", last_date="2000-04-30", description="bill"),
+        dict(name="us_cape", family="valuation_carry", scope="asset", asset="us_large", source="Shiller",
+             lag_months=6, realtime="lagged_revised", hindsight=True, first_date="2000-01-31",
+             last_date="2000-02-29", description="cape")])
+    meta.to_csv(tmp_path / "returns_meta.csv", index=False)
+    pred, cat, issues, conv = am.build_predictors(pd.Timestamp("2000-05-15"), tmp_path)
+    assert list(cat.columns) == am.CATALOG_COLUMNS
+    assert issues == []
+    c = cat.set_index("series")
+    assert c.loc["rp_us_cape", ["group", "family", "scope", "asset", "realtime", "hindsight"]].tolist() == [
+        "returns", "valuation_carry", "asset", "us_large", "lagged_revised", True]
+    assert c.loc["rp_us_cape", "lag_months"] == 6 and c.loc["rp_tbill_3m", "lag_months"] == 0
+    assert c.loc["rp_tbill_3m", "unit"].startswith("native")
+    assert c.loc["macro_unrate", ["family", "scope", "asset", "realtime"]].tolist() == ["", "", "", ""]
+    assert pd.isna(c.loc["macro_unrate", "lag_months"]) and c.loc["macro_unrate", "hindsight"] == False  # noqa: E712
+    # unscaled, one row per non-missing cell, obs_date == available_date
+    r = pred[pred.series.str.startswith("rp_")]
+    assert len(r) == 5 and (r.obs_date == r.available_date).all()
+    assert r[r.series == "rp_tbill_3m"]["value"].tolist() == [5.0, 5.2, 5.3]
+    assert pred[pred.series == "macro_unrate"]["value"].tolist() == pytest.approx([0.04, 0.041, 0.042, 0.043])
+    # the catalog survives a CSV round trip with its column order
+    cat.to_csv(tmp_path / "cat.csv", index=False)
+    assert list(pd.read_csv(tmp_path / "cat.csv").columns) == am.CATALOG_COLUMNS
+    # a track without (or disagreeing with) its sidecar is refused
+    meta.iloc[:1].to_csv(tmp_path / "returns_meta.csv", index=False)
+    with pytest.raises(ValueError, match="different series"):
+        am.build_predictors(pd.Timestamp("2000-05-15"), tmp_path)
+    (tmp_path / "returns_meta.csv").unlink()
+    with pytest.raises(FileNotFoundError):
+        am.build_predictors(pd.Timestamp("2000-05-15"), tmp_path)
 
 
 @pytest.mark.realdata
