@@ -386,10 +386,10 @@ class BOCPDMonthly(_RegimeBase):
         self._cache[key] = (len(x), fingerprint(x), st.copy())
         return st, v0
 
-    def state(self, view, a):
+    def state(self, view, a, hazard=None):
         est = estimation_date(view)
         s = asset_series(view.excess_monthly, a)
-        return self.run("m", a, est, s.to_numpy(), int((s.index <= est).sum()), self.hazard)
+        return self.run("m", a, est, s.to_numpy(), int((s.index <= est).sum()), hazard or self.hazard)
 
     def _variance(self, view, assets):
         out = {}
@@ -397,6 +397,50 @@ class BOCPDMonthly(_RegimeBase):
             st, v0 = self.state(view, a)
             if st is not None:
                 out[a] = 12.0 * bocpd_forecast(st, self.hazard, v0, HORIZON_M)
+        return out
+
+
+class BOCPDEmpiricalBayes(BOCPDMonthly):
+    """BOCPD whose hazard is estimated inside the model: each year, the hazard on a
+    grid of round expected segment lengths (1, 3, 5, 10, 20, 40 years) that
+    maximizes the marginal likelihood of all assets' monthly returns up to the
+    estimation date (one hazard shared by all assets)."""
+
+    GRID_YEARS = (1, 3, 5, 10, 20, 40)
+
+    def __init__(self, alpha0: float = 3.0, min_obs: int = 60):
+        super().__init__(1 / 240, alpha0)
+        self.min_obs = min_obs
+
+    def chosen_hazard(self, view) -> float:
+        est = estimation_date(view)
+        X = view.excess_monthly.loc[:est]
+        cols = [a for a in X.columns if X[a].notna().sum() >= self.min_obs]
+        if not cols:
+            return self.hazard
+        key = ("eb", est, tuple(cols), fingerprint(X[cols].to_numpy()))
+        if key not in self._cache:
+            ev = {}
+            for yrs in self.GRID_YEARS:
+                hz = 1.0 / (12 * yrs)
+                tot = 0.0
+                for a in cols:
+                    xe = asset_series(X, a).to_numpy()
+                    v0 = float(np.nanmean(xe ** 2))
+                    st = bocpd_update(BOCPDState(self.alpha0, (self.alpha0 - 1) * v0), xe, hz,
+                                      self.alpha0, (self.alpha0 - 1) * v0)
+                    tot += st.loglik
+                ev[hz] = tot
+            self._cache[key] = max(ev, key=ev.get)
+        return self._cache[key]
+
+    def _variance(self, view, assets):
+        hz = self.chosen_hazard(view)
+        out = {}
+        for a in assets:
+            st, v0 = self.state(view, a, hz)
+            if st is not None:
+                out[a] = 12.0 * bocpd_forecast(st, hz, v0, HORIZON_M)
         return out
 
 

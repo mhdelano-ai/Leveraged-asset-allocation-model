@@ -63,6 +63,11 @@ SPEC = {
     "gold": ["RT", "CM"], "commodities": ["CM"],
 }
 FACTORS = ["EQ", "RT", "CS", "CM"]
+# v2 ("global"): a non-US equity factor (developed ex-US, from 1975) for the
+# two non-US equity assets, which share a regional component the US factor
+# cannot carry; everything else as SPEC.
+SPEC_GLOBAL = dict(SPEC, intl_dev=["XU"], em=["EQ", "XU", "RT"])
+FACTORS_GLOBAL = FACTORS + ["XU"]
 
 
 def factor_cov(F: pd.DataFrame) -> np.ndarray:
@@ -77,8 +82,11 @@ def factor_cov(F: pd.DataFrame) -> np.ndarray:
 
 
 class StructuralFactorCov(CovForecaster):
-    def __init__(self, beta=1.0, etf_adjust=True):
+    def __init__(self, beta=1.0, etf_adjust=True, global_eq=False, dimson=False):
         self.beta, self.etf_adjust = beta, etf_adjust
+        self.spec = SPEC_GLOBAL if global_eq else SPEC
+        self.factors = FACTORS_GLOBAL if global_eq else FACTORS
+        self.dimson = dimson
 
     # ---------------------------------------------------------------- pieces
     def _setup(self, view):
@@ -89,7 +97,7 @@ class StructuralFactorCov(CovForecaster):
         sc_int = core.cev_scale(y_int, st.beta)
         g = st.g()
         F = pd.DataFrame({"EQ": X["us_large"], "RT": g / sc_int.shift(1),
-                          "CS": nan.copy(), "CM": X["commodities"]}, index=idx)
+                          "CS": nan.copy(), "CM": X["commodities"], "XU": X["intl_dev"]}, index=idx)
         # exposures S[a][k] known at month-end (applied with a one-month lag in fits)
         S = {a: {} for a in SPEC}
         R = {a: pd.Series(1.0, index=idx) for a in SPEC}   # residual scales
@@ -121,13 +129,14 @@ class StructuralFactorCov(CovForecaster):
     def forecast_cov(self, view, assets):
         with np.errstate(all="ignore"):
             st, X, F, S, R = self._setup(view)
-        k = len(FACTORS)
-        Fv = F[FACTORS].copy()
-        avail = [f for f in FACTORS if Fv[f].notna().sum() >= MIN_FIT]
+        FACT = self.factors
+        k = len(FACT)
+        Fv = F[FACT].copy()
+        avail = [f for f in FACT if Fv[f].notna().sum() >= MIN_FIT]
         B = np.zeros((len(assets), k))
         resid = np.zeros(len(assets))
         for i, a in enumerate(assets):
-            regs = [f for f in SPEC.get(a, ["EQ"]) if f in avail] or (["EQ"] if "EQ" in avail else [])
+            regs = [f for f in self.spec.get(a, ["EQ"]) if f in avail] or (["EQ"] if "EQ" in avail else [])
             y = X[a]
             r_scale = R[a]
             r_scale = r_scale if r_scale.notna().iloc[-1] and np.isfinite(r_scale.iloc[-1]) else pd.Series(1.0, index=X.index)
@@ -138,6 +147,8 @@ class StructuralFactorCov(CovForecaster):
                     sc = pd.Series(1.0, index=X.index)
                 cols[f] = sc.shift(1) * Fv[f]
                 today[f] = float(sc.iloc[-1])
+                if self.dimson:     # one lag; the loading is the sum (Dimson 1979)
+                    cols[f + "_l1"] = sc.shift(2) * Fv[f].shift(1)
             w = r_scale.shift(1)
             D = pd.DataFrame(cols)
             ok = y.notna() & w.notna() & (D.notna().all(axis=1) if regs else True)
@@ -147,14 +158,15 @@ class StructuralFactorCov(CovForecaster):
                 Dn = D[ok].div(w[ok], axis=0)
                 c, *_ = np.linalg.lstsq(Dn.to_numpy(), yn.to_numpy(), rcond=None)
                 e = pd.Series(yn.to_numpy() - Dn.to_numpy() @ c, index=yn.index)
-                for j, f in enumerate(regs):
-                    B[i, FACTORS.index(f)] = c[j] * today[f]
+                coef = dict(zip(D.columns, c))
+                for f in regs:
+                    B[i, FACT.index(f)] = (coef[f] + coef.get(f + "_l1", 0.0)) * today[f]
             else:
                 e = (y / w).dropna()
             resid[i] = core.blend_var(e) * float(r_scale.iloc[-1]) ** 2
         Fc = np.zeros((k, k))
         if avail:
-            ia = [FACTORS.index(f) for f in avail]
+            ia = [FACT.index(f) for f in avail]
             Fc[np.ix_(ia, ia)] = factor_cov(Fv[avail])
         sysv = np.einsum("ij,jk,ik->i", B, Fc, B)
         resid = np.where(np.isfinite(resid), resid, 0.0)

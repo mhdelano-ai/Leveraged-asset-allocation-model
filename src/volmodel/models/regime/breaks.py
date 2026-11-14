@@ -30,17 +30,19 @@ KS_CRIT = {0.10: 1.224, 0.05: 1.358, 0.01: 1.628}
 class BOCPDState:
     """Run-length posterior after the last observation processed."""
 
-    __slots__ = ("logp", "alpha", "beta", "n")
+    __slots__ = ("logp", "alpha", "beta", "n", "loglik")
 
     def __init__(self, alpha0: float, beta0: float):
         self.logp = np.array([0.0])          # run length 0 before any data
         self.alpha = np.array([alpha0])
         self.beta = np.array([beta0])
         self.n = 0                            # observations processed (incl. NaN skips)
+        self.loglik = 0.0                     # log marginal likelihood of the data processed
 
     def copy(self):
         s = BOCPDState.__new__(BOCPDState)
         s.logp, s.alpha, s.beta, s.n = self.logp.copy(), self.alpha.copy(), self.beta.copy(), self.n
+        s.loglik = self.loglik
         return s
 
 
@@ -63,7 +65,9 @@ def bocpd_update(state: BOCPDState, x: np.ndarray, hazard: float, alpha0: float,
         lj = logp + lpred
         grow = lj + l1h
         m = lj.max()
-        cp = m + math.log(np.exp(lj - m).sum()) + lh
+        ev = m + math.log(np.exp(lj - m).sum())   # log p(x_t | x_1..x_{t-1})
+        state.loglik += ev
+        cp = ev + lh
         logp = np.concatenate([[cp], grow])
         logp -= logp.max()
         logp -= math.log(np.exp(logp).sum())
