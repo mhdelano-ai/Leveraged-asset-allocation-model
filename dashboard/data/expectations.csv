@@ -1,0 +1,6 @@
+id,expectation,status,evidence
+1,Volatility loss lower than both simple benchmarks,Met,0.353 against 0.383 for the long-run/5-year blend and 0.550 for last-12-months
+2,Covariance loss lower than the reference matrix,"Met, not significant",-0.623 against -0.502; p = 0.27
+3,Fixed-weight portfolio risk within 0.75-1.35 of predicted,Met,"Realized / predicted variance: 60/40 1.05, balanced 1.16, risk parity 1.25, random 1.19"
+4,"Minimum-variance portfolios riskier than predicted, by more than 1.2x",Not met,"0.83 unconstrained, 1.08 long-only (1.43 and 1.27 in development)"
+5,12-month scaling brings standardized portfolio returns nearer unit variance,"Not met, inconclusive","60/40: 0.59 without, 0.48 with; about 12 independent years"
