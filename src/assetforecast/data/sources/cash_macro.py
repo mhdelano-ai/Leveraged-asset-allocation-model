@@ -50,6 +50,7 @@ FRENCH = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/"
 DBNOMICS = "https://api.db.nomics.world/v22/series/"
 NBER = "https://data.nber.org/databases/macrohistory/rectdata/"
 BLS_V1 = "https://api.bls.gov/publicAPI/v1/timeseries/data/"
+BLS_V2 = "https://api.bls.gov/publicAPI/v2/timeseries/data/"  # keyless use has its own daily quota
 YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart/"
 SHILLER = ["http://www.econ.yale.edu/~shiller/data/ie_data.xls",
            "https://www.econ.yale.edu/~shiller/data/ie_data.xls"]
@@ -142,15 +143,26 @@ def nber(code: str, refresh: bool = False) -> pd.Series:
 
 
 def bls_recent(series: list[str], refresh: bool = False) -> dict[str, pd.Series]:
-    """Last ten years of BLS series from the public v1 API (no key; 25 requests/day/IP)."""
+    """Last ten years of BLS series from the public API without a key (25 requests/day/IP).
+
+    The v1 endpoint is tried first; when its daily quota is spent (common on shared cloud
+    addresses) the v2 endpoint, whose keyless quota is counted separately, returns the same
+    series in the same format."""
     end = pd.Timestamp.today().year
     body = {"seriesid": series, "startyear": str(end - 9), "endyear": str(end)}
 
     def fetch():
-        raw = _get(BLS_V1, method="POST", json_body=body)
-        if json.loads(raw).get("status") != "REQUEST_SUCCEEDED":
-            raise RuntimeError(f"BLS API: {raw[:300]!r}")
-        return raw
+        errors = []
+        for url in (BLS_V1, BLS_V2):
+            try:
+                raw = _get(url, method="POST", json_body=body)
+            except RuntimeError as e:
+                errors.append(str(e))
+                continue
+            if json.loads(raw).get("status") == "REQUEST_SUCCEEDED":
+                return raw
+            errors.append(f"{url}: {raw[:300]!r}")
+        raise RuntimeError("BLS API: " + " | ".join(errors))
 
     raw = _cached("bls_v1_recent.json", fetch, refresh)
     out = {}

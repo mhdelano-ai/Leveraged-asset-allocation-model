@@ -130,3 +130,14 @@ def test_replication_numbers_sit_next_to_the_label(page):
     for sec in ("trust", "mean", "portfolio"):
         body = html.split(f'id="{sec}"', 1)[1].split("</section>", 1)[0]
         assert 'data-field="label"' in body, sec
+
+
+def test_refresh_button_config(tmp_path):
+    """The button's settings are inlined as JSON; without refresh.json the page carries null (no button)."""
+    html = PAGE.read_text()
+    cfg = json.loads(re.search(r'<script type="application/json" id="dash-refresh">(.*?)</script>', html, re.S).group(1))
+    assert cfg == page_mod.refresh_config()
+    assert 'id="sa-refresh" hidden' in html and 'id="dash-refresh-ui"' in html
+    assert page_mod.refresh_config(tmp_path / "missing.json") is None
+    (tmp_path / "r.json").write_text('{"trigger_id": ""}')
+    assert page_mod.refresh_config(tmp_path / "r.json") is None
