@@ -38,7 +38,7 @@ from . import config
 ASSET_RETURNS = config.PROCESSED / "asset_returns.parquet"
 CASH = config.PROCESSED / "cash.parquet"
 ASSET_META = config.PROCESSED / "asset_meta.csv"        # asset, segment_start, segment_end, source, description
-PREDICTORS = config.PROCESSED / "predictors.parquet"
+PREDICTORS = config.PROCESSED / "predictors_assetpred.parquet"  # volmodel owns predictors.parquet
 PREDICTOR_META = config.PROCESSED / "predictor_meta.csv"  # name, family, scope, asset, source, lag_months, realtime, hindsight, first_date, last_date, description
 FEATURES = config.PROCESSED / "features.parquet"
 FEATURE_META = config.PROCESSED / "feature_meta.csv"    # name, family, scope, hindsight, first_date, description

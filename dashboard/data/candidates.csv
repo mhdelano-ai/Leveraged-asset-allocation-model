@@ -1,0 +1,6 @@
+role,dev,holdout,label,rf_dev,rf_holdout
+primary,0.389,0.353,Selected: family average,1.11,1.05
+runner_up,0.402,0.395,Simple runner-up,1.16,1.07
+single,0.36,0.415,Best single model (development),1.11,1.17
+reference,0.569,0.383,Reference: long-run / 5-year blend,1.37,1.16
+ref_last12m,0.505,0.55,Benchmark: last 12 months,1.54,1.59

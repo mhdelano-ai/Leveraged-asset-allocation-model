@@ -3,6 +3,14 @@ __pycache__/
 .pytest_cache/
 data/raw/
 *.pyc
+.ipynb_checkpoints/
+results/synthetic/
+results/targets/
+.claude/worktrees/
+results/dev_noD/
+results/full/
+
+# --- from the assetpred branch
 .venv/
 data/processed/raw_manifest.lock
 # development-period outputs are exploratory and regenerable; keep only the trial logs

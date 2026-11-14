@@ -1,0 +1,17 @@
+loss,period,model,role,mean_loss,mcs_pvalue,in_mcs_90,elimination_rank,n_obs,block_length
+vol_qlike_daily,dev,cov:pair_cov_single,single,0.360476,1.0,True,4,1051,36.0
+vol_qlike_daily,dev,cov:combo_cov_main,primary,0.388681,0.669165,True,3,1051,36.0
+vol_qlike_daily,dev,cov:combo_cov_simple,runner_up,0.401736,0.669165,True,2,1051,36.0
+vol_qlike_daily,dev,cov:pair_cov_ref,reference,0.569347,0.106447,True,1,1051,36.0
+vol_qlike_daily,holdout,cov:combo_cov_main,primary,0.352865,1.0,True,4,142,36.0
+vol_qlike_daily,holdout,cov:combo_cov_simple,runner_up,0.39477,0.593203,True,2,142,36.0
+vol_qlike_daily,holdout,cov:pair_cov_ref,reference,0.382632,0.593203,True,1,142,36.0
+vol_qlike_daily,holdout,cov:pair_cov_single,single,0.415275,0.593203,True,3,142,36.0
+cov_qlike_rel_daily,dev,combo_cov_main,primary,-0.524113,1.0,True,4,1015,36.0
+cov_qlike_rel_daily,dev,combo_cov_simple,runner_up,-0.49178,0.535732,True,3,1015,36.0
+cov_qlike_rel_daily,dev,pair_cov_single,single,-0.488583,0.387806,True,2,1015,36.0
+cov_qlike_rel_daily,dev,pair_cov_ref,reference,-0.207789,0.094453,False,1,1015,36.0
+cov_qlike_rel_daily,holdout,combo_cov_main,primary,-0.62341,1.0,True,4,142,36.0
+cov_qlike_rel_daily,holdout,combo_cov_simple,runner_up,-0.622873,0.97951,True,3,142,36.0
+cov_qlike_rel_daily,holdout,pair_cov_ref,reference,-0.502305,0.512244,True,2,142,36.0
+cov_qlike_rel_daily,holdout,pair_cov_single,single,-0.575126,0.512244,True,1,142,36.0
