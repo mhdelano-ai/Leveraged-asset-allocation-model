@@ -10,16 +10,19 @@ Construction (justified in ``reports/data/us_equity.md``)
 us_large
   * 1871-01 .. 1926-06  monthly, Shiller S&P Composite (Cowles) total return
                         from month-AVERAGE prices plus dividends/12 -> tier D
-  * 1926-07 .. VFINX-1  daily, Ken French CRSP value-weighted top-30% size
-                        portfolio ("Hi 30", NYSE breakpoints), total return -> tier B
-  * VFINX start .. SPY-1 daily, Vanguard 500 Index Inv (VFINX) adjclose -> tier A
-  * 1993-01-29 .. today daily, SPDR S&P 500 ETF (SPY) adjclose -> tier A
+  * 1926-07-01 .. 1993-01-29  daily, Ken French CRSP value-weighted top-30%
+                        size portfolio ("Hi 30", NYSE breakpoints) -> tier B
+  * 1993-02-01 .. today daily, SPDR S&P 500 ETF (SPY), close + dividends -> tier A
 us_small
-  * 1926-07 .. 1989-12  daily, Ken French size portfolio chosen by
-                        calibration against IWM (see ``SMALL_PORTFOLIO``) -> tier B
-  * 1990-01-02 .. 2000-05-26  daily, Vanguard Small-Cap Index Inv (NAESX), which
-                        tracked the Russell 2000 in that era -> tier A
-  * 2000-05-30 .. today daily, iShares Russell 2000 ETF (IWM) adjclose -> tier A
+  * 1926-07-01 .. 2000-05-26  daily, 50/50 daily-rebalanced blend of the French
+                        value-weighted size quintiles 2 and 3 ("Qnt 2+3",
+                        NYSE 20th-60th percentiles) -> tier B
+  * 2000-05-30 .. today daily, iShares Russell 2000 ETF (IWM), close + dividends -> tier A
+
+Yahoo histories of VFINX (1980-) and NAESX (Russell 2000 fund 1990-2003) were
+evaluated and rejected: misdated / stale NAVs and capital-gain distributions
+missing from the dividend events (see the report). They are used only as
+diagnostics.
 
 Every return is a SIMPLE TOTAL return in decimals. Nothing is interpolated.
 """
@@ -54,15 +57,15 @@ YAHOO_URL = "https://{host}.finance.yahoo.com/v8/finance/chart/{sym}"
 
 # Fund / ETF segments. ``start`` is the first return date used (None = from the
 # first available Yahoo return).
-LARGE_FUNDS = [("VFINX", None), ("SPY", "1993-02-01")]
-# NAESX became a Russell 2000 index fund on 1989-12-?? (Naess & Thomas Special
-# Fund before that): use it only from 1990-01-02.
-SMALL_FUNDS = [("NAESX", "1990-01-02"), ("IWM", "2000-05-30")]
+LARGE_FUNDS = [("SPY", None)]
+SMALL_FUNDS = [("IWM", None)]
+# Evaluated but rejected (data quality); downloaded for diagnostics only.
+REJECTED_FUNDS = ["VFINX", "NAESX"]
 
 # French size portfolios used before the fund era, chosen by the calibration in
 # ``diagnostics()`` (tracking error, correlation and vol ratio vs SPY and vs
 # IWM / NAESX on the overlap); see the report.
-SMALL_PORTFOLIO = "Qnt 2"
+SMALL_PORTFOLIO = "Qnt 2+3"
 LARGE_PORTFOLIO = "Hi 30"
 
 
@@ -171,6 +174,8 @@ def french_daily(refresh: bool = False) -> pd.DataFrame:
     out = me.drop(columns=["<= 0"], errors="ignore")
     out.insert(0, "Mkt", ff["Mkt-RF"] + ff["RF"])
     out.insert(1, "RF", ff["RF"])
+    # fixed 50/50 blend, rebalanced daily (see SMALL_PORTFOLIO)
+    out["Qnt 2+3"] = 0.5 * out["Qnt 2"] + 0.5 * out["Qnt 3"]
     return out
 
 
@@ -201,10 +206,22 @@ def yahoo_series(sym: str, refresh: bool = False) -> pd.DataFrame:
 
 
 def yahoo_returns(sym: str, refresh: bool = False) -> pd.Series:
-    a = yahoo_series(sym, refresh)["adjclose"]
-    r = a.pct_change().iloc[1:]
+    """Total return from close + cash dividend on the ex-date: (C_t + D_t) / C_{t-1} - 1.
+
+    Yahoo's ``close`` is split-adjusted, not dividend-adjusted. ``adjclose`` is
+    checked against this (``adjclose_check``) rather than trusted.
+    """
+    df = yahoo_series(sym, refresh)
+    r = ((df["close"] + df["div"]) / df["close"].shift(1) - 1).iloc[1:]
     r.name = sym
     return r
+
+
+def adjclose_check(sym: str, refresh: bool = False) -> float:
+    """Max |adjclose return - close+div return| (should be a rounding-size number)."""
+    df = yahoo_series(sym, refresh)
+    a = df["adjclose"].pct_change().iloc[1:]
+    return float((a - yahoo_returns(sym, refresh)).abs().max())
 
 
 def shiller_monthly(refresh: bool = False) -> pd.Series:
@@ -249,21 +266,6 @@ def fmt_stats(s: dict) -> str:
     return (f"{s['start']}..{s['end']} n={s['n']}: corr {s['corr']:.4f}, "
             f"vol {s['vol_a']:.2%} vs {s['vol_b']:.2%} (ratio {s['vol_ratio']:.3f}), "
             f"TE {s['te']:.2%}, mean diff {s['mean_diff']:+.2%}/yr")
-
-
-def calibrate(refresh: bool = False) -> pd.DataFrame:
-    """Every French VW portfolio vs the fund series, daily, on their overlap."""
-    fd = french_daily(refresh)
-    refs = {"SPY": yahoo_returns("SPY", refresh), "VFINX": yahoo_returns("VFINX", refresh),
-            "IWM": yahoo_returns("IWM", refresh), "NAESX(1990-2000)":
-            yahoo_returns("NAESX", refresh).loc["1990-01-02":"2000-05-25"]}
-    rows = []
-    for ref, rs in refs.items():
-        for c in fd.columns.drop("RF"):
-            for f in ("D", "D3"):
-                s = overlap_stats(fd[c], rs, f)
-                rows.append(dict(ref=ref, portfolio=c, freq=f, **s))
-    return pd.DataFrame(rows)
 
 
 # ------------------------------------------------------------------ assemble
@@ -316,7 +318,11 @@ def _segments_of(df: pd.DataFrame, asset: str, freq: str) -> list[Segment]:
 
 
 def _src_name(port: str) -> str:
-    return "french_mkt_vw" if port == "Mkt" else "french_me_vw_" + port.replace(" ", "").replace("-", "").lower()
+    if port == "Mkt":
+        return "french_mkt_vw"
+    if port == "Qnt 2+3":
+        return "french_me_vw_qnt2_qnt3_5050"
+    return "french_me_vw_" + port.replace(" ", "").replace("-", "").lower()
 
 
 SHILLER_SRC = "shiller_sp_composite_avgprice"

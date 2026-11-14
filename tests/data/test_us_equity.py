@@ -132,7 +132,9 @@ def test_vol_levels_reasonable(asset, lo, hi):
 
 @pytest.mark.realdata
 def test_small_more_volatile_than_large_each_decade():
-    L, S = _load("us_large", "daily")["ret"], _load("us_small", "daily")["ret"]
+    # monthly, not daily: pre-2000 daily small-cap index returns are positively
+    # autocorrelated (stale prices), which damps DAILY vol (e.g. 1980s), see report
+    L, S = _load("us_large", "monthly")["ret"], _load("us_small", "monthly")["ret"]
     for dec in range(1930, 2030, 10):
         sl = slice(f"{dec}", f"{dec + 9}")
         assert S.loc[sl].std() > 0.95 * L.loc[sl].std(), dec
