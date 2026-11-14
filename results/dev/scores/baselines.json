@@ -1,0 +1,38 @@
+{
+ "models": [
+  "hist_mean",
+  "vol_ewma",
+  "hist_quantile",
+  "zero",
+  "vol_ewma_fhs",
+  "ridge"
+ ],
+ "horizons": [
+  1,
+  3,
+  12
+ ],
+ "dev": true,
+ "settings": {
+  "1": {
+   "oos_start": "1990-01-31",
+   "refit_every": 12,
+   "min_history": 60,
+   "end": "2014-11-30"
+  },
+  "3": {
+   "oos_start": "1990-01-31",
+   "refit_every": 12,
+   "min_history": 60,
+   "end": "2014-09-30"
+  },
+  "12": {
+   "oos_start": "1990-01-31",
+   "refit_every": 12,
+   "min_history": 60,
+   "end": "2013-12-31"
+  }
+ },
+ "data": "8976e34ccb888883",
+ "reps": 499
+}

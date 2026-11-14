@@ -1,0 +1,25 @@
+{
+ "fingerprint": {
+  "model": "vol_ewma_fhs",
+  "horizon": 1,
+  "class": "VolEWMA",
+  "params": {
+   "lam": 0.94,
+   "phi": 0.9,
+   "shape": "empirical"
+  },
+  "data": "8976e34ccb888883",
+  "settings": {
+   "oos_start": "1990-01-31",
+   "refit_every": 12,
+   "min_history": 60,
+   "end": "2014-11-30"
+  },
+  "code": "2923a1c2c95d1a7f"
+ },
+ "rows": 2830,
+ "seconds": 3.08,
+ "first_origin": "1990-01-31",
+ "last_origin": "2014-11-30",
+ "written": "2026-11-14T15:30:22+00:00"
+}
