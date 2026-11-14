@@ -15,6 +15,13 @@ standardized shape for ``z``.
   started from the linear model's log variance (``init_score``) and adding
   trees chosen by purged expanding CV (0 trees allowed, i.e. it can fall back
   to the linear model). Shape from purged out-of-fold standardized residuals.
+* :class:`AggScale` -- a one-month variance model (linear or boosted)
+  mapped to h months affinely, ``v_a * (alpha + beta * r(x))``, with alpha,
+  beta fitted by QLIKE on out-of-fold monthly forecasts. The direct
+  log-linear h-month fit (LinearScale/GBMScale at h > 1) understates width in
+  high-volatility states because the h-month variance is a *sum* of
+  mean-reverting monthly variances; this structure fixed that on the dev
+  period and is the basis of the nominated models.
 * :class:`CondShapeGBM` -- conditional shape: LightGBM quantile regression of
   the out-of-fold standardized residual ``z`` on the state, started from the
   unconditional quantiles; tests whether tails/asymmetry move beyond scale.
@@ -105,8 +112,10 @@ class FeatureMap:
         return pd.DataFrame(out, index=X.index)
 
 
-def _linear_design(F: pd.DataFrame) -> np.ndarray:
-    """Small, always-defined design for the linear QLIKE model."""
+def _linear_design(F: pd.DataFrame, inputs: str = "all") -> np.ndarray:
+    """Small, always-defined design for the linear QLIKE model. ``inputs="returns"``
+    keeps only what monthly returns give (EWMAs, 12m vol, down-move): no daily
+    realized vol, no VIX (an ablation)."""
     def col(name, fallback=None):
         v = F[name].to_numpy(float) if name in F.columns else np.full(len(F), np.nan)
         if fallback is not None:
@@ -120,6 +129,8 @@ def _linear_design(F: pd.DataFrame) -> np.ndarray:
     has_vix = np.isfinite(vix).astype(float)
     vix = np.where(np.isfinite(vix), vix, 0.0)
     neg = np.minimum(col("mom_1m_vs"), 0.0)
+    if inputs == "returns":
+        return np.column_stack([np.ones(len(F)), ew, slow, m12, neg])
     return np.column_stack([np.ones(len(F)), ew, slow, m12, d1, vix, has_vix, neg])
 
 
@@ -252,8 +263,8 @@ class LinearScale(_ResidualScaleBase):
     """QLIKE log-variance regression on 7 state variables (see ``_linear_design``)."""
 
     def __init__(self, shape: str = "pooled", refit_every: int = 1, ridge: float = 1e-3,
-                 oof_splits: int = 5):
-        self.shape, self.refit_every, self.ridge = shape, refit_every, ridge
+                 oof_splits: int = 5, inputs: str = "all"):
+        self.shape, self.refit_every, self.ridge, self.inputs = shape, refit_every, ridge, inputs
         self.oof_splits = oof_splits    # 0: shape from in-sample standardized residuals
 
     def describe(self):
@@ -261,18 +272,18 @@ class LinearScale(_ResidualScaleBase):
 
     def fit_core(self, X: pd.DataFrame, u: np.ndarray):
         self._fm = FeatureMap().fit(X)
-        self._b = qlike_fit(_linear_design(self._fm.transform(X)), u, self.ridge)
+        self._b = qlike_fit(_linear_design(self._fm.transform(X), self.inputs), u, self.ridge)
         return self
 
     def log_rel_var(self, X) -> np.ndarray:
-        return _linear_design(self._fm.transform(X)) @ self._b
+        return _linear_design(self._fm.transform(X), self.inputs) @ self._b
 
     def fit(self, train: TrainingSet):
         e, X, u, va = self._prepare(train)
         sig = np.full(len(e), np.nan)
         if self.oof_splits:
             for tr, vl in purged_splits(X, train.horizon, self.oof_splits, mode="kfold", min_train_dates=60):
-                m = LinearScale(ridge=self.ridge).fit_core(X.iloc[tr], u[tr])
+                m = LinearScale(ridge=self.ridge, inputs=self.inputs).fit_core(X.iloc[tr], u[tr])
                 sig[vl] = np.sqrt(va[vl] * np.exp(np.clip(m.log_rel_var(X.iloc[vl]), -10, 10)))
         self.fit_core(X, u)
         if np.isnan(sig).all():
@@ -532,8 +543,9 @@ class AggScale(_ResidualScaleBase):
     """
 
     def __init__(self, monthly: str = "linear", shape: str = "pooled", refit_every: int = 1,
-                 half_life: float | None = None):
+                 half_life: float | None = None, inputs: str = "all"):
         self.monthly, self.shape, self.refit_every = monthly, shape, refit_every
+        self.inputs = inputs           # linear monthly model inputs (see _linear_design)
         self.half_life = half_life     # months; recency weighting of the pooled shape
 
     def describe(self):
@@ -542,7 +554,7 @@ class AggScale(_ResidualScaleBase):
     def fit(self, train: TrainingSet):
         t1 = monthly_training_set(train)
         if self.monthly == "linear":
-            m = LinearScale(shape="pooled", refit_every=1)
+            m = LinearScale(shape="pooled", refit_every=1, inputs=self.inputs)
         elif self.monthly.startswith("gbm_"):
             m = GBMScale(features=self.monthly.split("_", 1)[1], shape="pooled")
         else:

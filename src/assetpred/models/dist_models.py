@@ -81,3 +81,9 @@ def _lin_agg_rw():
     """dist_lin_agg with the pooled shape weighted by recency (half-life 240 months).
     Post-hoc trial (motivated by the dev-period q99 hit deficit)."""
     return Composite([AggScale(monthly="linear", shape="pooled", half_life=240)])
+
+
+@register("dist_lin_agg_ret")
+def _lin_agg_ret():
+    """Ablation of dist_lin_agg: monthly-return inputs only (no daily RV, no VIX)."""
+    return Composite([AggScale(monthly="linear", shape="pooled", inputs="returns")])
