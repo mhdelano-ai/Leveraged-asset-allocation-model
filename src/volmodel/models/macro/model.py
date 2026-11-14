@@ -137,8 +137,8 @@ class _Data:
 
 
 class MacroVol(VolForecaster):
-    def __init__(self, macro: bool, implied: bool, ip: bool = False):
-        self.macro, self.implied, self.ip = macro, implied, ip
+    def __init__(self, macro: bool, implied: bool, ip: bool = False, homog: bool = False):
+        self.macro, self.implied, self.ip, self.homog = macro, implied, ip, homog
         self.last_fits: dict = {}
 
     # ---------------------------------------------------------- candidates
@@ -163,7 +163,7 @@ class MacroVol(VolForecaster):
         return m
 
     def _fit(self, d: _Data, F, group: str, feats: tuple, cache: dict):
-        key = (F, group, feats)
+        key = (F, group, feats, self.homog)
         if key in cache:
             return cache[key]
         assets = GROUPS[group]
@@ -180,7 +180,14 @@ class MacroVol(VolForecaster):
         w = 1.0 / (12.0 * mask.sum(axis=1)[gi])
         if not feats:
             # stage 1, the own-history base: unpenalized, on every usable row
-            b0 = gamma_glm(X0, y, w, np.zeros(X0.shape[1]))
+            if self.homog:
+                # slopes sum to one: log E[y] = a + xs + c1 (x12 - xs) + c2 (x3 - xs)
+                xs = X0[:, 1]
+                Xh = np.column_stack([X0[:, 0], X0[:, 2] - xs, X0[:, 3] - xs])
+                c = gamma_glm_offset(Xh, y, w, xs, np.zeros(3), 1.0)
+                b0 = np.array([c[0], 1.0 - c[1] - c[2], c[1], c[2]])
+            else:
+                b0 = gamma_glm(X0, y, w, np.zeros(X0.shape[1]))
             mu0 = np.exp(X0 @ b0)
             phi = float(np.sum(w * (y / mu0 - 1.0) ** 2) / np.sum(w))
             fit = dict(beta=b0, feats=feats, centers={}, scales={}, phi=phi, nu=1.0 / max(phi, 1e-6),

@@ -11,7 +11,8 @@ from volmodel.models import get_model, list_models
 from volmodel.models.macro.features import ReturnFeatures, asof_monthly, credit_spread, _series_tables
 from volmodel.models.macro.model import CACHE_KEY, GROUPS, gamma_glm
 
-MACRO_MODELS = ["macro_base", "macro_state", "macro_state_ip", "macro_implied", "macro_full"]
+MACRO_MODELS = ["macro_base", "macro_state", "macro_state_ip", "macro_implied", "macro_full",
+                "macro_base_h", "macro_full_h"]
 ORIGINS = ["1979-12-31", "1990-06-30", "2010-12-31"]   # 1979: monthly-only assets
 
 
@@ -94,7 +95,7 @@ def test_valid_at_every_stage(panel, rpanel, name, which):
     assert set(early.eligible()) - set(early.has_daily())
 
 
-@pytest.mark.parametrize("name", ["macro_base", "macro_full"])
+@pytest.mark.parametrize("name", ["macro_base", "macro_full", "macro_full_h"])
 def test_cold_equals_warm_any_order(rpanel, name):
     cold = {}
     for t in ORIGINS:
@@ -232,3 +233,11 @@ def test_fit_cache_lives_in_panel(rpanel):
     view = p.asof("2010-12-31")
     get_model("vol", "macro_state").forecast_vol(view, view.eligible())
     assert CACHE_KEY in p._shared and len(p._shared[CACHE_KEY]) > 0
+
+
+def test_homogeneous_base_slopes_sum_to_one(rpanel):
+    m = get_model("vol", "macro_base_h")
+    view = rpanel.asof("2010-12-31")
+    m.forecast_vol(view, view.eligible())
+    b = m.last_fits["us_large"]["beta"]
+    assert b[1:4].sum() == pytest.approx(1.0)
