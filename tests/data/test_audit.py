@@ -115,9 +115,6 @@ def test_writing_into_view_does_not_touch_root(P):
     assert P.daily.loc["2008-10-15", "us_large"] == before
 
 
-@pytest.mark.xfail(strict=True, reason="AUDIT G/H-1: view.asof(later) re-reads the ROOT predictor cache "
-                   "(_shared['wide']) and exposes predictors published after the view's own cutoff. "
-                   "Fix: in Panel.asof clamp t to min(t, self.asof_date).")
 def test_asof_of_a_view_never_widens(P):
     v = P.asof("2008-10-15").asof("2026-06-30")
     w = v.predictors_wide()

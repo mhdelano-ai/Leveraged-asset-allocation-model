@@ -58,8 +58,14 @@ class Panel:
 
     # ------------------------------------------------------------------ views
     def asof(self, t) -> "Panel":
-        """Everything known at the close of ``t``. Never returns later data."""
+        """Everything known at the close of ``t``. Never returns later data.
+
+        A view can only be narrowed: asking a view cut at 2008 for 2020 gives
+        the 2008 view again.
+        """
         t = pd.Timestamp(t)
+        if self.asof_date is not None:
+            t = min(t, self.asof_date)
         p = self.predictors
         k = int(p["available_date"].searchsorted(t, side="right")) if len(p) else 0
         return replace(
