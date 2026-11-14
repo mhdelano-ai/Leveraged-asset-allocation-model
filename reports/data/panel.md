@@ -135,12 +135,12 @@ Cash: compounded daily vs monthly max abs gap 2.86e-15.
 | excess_nan_from_cash_monthly | 0 |
 | pred_available_ge_obs | yes |
 | pred_dup_series_obs | 0 |
-| pred_n_rows | 345271 |
-| pred_n_series | 62 |
+| pred_n_rows | 399953 |
+| pred_n_series | 135 |
 
 Returns before documented start: none.
 
-`load_panel()` smoke test: daily (26370, 12), monthly (1869, 12), 62 predictor series; `asof(2008-10-15)`: daily max 2008-10-15, monthly max 2008-09-30, latest predictor available_date 2008-10-15, no leak: True; eligible (36m) then: us_large, us_small, intl_dev, em, ust_int, ust_long, tips, ig_credit, hy_credit, reits, gold, commodities.
+`load_panel()` smoke test: daily (26370, 12), monthly (1869, 12), 135 predictor series; `asof(2008-10-15)`: daily max 2008-10-15, monthly max 2008-09-30, latest predictor available_date 2008-10-15, no leak: True; eligible (36m) then: us_large, us_small, intl_dev, em, ust_int, ust_long, tips, ig_credit, hy_credit, reits, gold, commodities.
 
 ### Five largest absolute daily returns
 
@@ -163,13 +163,14 @@ Every date matches a known stress episode. Several ETF days are one-day overshoo
 
 ## Predictors
 
-`predictors.parquet`: 345,271 rows, 62 series, long format (obs_date, available_date, series, value). `predictors_catalog.csv` lists every series. Standard units: rates, yields, spreads, breakevens, inflation/growth rates and implied vols in DECIMALS; durations in years; index levels and flags unchanged. `live` = an observation within 60 days (monthly series: 100 days) of the data end.
+`predictors.parquet`: 399,953 rows, 135 series, long format (obs_date, available_date, series, value). `predictors_catalog.csv` lists every series. Standard units: rates, yields, spreads, breakevens, inflation/growth rates and implied vols in DECIMALS; durations in years; index levels and flags unchanged. `live` = an observation within 60 days (monthly series: 100 days) of the data end.
 
 | group | series | live | start | end |
 |---|---|---|---|---|
 | credit | 7 | 1 | 1919-01-31 | 2026-10-31 |
 | implied | 23 | 22 | 1986-01-02 | 2026-11-13 |
 | macro | 16 | 16 | 1871-01-31 | 2026-10-31 |
+| returns | 73 | 59 | 1926-01-31 | 2026-10-31 |
 | tips | 4 | 4 | 1999-01-04 | 2026-11-06 |
 | treasury | 12 | 12 | 1962-01-02 | 2026-11-09 |
 
@@ -214,7 +215,7 @@ Conversions applied:
 - `treasury_curve:yield_ladder_ust_int` → `ust_ladder_yield_int` renamed, units unchanged (decimal)
 - `treasury_curve:yield_ladder_ust_long` → `ust_ladder_yield_long` renamed, units unchanged (decimal)
 
-Not live: `credit_moodys_aaa_yield_m` (ends 2025-12-31), `credit_moodys_baa_aaa_spread_d` (ends 2016-10-07), `credit_moodys_baa_aaa_spread_m` (ends 2025-12-31), `credit_moodys_baa_ust10y_spread_d` (ends 2016-10-07), `credit_moodys_baa_ust10y_spread_m` (ends 2025-12-31), `credit_moodys_baa_yield_m` (ends 2025-12-31), `iv_vxo` (ends 2021-01-07).
+Not live: `credit_moodys_aaa_yield_m` (ends 2025-12-31), `credit_moodys_baa_aaa_spread_d` (ends 2016-10-07), `credit_moodys_baa_aaa_spread_m` (ends 2025-12-31), `credit_moodys_baa_ust10y_spread_d` (ends 2016-10-07), `credit_moodys_baa_ust10y_spread_m` (ends 2025-12-31), `credit_moodys_baa_yield_m` (ends 2025-12-31), `iv_vxo` (ends 2021-01-07), `rp_bw_closed_end_discount` (ends 2019-01-31), `rp_bw_div_premium` (ends 2019-01-31), `rp_bw_equity_share` (ends 2019-01-31), `rp_bw_ipo_count` (ends 2019-01-31), `rp_bw_ipo_first_day_ret` (ends 2019-01-31), `rp_bw_sentiment` (ends 2019-01-31), `rp_devx_bm` (ends 2025-12-31), `rp_devx_div_yield` (ends 2025-12-31), `rp_equity_put_call` (ends 2019-10-31), `rp_net_equity_issuance` (ends 2026-01-31), `rp_us_bm_djia` (ends 2026-01-31), `rp_vrp` (ends 2025-12-31), `rp_vxo` (ends 2021-09-30), `rp_wti_roll_yield` (ends 2024-04-30).
 
 Unit cross-checks (after conversion; small numbers confirm consistent units across files):
 
