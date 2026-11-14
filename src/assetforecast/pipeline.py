@@ -108,8 +108,8 @@ def _last_complete_month() -> pd.Timestamp | None:
     if not p.exists():
         return None
     import pyarrow.parquet as pq
-    idx = pq.read_table(p, columns=[]).to_pandas().index
-    return pd.Timestamp(idx.max()) if len(idx) else None
+    d = pq.read_table(p, columns=["date"]).column("date").to_pandas()
+    return pd.Timestamp(d.max()) if len(d) else None
 
 
 def _covariance_command(c: Config) -> list[str] | None:

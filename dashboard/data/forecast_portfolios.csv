@@ -1,4 +1,4 @@
-portfolio,label,vol12,vol21,q05,q01
-p6040,60/40 (US large cap / intermediate Treasuries),10.3,9.3,-16.5,-27.0
-p_balanced,Balanced 12-asset mix,10.7,9.8,-17.3,-28.2
-p_equity,Global equity mix,16.0,14.6,-25.6,-41.9
+portfolio,label,vol12,vol21
+p6040,60/40 (US large cap / intermediate Treasuries),10.3,9.3
+p_balanced,Balanced 12-asset mix,10.7,9.8
+p_equity,Global equity mix,16.0,14.6

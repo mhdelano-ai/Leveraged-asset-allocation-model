@@ -281,6 +281,21 @@ def test_load_return_panel_and_excess_returns():
     assert cut.monthly.index[0] == pd.Timestamp(rconfig.RETURN_START)
 
 
+@pytest.mark.realdata
+def test_return_panel_has_no_gaps_and_no_smoothing_signature():
+    """Kept from assetpred's test_assets: once an asset starts it has a return every
+    month, and no series shows the first-order autocorrelation (about 0.25 and
+    up) of returns from month-average prices, which is why tier D is dropped."""
+    m = inputs.load_return_panel().monthly
+    for a in m:
+        s = m[a]
+        first = s.first_valid_index()
+        assert first is not None, a
+        assert s.loc[first:].notna().all(), f"{a} has gaps after it starts"
+        assert s.dropna().autocorr() < 0.2, a
+    assert m.iloc[-1].notna().all()
+
+
 # ------------------------------------------- covariance side is unaffected
 # Models that read predictors, one per access path (``ml.model._fingerprint`` and
 # ``ml.features._macro_features``; ``macro.features._series_tables``;

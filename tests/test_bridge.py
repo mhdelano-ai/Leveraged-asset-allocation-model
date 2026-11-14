@@ -333,9 +333,9 @@ def test_vol_uncertainty_recovers_dispersion():
 @pytest.mark.realdata
 def test_real_panel_estimates_are_sane():
     import os
-    os.environ.setdefault("ASSETFORECAST_MAX_DATE", "2014-12-31")
     from assetforecast.data.panel import load_panel
-    p = load_panel()
+    # development panel; passed explicitly so the setting does not leak into later tests
+    p = load_panel(max_date=os.environ.get("ASSETFORECAST_MAX_DATE") or "2014-12-31")
     est = estimate_long_run(p, era="market", cross=True)
     assert est.vr.between(0.5, 2.5).all() and np.isfinite(est.vr_se[est.n >= 24]).all()
     assert np.isfinite(vol_uncertainty(p)["s2"])

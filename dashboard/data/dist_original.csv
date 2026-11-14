@@ -1,0 +1,16 @@
+id,horizon,model,label,crps_skill_vol,crps_p_vol,cover_90,calib_p
+1~dist_ewma_fhs,1,dist_ewma_fhs,"EWMA scale, empirical shape",-0.09,0.595,88.8,0.43
+1~dist_gbm_agg,1,dist_gbm_agg,Boosted volatility model,0.45,0.215,88.1,0.371
+1~dist_lin_agg,1,dist_lin_agg,Linear volatility model,0.88,0.057,87.8,0.308
+1~dist_lin_agg_cshape,1,dist_lin_agg_cshape,"Linear volatility, conditional shape",0.9,0.054,88.0,0.347
+1~dist_lin_agg_grp,1,dist_lin_agg_grp,"Linear volatility, shape by asset class",1.03,0.04,88.3,0.392
+3~dist_ewma_fhs,3,dist_ewma_fhs,"EWMA scale, empirical shape",0.36,0.242,90.5,0.724
+3~dist_gbm_agg,3,dist_gbm_agg,Boosted volatility model,0.9,0.108,90.4,0.441
+3~dist_lin_agg,3,dist_lin_agg,Linear volatility model,1.05,0.063,90.2,0.391
+3~dist_lin_agg_cshape,3,dist_lin_agg_cshape,"Linear volatility, conditional shape",1.04,0.062,90.2,0.4
+3~dist_lin_agg_grp,3,dist_lin_agg_grp,"Linear volatility, shape by asset class",1.22,0.061,90.4,0.311
+12~dist_ewma_fhs,12,dist_ewma_fhs,"EWMA scale, empirical shape",0.12,0.417,91.4,0.403
+12~dist_gbm_agg,12,dist_gbm_agg,Boosted volatility model,0.68,0.238,91.6,0.516
+12~dist_lin_agg,12,dist_lin_agg,Linear volatility model,0.81,0.191,91.5,0.474
+12~dist_lin_agg_cshape,12,dist_lin_agg_cshape,"Linear volatility, conditional shape",0.78,0.203,91.5,0.469
+12~dist_lin_agg_grp,12,dist_lin_agg_grp,"Linear volatility, shape by asset class",1.14,0.153,91.5,0.45

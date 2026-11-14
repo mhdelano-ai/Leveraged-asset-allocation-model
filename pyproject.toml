@@ -5,11 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "assetforecast"
 version = "0.1.0"
-description = "One-year-ahead covariance forecasts for a multi-asset universe"
+description = "One-year-ahead covariance, expected returns and predictive distributions for a 12-asset universe"
 requires-python = ">=3.11"
 dependencies = [
   "numpy", "pandas", "scipy", "statsmodels", "scikit-learn", "arch",
-  "lightgbm", "hmmlearn", "pyarrow", "requests", "openpyxl", "xlrd", "matplotlib",
+  "lightgbm", "hmmlearn", "pyarrow", "requests", "openpyxl", "xlrd", "matplotlib", "threadpoolctl",
 ]
 
 [project.optional-dependencies]
@@ -17,10 +17,9 @@ dev = ["pytest"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-assetpred = ["dashboard/*.html"]
+include = ["assetforecast*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not network'"
 markers = ["network: needs internet", "slow: takes more than a few seconds", "realdata: needs data/processed"]

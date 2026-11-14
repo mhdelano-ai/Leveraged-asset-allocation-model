@@ -1,13 +1,13 @@
-asset,name,group,vol12,vol21,last12,longrun,p10,p90,q05,q01,since,miss_lo,miss_hi
-us_large,US large-cap equity,equity,15.9,14.4,12.0,15.9,13.8,15.0,-25.5,-41.7,1871-02,-37,25
-us_small,US small-cap equity,equity,21.5,20.0,16.9,24.2,18.9,21.0,-34.6,-56.5,1926-07,-33,14
-intl_dev,International developed equity,equity,16.8,15.3,13.6,17.0,14.7,15.9,-27.0,-44.1,1975-01,-34,20
-em,Emerging-market equity,equity,23.2,21.5,21.2,22.1,19.8,22.7,-37.2,-60.8,1989-07,-35,18
-ust_int,Intermediate Treasuries (~7y),rates,7.7,7.0,4.7,6.6,6.3,7.6,-12.4,-20.2,1953-05,-34,11
-ust_long,Long Treasuries (~20y+),rates,13.5,12.4,8.4,9.3,11.8,13.3,-21.7,-35.5,1919-02,-25,28
-tips,TIPS (broad),rates,5.7,5.5,3.6,5.6,5.0,6.2,-9.2,-15.0,1997-02,-40,41
-ig_credit,Investment-grade corporates,credit,8.3,7.2,4.9,5.6,6.4,7.8,-13.4,-21.8,1919-02,-35,19
-hy_credit,High-yield corporates,credit,6.3,6.3,3.6,8.3,5.4,6.8,-10.2,-16.6,1980-02,-51,31
-reits,US REITs,real,18.2,17.5,12.7,17.6,16.6,18.2,-29.2,-47.7,1972-01,-34,29
-gold,Gold,real,24.5,22.2,25.4,19.6,20.2,24.0,-39.3,-64.2,1971-09,-35,19
-commodities,Broad commodities (futures TR),real,19.3,16.6,20.7,16.2,15.3,18.1,-31.1,-50.7,1926-07,-31,20
+asset,name,group,vol12,vol21,last12,longrun,p10,p90,since,miss_lo,miss_hi
+us_large,US large-cap equity,equity,15.9,14.4,12.0,15.9,13.8,15.0,1871-02,-37,25
+us_small,US small-cap equity,equity,21.5,20.0,16.9,24.2,18.9,21.0,1926-07,-33,14
+intl_dev,International developed equity,equity,16.8,15.3,13.6,17.0,14.7,15.9,1975-01,-34,20
+em,Emerging-market equity,equity,23.2,21.5,21.2,22.1,19.8,22.7,1989-07,-35,18
+ust_int,Intermediate Treasuries (~7y),rates,7.7,7.0,4.7,6.6,6.3,7.6,1953-05,-34,11
+ust_long,Long Treasuries (~20y+),rates,13.5,12.4,8.4,9.3,11.8,13.3,1919-02,-25,28
+tips,TIPS (broad),rates,5.7,5.5,3.6,5.6,5.0,6.2,1997-02,-40,41
+ig_credit,Investment-grade corporates,credit,8.3,7.2,4.9,5.6,6.4,7.8,1919-02,-35,19
+hy_credit,High-yield corporates,credit,6.3,6.3,3.6,8.3,5.4,6.8,1980-02,-51,31
+reits,US REITs,real,18.2,17.5,12.7,17.6,16.6,18.2,1972-01,-34,29
+gold,Gold,real,24.5,22.2,25.4,19.6,20.2,24.0,1971-09,-35,19
+commodities,Broad commodities (futures TR),real,19.3,16.6,20.7,16.2,15.3,18.1,1926-07,-31,20

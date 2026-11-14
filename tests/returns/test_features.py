@@ -268,6 +268,31 @@ def test_mom_1m_is_the_return_of_month_t(features, xr):
     np.testing.assert_allclose(features["mom_1m"].to_numpy(), s.to_numpy(), rtol=0, atol=1e-12)
 
 
+def _spearman(a, b):
+    ok = a.notna() & b.notna()
+    if ok.sum() < 30:
+        return np.nan
+    return a[ok].rank().corr(b[ok].rank())
+
+
+@pytest.mark.realdata
+def test_no_implausible_correlation_with_next_month(features, xr):
+    """A feature that is really the next month's return (a shifted index) would
+    correlate far beyond the ~0.1-0.2 a genuine monthly predictor reaches.
+    (Kept from assetpred's test_features; the 12-month leakage audit below is a
+    different check.)"""
+    nxt = xr.shift(-1).stack().rename_axis(["date", "asset"]).reindex(features.index)
+    assets = features.index.get_level_values("asset")
+    bad = []
+    for c in features:
+        pooled = _spearman(features[c], nxt)
+        per = [abs(_spearman(features[c][assets == a], nxt[assets == a])) for a in config.ASSETS]
+        worst = np.nanmax(per) if np.isfinite(per).any() else 0.0
+        if abs(np.nan_to_num(pooled)) > 0.25 or worst > 0.4:
+            bad.append((c, pooled, worst))
+    assert not bad, bad
+
+
 @pytest.mark.realdata
 def test_price_features_line_up_with_returns(features, xr):
     """Momentum at t must match returns ending at t, not t+1."""

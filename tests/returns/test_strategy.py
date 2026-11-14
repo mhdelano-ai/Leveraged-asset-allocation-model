@@ -464,6 +464,40 @@ def test_nearest_corr_and_make_psd():
     np.testing.assert_allclose(np.diag(M), [1.12, 1.2])
 
 
+def test_linalg_projections_on_random_matrices():
+    """Kept from assetpred's test_covariance (the pieces static_cov ported)."""
+    rng = np.random.default_rng(0)
+    for _ in range(20):
+        A_ = rng.uniform(-1, 1, (6, 6))
+        A_ = (A_ + A_.T) / 2
+        np.fill_diagonal(A_, 1)
+        R = static_cov.nearest_corr(A_)
+        assert np.allclose(np.diag(R), 1) and np.array_equal(R, R.T)
+        assert np.linalg.eigvalsh(R)[0] > 0
+        S = static_cov.make_psd(A_)
+        assert static_cov.min_eig(S) > 0 and np.array_equal(S, S.T)
+    good = static_cov.nearest_corr(np.array([[1, .3], [.3, 1.]]))
+    assert np.allclose(good, [[1, .3], [.3, 1]])
+    F = static_cov.mean_uncertainty_factor(np.array([[100, 40], [40, 40.]]), 12)
+    assert np.allclose(np.diag(F), [1.12, 1.3]) and static_cov.min_eig(F - 1) >= -1e-12
+
+
+def test_sample_cov_diagonal_equals_hist_mean_sd():
+    """The static comparator's variances are the hist_mean baseline's sd^2 (kept from
+    assetpred's test_covariance): the risk question changes only the covariance."""
+    from assetforecast.returns.evaluation.synthetic import make_synthetic
+    from assetforecast.returns.evaluation.walkforward import WalkForwardSettings, walk_forward
+    data = make_synthetic(n_assets=3, start="1960-01-31", end="1995-12-31", seed=3)
+    wf = walk_forward("hist_mean", data.features, data.xr, H,
+                      WalkForwardSettings(oos_start="1985-01-31", min_history=60))
+    cv = static_cov.sample_cov_history(data.xr, H, sorted(wf["date"].unique()))
+    diag = cv[cv.asset_i == cv.asset_j].set_index(["date", "asset_i"])["cov"]
+    sd = wf.set_index(["date", "asset"])["sd"]
+    common = sd.index.intersection(diag.index)
+    assert len(common) > 100
+    np.testing.assert_allclose(np.sqrt(diag.loc[common].to_numpy()), sd.loc[common].to_numpy(), rtol=1e-8)
+
+
 # ----------------------------------------------------------------- end to end (synthetic files)
 def _write_synthetic_results(root, inp, h=H):
     o = inp.origins[h]

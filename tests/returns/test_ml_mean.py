@@ -94,6 +94,24 @@ def test_asset_group_covers_the_universe():
         ml_mean._group_codes(["us_large", "us_eq"])
 
 
+@pytest.mark.realdata
+def test_resolve_columns_on_the_committed_panel():
+    """Kept from assetpred's test_ml_mean, against the pinned list."""
+    from assetforecast import paths
+    if not paths.FEATURE_META.exists():
+        pytest.skip("no committed feature panel")
+    meta = pd.read_csv(paths.FEATURE_META, keep_default_na=False).set_index("name")
+    cols = list(meta.index)
+    frozen = list(config.FROZEN_FEATURE_COLUMNS)
+    hind = meta["hindsight"].astype(str) == "True"
+    assert ml_mean.resolve_columns("all", cols) == frozen
+    assert ml_mean.resolve_columns("price", cols) == [c for c in frozen if meta.at[c, "family"] == "price"]
+    nohind = ml_mean.resolve_columns("all-nohind", cols)
+    assert nohind == [c for c in frozen if not hind[c]] and len(nohind) < len(frozen)
+    assert ml_mean.resolve_columns("macro+sentiment-nohind", cols) == \
+        [c for c in frozen if meta.at[c, "family"] in ("macro", "sentiment") and not hind[c]]
+
+
 def test_pinned_feature_list():
     cols = config.FROZEN_FEATURE_COLUMNS
     assert len(cols) == 82 and len(set(cols)) == 82
