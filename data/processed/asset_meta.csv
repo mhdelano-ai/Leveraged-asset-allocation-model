@@ -1,0 +1,20 @@
+asset,segment_start,segment_end,source,description,key
+us_eq,1926-07-31,2026-09-30,"Kenneth French data library, F-F_Research_Data_Factors (Mkt-RF + RF)","CRSP value-weighted US market (NYSE/AMEX/NASDAQ), total return",ff_us_mkt
+us_eq,2026-10-31,2026-10-31,Yahoo Finance via yfinance: VTI close + distributions,Vanguard Total Stock Market ETF total return; tops up months not yet in the French file,VTI
+dev_eq,1975-01-31,1990-06-30,"Kenneth French data library, F-F_International_Indices.zip, Ind_all.Dat (value-weight dollar returns, Mkt)","Fama/French international index: countries weighted by EAFE weights, USD total return (MSCI-based data)",ff_intl_eafe
+dev_eq,1990-07-31,2000-12-31,"Kenneth French data library, Developed_ex_US_3_Factors (Mkt-RF + RF)","Fama/French developed ex-US market (22 countries incl. Canada), USD total return",ff_dev_ex_us
+dev_eq,2001-01-31,2026-10-31,"MSCI end-of-month index levels (app2.msci.com), index 991000, GRTR, USD",MSCI World ex USA gross total return,msci_world_ex_usa
+em_eq,1989-07-31,2000-12-31,"Kenneth French data library, Emerging_5_Factors (Mkt-RF + RF)","Fama/French emerging-markets market portfolio, USD total return",ff_emerging
+em_eq,2001-01-31,2026-10-31,"MSCI end-of-month index levels (app2.msci.com), index 891800, GRTR, USD",MSCI Emerging Markets gross total return,msci_em
+ust_int,1961-07-31,2026-10-31,"Fed GSW nominal curve (feds200628.csv), month-end fitted Svensson/Nelson-Siegel parameters","Synthetic 5-year constant-maturity par Treasury: buy at month-end t-1 at par, reprice off curve at t (see assets_bonds)",gsw_5y
+ust_long,1971-12-31,1981-07-31,Fed GSW nominal curve (feds200628.csv),"Synthetic 15-year par Treasury; the Fed reports fitted yields only to 15y before 1981-07, so 15y is the longest defensible maturity",gsw_15y
+ust_long,1981-08-31,2026-10-31,Fed GSW nominal curve (feds200628.csv),Synthetic 20-year constant-maturity par Treasury,gsw_20y
+tips,1999-02-28,2026-10-31,Fed GSW TIPS curve (feds200805.csv) + FRED CPIAUCNS for the index ratio,"Synthetic 7-year real par TIPS, real price return x reference-CPI accrual (3-month lag, daily interpolation); deflation floor ignored",gsw_tips_7y
+ig_credit,1980-02-29,2026-10-31,Yahoo Finance via yfinance: VWESX NAV + dividends + capital gains,"Vanguard Long-Term Investment-Grade Fund (Investor) total return, net of ~0.2% fees. LONG duration (~13y) IG, mostly corporates; no free broad-IG index history exists (ICE BofA on FRED truncated to 3 years)",VWESX
+hy_credit,1985-02-28,2026-10-31,Yahoo Finance via yfinance: VWEHX NAV + dividends + capital gains,"Vanguard High-Yield Corporate Fund (Investor) total return, net of ~0.25% fees; BB/B-tilted HY. Starts 1985-02 because Yahoo NAVs are stale before 1985",VWEHX
+reits,1972-01-31,2026-10-31,"Nareit MonthlyHistoricalReturns.xls (reit.com), All Equity REITs total-return index level",FTSE Nareit All Equity REITs total return,nareit_all_equity
+gold,2004-12-31,2026-10-31,Yahoo Finance via yfinance: GLD close,"SPDR Gold Shares (physically backed; spot gold less 0.40%/yr fee), NY close",GLD
+commodities,1926-07-31,2025-05-31,AQR 'Commodities for the Long Run' (excess return of equal-weight futures portfolio) + French RF,"Equal-weight, fully collateralised commodity futures (month-end futures prices): AQR excess return plus 1-month T-bill = total return",aqr_ew_plus_rf
+commodities,2025-06-30,2026-10-31,Yahoo Finance via yfinance: DJP close,iPath Bloomberg Commodity Index Total Return ETN (BCOM TR less 0.75%/yr); tops up months after the AQR file ends,DJP
+cash,1926-07-31,2026-09-30,"Kenneth French data library, F-F_Research_Data_Factors (RF)","1-month T-bill return (Ibbotson to 2024-05, ICE BofA 1M T-bill index after)",ff_rf
+cash,2026-10-31,2026-10-31,"FRED DTB4WK (4-week bill discount rate, last observation of previous month)","Return of a 4-week bill bought at the previous month-end, rolled for the days in the month; tops up months not yet in the French file",dtb4wk

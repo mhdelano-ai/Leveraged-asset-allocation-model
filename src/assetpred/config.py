@@ -15,10 +15,10 @@ ASSETS = {
     "ust_int": "Intermediate US Treasuries",
     "ust_long": "Long US Treasuries",
     "tips": "US TIPS",
-    "ig_credit": "US investment-grade corporate bonds",
+    "ig_credit": "US long-duration investment-grade corporate bonds",
     "hy_credit": "US high-yield corporate bonds",
     "reits": "US equity REITs",
-    "gold": "Gold",
+    "gold": "Gold",  # from 2004-12 (GLD) unless an LBMA price file is supplied; see data/assets_sources.py
     "commodities": "Diversified commodity futures",
 }
 
