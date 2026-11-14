@@ -1,0 +1,9 @@
+{
+ "what": "expanding historical mean of 12-month log excess returns at every origin (= hist_mean), EWC standard error and Student-t 90% interval",
+ "ewc_terms_rule": "B = n/48 clipped to [4, 0.4 n^(2/3)] (``default_ewc_terms(n, h=12)``), chosen by simulation.",
+ "min_history_months": 60,
+ "panel": "return panel from 1926-07-31, tiers D dropped",
+ "first_origin": "1931-06-30",
+ "last_origin": "2026-10-31",
+ "n_rows": 8970
+}

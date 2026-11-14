@@ -1,0 +1,14 @@
+{
+ "label": "Replication on the 12-asset panel, frozen models unchanged; both holdouts already spent, so not out-of-sample evidence",
+ "note": "Designed after both holdouts had been seen: every score of this model is descriptive, not out-of-sample evidence. Only origins from 2026-11-30 on (targets wholly after FROZEN_AT 2026-11-14) can be evidence.",
+ "model": "dist_hm_af",
+ "horizon": 12,
+ "covariance": "/home/user/Leveraged-asset-allocation-model/results/covariance/cov_history.parquet",
+ "location": "expanding historical mean (= hist_mean), returns.expected",
+ "scale": "sqrt(Sigma_ii + se^2); portfolios sqrt(w'Sigma w + (sum|w| se)^2)",
+ "shape": "pooled z = (y - m_s)/scale_s over windows closed by t; recentred, spread kept; tails ['q01', 'q05', 'q95', 'q99'] floored at N(0, sd_z^2); no forecast before 120 residual origins",
+ "portfolio_log_return": "w'r (daily-rebalanced approximation, as eval.portfolio)",
+ "first_origin_assets": "1942-05-31",
+ "last_origin": "2026-10-31",
+ "n_shape_origins": 1145
+}

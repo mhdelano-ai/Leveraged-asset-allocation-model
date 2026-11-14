@@ -76,7 +76,7 @@ the assets' log excess returns (``z = w'R / sqrt(w'Aw)`` in
 ``annual_z_scores``). The same approximation is used here, for the mean, the
 realized outcomes and the residuals, so the portfolio rows are consistent
 with the covariance side's calibration tests. It omits the diversification
-return 0.5 (sum w_i Sigma_ii - w'Sigma w), which is +0.2 to +0.5% a year for
+return 0.5 (sum w_i Sigma_ii - w'Sigma w), which is +0.3 to +0.6% a year for
 the policy mixes (the true rebalanced log return is higher).
 
 Functions

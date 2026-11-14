@@ -201,7 +201,7 @@ def history(xr, level: float = LEVEL, horizon: int = HORIZON,
 def write_history(hist: pd.DataFrame, root=None) -> Path:
     import json
     if root is None:
-        from ... import paths
+        from .. import paths
         root = paths.RESULTS_RETURNS / "expected"
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
@@ -220,6 +220,6 @@ def write_history(hist: pd.DataFrame, root=None) -> Path:
 
 def load_history(path=None) -> pd.DataFrame:
     if path is None:
-        from ... import paths
+        from .. import paths
         path = paths.RESULTS_RETURNS / "expected" / HISTORY_FILE
     return pd.read_parquet(path)
