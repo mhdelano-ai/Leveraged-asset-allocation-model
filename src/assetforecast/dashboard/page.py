@@ -1,27 +1,27 @@
-"""Write ``dashboard/standalone.html``: the dashboard as one self-contained HTML file.
+"""Make ``dashboard/index.html`` a self-contained page that opens offline in any browser.
 
-    python scripts/build_standalone_dashboard.py            # -> dashboard/standalone.html
-    python scripts/build_standalone_dashboard.py --out F    # somewhere else
-
-``dashboard/index.html`` is written for a hosted dashboard runtime that supplies
-``d3`` and a ``dash`` object (data loading, draw hooks, colours, theme tokens).
-This script wraps the same page, unchanged, with a small stand-in for that
-runtime, the vendored d3 (``dashboard/vendor/``) and every dataset listed in
-``dashboard/datasets.json`` inlined, so the file opens offline in any browser.
-No number is computed here: the values are the CSVs that
-``python -m assetforecast.dashboard`` writes, copied verbatim.
+The hand-written page (its prose, styles, ``data-*`` bindings and chart code) sits
+between ``<!-- page -->`` and ``<!-- /page -->``. :func:`build` keeps that part
+verbatim and rewrites everything around it: the document head, theme tokens,
+the vendored d3 (``dashboard/vendor/``), every dataset in ``dashboard/datasets.json``
+inlined as JSON, and a small stand-in for the ``dash`` runtime the page calls.
+No number is computed here; the values are the CSVs this package writes, copied
+verbatim. ``python -m assetforecast.dashboard`` runs it after writing the data.
 """
 from __future__ import annotations
 
-import argparse
 import csv
 import json
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-DASH = ROOT / "dashboard"
+from .. import paths
+
+DASH = paths.ROOT / "dashboard"
+PAGE = DASH / "index.html"
+MANIFEST = DASH / "datasets.json"
 D3 = DASH / "vendor" / "d3-7.9.0.min.js"
+OPEN, CLOSE = "<!-- page -->", "<!-- /page -->"
 NUM = re.compile(r"^-?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$")
 
 # Theme tokens the page reads (var(--...)). Colours follow the validated
@@ -131,45 +131,45 @@ def read_rows(path: Path) -> list[dict]:
         ]
 
 
-def build(out: Path) -> Path:
-    manifest = json.loads((DASH / "datasets.json").read_text(encoding="utf-8"))
-    data = {d["id"]: read_rows(DASH / d["file"]) for d in manifest}
-    page = (DASH / "index.html").read_text(encoding="utf-8")
-    page = re.sub(r'<meta name="dash-one-writer">\s*', "", page, count=1)
-    title = re.search(r'<h1 id="title">(.*?)</h1>', page, re.S)
+def page_source(html: str) -> str:
+    """The hand-written part of the page (the whole file if it has no markers yet)."""
+    if OPEN in html and CLOSE in html:
+        return html.split(OPEN, 1)[1].split(CLOSE, 1)[0].strip("\n")
+    return re.sub(r'^<meta name="dash-one-writer">\s*', "", html.strip("\n"))
+
+
+def build(page: Path = PAGE, manifest: Path = MANIFEST) -> Path:
+    """Rewrite ``page`` in place around its hand-written part, with the current data inlined."""
+    datasets = json.loads(manifest.read_text(encoding="utf-8"))
+    data = {d["id"]: read_rows(manifest.parent / d["file"]) for d in datasets}
+    src = page_source(page.read_text(encoding="utf-8"))
+    title = re.search(r'<h1 id="title">(.*?)</h1>', src, re.S)
+    desc = re.sub(r"\s+", " ", title.group(1)).strip().replace('"', "&quot;") if title else ""
     payload = json.dumps(data, separators=(",", ":"), allow_nan=False).replace("</", "<\\/")
     html = "\n".join([
         "<!doctype html>",
+        "<!-- Generated around the marked page section by python -m assetforecast.dashboard;",
+        "     edit only between the page markers. -->",
         '<html lang="en">',
         "<head>",
         '<meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         "<title>Asset Class Forecast</title>",
-        f'<meta name="description" content="{(title.group(1) if title else "").strip()}">',
+        f'<meta name="description" content="{desc}">',
         f"<style>{BASE_CSS}</style>",
-        f"<script>{D3.read_text(encoding='utf-8')}</script>",
+        f'<script id="dash-d3">{D3.read_text(encoding="utf-8")}</script>',
         f'<script type="application/json" id="dash-data">{payload}</script>',
-        f"<script>{SHIM}</script>",
+        f'<script id="dash-runtime">{SHIM}</script>',
         "</head>",
         "<body>",
         '<div class="sa-bar"><button type="button" id="sa-theme">Dark mode</button></div>',
-        page,
-        f"<script>{BOOT}</script>",
+        OPEN,
+        src,
+        CLOSE,
+        f'<script id="dash-boot">{BOOT}</script>',
         "</body>",
         "</html>",
         "",
     ])
-    out.write_text(html, encoding="utf-8")
-    return out
-
-
-def main(argv=None) -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--out", type=Path, default=DASH / "standalone.html")
-    a = ap.parse_args(argv)
-    p = build(a.out)
-    print(f"wrote {p} ({p.stat().st_size / 1e6:.2f} MB)")
-
-
-if __name__ == "__main__":
-    main()
+    page.write_text(html, encoding="utf-8")
+    return page

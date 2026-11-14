@@ -8,7 +8,7 @@ At each month-end this package publishes, for twelve asset classes and three pol
 
 They are planning inputs for a leveraged allocation model. The package does no position sizing. Returns are log returns in excess of T-bills.
 
-**Read the report first: [reports/REPORT.md](reports/REPORT.md).** The dashboard (`dashboard/`) shows the same numbers. To view it, open `dashboard/standalone.html` in any browser: one self-contained file, data included, works offline (rebuild with `python scripts/build_standalone_dashboard.py`).
+**Read the report first: [reports/REPORT.md](reports/REPORT.md).** The dashboard (`dashboard/`) shows the same numbers. To view it, open `dashboard/index.html` in any browser: one self-contained file with the data included, it works offline.
 
 ## Current forecast: <!-- gen:window -->November 2026 to October 2027<!-- /gen:window --> (data through <!-- gen:data_through -->2026-10-30<!-- /gen:data_through -->)
 <!-- gen:readme_forecast -->
@@ -50,7 +50,7 @@ Expected return and quantiles are of the 12-month log excess return, in percent;
 | `results/archive/assetpred/` | the original return-forecasting project's results, unmodified |
 | `reports/SELECTION.md`, `reports/final_evaluation.md` | the covariance model choice (committed before its holdout was scored) and its evaluation |
 | `reports/models/`, `reports/data/` | one report per model family and per data source; the data audit; the feature port |
-| `dashboard/` | `index.html`, `data/*.csv` (written by `python -m assetforecast.dashboard`) and `datasets.json`; `standalone.html`, the same page as one offline file (`scripts/build_standalone_dashboard.py`, d3 vendored in `vendor/`) |
+| `dashboard/` | `index.html` (the page, self-contained: open it in a browser), `data/*.csv` and `datasets.json`, all written by `python -m assetforecast.dashboard`; d3 vendored in `vendor/` |
 | `src/assetforecast/` | `data/`, `models/`, `eval/`, `bridge/` (covariance side); `returns/` (expected returns, distributions, replication, strategy test); `covhistory.py`, `forecast.py`, `pipeline.py`, `dashboard/` |
 | `scripts/` | `run_all.sh`, `score_final.py`, `make_report_figures.py`, `make_report_tables.py`, `leak_test.py` |
 

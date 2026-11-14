@@ -12,6 +12,7 @@ import pytest
 
 from assetforecast import paths
 from assetforecast.dashboard import data as dd
+from assetforecast.dashboard import page as page_mod
 
 PAGE = paths.ROOT / "dashboard" / "index.html"
 D = paths.DASHBOARD_DATA
@@ -38,9 +39,9 @@ class Marks(HTMLParser):
 
 @pytest.fixture(scope="module")
 def page():
-    html = PAGE.read_text()
+    html = page_mod.page_source(PAGE.read_text())
     p = Marks()
-    p.feed(re.sub(r"<script>.*?</script>", "", html, flags=re.S))
+    p.feed(re.sub(r"<script\b[^>]*>.*?</script>", "", html, flags=re.S))
     return html, p.els
 
 
@@ -54,8 +55,14 @@ def calcs(html):
     return set(re.findall(r"dash\.calc\('([\w-]+)'", html))
 
 
-def test_page_opens_with_one_writer_line(page):
-    assert page[0].startswith("<meta name=\"dash-one-writer\">")
+def test_page_is_self_contained_with_current_data(frames):
+    html = PAGE.read_text()
+    assert html.count(page_mod.OPEN) == 1 and html.count(page_mod.CLOSE) == 1
+    assert not re.search(r"<(script|link)\b[^>]*\b(src|href)=", html), "the page must load nothing external"
+    inlined = json.loads(re.search(r'<script type="application/json" id="dash-data">(.*?)</script>', html, re.S).group(1))
+    assert set(inlined) == set(frames)
+    for sid, df in frames.items():
+        assert len(inlined[sid]) == len(df), sid
 
 
 def test_every_source_exists(page, frames):
