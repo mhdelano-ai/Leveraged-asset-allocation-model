@@ -26,17 +26,17 @@ They are planning inputs for a leveraged allocation model. The package does no p
 | US REITs | +5.9% (2.2 to 9.5) | 18.2% | −25.0% | 35.9% |
 | Gold | +3.8% (−1.8 to 9.4) | 24.5% | −37.8% | 44.2% |
 | Broad commodities (futures TR) | +3.2% (−0.3 to 6.7) | 19.3% | −29.6% | 35.1% |
-| *60/40 (US large cap / intermediate Treasuries)* | +4.5% | 10.3% | −12.5% | 20.2% |
-| *Balanced 12-asset mix* | +4.4% | 10.7% | −13.4% | 20.9% |
-| *Global equity mix* | +6.0% | 16.0% | −20.3% | 30.3% |
+| *60/40 (US large cap / intermediate Treasuries)* | +4.5% (s.e. 1.6) | 10.3% | −12.5% | 20.2% |
+| *Balanced 12-asset mix* | +4.4% (s.e. 2.0) | 10.7% | −13.4% | 20.9% |
+| *Global equity mix* | +6.0% (s.e. 2.3) | 16.0% | −20.3% | 30.3% |
 <!-- /gen:readme_forecast -->
-Expected return and quantiles are of the 12-month log excess return, in percent; the quantiles include the mean. Portfolio rows (italic) use the published portfolio shape; `forecasts/latest/` also has an asset-shape version as a sensitivity check, the full covariance matrix, the 21-day-basis figures and the arithmetic-return equivalents. Stock–Treasury correlation: <!-- gen:sb_corr -->+0.10<!-- /gen:sb_corr -->.
+Expected return and quantiles are of the 12-month log excess return, in percent; the quantiles include the mean. <!-- gen:er_zero_line -->6 of the 12 90% intervals include zero, and the lower bound for International developed equity is essentially zero<!-- /gen:er_zero_line -->. Portfolio rows (italic) show the expected return's standard error (s.e.; from `results/returns/distribution/residuals.parquet`; no interval is published) and use the published portfolio shape, which is narrower than the covariance forecast: <!-- gen:port_narrow_line -->the portfolio shape keeps the spread of past portfolio outcomes, 0.916 of the scale then predicted (from 3 overlapping portfolio series), and its tails are floored at a normal with that same spread, not unit spread. For 60/40 the range's standard deviation is 9.55% against a 12-month volatility forecast of 10.30%; its middle half (25–75%) is 24% narrower than a normal at the predictive scale; and its 95% and 99% quantiles sit on the narrower floor<!-- /gen:port_narrow_line -->. `forecasts/latest/` also has the asset-shape version, which does not narrow this way; use it for any other portfolio and for anything levered or optimized. It also has the full covariance matrix, the 21-day-basis figures and the arithmetic-return equivalents. Stock–Treasury correlation: <!-- gen:sb_corr -->+0.10<!-- /gen:sb_corr -->.
 
 ## How far to trust it
 
-- **Volatilities and correlations** were tested on 2014–2025 forecasts scored once after the model was chosen: they beat a simple reference; the whole-matrix advantage was not significant.
+- **Volatilities** were tested on 2014–2025 forecasts scored once after the model was chosen and beat a simple reference (skill <!-- gen:cov_vol_line -->+7.8% (p = 0.034)<!-- /gen:cov_vol_line -->). **Correlations** (<!-- gen:cov_corr_line -->+1.2% (p = 0.682)<!-- /gen:cov_corr_line -->) and the matrix as a whole (p = <!-- gen:cov_matrix_p -->0.267<!-- /gen:cov_matrix_p -->) were ahead of their references only in point estimate.
 - **Expected returns** are historical means because nothing beat them. In the original return-forecasting project's own holdout (forecasts from 2015, at 1, 3 and 12 months) no machine-learning model beat the historical mean, and in a portfolio test the model forecasts did worse than historical means. The interval covers only the sampling error of the average.
-- **The predictive distributions** and the 12-month re-run of the frozen models on this package's panel were produced after both holdouts had been seen: they describe, they do not test. Only forecasts made from <!-- gen:oos_from -->November 2026<!-- /gen:oos_from --> on count as new evidence.
+- **The predictive distributions** and the 12-month re-run of the frozen models on this package's panel were produced after both holdouts had been seen: they describe, they do not test. The published 60/40 range's 5% point rests on <!-- gen:episodes_p05 -->8<!-- /gen:episodes_p05 --> historical episodes. Only forecasts made from <!-- gen:oos_from -->November 2026<!-- /gen:oos_from --> on count as new evidence.
 
 ## Where things are
 
@@ -46,7 +46,7 @@ Expected return and quantiles are of the 12-month log excess return, in percent;
 | `forecasts/latest/` | `cov_annual.csv` (feed this to an optimizer), `cov_21d.csv`, `corr.csv`, `vols.csv`, `portfolios.csv`, `expected_returns.csv`, `distribution_assets.csv`, `distribution_portfolios.csv`, `shape.csv`, `forecast.json` |
 | `results/final/` | the covariance model's development and holdout scores (frozen) |
 | `results/covariance/` | the selected covariance forecast at every past month-end |
-| `results/returns/` | the 12-month replication of the frozen return models, expected-return and distribution history, distribution scores, strategy test (all labelled as not out-of-sample) |
+| `results/returns/` | the 12-month replication of the frozen return models, expected-return and distribution history, distribution scores, strategy test. The replication, distribution and strategy outputs carry the replication label (not out-of-sample); `expected/history.json` and `covariances/sample/h12.json` describe inputs and carry no label |
 | `results/archive/assetpred/` | the original return-forecasting project's results, unmodified |
 | `reports/SELECTION.md`, `reports/final_evaluation.md` | the covariance model choice (committed before its holdout was scored) and its evaluation |
 | `reports/models/`, `reports/data/` | one report per model family and per data source; the data audit; the feature port |
@@ -65,12 +65,12 @@ python scripts/make_report_tables.py           # -> generated blocks in reports/
 python -m pytest -m "not network"              # the test suite
 ```
 
-`results/full/` is not committed: on a fresh clone the pipeline's first step (about 30 minutes on 4 cores) must run before the rest. `python -m assetforecast.pipeline --list` shows the steps; `--max-date D` makes a development run under `results/dev/`. Rebuilding the data from source and rerunning the frozen covariance evaluation are described in the report, section 8.
+`results/full/` is not committed: on a fresh clone the pipeline's first step (about 30 minutes on 4 cores) must run before the rest. `python -m assetforecast.pipeline --list` shows the steps; `--max-date D` makes a development run under `results/dev/`. Rebuilding the data from source and rerunning the frozen covariance evaluation are described in the report, section 9. Run the steps through the pipeline rather than one by one: it runs the numerical libraries single-threaded, which is what makes a rerun reproduce the committed results exactly. The strategy test run by hand with multi-threaded linear algebra comes out about 1e-9 different; it is identical across 2, 3 and 4 worker processes.
 
 ## Main caveats
 
 - **Expected returns are averages, not forecasts.** Their intervals are wide relative to the differences between many assets, and they assume the mean has not shifted. Treat them as a weak prior.
 - **Wide single-year errors.** Over the last 30 years, realized volatility landed between 35% below and 22% above the forecast two years in three. Crises are not anticipated.
 - **Optimizers find the matrix's weak spots.** In development, minimum-variance portfolios realized 1.43 times their predicted variance. Haircut optimized or leveraged portfolios by about 1.5, or constrain the optimizer.
-- **Portfolio tails rest on few episodes.** Use the more severe of the published and asset-shape quantiles.
+- **Portfolio ranges are narrower than the covariance forecast, and their tails rest on few episodes.** Use the more severe of the published and asset-shape quantiles.
 - **Correlations, especially stock–bond, shift faster than the forecast adapts.**

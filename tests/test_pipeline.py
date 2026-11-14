@@ -53,6 +53,7 @@ def test_order_and_commands_reuse_the_covariance_store(full_store, monkeypatch):
         assert "ASSETFORECAST_MAX_DATE" not in env
         assert "ASSETFORECAST_DROP_TIERS" not in env and "ASSETFORECAST_RESULTS" not in env
         assert env["OMP_NUM_THREADS"] == "1"
+        assert env["ASSETFORECAST_PYTHON"] == sys.executable   # run_all.sh uses the pipeline's interpreter
 
 
 def test_max_date_reaches_every_step(full_store):
@@ -127,3 +128,10 @@ def test_step_processes_see_the_development_switch(full_store, monkeypatch, tmp_
             assert s["env"] == md and s["dev"] is dev
             assert ("/results/dev/" in s["cov"]) is dev and ("/results/dev/" in s["ret"]) is dev
             assert ("/results/dev/" in s["feat"]) is dev
+
+
+def test_run_all_uses_the_interpreter_it_is_given():
+    text = P.RUN_ALL.read_text()
+    assert 'PY="${ASSETFORECAST_PYTHON:-python3}"' in text
+    body = [l for l in text.splitlines() if not l.lstrip().startswith("#")]
+    assert not any("python3 -" in l for l in body)

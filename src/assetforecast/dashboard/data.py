@@ -72,6 +72,12 @@ def pc(x, dp: int = 1):
         round(100 * float(x), dp) if vd.ok(x) else np.nan)
 
 
+def pc_exact(x, dp: int) -> float:
+    """Fraction -> percent rounded half-up on the decimal text the published file holds (0.10295 -> 10.30)."""
+    from decimal import ROUND_HALF_UP, Decimal
+    return float((Decimal(str(x)) * 100).quantize(Decimal(1).scaleb(-dp), rounding=ROUND_HALF_UP))
+
+
 def pv(x):
     """A p-value as the page prints it: three decimals, '<0.001' below that."""
     if isinstance(x, pd.Series):
@@ -225,6 +231,7 @@ def outlook_assets(s: Sources) -> pd.DataFrame:
                         "vol12": pc(d.scale), "sd": pc(d.sd)})
     for q in QS:
         out[q] = pc(d[q])
+    out["includes_zero"] = np.where((er.ci90_lo <= 0) & (er.ci90_hi >= 0), "yes", "no")
     out["n_months"] = er.n_months
     out["history_from"] = er.first_month
     return out
@@ -238,14 +245,44 @@ def outlook_portfolios(s: Sources) -> pd.DataFrame:
                         "er": pc(d["mean"]), "vol12": pc(d.scale), "sd": pc(d.sd)})
     for q in QS:
         out[q] = pc(d[q])
+    # The portfolio expected return's standard error and the predictive scale are not in the published
+    # file; they are the values distribution.portfolio_frame computed for the same origin, kept in
+    # results/returns/distribution/residuals.parquet. Refuse if that row is not the published forecast.
+    f = s.json("forecast.json")
+    r = s.read("distribution/residuals.parquet", "returns")
+    r = r[(r.kind == "portfolios") & (pd.to_datetime(r.origin) == pd.Timestamp(f["origin"]))].set_index("name")
+    if not np.allclose(r["mean"].loc[d.portfolio].to_numpy(), d["mean"].to_numpy(), atol=1e-5):
+        raise ValueError("residuals.parquet portfolio means differ from the published forecast")
+    se, ps = r.se.loc[d.portfolio].to_numpy(), r.pscale.loc[d.portfolio].to_numpy()
+    out["er_se"] = pc(pd.Series(se), 1).to_numpy()
+    out["pscale"] = pc(pd.Series(ps), 1).to_numpy()
+    # how much narrower the central half of the published range is than a normal with the predictive scale
+    iqr_normal = 2 * norm.ppf(0.75) * ps
+    out["iqr_narrower"] = (100 * (1 - (d.q75 - d.q25).to_numpy() / iqr_normal)).round(0).astype(int)
     out["weights"] = d.weights.map(lambda w: short_list(json.loads(w)))
+    return out
+
+
+def _floored(s: Sources) -> dict[str, pd.Series]:
+    """Per kind, whether each published shape quantile sits on the normal floor (its empirical value was
+    thinner and was replaced), from the shape history at the forecast origin."""
+    f = s.json("forecast.json")
+    h = s.read("distribution/shape_history.parquet", "returns")
+    h = h[pd.to_datetime(h.origin) == pd.Timestamp(f["origin"])]
+    out = {}
+    for kind in ("assets", "portfolios"):
+        g = h[h.kind == kind].set_index("tau")
+        out[kind] = pd.Series(np.where(np.isclose(g.z, g.z_gauss) & ~np.isclose(g.z, g.z_raw), "yes", "no"), index=g.index)
     return out
 
 
 def shape(s: Sources) -> pd.DataFrame:
     sh = s.read("shape.csv")
+    fl = _floored(s)
     return pd.DataFrame({"tau": (100 * sh.tau).round(0).astype(int), "z_assets": sh.z_assets.round(3),
-                         "z_portfolios": sh.z_portfolios.round(3), "z_normal": norm.ppf(sh.tau).round(3)})
+                         "z_portfolios": sh.z_portfolios.round(3), "z_normal": norm.ppf(sh.tau).round(3),
+                         "floor_assets": fl["assets"].reindex(sh.tau).to_numpy(),
+                         "floor_portfolios": fl["portfolios"].reindex(sh.tau).to_numpy()})
 
 
 def snapshot(s: Sources) -> pd.DataFrame:
@@ -263,7 +300,22 @@ def snapshot(s: Sources) -> pd.DataFrame:
         b = dist[blk]
         row.update({f"shape_{k}_episodes_q01": b["episodes_q01"], f"shape_{k}_episodes_q05": b["episodes_q05"],
                     f"shape_{k}_n": b["n_residuals"], f"shape_{k}_series": b["n_series"],
-                    f"shape_{k}_from": ym(b["first_origin"]), f"shape_{k}_to": ym(b["last_origin"])})
+                    f"shape_{k}_from": ym(b["first_origin"]), f"shape_{k}_to": ym(b["last_origin"]),
+                    f"shape_{k}_sd": round(b["sd_z"], 3)})
+    fl = _floored(s)["portfolios"]
+    row["shape_p_floored"] = " and ".join(f"{round(100 * t):g}%" for t in fl.index if fl[t] == "yes")
+    # 60/40 published row: predictive sd against the 12-month volatility, and the narrowing of the central half
+    op = outlook_portfolios(s).set_index(["portfolio", "shape"])
+    p = op.loc[("p6040", "portfolios")]
+    raw = s.read("distribution_portfolios.csv").set_index(["portfolio", "shape"]).loc[("p6040", "portfolios")]
+    row.update({"p6040_sd": pc_exact(raw.sd, 2), "p6040_vol12": pc_exact(raw.scale, 2), "p6040_iqr_narrower": p.iqr_narrower,
+                "p6040_q05_assetshape": op.loc[("p6040", "assets")].q05})
+    # how many of the asset expected-return intervals include zero, and which lower bounds are essentially zero
+    er = s.read("expected_returns.csv")
+    inc = (er.ci90_lo <= 0) & (er.ci90_hi >= 0)
+    near = er[(~inc) & (er.ci90_lo.abs() < 0.0005)]
+    row.update({"er_n": len(er), "er_n_zero": int(inc.sum()),
+                "er_near_zero": " and ".join(near.name) if len(near) else "none"})
     return pd.DataFrame([row])
 
 
@@ -444,6 +496,11 @@ def verdict_rows(s: Sources) -> list[dict]:
         "status": vd.skill_verdict(-cr["diff"], cr["dm_p"]), "diff": round(cr["diff"], 3),
         "diff_lo": round(cr["ci90"][0], 3), "diff_hi": round(cr["ci90"][1], 3), "p": cr["dm_p"],
         "q_model": round(hl["cov_qlike_rel"]["primary"], 3), "q_ref": round(hl["cov_qlike_rel"]["reference"], 3)}))
+    hc = s.read("h2h_corr.csv", "final")
+    hc = hc[(hc.subset == "daily") & (hc.period == "holdout") & (hc.role == "primary")].iloc[0]
+    rows.append(_verdict_row("cov_corr", "covariance", 12, "holdout", hold, {
+        "status": vd.skill_verdict(hc.skill_pct, hc.dm_p), "skill": hc.skill_pct / 100,
+        "skill_lo": round(hc.skill_lo, 1), "skill_hi": round(hc.skill_hi, 1), "p": hc.dm_p}))
     rows.append(_verdict_row("cov_expect", "covariance", 12, "holdout", hold,
                              vd.expectations_verdict(s.read("expectations.csv", "final").status)))
 
@@ -490,9 +547,13 @@ def verdict_rows(s: Sources) -> list[dict]:
         p = vd.get(d, "dist_hm_af", 12, "pooled", "holdout", bench, "dm_crps_p", "assets")
         rows.append(_verdict_row(q, "replication", 12, "holdout", span,
                                  {"status": vd.skill_verdict(sk, p), "skill": sk, "p": p}))
-    rows.append(_verdict_row("risk_rep", "replication", 12, "holdout", span,
-                             vd.strategy_verdict(rstrat, ("hist_mean", "none"), RISK_RULES, 12, "holdout",
-                                                 family="risk")))
+    rv = vd.strategy_verdict(rstrat, ("hist_mean", "none"), RISK_RULES, 12, "holdout", family="risk")
+    rk = rstrat[(rstrat.family == "risk") & (rstrat.universe == "all") & (rstrat.horizon.astype(int) == 12)
+                & (rstrat.period == "holdout") & rstrat.rule.isin(RISK_RULES)]
+    behind = rk[rk.d_cer < 0]
+    rv["behind_list"] = "; ".join(f"{gl.rule_label(r.rule)} ({pc(r.d_cer, 2):+.2f}% a year, p = {pv(r.d_cer_p)})"
+                                  for r in behind.itertuples()) or "none"
+    rows.append(_verdict_row("risk_rep", "replication", 12, "holdout", span, rv))
     return rows
 
 

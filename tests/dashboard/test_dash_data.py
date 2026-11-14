@@ -238,3 +238,34 @@ def test_manifest_covers_every_file():
     for old in ("forecast_assets", "forecast_corr", "forecast_portfolios", "history_vol", "history_corr",
                 "candidates", "model_ranks", "expectations"):
         assert old in {m["id"] for m in man}
+
+
+def test_portfolio_se_narrowing_and_zero_intervals():
+    """The figures quoted beside the portfolio and expected-return tables, recomputed."""
+    f = json.loads((LATEST / "forecast.json").read_text())
+    dp = pd.read_csv(LATEST / "distribution_portfolios.csv")
+    res = pd.read_parquet(R / "distribution/residuals.parquet")
+    res = res[(res.kind == "portfolios") & (pd.to_datetime(res.origin) == pd.Timestamp(f["origin"]))].set_index("name")
+    op = csv("outlook_portfolios")
+    close(op.er_se, (100 * res.se.loc[op.portfolio]).round(1))
+    from scipy.stats import norm
+    narrower = 100 * (1 - (dp.q75 - dp.q25) / (2 * norm.ppf(0.75) * res.pscale.loc[dp.portfolio].to_numpy()))
+    close(op.iqr_narrower, narrower.round(0))
+    snap = csv("snapshot").iloc[0]
+    assert snap.shape_p_sd == pytest.approx(round(f["distribution"]["shape_portfolios"]["sd_z"], 3))
+    assert snap.p6040_sd == pytest.approx(100 * dp.set_index(["portfolio", "shape"]).sd[("p6040", "portfolios")], abs=0.006)
+    sh = pd.read_parquet(R / "distribution/shape_history.parquet")
+    sh = sh[(pd.to_datetime(sh.origin) == pd.Timestamp(f["origin"])) & (sh.kind == "portfolios")]
+    floored = [f"{round(100 * t):g}%" for t, z, zg, zr in zip(sh.tau, sh.z, sh.z_gauss, sh.z_raw)
+               if np.isclose(z, zg) and not np.isclose(z, zr)]
+    assert snap.shape_p_floored == " and ".join(floored)
+    er = pd.read_csv(LATEST / "expected_returns.csv")
+    assert snap.er_n_zero == int(((er.ci90_lo <= 0) & (er.ci90_hi >= 0)).sum())
+    assert snap.er_n == len(er)
+
+
+def test_correlation_verdict_from_final():
+    hc = pd.read_csv(F / "h2h_corr.csv").query("subset == 'daily' and period == 'holdout' and role == 'primary'").iloc[0]
+    v = csv("verdicts").set_index("question")
+    assert v.loc["cov_corr", "skill"] == pytest.approx(round(hc.skill_pct, 2))
+    assert v.loc["cov_corr", "status"] == ("pass" if hc.skill_pct > 0 and hc.dm_p < 0.05 else "weak" if hc.skill_pct > 0 else "none")

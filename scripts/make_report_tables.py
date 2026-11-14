@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from decimal import ROUND_HALF_UP, Decimal
 import re
 import sys
 from pathlib import Path
@@ -39,7 +40,10 @@ def s(x, dp=1, sign=False) -> str:
         return x
     if pd.isna(x):
         return "n/a"
-    t = f"{x:+.{dp}f}" if sign else f"{x:.{dp}f}"
+    # half-up on the shortest decimal text of the value, so 19.15 prints as 19.2 here as it does in
+    # results/final's own text (Python's format would give 19.1 from the binary value)
+    d = Decimal(repr(float(x))).quantize(Decimal(1).scaleb(-dp), rounding=ROUND_HALF_UP)
+    t = f"{d:+.{dp}f}" if sign else f"{d:.{dp}f}"
     return t.replace("-", "−")
 
 
@@ -71,6 +75,26 @@ def build_blocks(f: dict[str, pd.DataFrame] | None = None) -> dict[str, str]:
     b["vol_6040"] = s(f["forecast_portfolios"].set_index("portfolio").vol12["p6040"])
     b["er_6040"] = s(pub.er["p6040"], 1, True)
     b["q05_6040"] = s(pub.q05["p6040"])
+    b["se_6040"] = s(pub.er_se["p6040"])
+    b["er_zero_line"] = (f"{snap.er_n_zero} of the {snap.er_n} 90% intervals include zero, and the lower bound for "
+                          f"{snap.er_near_zero} is essentially zero")
+    b["port_narrow_line"] = (
+        f"the portfolio shape keeps the spread of past portfolio outcomes, {snap.shape_p_sd:.3f} of the scale then "
+        f"predicted (from {snap.shape_p_series} overlapping portfolio series), and its tails are floored at a normal "
+        f"with that same spread, not unit spread. For 60/40 the range's standard deviation is {snap.p6040_sd:.2f}% "
+        f"against a 12-month volatility forecast of {snap.p6040_vol12:.2f}%; its middle half (25–75%) is "
+        f"{snap.p6040_iqr_narrower}% narrower than a normal at the predictive scale; and its {snap.shape_p_floored} "
+        f"quantiles sit on the narrower floor")
+    b["p6040_q05_as"] = s(snap.p6040_q05_assetshape)
+    b["episodes_p05"] = str(snap.shape_p_episodes_q05)
+    rr = v.loc["risk_rep"]
+    b["risk_behind_line"] = rr.behind_list.replace("-", "−")
+    cc = v.loc["cov_corr"]
+    b["cov_corr_line"] = f"{s(cc.skill, 1, True)}% (p = {p(cc.p)})"
+    cv = v.loc["cov_vol"]
+    b["cov_vol_line"] = f"{s(cv.skill, 1, True)}% (p = {p(cv.p)})"
+    cm = v.loc["cov_matrix"]
+    b["cov_matrix_p"] = p(cm.p)
     b["oos_from"] = snap.oos_from
     b["first_oos_outcome"] = snap.first_oos_outcome
     b["episodes_p"] = f"{snap.shape_p_episodes_q01} and {snap.shape_p_episodes_q05}"
@@ -116,10 +140,11 @@ def build_blocks(f: dict[str, pd.DataFrame] | None = None) -> dict[str, str]:
          for _, r in f["outlook_assets"].iterrows()])
     fp = f["forecast_portfolios"].set_index("portfolio")
     b["portfolio_table"] = table(
-        ["portfolio", "shape", "expected return", "21-day vol", "12-month vol", "1%", "5%", "median", "95%", "99%"],
+        ["portfolio", "shape", "expected return (s.e.)", "21-day vol", "12-month vol", "sd of the range", "1%", "5%",
+         "median", "95%", "99%"],
         [[r.label if r["shape"] == "portfolios" else f"*{r.label}*", "published (portfolio outcomes)"
-          if r["shape"] == "portfolios" else "*sensitivity (asset outcomes)*", f"{s(r.er, 1, True)}%",
-          f"{s(fp.vol21[r.portfolio])}%", f"{s(r.vol12)}%", s(r.q01), s(r.q05), s(r.q50), s(r.q95), s(r.q99)]
+          if r["shape"] == "portfolios" else "*sensitivity (asset outcomes)*", f"{s(r.er, 1, True)}% ({s(r.er_se)})",
+          f"{s(fp.vol21[r.portfolio])}%", f"{s(r.vol12)}%", f"{s(r.sd)}%", s(r.q01), s(r.q05), s(r.q50), s(r.q95), s(r.q99)]
          for _, r in pd.concat([op[op["shape"] == "portfolios"], op[op["shape"] == "assets"]]).iterrows()])
     b["portfolio_weights"] = "\n" + "\n".join(
         f"- {r.label}: {r.weights}" for _, r in pub.reset_index().iterrows()) + "\n"
@@ -131,7 +156,7 @@ def build_blocks(f: dict[str, pd.DataFrame] | None = None) -> dict[str, str]:
 
     # ---- covariance evaluation (results/final) --------------------------------
     hl = src.json("summary.json", "final")["headline"]
-    roles = [("primary", "**Selected model** (trimmed family average)"), ("runner_up", "Simple runner-up (section 8)"),
+    roles = [("primary", "**Selected model** (trimmed family average)"), ("runner_up", "Simple runner-up (section 9)"),
              ("single", "Best single model in development (`statespace_2c_daily`)"),
              ("ref_blend", "Reference (long-run / 5-year blend)"), ("ref_last12m", "Reference (last 12 months)")]
     b["cov_scores"] = table(["model", "development, 1926–2013", "holdout, 2014–2025"],
@@ -157,13 +182,16 @@ def build_blocks(f: dict[str, pd.DataFrame] | None = None) -> dict[str, str]:
              ("mean_orig_h12", "Original holdout, 12 months"),
              ("mean_rep", "Replication, 12 months, 2014–2025 origins *(seen data)*"),
              ("mean_rep_ap", "Replication, 12 months, 2015–2025 origins *(seen data)*")]
-    b["mean_table"] = table(
+    mt = table(
         ["test", "origins", "best model", "best pooled R²", "models with R² > 0", "R² detectable", "family test p",
          "independent obs.", "verdict"],
         [[lab, f"{v.loc[q].first_origin} to {v.loc[q].last_origin}", v.loc[q].best_label,
           f"{s(v.loc[q].r2, 2, True)}%", f"{v.loc[q].n_positive} of {v.loc[q].n_models}",
           f"{s(v.loc[q].r2_detectable)}%", p(v.loc[q].spa_p), s(v.loc[q].n_indep), STATUS[v.loc[q].status]]
          for q, lab in tests])
+    lines = mt.strip("\n").split("\n")
+    b["mean_table_orig"] = "\n" + "\n".join(lines[:5]) + "\n"
+    b["mean_table_rep"] = "\n" + "\n".join(lines[:2] + lines[5:]) + "\n"
     m = f["mean_r2"]
     cols = [("original", 1, "holdout", "orig. 1m"), ("original", 3, "holdout", "orig. 3m"),
             ("original", 12, "holdout", "orig. 12m"), ("replication", 12, "holdout", "repl. 2014–25"),
@@ -173,7 +201,8 @@ def build_blocks(f: dict[str, pd.DataFrame] | None = None) -> dict[str, str]:
         lab = gl.label(model) + (" *(robustness)*" if model in rc.ROBUSTNESS else "")
         rows.append([lab] + [f"{s(m[(m.source == a) & (m.horizon == h) & (m.period == per) & (m.model == model)].r2.iloc[0], 2, True)}%"
                              for a, h, per, _ in cols])
-    b["mean_models_table"] = table(["model (pooled R² vs historical mean)", *[c[3] for c in cols]], rows)
+    b["mean_models_orig"] = table(["model (pooled R² vs historical mean)", *[c[3] for c in cols[:3]]], [r[:4] for r in rows])
+    b["mean_models_rep"] = table(["model (pooled R² vs historical mean)", *[c[3] for c in cols[3:]]], [[r[0], *r[4:]] for r in rows])
     b["dist_orig_table"] = table(
         ["horizon", "best model", "CRPS gain over EWMA volatility", "models ahead", "family test p", "verdict"],
         [[f"{h} month{'s' if h > 1 else ''}", v.loc[f"dist_orig_h{h}"].best_label, f"{s(v.loc[f'dist_orig_h{h}'].skill, 2, True)}%",
@@ -198,13 +227,16 @@ def build_blocks(f: dict[str, pd.DataFrame] | None = None) -> dict[str, str]:
     st = [("strat_orig_h1", "Original holdout, 1 month"), ("strat_orig_h3", "Original holdout, 3 months"),
           ("strat_orig_h12", "Original holdout, 12 months"), ("strat_rep", "Replication, 12 months, 2014–2025 *(seen data)*"),
           ("strat_rep_ap", "Replication, 12 months, 2015–2025 *(seen data)*")]
-    b["strategy_table"] = table(
+    stt = table(
         ["test", "pairs", "ahead", "ahead, p < 0.05", "ahead after adjustment", "behind", "behind, p < 0.05",
          "best (CER, % a year)", "worst", "verdict"],
         [[lab, r.n, r.n_pos, r.n_sig_pos, r.n_q_pos, r.n_neg, r.n_sig_neg,
           f"{s(r.best_d_cer, 2, True)} ({r.best_rule_label}, {r.best_label})",
           f"{s(r.worst_d_cer, 2, True)} ({r.worst_rule_label}, {r.worst_label})", STATUS[r.status]]
          for q, lab in st for r in [v.loc[q]]])
+    lines = stt.strip("\n").split("\n")
+    b["strategy_orig"] = "\n" + "\n".join(lines[:5]) + "\n"
+    b["strategy_rep"] = "\n" + "\n".join(lines[:2] + lines[5:]) + "\n"
     sg = f["strategy"]
     rk = sg[(sg.family == "risk") & (sg.period == "holdout")]
     b["risk_table"] = table(["rule (historical-mean expected returns)", "CER gain, % a year", "95% interval", "p", "Sharpe difference"],
@@ -216,7 +248,7 @@ def build_blocks(f: dict[str, pd.DataFrame] | None = None) -> dict[str, str]:
         ["asset", "expected excess return (90% interval)", "12-month volatility", "5% quantile", "95% quantile"],
         [[r["name"], f"{s(r.er, 1, True)}% ({s(r.er_lo)} to {s(r.er_hi)})", f"{s(r.vol12)}%", f"{s(r.q05)}%",
           f"{s(r.q95)}%"] for _, r in f["outlook_assets"].iterrows()] +
-        [[f"*{r.label}*", f"{s(r.er, 1, True)}%", f"{s(r.vol12)}%", f"{s(r.q05)}%", f"{s(r.q95)}%"]
+        [[f"*{r.label}*", f"{s(r.er, 1, True)}% (s.e. {s(r.er_se)})", f"{s(r.vol12)}%", f"{s(r.q05)}%", f"{s(r.q95)}%"]
          for _, r in pub.reset_index().iterrows()])
     return b
 

@@ -80,8 +80,12 @@ is the simple-return counterpart.
 75, 90, 95, 99%) of past standardized outcomes `z = (y − m)/s` pooled across
 assets over origins whose window closed by `t`, recentred, with the 1/5/95/99%
 quantiles floored at a normal of the same spread. Policy portfolios
-(`eval.portfolio.POLICIES`) get `w'm`, `w'Σw`, and a shape pooled over the
-portfolios' own past `z`; the asset-pooled shape applied to portfolios is the
+(`eval.portfolio.POLICIES`, weights renormalized over the assets present at
+each origin) get the mean `w'm`, the variance `w'Σw`, the mean's standard error
+`Σ|w_i|·se_i` (mean errors treated as perfectly correlated; it enters the scale
+as `sqrt(w'Σw + se_p²)`), and a shape pooled over the portfolios' own past `z`,
+which keeps their spread (below 1) and floors the tails at a normal of that
+spread; the asset-pooled shape applied to portfolios is the
 sensitivity model `dist_hm_af.assetshape`. Portfolio log returns are
 approximated by `w'r`, as in the covariance side's portfolio tests. This model
 was designed after both holdouts had been seen; its scores are descriptive.

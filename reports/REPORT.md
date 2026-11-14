@@ -23,18 +23,18 @@ The package publishes three things for twelve asset classes and three policy por
 - Broad commodities (futures TR): **19.3%**
 <!-- /gen:answer_vols -->
    The stock–Treasury correlation is forecast at <!-- gen:sb_corr -->+0.10<!-- /gen:sb_corr -->, and a 60/40 portfolio's volatility at <!-- gen:vol_6040 -->10.3<!-- /gen:vol_6040 -->%.
-2. **An expected excess return per asset**: each asset's long-run historical average, with a 90% interval for that average (section 1.3). For the 60/40 portfolio it is <!-- gen:er_6040 -->+4.5<!-- /gen:er_6040 -->% (12-month log return over T-bills).
-3. **A predictive distribution of next year's return**, built from the two: centred on the expected return, scaled by the volatility forecast, shaped by past outcomes (section 1.4). For the 60/40 portfolio the 5% quantile is <!-- gen:q05_6040 -->−12.5<!-- /gen:q05_6040 -->%.
+2. **An expected excess return per asset**: each asset's long-run historical average, with a 90% interval for that average (section 1.3). For the 60/40 portfolio it is <!-- gen:er_6040 -->+4.5<!-- /gen:er_6040 -->% (12-month log return over T-bills), with a standard error of <!-- gen:se_6040 -->1.6<!-- /gen:se_6040 --> points.
+3. **A predictive distribution of next year's return**, built from the two: centred on the expected return, scaled by the volatility forecast, shaped by past outcomes (section 1.4; for the policy portfolios the published range is narrower than the volatility forecast). For the 60/40 portfolio the published 5% quantile is <!-- gen:q05_6040 -->−12.5<!-- /gen:q05_6040 -->% (<!-- gen:p6040_q05_as -->−13.1<!-- /gen:p6040_q05_as -->% with the alternative asset-based shape); it has been checked only on years already seen, and it rests on <!-- gen:episodes_p05 -->8<!-- /gen:episodes_p05 --> historical episodes.
 
 How far to trust each part rests on three kinds of evidence, which this report keeps apart throughout:
 
 | | what it is | genuine out-of-sample test? | where |
 |---|---|---|---|
 | **A. The covariance model's holdout** | forecasts made 2014–2025, scored once after the model was chosen (`results/final/`) | **yes** | section 3 |
-| **B. The original return-forecasting project's holdout** | that project's own eleven assets, forecasts from 2015, at 1, 3 and 12 months (`results/archive/assetpred/`) | **yes** | section 4.1 |
-| **C. The merge-time replication** | the same frozen models re-run on this package's twelve assets at 12 months; the published distribution's calibration; the portfolio test with this package's covariance (`results/returns/`) | **no**: both holdouts had been seen before it ran | sections 4.2–4.4 |
+| **B. The original return-forecasting project's holdout** | that project's own eleven assets, forecasts from 2015, at 1, 3 and 12 months (`results/archive/assetpred/`) | **yes** | section 4 |
+| **C. The merge-time replication** | the same frozen models re-run on this package's twelve assets at 12 months; the published distribution's calibration; the portfolio test with this package's covariance (`results/returns/`) | **no**: both holdouts had been seen before it ran | section 5 |
 
-The short version, as the results stand: **the volatilities and correlations are the tested part** (A: they beat a simple reference on unseen years; the whole-matrix advantage was not significant). **The expected returns are historical averages because nothing tried beat them** (B: at no horizon did a model beat the historical mean once the search over models is allowed for, and in a portfolio the model forecasts did worse than historical means). Their interval measures only how precisely history pins the average down. **The predictive ranges combine the two and have been checked only on years already seen** (C). Only forecasts made from <!-- gen:oos_from -->November 2026<!-- /gen:oos_from --> on, whose whole window lies after the two projects were combined, will be new evidence for the return side; the first of them resolves at the end of <!-- gen:first_oos_outcome -->November 2027<!-- /gen:first_oos_outcome -->.
+The short version, as the results stand: **the volatilities are the tested part** (A: they beat a simple reference on unseen years, skill <!-- gen:cov_vol_line -->+7.8% (p = 0.034)<!-- /gen:cov_vol_line -->; the correlations, <!-- gen:cov_corr_line -->+1.2% (p = 0.682)<!-- /gen:cov_corr_line -->, and the matrix as a whole, p = <!-- gen:cov_matrix_p -->0.267<!-- /gen:cov_matrix_p -->, were ahead only in point estimate). **The expected returns are historical averages because nothing tried beat them** (B: at no horizon did a model beat the historical mean once the search over models is allowed for, and in a portfolio the model forecasts did worse than historical means). Their interval measures only how precisely history pins the average down. **The predictive ranges combine the two and have been checked only on years already seen** (C). Only forecasts made from <!-- gen:oos_from -->November 2026<!-- /gen:oos_from --> on, whose whole window lies after the two projects were combined, will be new evidence for the return side; the first of them resolves at the end of <!-- gen:first_oos_outcome -->November 2027<!-- /gen:first_oos_outcome -->.
 
 ## 1. The forecast
 
@@ -116,6 +116,8 @@ Section 3 shows how poorly the stock–Treasury correlation has been forecast in
 <!-- /gen:outlook_table -->
 Sources: `forecasts/latest/expected_returns.csv` and `distribution_assets.csv`; definitions in `src/assetforecast/returns/expected.py`.
 
+<!-- gen:er_zero_line -->6 of the 12 90% intervals include zero, and the lower bound for International developed equity is essentially zero<!-- /gen:er_zero_line -->: for those assets, history alone cannot say that they earn more than T-bills.
+
 - **What the number is.** Twelve times the asset's average monthly log excess return over its whole history through the forecast date, on the return panel: from <!-- gen:return_panel_from -->July 1926<!-- /gen:return_panel_from --> (or the asset's first month, if later), without the month-average price eras. It is the same number as the `hist_mean` benchmark of section 4. It is the expected return because nothing better was found, not because it was shown to be a good forecast.
 - **What the interval is.** A 90% interval for the average itself, with a standard error that allows for serial correlation in monthly returns and a Student-t reference that pays for estimating it (the rule was chosen on simulated data before any real interval was looked at). With thirty years of history it is wide; with a century it is narrower.
 - **What the interval is not.** It does not cover an average that has changed over time: the secular fall in yields behind forty years of bond returns, a change in the equity premium, or the choice of start date. It is the sampling error of an average of the history at hand, nothing more.
@@ -130,14 +132,14 @@ Sources: `forecasts/latest/expected_returns.csv` and `distribution_assets.csv`; 
 - **Shape**: quantiles of past 12-month outcomes, each measured in units of the scale that was forecast at the time, pooled across assets over every window that had closed by the forecast date; recentred so the distribution stays centred on the historical mean; with the 1%, 5%, 95% and 99% points no thinner than a normal of the same spread.
 - **Policy portfolios** use the same recipe with a shape pooled over the three portfolios' own past outcomes. Their log return is approximated by the weighted sum of the assets' log returns, as in the covariance side's portfolio tests (this omits a diversification return of a fraction of a percent a year).
 <!-- gen:portfolio_table -->
-| portfolio | shape | expected return | 21-day vol | 12-month vol | 1% | 5% | median | 95% | 99% |
-|---|---|---|---|---|---|---|---|---|---|
-| 60/40 (US large cap / intermediate Treasuries) | published (portfolio outcomes) | +4.5% | 9.3% | 10.3% | −27.1 | −12.5 | 6.3 | 20.2 | 26.7 |
-| Balanced 12-asset mix | published (portfolio outcomes) | +4.4% | 9.8% | 10.7% | −28.7 | −13.4 | 6.3 | 20.9 | 27.7 |
-| Global equity mix | published (portfolio outcomes) | +6.0% | 14.6% | 16.0% | −42.9 | −20.3 | 8.8 | 30.3 | 40.4 |
-| *60/40 (US large cap / intermediate Treasuries)* | *sensitivity (asset outcomes)* | +4.5% | 9.3% | 10.3% | −26.5 | −13.1 | 5.1 | 21.6 | 28.7 |
-| *Balanced 12-asset mix* | *sensitivity (asset outcomes)* | +4.4% | 9.8% | 10.7% | −28.0 | −14.0 | 5.0 | 22.3 | 29.7 |
-| *Global equity mix* | *sensitivity (asset outcomes)* | +6.0% | 14.6% | 16.0% | −41.9 | −21.2 | 7.0 | 32.5 | 43.5 |
+| portfolio | shape | expected return (s.e.) | 21-day vol | 12-month vol | sd of the range | 1% | 5% | median | 95% | 99% |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 60/40 (US large cap / intermediate Treasuries) | published (portfolio outcomes) | +4.5% (1.6) | 9.3% | 10.3% | 9.5% | −27.1 | −12.5 | 6.3 | 20.2 | 26.7 |
+| Balanced 12-asset mix | published (portfolio outcomes) | +4.4% (2.0) | 9.8% | 10.7% | 10.0% | −28.7 | −13.4 | 6.3 | 20.9 | 27.7 |
+| Global equity mix | published (portfolio outcomes) | +6.0% (2.3) | 14.6% | 16.0% | 14.8% | −42.9 | −20.3 | 8.8 | 30.3 | 40.4 |
+| *60/40 (US large cap / intermediate Treasuries)* | *sensitivity (asset outcomes)* | +4.5% (1.6) | 9.3% | 10.3% | 10.4% | −26.5 | −13.1 | 5.1 | 21.6 | 28.7 |
+| *Balanced 12-asset mix* | *sensitivity (asset outcomes)* | +4.4% (2.0) | 9.8% | 10.7% | 10.9% | −28.0 | −14.0 | 5.0 | 22.3 | 29.7 |
+| *Global equity mix* | *sensitivity (asset outcomes)* | +6.0% (2.3) | 14.6% | 16.0% | 16.1% | −41.9 | −21.2 | 7.0 | 32.5 | 43.5 |
 <!-- /gen:portfolio_table -->
 Weights:
 <!-- gen:portfolio_weights -->
@@ -145,14 +147,18 @@ Weights:
 - Balanced 12-asset mix: 30% US large, 5% US small, 15% Intl dev, 5% EM, 15% UST 7y, 5% UST 20y, 5% TIPS, 5% IG credit, 3% High yield, 4% REITs, 4% Gold, 4% Commod.
 - Global equity mix: 55% US large, 10% US small, 25% Intl dev, 10% EM
 <!-- /gen:portfolio_weights -->
-Sources: `forecasts/latest/distribution_portfolios.csv` (rows with `shape = portfolios` are published; `shape = assets` is the sensitivity check) and `shape.csv`. No interval is published for a portfolio's expected return.
+Sources: `forecasts/latest/distribution_portfolios.csv` (rows with `shape = portfolios` are published; `shape = assets` is the sensitivity check) and `shape.csv`; the expected return's standard error (s.e.) is `se` in `results/returns/distribution/residuals.parquet` at the forecast origin. A portfolio's s.e. adds the assets' standard errors weighted by the absolute weights, as if their errors were perfectly correlated; no interval is published for it.
+
+**The published portfolio ranges are narrower than the package's own covariance forecast.** <!-- gen:port_narrow_line -->the portfolio shape keeps the spread of past portfolio outcomes, 0.916 of the scale then predicted (from 3 overlapping portfolio series), and its tails are floored at a normal with that same spread, not unit spread. For 60/40 the range's standard deviation is 9.55% against a 12-month volatility forecast of 10.30%; its middle half (25–75%) is 24% narrower than a normal at the predictive scale; and its 95% and 99% quantiles sit on the narrower floor<!-- /gen:port_narrow_line -->. The asset-shape rows do not narrow this way. The method is unchanged pending the owner's decision on which row to publish as the headline; until then, read the two rows together.
+
+**What "policy portfolios" means in early years.** The portfolio shape pools past outcomes of the three policy mixes. Before every asset's history begins, each mix is its policy weights renormalized over the assets then available (a mix is skipped when one of its required assets is missing), so the early outcomes behind the shape are of smaller, more concentrated portfolios.
 
 **The shape** (standardized quantiles, pooled, beside the normal):
 <!-- gen:shape_table -->
 | quantile | 1% | 5% | 10% | 25% | 50% | 75% | 90% | 95% | 99% |
 |---|---|---|---|---|---|---|---|---|---|
 | single assets | −2.97 | −1.69 | −1.21 | −0.57 | 0.06 | 0.64 | 1.14 | 1.64 | 2.32 |
-| policy portfolios | −3.03 | −1.63 | −1.21 | −0.44 | 0.17 | 0.58 | 0.95 | 1.51 | 2.13 |
+| policy portfolios | −3.03 | −1.63 | −1.21 | −0.44 | 0.17 | 0.59 | 0.95 | 1.51 | 2.13 |
 | normal | −2.33 | −1.65 | −1.28 | −0.67 | 0.00 | 0.67 | 1.28 | 1.65 | 2.33 |
 <!-- /gen:shape_table -->
 **What the portfolio tails rest on.** Portfolio outcomes overlap by eleven months in twelve and the three portfolios fall together, so the portfolio shape's 1% and 5% points rest on only <!-- gen:episodes_p -->3 and 8<!-- /gen:episodes_p --> separate historical episodes (the asset shape on <!-- gen:episodes_a -->10 and 22<!-- /gen:episodes_a -->). This is why the asset-shape version is published beside it: the gap between the two rows is a fair measure of how uncertain the portfolio tails are. Neither says when a bad year comes.
@@ -168,7 +174,7 @@ The package does **no position sizing**. It publishes inputs; the leverage decis
 - `forecasts/latest/distribution_assets.csv`, `distribution_portfolios.csv`: quantiles of next year's return, including the mean, for stress tests and drawdown limits.
 - `forecast.json` holds everything, with the method of each block and the portfolio weights.
 
-**Treat the expected returns as a weak prior, not a signal.** No model beat them, but that does not show them to be accurate: section 4's R² compares models with the historical mean, not the historical mean with the truth. Their intervals are wide relative to the differences between many assets, which an optimizer fed point means will treat as real. Shrink the means toward each other, constrain the weights, or check that the allocation survives means drawn from inside the intervals.
+**Treat the expected returns as a weak prior, not a signal.** No model beat them, but that does not show them to be accurate: sections 4 and 5 compare models with the historical mean, not the historical mean with the truth. Their intervals are wide relative to the differences between many assets, which an optimizer fed point means will treat as real. Shrink the means toward each other, constrain the weights, or check that the allocation survives means drawn from inside the intervals.
 
 **Haircut the risk of optimized and leveraged portfolios.**
 
@@ -178,7 +184,7 @@ The package does **no position sizing**. It publishes inputs; the leverage decis
 - **Practical rule (from the development data).** For an optimized, leveraged or long–short portfolio, scale predicted variance up by about 1.5, or constrain the optimizer with long-only or gross-exposure limits.
 - **Optimized weights churn.** Unconstrained minimum variance turned over 6.6% a month one-way in development and 8.6% on the holdout. Smooth the weights or rebalance on a band.
 
-**Use the distribution for the downside, with the sensitivity row.** For a leverage limit set on a bad-year loss, read the 5% and 1% quantiles of the portfolio actually held. For the policy mixes, use the more severe of the published and asset-shape rows. For another portfolio, the quantiles can be approximated from `shape.csv` (column `z_portfolios`, or `z_assets`) as `w'mean + sqrt(w'Σw + (Σ|w|·se)²) × z`, which is how the published rows are built; the package does not publish them for arbitrary weights. The financing cost of leverage is not in these excess returns, and the log-return approximation weakens as leverage grows.
+**Use the distribution for the downside, with the sensitivity row.** For a leverage limit set on a bad-year loss, read the 5% and 1% quantiles of the portfolio actually held. For the policy mixes, use the more severe of the published and asset-shape rows; the published row is the narrower of the two (section 1.4). **For any other portfolio, and for anything levered or optimized, use the asset-pooled shape** (`shape.csv`, column `z_assets`) on the covariance-implied scale: `w'mean + sqrt(k·w'Σw + (Σ|w|·se)²) × z_assets`, with `k` the variance haircut above (about 1.5 for optimized or leveraged portfolios, 1 for a fixed mix). Do not use `z_portfolios` for such portfolios: it carries the narrower spread of three past policy mixes. The package does not publish quantiles for arbitrary weights. The financing cost of leverage is not in these excess returns, and the log-return approximation weakens as leverage grows.
 
 **The one decision that is yours: how your model treats expected bond returns.** The 12-month variances assume expected returns are constant over the long run, which is exactly what the published expected returns are. The bridge found that most of the extra 12-month variance of bonds (and gold) comes from decade-long drifts in returns that follow interest rates.
 
@@ -200,7 +206,7 @@ The package does **no position sizing**. It publishes inputs; the leverage decis
 2. *Correlation.* The plain average of the 25 correlation matrices.
 3. *Covariance.* The two are combined into a covariance matrix for 21-day returns. The bridge then scales each variance up to the 12-month horizon.
 
-Internally the model is `combo_cov_main`. Its volatility part is `combo_vol_hier_trim` ("the trimmed family average") and its correlation part is `combo_corr_ew`. The same model's forecast at every past month-end, 21-day and 12-month, is in `results/covariance/cov_history.parquet` (`python -m assetforecast.covhistory`); the return side uses it, and re-scoring it reproduces `results/final/` exactly.
+Internally the model is `combo_cov_main`. Its volatility part is `combo_vol_hier_trim` ("the trimmed family average") and its correlation part is `combo_corr_ew`. The same model's forecast at every past month-end, 21-day and 12-month, is in `results/covariance/cov_history.parquet` (`python -m assetforecast.covhistory`); the return side uses it. During the merge the regenerated model forecasts were re-scored to a scratch directory (`OMP_NUM_THREADS=1 ASSETFORECAST_RESULTS=$PWD/results/full python scripts/score_final.py --out <scratch dir>`): 24 of the 25 CSV files matched the committed `results/final/` byte for byte, `summary.json` matched in every numeric field, and the 25th file, `data_correction.csv`, could not be produced because it compares against development results of the earlier covariance project that were never committed. No test in the repository repeats this check.
 
 **Why an average rather than the best model.**
 
@@ -217,7 +223,7 @@ Internally the model is `combo_cov_main`. Its volatility part is `combo_vol_hier
   - Development used data through 2014 only.
   - Forecasts made from January 2014 to October 2025 were scored once, at the end. That is 142 overlapping windows, about 12 independent years, including 2020 and 2022.
   - The selection and five written expectations were committed (`reports/SELECTION.md`, commit `ce8e778`) before the holdout scoring script existed. The git history shows the order.
-- **An independent data audit.** It led to fixes of five defects (section 6). The most important was an investment-grade credit history partly calibrated on holdout-period data.
+- **An independent data audit.** It led to fixes of five defects (section 7). The most important was an investment-grade credit history partly calibrated on holdout-period data.
 - **A mechanical look-ahead test.** Run each model on a panel that physically ends at a date, and check that it gives the same forecast as when the later data exist. All 88 single models passed at six development dates (528 checks, maximum difference 0); the selected model, its components and the other candidates also passed at seven dates, including holdout dates (98 checks, 0 failures). The other 50-odd components of the average were tested only at development dates.
 - **An independent recomputation.** Separate code recomputed 135 targets and losses; all agreed to within 3×10⁻¹¹.
 
@@ -241,7 +247,7 @@ Internally the model is `combo_cov_main`. Its volatility part is `combo_vol_hier
 | model | development, 1926–2013 | holdout, 2014–2025 |
 |---|---|---|
 | **Selected model** (trimmed family average) | 0.389 | 0.353 |
-| Simple runner-up (section 8) | 0.402 | 0.395 |
+| Simple runner-up (section 9) | 0.402 | 0.395 |
 | Best single model in development (`statespace_2c_daily`) | 0.360 | 0.415 |
 | Reference (long-run / 5-year blend) | 0.569 | 0.383 |
 | Reference (last 12 months) | 0.505 | 0.550 |
@@ -250,16 +256,18 @@ Internally the model is `combo_cov_main`. Its volatility part is `combo_vol_hier
 <!-- gen:cov_skill -->
 | against | development [90% interval], p | holdout [90% interval], p |
 |---|---|---|
-| Reference (long-run / 5-year blend) | +31.7% [+19.1, +38.6], 0.01 | +7.8% [+2.6, +29.0], 0.03 |
+| Reference (long-run / 5-year blend) | +31.7% [+19.2, +38.6], 0.01 | +7.8% [+2.6, +29.0], 0.03 |
 | Reference (last 12 months) | +23.0% [−13.5, +46.5], 0.24 | +35.9% [+17.8, +57.4], 0.06 |
-| Simple runner-up (section 8) | +3.2% [−16.3, +21.0], 0.76 | +10.6% [−7.6, +30.1], 0.18 |
+| Simple runner-up (section 9) | +3.3% [−16.3, +21.0], 0.76 | +10.6% [−7.6, +30.1], 0.18 |
 | Best single model in development (`statespace_2c_daily`) | −7.8% [−21.9, +7.3], 0.36 | +15.0% [unbounded, +23.7], 0.36 |
 <!-- /gen:cov_skill -->
 **Covariance.** Against the reference matrix: <!-- gen:cov_matrix_line -->development difference in covariance loss −0.316 (p = 0.002); holdout −0.121 [−0.322, +0.079] (p = 0.27)<!-- /gen:cov_matrix_line -->. On the holdout the selected matrix was still ahead, by about a third of its development margin, but not significantly; it tied the runner-up.
 
+**Correlations.** The averaged correlation forecast against the ten-year reference correlation, holdout skill: <!-- gen:cov_corr_line -->+1.2% (p = 0.682)<!-- /gen:cov_corr_line -->: ahead only in point estimate. In development it was the only correlation forecast to beat the reference significantly (section 6).
+
 **What is established:** the selected model's volatilities beat the reference's in both periods; in development it beat the reference covariance matrix and the reference correlations; fixed-weight portfolio risk was not systematically mis-predicted in either period.
 
-**What is not established:** any ranking among the selected model, the runner-up and the best single model, in either period; a covariance advantage over the reference on the holdout; most per-asset comparisons on the holdout.
+**What is not established:** a correlation or whole-matrix advantage over the references on the holdout; any ranking among the selected model, the runner-up and the best single model, in either period; most per-asset comparisons on the holdout.
 
 ### The uncomfortable findings
 
@@ -304,40 +312,40 @@ What the two misses mean:
 
 *Figure 4. Correlation of US large caps with 7–10-year Treasuries over the next 12 months, forecast against realized. The forecast is a slow average. It followed the 2000 sign change about three years late, and crossed zero again only at the end of 2022, a year after the realized correlation had turned positive.*
 
-## 4. What was learned about forecasting returns (evidence B and C)
+## 4. Evidence B: the original return-forecasting project's holdout (out of sample)
 
-The return side comes from a separate project (`assetpred`), commissioned to ask whether machine learning over price, valuation, carry, macro and sentiment predictors could forecast asset-class excess returns better than each asset's historical mean, at 1, 3 and 12 months. Its README at the time of the merge is `git show 25a955d:ASSETPRED.md`; its results are archived unchanged in `results/archive/assetpred/`.
-
-### 4.1 The original project's holdout (evidence B: genuine out-of-sample)
+The return side comes from a separate project (`assetpred`), commissioned to ask whether machine learning over price, valuation, carry, macro and sentiment predictors could forecast asset-class excess returns better than each asset's historical mean, at 1, 3 and 12 months. Its README at the time of the merge is `git show 25a955d:ASSETPRED.md`; its results are archived unchanged in `results/archive/assetpred/`. **Everything in this section is that project's own holdout, a genuine out-of-sample test.** Nothing produced during the merge appears here; that is section 5.
 
 Models were developed on forecasts whose outcomes were known by the end of 2014. The model lists, the test families and the scoring rules were then frozen, and forecasts made from January 2015 on were scored once. Its panel had eleven assets, not twelve (no US small caps; gold from December 2004; IG credit a long-duration fund from 1980), so its numbers are not on this package's panel.
 
-**Expected returns.** Six frozen models (ridge regression, a forecast combination, gradient boosting, a random forest, their ensemble, and boosting on price predictors only) against the expanding historical mean. R² is the share of the historical mean's squared error a model removed, pooled over assets; the family test asks whether the best of the six beats the mean, allowing for the search over them; "R² detectable" is roughly what the sample's independent observations could have detected.
-<!-- gen:mean_table -->
+### 4.1 Expected returns
+
+Six frozen models (ridge regression, a forecast combination, gradient boosting, a random forest, their ensemble, and boosting on price predictors only) against the expanding historical mean. R² is the share of the historical mean's squared error a model removed, pooled over assets; the family test asks whether the best of the six beats the mean, allowing for the search over them; "R² detectable" is roughly what the sample's independent observations could have detected. "Not significant" means the best model's R² was positive but the family test did not confirm it; "no edge" is kept for a best R² that is not positive.
+<!-- gen:mean_table_orig -->
 | test | origins | best model | best pooled R² | models with R² > 0 | R² detectable | family test p | independent obs. | verdict |
 |---|---|---|---|---|---|---|---|---|
 | Original holdout, 1 month | 2015-01 to 2026-09 | Gradient boosting | +0.10% | 3 of 6 | 1.9% | 0.554 | 141.0 | not significant |
 | Original holdout, 3 months | 2015-01 to 2026-07 | Forecast combination | +0.41% | 1 of 6 | 5.5% | 0.351 | 46.3 | not significant |
 | Original holdout, 12 months | 2015-01 to 2025-10 | Forecast combination | +2.21% | 3 of 6 | 20.0% | 0.267 | 10.8 | not significant |
-| Replication, 12 months, 2014–2025 origins *(seen data)* | 2014-01 to 2025-10 | Ridge regression | +3.34% | 3 of 6 | 18.6% | 0.115 | 11.8 | not significant |
-| Replication, 12 months, 2015–2025 origins *(seen data)* | 2015-01 to 2025-10 | Ridge regression | +3.23% | 3 of 6 | 20.0% | 0.125 | 10.8 | not significant |
-<!-- /gen:mean_table -->
-"Not significant" means the best model's R² was positive but the family test did not confirm it. Per model (the first three columns are evidence B, the last two evidence C):
-<!-- gen:mean_models_table -->
-| model (pooled R² vs historical mean) | orig. 1m | orig. 3m | orig. 12m | repl. 2014–25 | repl. 2015–25 |
-|---|---|---|---|---|---|
-| Ridge regression | −0.29% | −0.33% | −0.39% | +3.34% | +3.23% |
-| Forecast combination | +0.09% | +0.41% | +2.21% | +2.34% | +2.53% |
-| Gradient boosting | +0.10% | −0.07% | −0.12% | −3.77% | −4.03% |
-| Random forest | +0.06% | −0.01% | +0.03% | −1.35% | −1.91% |
-| Ensemble | −0.01% | −0.24% | −1.06% | −0.83% | −1.18% |
-| Boosting, price predictors only | −0.61% | −0.07% | +0.32% | +0.98% | +0.81% |
-| Boosting without hindsight features *(robustness)* | +0.33% | +0.04% | −0.04% | −3.23% | −3.48% |
-| Combination without hindsight features *(robustness)* | +0.09% | +0.43% | +2.23% | +2.36% | +2.54% |
-<!-- /gen:mean_models_table -->
-(Sources: `results/archive/assetpred/scores/frozen.parquet`, `results/returns/scores/replication.parquet`. The robustness rows drop features estimated over the full sample and are in no test family.)
+<!-- /gen:mean_table_orig -->
+Per model:
+<!-- gen:mean_models_orig -->
+| model (pooled R² vs historical mean) | orig. 1m | orig. 3m | orig. 12m |
+|---|---|---|---|
+| Ridge regression | −0.29% | −0.33% | −0.39% |
+| Forecast combination | +0.09% | +0.41% | +2.21% |
+| Gradient boosting | +0.10% | −0.07% | −0.12% |
+| Random forest | +0.06% | −0.01% | +0.03% |
+| Ensemble | −0.01% | −0.24% | −1.06% |
+| Boosting, price predictors only | −0.61% | −0.07% | +0.32% |
+| Boosting without hindsight features *(robustness)* | +0.33% | +0.04% | −0.04% |
+| Combination without hindsight features *(robustness)* | +0.09% | +0.43% | +2.23% |
+<!-- /gen:mean_models_orig -->
+(Source: `results/archive/assetpred/scores/frozen.parquet`. The robustness rows drop features estimated over the full sample and are in no test family.)
 
-**Distributions.** Five frozen distribution models (a small linear volatility model with empirical shapes, its variants, and a boosted version) against a volatility-tracking (EWMA) baseline, on CRPS, the error of a whole predictive distribution:
+### 4.2 Distributions
+
+Five frozen distribution models (a small linear volatility model with empirical shapes, its variants, and a boosted version) against a volatility-tracking (EWMA) baseline, on CRPS, the error of a whole predictive distribution:
 <!-- gen:dist_orig_table -->
 | horizon | best model | CRPS gain over EWMA volatility | models ahead | family test p | verdict |
 |---|---|---|---|---|---|
@@ -347,19 +355,53 @@ Models were developed on forecasts whose outcomes were known by the end of 2014.
 <!-- /gen:dist_orig_table -->
 None of these models was carried into the package: the package's distribution takes its scale from its own covariance forecast instead (section 1.4).
 
-**Covariance.** The original project's own dynamic covariance models beat static shrinkage on its holdout (`results/archive/assetpred/scores/cov_frozen.parquet`; summarized in its README). That is consistent with evidence A but concerns different models; the package uses its own covariance model only.
+### 4.3 Covariance
 
-**In a portfolio.** Three pre-declared rules (mean-variance, mean-variance at a fixed 10% volatility, per-asset timing) were run on each frozen model's expected returns and, separately, on the historical means, with the same risk model, net of costs. Across the three horizons, of the rule-model pairs, <!-- gen:strat_orig_line -->45 of 54 did worse, 12 of them with p < 0.05; 0 gained significantly after adjustment<!-- /gen:strat_orig_line -->. Per horizon in section 4.4.
+The original project's own dynamic covariance models beat static shrinkage on its holdout (`results/archive/assetpred/scores/cov_frozen.parquet`; summarized in its README). That is consistent with evidence A but concerns different models; the package uses its own covariance model only.
 
-### 4.2 The replication on this package's panel (evidence C: not out-of-sample)
+### 4.4 In a portfolio
 
-The same six frozen models, the two robustness rows and the five baselines were re-run **unchanged** at 12 months on the package's twelve-asset return panel, with only the changes the new universe forced (listed in `src/assetforecast/returns/config.py` and `reports/data/feature_port.md`). Every output carries the label:
+Three pre-declared rules (mean-variance, mean-variance at a fixed 10% volatility, per-asset timing) were run on each frozen model's expected returns and, separately, on the historical means, with the project's own risk model, net of costs: the gain is in certainty-equivalent return (risk aversion 5). Across the three horizons, of the rule-model pairs, <!-- gen:strat_orig_line -->45 of 54 did worse, 12 of them with p < 0.05; 0 gained significantly after adjustment<!-- /gen:strat_orig_line -->.
+<!-- gen:strategy_orig -->
+| test | pairs | ahead | ahead, p < 0.05 | ahead after adjustment | behind | behind, p < 0.05 | best (CER, % a year) | worst | verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| Original holdout, 1 month | 18 | 2 | 0 | 0 | 16 | 6 | +0.06 (Per-asset timing, Forecast combination) | −3.61 (Mean-variance, Ridge regression) | worse |
+| Original holdout, 3 months | 18 | 6 | 0 | 0 | 12 | 1 | +0.22 (Mean-variance at 10% vol, Forecast combination) | −1.03 (Mean-variance, Ridge regression) | worse |
+| Original holdout, 12 months | 18 | 1 | 0 | 0 | 17 | 5 | +0.09 (Per-asset timing, Forecast combination) | −1.95 (Mean-variance, Ridge regression) | worse |
+<!-- /gen:strategy_orig -->
+"Ahead after adjustment" uses Benjamini-Hochberg q-values across the frozen models and rules. Source: `results/archive/assetpred/strategy/summary_by_period.csv`.
+
+## 5. Evidence C: produced during the merge (not out of sample)
+
+**Nothing in this section is out-of-sample evidence.** Both holdouts had been looked at before any of it ran. Every output carries the label:
 
 > <!-- gen:replication_label -->Replication on the 12-asset panel, frozen models unchanged; both holdouts already spent, so not out-of-sample evidence<!-- /gen:replication_label -->
 
-Both holdouts had been looked at before it ran, and the panel differs from the original one (a twelfth asset, longer gold and IG credit histories, different splices), so it checks that the original finding does not hinge on the old panel; it is not a second test. Over the 2014–2025 origins: <!-- gen:mean_rep_line -->best pooled R² +3.34% (Ridge regression), 3 of 6 positive, about 18.6% needed to detect anything, family test p = 0.115<!-- /gen:mean_rep_line --> (tables in section 4.1). The best model differs between the original run and the replication, which is what noise looks like.
+### 5.1 The frozen mean models re-run on this package's panel
 
-### 4.3 How the published distributions have calibrated (evidence C)
+The same six frozen models, the two robustness rows and the five baselines were re-run **unchanged** at 12 months on the package's twelve-asset return panel, with only the changes the new universe forced (`MODELING_PROTOCOL.md`, `src/assetforecast/returns/config.py`, `reports/data/feature_port.md`). The panel differs from the original one (a twelfth asset, longer gold and IG credit histories, different splices), so this checks that the original finding does not hinge on the old panel; it is not a second test. Over the 2014–2025 origins: <!-- gen:mean_rep_line -->best pooled R² +3.34% (Ridge regression), 3 of 6 positive, about 18.6% needed to detect anything, family test p = 0.115<!-- /gen:mean_rep_line -->.
+<!-- gen:mean_table_rep -->
+| test | origins | best model | best pooled R² | models with R² > 0 | R² detectable | family test p | independent obs. | verdict |
+|---|---|---|---|---|---|---|---|---|
+| Replication, 12 months, 2014–2025 origins *(seen data)* | 2014-01 to 2025-10 | Ridge regression | +3.34% | 3 of 6 | 18.6% | 0.115 | 11.8 | not significant |
+| Replication, 12 months, 2015–2025 origins *(seen data)* | 2015-01 to 2025-10 | Ridge regression | +3.23% | 3 of 6 | 20.0% | 0.125 | 10.8 | not significant |
+<!-- /gen:mean_table_rep -->
+Per model:
+<!-- gen:mean_models_rep -->
+| model (pooled R² vs historical mean) | repl. 2014–25 | repl. 2015–25 |
+|---|---|---|
+| Ridge regression | +3.34% | +3.23% |
+| Forecast combination | +2.34% | +2.53% |
+| Gradient boosting | −3.77% | −4.03% |
+| Random forest | −1.35% | −1.91% |
+| Ensemble | −0.83% | −1.18% |
+| Boosting, price predictors only | +0.98% | +0.81% |
+| Boosting without hindsight features *(robustness)* | −3.23% | −3.48% |
+| Combination without hindsight features *(robustness)* | +2.36% | +2.54% |
+<!-- /gen:mean_models_rep -->
+(Source: `results/returns/scores/replication.parquet`.) The best model differs between the original run and the replication, which is what noise looks like.
+
+### 5.2 How the published distributions have calibrated
 
 The distribution model was designed after both holdouts had been seen, so these scores describe it. A calibrated 90% interval holds about 90% of outcomes; "below 5%" should be about 5%.
 <!-- gen:calib_table -->
@@ -382,23 +424,20 @@ The distribution model was designed after both holdouts had been seen, so these 
 
 - Over 2014–2025: <!-- gen:calib_line -->94.1% of asset outcomes inside the 90% interval over the 2014–2025 origins (calibration test p = 0.366, about 11.8 independent years)<!-- /gen:calib_line -->.
 - Against simpler distributions on CRPS over 2014–2025: <!-- gen:dist_rep_line -->+0.36% against the EWMA-volatility normal (p = 0.310) and +1.85% against the historical-mean normal (p = 0.050)<!-- /gen:dist_rep_line -->. Beating a distribution with a fixed width is what any time-varying scale does; the comparison with a recent-volatility scale is the informative one.
-- Compare the published portfolio rows with the asset-shape rows to see how much the choice of shape moves coverage.
+- The published portfolio rows are narrower than the covariance forecast (section 1.4); compare them with the asset-shape rows to see how much the choice of shape moves coverage.
 
-### 4.4 The strategy test (evidence B and C)
+### 5.3 The strategy test with this package's covariance
 
-For each test, the pre-declared rules net of costs: the gain of a rule run on a model's expected returns over the same rule run on historical means, in certainty-equivalent return (risk aversion 5). In the replication the risk model is the package's own 12-month covariance forecast.
-<!-- gen:strategy_table -->
+The same rules, with the package's own 12-month covariance forecast as the risk model instead of the original project's:
+<!-- gen:strategy_rep -->
 | test | pairs | ahead | ahead, p < 0.05 | ahead after adjustment | behind | behind, p < 0.05 | best (CER, % a year) | worst | verdict |
 |---|---|---|---|---|---|---|---|---|---|
-| Original holdout, 1 month | 18 | 2 | 0 | 0 | 16 | 6 | +0.06 (Per-asset timing, Forecast combination) | −3.61 (Mean-variance, Ridge regression) | worse |
-| Original holdout, 3 months | 18 | 6 | 0 | 0 | 12 | 1 | +0.22 (Mean-variance at 10% vol, Forecast combination) | −1.03 (Mean-variance, Ridge regression) | worse |
-| Original holdout, 12 months | 18 | 1 | 0 | 0 | 17 | 5 | +0.09 (Per-asset timing, Forecast combination) | −1.95 (Mean-variance, Ridge regression) | worse |
 | Replication, 12 months, 2014–2025 *(seen data)* | 18 | 7 | 0 | 0 | 11 | 5 | +0.39 (Mean-variance, Forecast combination) | −0.81 (Mean-variance at 10% vol, Ridge regression) | worse |
 | Replication, 12 months, 2015–2025 *(seen data)* | 18 | 7 | 0 | 0 | 11 | 8 | +0.48 (Mean-variance, Forecast combination) | −0.93 (Mean-variance at 10% vol, Ridge regression) | worse |
-<!-- /gen:strategy_table -->
-"Ahead after adjustment" uses Benjamini-Hochberg q-values across the frozen models and rules. In the replication: <!-- gen:strat_rep_line -->7 of 18 rule-model pairs ahead, 0 significantly after adjustment; 11 behind, 5 with p < 0.05<!-- /gen:strat_rep_line -->. Sources: `results/archive/assetpred/strategy/summary_by_period.csv`, `results/returns/strategy/summary_by_period.csv`.
+<!-- /gen:strategy_rep -->
+In the 2014–2025 replication: <!-- gen:strat_rep_line -->7 of 18 rule-model pairs ahead, 0 significantly after adjustment; 11 behind, 5 with p < 0.05<!-- /gen:strat_rep_line -->. Source: `results/returns/strategy/summary_by_period.csv`.
 
-**Does the package's covariance make a better risk model than a static one?** With historical means as the expected returns, the three rules plus an inverse-volatility rule, package covariance against the static sample covariance, 2014–2025 origins (replication, evidence C):
+**Does the package's covariance make a better risk model than a static one?** With historical means as the expected returns, the three rules plus an inverse-volatility rule, package covariance against the static sample covariance, 2014–2025 origins:
 <!-- gen:risk_table -->
 | rule (historical-mean expected returns) | CER gain, % a year | 95% interval | p | Sharpe difference |
 |---|---|---|---|---|
@@ -407,9 +446,9 @@ For each test, the pre-declared rules net of costs: the gain of a rule run on a 
 | Per-asset timing | +0.12 | −0.25 to 0.49 | 0.525 | +0.03 |
 | Inverse-vol at 10% vol | +0.48 | −0.49 to 1.46 | 0.336 | +0.04 |
 <!-- /gen:risk_table -->
-Over twelve years a portfolio test of this kind cannot show the covariance forecast's value either way; that value rests on evidence A.
+The point estimates favour the static matrix under: <!-- gen:risk_behind_line -->Mean−variance (−0.97% a year, p = 0.314); Mean−variance at 10% vol (−1.08% a year, p = 0.057)<!-- /gen:risk_behind_line -->. None of the differences is significant at 5%, and over twelve years a portfolio test of this kind cannot establish the covariance forecast's value; that rests on evidence A, which tested the volatilities, not their use in an optimizer.
 
-## 5. What was learned about forecasting risk
+## 6. What was learned about forecasting risk
 
 These findings use the covariance side's development data (1926–2013) unless stated. Each is limited by the low statistical power described in section 3. File names refer to `reports/models/`.
 
@@ -428,7 +467,7 @@ These findings use the covariance side's development data (1926–2013) unless s
 | **Learned combination weights and level calibration did not help.** | Weights fitted to past performance were no better than equal weights (−2.2%, p = 0.25). Picking the past-best family lost 15%, and the past-best model 36%. Calibrating each model's level walk-forward made 22–24 of 67 models significantly worse and only 1 significantly better. (`combo.md`) |
 | **Dropping the oldest, lowest-quality history did not help the covariance models.** | Removing the month-average-price eras (before 1926 for US equities and IG credit, before 1962 for Treasuries) made 9 of the 16 models tested worse, by 0.017–0.048 QLIKE for most leaders. (`tierD_sensitivity.csv`) The return side drops those eras anyway, because averaged prices bias the level and autocorrelation of returns, which are its targets. |
 
-## 6. The data and its limits
+## 7. The data and its limits
 
 | asset | monthly from | daily from | sources (oldest → current) |
 |---|---|---|---|
@@ -471,7 +510,7 @@ These findings use the covariance side's development data (1926–2013) unless s
 - **Macro series are latest-vintage**, not as first published. That would flatter the macro predictors, which added nothing on either side.
 - **Survivorship of asset classes.** The universe is twelve asset classes that exist and are investable today; their historical averages are those of markets that survived.
 
-## 7. What the package cannot tell you
+## 8. What the package cannot tell you
 
 - **When a crisis starts.** The volatility forecast is an average level that reacts after the fact. In 2020, realized volatility came in at about two to three times the forecast in equities and credit; in 2022, rates and credit volatility ran 1.7–2.3 times the forecast.
 - **Any single year with precision.** Over the last 30 years, realized volatility landed between 35% below and 22% above the forecast two years in three, and between 46% below and 79% above nine years in ten. In calm years such as 2017 and 2024, realized volatility was about half the forecast in every asset.
@@ -482,7 +521,7 @@ These findings use the covariance side's development data (1926–2013) unless s
 - **A 1926–45 kind of regime.** Every averaged or slow volatility model did badly in the Depression. If volatility moves far outside recent history, the forecast will follow slowly.
 - **How much to lever.** No position sizing is done here.
 
-## 8. Reproducing and updating
+## 9. Reproducing and updating
 
 ```
 pip install -e ".[dev]"
@@ -524,7 +563,7 @@ python -m pytest -m "not network"         # the test suite
   3. Forecast annual variance = 12 × that mean × c, where c is a single scale constant.
   4. Each December, re-estimate c from every past forecast whose 12-month window has ended. Take ĉ = the mean of realized ÷ forecast variance, counting each month-end once and each asset equally within it.
   5. Shrink it toward 1: c = 1 + λ(ĉ − 1), with λ = Y/(Y + 20) and Y the years of training data.
-  6. Realized variance is the annualized variance of overlapping 21-day returns described in section 6. c was about 1.23 at the end of 2014.
+  6. Realized variance is the annualized variance of overlapping 21-day returns described in section 7. c was about 1.23 at the end of 2014.
 - **Correlation.**
   1. Use an exponentially weighted correlation with a 36-month half-life, built from 21-day return sums.
   2. In each month where both assets have at least 10 complete 21-day sums, the month's co-moment is the average product of the overlapping 21-day sums. In other months, use the product of monthly returns.

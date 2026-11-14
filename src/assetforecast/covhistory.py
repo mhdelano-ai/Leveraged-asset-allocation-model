@@ -36,7 +36,8 @@ only on the view, never on the call order ("cold equals warm").
 
 Tail dispersion ``s2`` (``bridge.vol_uncertainty``) is recorded per origin
 under the two conventions the package uses: ``tail_s2_origin`` on the view at
-the origin (what ``forecast.py`` publishes as ``tail_model.s2``) and
+the origin (the convention of the old scale-mixture quantiles, which
+``forecast.py`` no longer publishes; ``results/final`` keeps them) and
 ``tail_s2_anchor`` on the view at the bridge anchor (what
 ``score_final.stage_bridge`` uses).
 
@@ -204,7 +205,7 @@ def _meta(model, bridge, results_dir, src, panel, max_date, seconds) -> dict:
                       "covariance of the 12-month return",
         "bridge_reestimation": "once a year, from the view at the last December month-end <= origin "
                                "(bridge_anchor), per eligible asset set",
-        "tail_s2": {"tail_s2_origin": "vol_uncertainty(panel.asof(origin)); forecast.py's tail_model.s2",
+        "tail_s2": {"tail_s2_origin": "vol_uncertainty(panel.asof(origin)); published as tail_model.s2 by forecast.py before the distribution files replaced it",
                     "tail_s2_anchor": "vol_uncertainty(panel.asof(bridge_anchor)); score_final.stage_bridge's s2"},
         "panel": {
             "drop_tiers": "",
