@@ -163,3 +163,65 @@ def test_crps_grid_and_pit():
     pit = mt.pit_values(y[:2000], Q[:2000])
     assert abs(pit.mean() - 0.5) < 0.03 and pit.min() >= 0 and pit.max() <= 1
     assert abs(mt.coverage(y, Q, 90) - 0.9) < 0.02
+
+
+def _correlated_panel(rng, h, n_dates=240, n_assets=8, rho=0.7, df=None):
+    """Correct-model hits for a panel of correlated assets entering at
+    staggered dates, overlapping h-month targets, optional t(df) shocks."""
+    C = np.full((n_assets, n_assets), rho) + (1 - rho) * np.eye(n_assets)
+    L = np.linalg.cholesky(C)
+    z = rng.standard_normal((n_dates + h, n_assets)) @ L.T
+    if df:
+        z = z / np.sqrt(rng.chisquare(df, size=(n_dates + h, 1)) / df) * np.sqrt((df - 2) / df)
+    cs = np.vstack([np.zeros((1, n_assets)), np.cumsum(z, axis=0)])
+    Y = cs[1 + h:n_dates + 1 + h] - cs[1:n_dates + 1]
+    entry = np.linspace(0, n_dates // 2, n_assets).astype(int)
+    E = np.arange(n_dates)[:, None] >= entry[None, :]
+    rd, ra = np.nonzero(E)
+    dates = pd.date_range("1990-01-31", periods=n_dates, freq="ME")[rd]
+    return Y[rd, ra], dates, ra
+
+
+@pytest.mark.parametrize("h", [1, 3, 12])
+def test_pooled_kupiec_size_on_correlated_panel(h):
+    # the old per-date pooled-rate t-test rejected a correct model 20-87% of the
+    # time on panels like this; the combined strand test must hold its size
+    rng = np.random.default_rng(300 + h)
+    if h == 1:
+        qs = {"q01": 0.01, "q05": 0.05}
+    else:
+        qs = {"q01": 0.01, "q95": 0.95}
+    rej = {k: [] for k in qs}
+    for i in range(150):
+        y, dates, assets = _correlated_panel(rng, h, df=5 if i % 2 else None)
+        for k, tau in qs.items():
+            # true quantile: Gaussian for even i, simulated t(5) sum for odd i
+            q = np.sqrt(h) * stats.norm.ppf(tau) if i % 2 == 0 else _T5Q[(h, tau)]
+            hits = ((y < q) if tau < 0.5 else (y > q)).astype(float)
+            rej[k].append(inf.kupiec_pooled(hits, min(tau, 1 - tau), h, dates, assets) < 0.05)
+    for k, r in rej.items():
+        assert np.mean(r) <= 0.08, (h, k, np.mean(r))
+
+
+def _t5_quantiles():
+    rng = np.random.default_rng(0)
+    out = {}
+    for h in (1, 3, 12):
+        g = rng.chisquare(5, size=(200_000, h)) / 5
+        s = (rng.standard_normal((200_000, h)) / np.sqrt(g) * np.sqrt(3 / 5)).sum(1)
+        for tau in (0.01, 0.05, 0.95, 0.99):
+            out[(h, tau)] = np.quantile(s, tau)
+    return out
+
+
+_T5Q = _t5_quantiles()
+
+
+def test_pooled_kupiec_has_power():
+    rng = np.random.default_rng(9)
+    rej = []
+    for _ in range(60):
+        y, dates, assets = _correlated_panel(rng, 1, rho=0.3)
+        q = 0.7 * stats.norm.ppf(0.05)              # bands 30% too narrow
+        rej.append(inf.kupiec_pooled((y < q).astype(float), 0.05, 1, dates, assets) < 0.05)
+    assert np.mean(rej) > 0.7

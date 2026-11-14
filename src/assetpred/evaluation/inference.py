@@ -134,17 +134,41 @@ def kupiec(hits, p: float, h: int) -> tuple[float, float]:
     return float(x.mean()), cauchy_combine([_kupiec_lr(x[o::h], p) for o in range(h)])
 
 
-def kupiec_pooled(hits, p: float, h: int, dates) -> float:
-    """Pooled-across-assets coverage test: per-date mean of (hit - p), t-tests
-    on the h non-overlapping subsequences of dates, Cauchy-combined."""
-    dev = pd.Series(np.asarray(hits, dtype=float) - p).groupby(np.asarray(dates)).mean().to_numpy()
-    ps = []
-    for o in range(h):
-        d = dev[o::h]
-        if len(d) < 10 or d.std(ddof=1) == 0:
-            continue
-        t = d.mean() / (d.std(ddof=1) / math.sqrt(len(d)))
-        ps.append(2 * stats.t.sf(abs(t), len(d) - 1))
+def _midp_binomial(c: int, n: int, p: float) -> float:
+    """Two-sided mid-p binomial test of c successes in n trials at rate p."""
+    lo = stats.binom.cdf(c, n, p) - 0.5 * stats.binom.pmf(c, n, p)
+    return float(min(1.0, 2.0 * min(lo, 1.0 - lo)))
+
+
+def kupiec_pooled(hits, p: float, h: int, dates, groups) -> float:
+    """Panel tail-coverage test: H0 every asset's hit rate equals ``p``.
+
+    For each asset and each of the h non-overlapping strands of origins
+    (month ordinal mod h; hits in a strand are independent under a correct
+    conditional distribution) a two-sided mid-p binomial test is computed,
+    and all asset x strand p-values are combined with :func:`cauchy_combine`,
+    which stays valid under the strong cross-asset dependence of tail hits.
+    Strands with fewer than 5 origins are skipped; NaN if none remain.
+
+    This replaced a t-test on the per-date pooled hit rate, which rejected a
+    correct model up to 87% of the time at 5% on the real panel shapes: with
+    11 correlated assets, tail hits arrive in a few crisis dates, and no
+    variance estimate built from ~n/h dates holds size. Monte Carlo of this
+    version (11 assets with the dev-period correlation, real entry dates,
+    dev / holdout / full shapes, h = 1, 3, 12, q01/q05/q95/q99, Gaussian and
+    t(5) shocks, 600 replications): rejection at 5% between 0.7% and 5.8%
+    (conservative at h = 3, 12). Note the null differs from "the pooled rate
+    equals p": offsetting asset-level errors are also rejected.
+    """
+    if groups is None:
+        raise TypeError("kupiec_pooled needs the asset of each row (groups)")
+    from .cv import month_ordinal
+    df = pd.DataFrame({"x": np.asarray(hits, dtype=float), "g": np.asarray(groups),
+                       "m": month_ordinal(dates) % h})
+    df = df[np.isfinite(df["x"])]
+    agg = df.groupby(["g", "m"])["x"].agg(["sum", "count"])
+    agg = agg[agg["count"] >= 5]
+    ps = [_midp_binomial(int(c), int(n), p) for c, n in zip(agg["sum"], agg["count"])]
     return cauchy_combine(ps)
 
 

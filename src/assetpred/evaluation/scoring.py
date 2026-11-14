@@ -9,7 +9,9 @@
 * ``benchmark`` is ``"none"`` for a model's own accuracy, else the model it is
   compared with: point accuracy against ``hist_mean`` only; distribution skill
   against ``hist_mean`` and, separately, ``vol_ewma``.
-* ``model == "*"`` rows are about the whole set of models in a cell (SPA).
+* ``model == "*"`` rows are about the whole set of models in a cell (SPA);
+  ``model == "*mean"`` / ``"*dist"`` rows are the same test restricted to one
+  pre-registered family (``families``, from ``config.SPA_FAMILIES``).
 
 Every comparison at a horizon uses the same rows: the (origin, asset) pairs
 where *every* model in the run has a forecast and the target is realized.
@@ -21,7 +23,13 @@ Metrics (``benchmark == "none"``):
   calib_f / calib_p (PIT test at q10/q50/q90, ``inference.calibration_test``),
   hit_qXX / kupiec_p_qXX / christoffersen_p_qXX (assets only) for the tail
   quantiles, mcs_p_mse / in_mcs_mse and
-  mcs_p_crps / in_mcs_crps (model confidence set at 10%, full period).
+  mcs_p_crps / in_mcs_crps (model confidence set at 10%, each period in
+  ``mt_periods``).
+  For ``asset == "pooled"`` kupiec_p_qXX is ``inference.kupiec_pooled``: the
+  null is that *every* asset's tail hit rate is nominal (per-asset, per-strand
+  mid-p binomial tests, Cauchy-combined). It holds its size on the real panel
+  shapes (0.7-5.8% at 5% in Monte Carlo); an earlier pooled-hit-rate t-test
+  did not (up to 87%) and was replaced.
 Metrics vs ``hist_mean``:
   r2_oos, cw_stat, cw_p (one-sided), dm_mse_stat, dm_mse_p (two-sided),
   dm_mse_p1 (one-sided, model better), cw_q_bh (BH across this model's
@@ -35,9 +43,26 @@ Metrics vs ``hist_mean``:
 Metrics vs ``hist_mean`` and vs ``vol_ewma``:
   crps_skill (1 - CRPS/CRPS_bench), dm_crps_stat, dm_crps_p (one-sided,
   model better), dm_crps_q_bh (BH across this model's cells), pinball_skill_qXX.
-Rows with ``model == "*"`` (full period):
-  spa_p_mse, spa_p_crps (Hansen SPA: does *any* model beat the benchmark in
-  this cell?), spa_q_bh_mse, spa_q_bh_crps (BH across cells).
+Rows with ``model == "*"`` (each period in ``mt_periods``):
+  spa_p_mse (vs hist_mean), spa_p_crps (vs hist_mean and vs vol_ewma): Hansen
+  SPA, does *any* model in the run beat the benchmark in this cell? The
+  p-value depends on which models happen to be in the run.
+Rows with ``model == "*mean"`` / ``"*dist"`` (each period in ``mt_periods``,
+only when the family has members in the run): the SPA test over that family
+only. ``*mean``: spa_p_mse vs hist_mean. ``*dist``: spa_p_crps vs hist_mean
+and vs vol_ewma. These are the pre-registered tests to read.
+spa_q_bh_mse / spa_q_bh_crps: BH across the asset x horizon cells, within one
+model label ("*", "*mean", "*dist"), benchmark and period.
+
+Multiple-testing rows (SPA, MCS, every *_q_* column) exist only for the
+periods in ``mt_periods`` (default ``("full",)``; a full run of
+``evaluation.run`` uses ``config.MT_PERIODS``). Cells with fewer than 24 dates
+get no SPA/MCS rows.
+
+Known size distortions: an independent Monte Carlo on the real panel shapes
+found Clark-West (cw_p) and SPA (spa_p_*) slightly oversized at h = 12:
+7.5-10.5% rejections of a true null at a nominal 5%. Treat h = 12 p-values
+near 0.05 as weaker evidence than they look.
 """
 from __future__ import annotations
 
@@ -83,7 +108,7 @@ class _Block:
         self.crps = 2.0 * self.pin @ mt.CRPS_WEIGHTS
 
 
-def _absolute(b: _Block, y, sel, dates, h, pooled, out):
+def _absolute(b: _Block, y, sel, dates, h, pooled, out, assets=None):
     ys, Qs = y[sel], b.Q[sel]
     d = dates[sel]
     n = int(sel.sum())
@@ -106,7 +131,7 @@ def _absolute(b: _Block, y, sel, dates, h, pooled, out):
         hits, prob = mt.tail_hits(ys, Qs, c)
         out[f"hit_{c}"] = hits.mean()
         if pooled:
-            out[f"kupiec_p_{c}"] = inf.kupiec_pooled(hits, prob, h, d)
+            out[f"kupiec_p_{c}"] = inf.kupiec_pooled(hits, prob, h, d, assets[sel])
         else:
             out[f"kupiec_p_{c}"] = inf.kupiec(hits, prob, h)[1]
             out[f"christoffersen_p_{c}"] = inf.christoffersen(hits, h)
@@ -208,7 +233,7 @@ def score_forecasts(forecasts: pd.DataFrame, xr: pd.DataFrame,
                     continue
                 for m, b in blocks.items():
                     out: dict = {}
-                    _absolute(b, y, sel, dates, h, pooled, out)
+                    _absolute(b, y, sel, dates, h, pooled, out, assets)
                     rows += [(m, h, a, plabel, "none", k, v) for k, v in out.items()]
                     for bm in benchmarks:
                         if bm == m:
