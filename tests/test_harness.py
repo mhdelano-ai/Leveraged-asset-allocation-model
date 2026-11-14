@@ -358,3 +358,64 @@ def test_registry_discovers_and_validates():
         registry.register("bad name", lambda: None)
     with pytest.raises(KeyError):
         registry.get_factory("nope")
+
+
+# ---------------------------------------------------------------- multiple testing by period / family
+@pytest.fixture(scope="module")
+def mt_scores(noise_scores, noise_data):
+    fc, _ = noise_scores
+    kw = dict(subperiods=(("late", "1995-01-01", "2008-12-31"),), mt_reps=99)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        plain = scoring.score_forecasts(fc, noise_data.xr, **kw)[0]
+        fam = scoring.score_forecasts(
+            fc, noise_data.xr, mt_periods=("full", "late"),
+            families={"mean": ("ridge", "zero", "not_in_run"), "dist": ("hist_quantile",)}, **kw)[0]
+    return plain, fam
+
+
+def test_multiple_testing_per_period(mt_scores):
+    plain, fam = mt_scores
+    for metric in ("spa_p_mse", "spa_p_crps", "spa_q_bh_mse", "mcs_p_mse", "in_mcs_crps",
+                   "cw_q_bh", "cw_q_by_all", "dm_crps_q_bh"):
+        assert set(plain[plain.metric == metric].period) == {"full"}, metric
+        assert set(fam[fam.metric == metric].period) == {"full", "late"}, metric
+    # the late-period q-values adjust the late-period p-values, not the full ones
+    late = fam[(fam.period == "late") & (fam.benchmark == "hist_mean") & (fam.asset != "pooled")
+               & (fam.model == "ridge")]
+    p = late[late.metric == "cw_p"].set_index(["horizon", "asset"]).value.sort_index()
+    q = late[late.metric == "cw_q_bh"].set_index(["horizon", "asset"]).value.sort_index()
+    np.testing.assert_allclose(q.to_numpy(), scoring.inf.fdr(p.to_numpy(), "bh"))
+
+
+def test_spa_families(mt_scores):
+    plain, fam = mt_scores
+    star = fam[fam.model.str.startswith("*")]
+    got = set(zip(star.model, star.benchmark, star.metric))
+    assert ("*mean", "hist_mean", "spa_p_mse") in got
+    assert ("*dist", "hist_mean", "spa_p_crps") in got
+    assert ("*dist", "vol_ewma", "spa_p_crps") in got
+    assert ("*mean", "vol_ewma", "spa_p_mse") not in got
+    assert not any(m == "*mean" and k == "spa_p_crps" for m, _, k in got)
+    assert ("*dist", "hist_mean", "spa_q_bh_crps") in got
+    # the all-model rows are unchanged by adding families
+    key = ["model", "horizon", "asset", "period", "benchmark", "metric"]
+    a = plain[plain.model == "*"].set_index(key).value
+    b = fam[(fam.model == "*") & (fam.period == "full")].set_index(key).value
+    pd.testing.assert_series_equal(a.sort_index(), b.reindex(a.index).sort_index())
+    # FDR of SPA rows is within one label and period
+    g = fam[(fam.model == "*mean") & (fam.period == "late") & (fam.asset != "pooled")]
+    p = g[g.metric == "spa_p_mse"].set_index(["horizon", "asset"]).value.sort_index()
+    q = g[g.metric == "spa_q_bh_mse"].set_index(["horizon", "asset"]).value.sort_index()
+    np.testing.assert_allclose(q.to_numpy(), scoring.inf.fdr(p.to_numpy(), "bh"))
+    with pytest.raises(ValueError, match="families"):
+        scoring.score_forecasts(pd.DataFrame(columns=schema.FORECAST_COLUMNS), None,
+                                families={"other": ("ridge",)})
+
+
+def test_summary_by_period(mt_scores):
+    _, fam = mt_scores
+    full, late = scoring.summary(fam), scoring.summary(fam, "late")
+    assert not any(m.startswith("*") for m, _ in full.index)
+    assert set(full.index) == set(late.index)
+    assert not np.allclose(full["r2_oos"].dropna(), late["r2_oos"].dropna())

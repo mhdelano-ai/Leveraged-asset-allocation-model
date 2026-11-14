@@ -32,6 +32,13 @@ from . import combine as cmb
 from . import engine
 from .base import available
 from .models import BENCHMARK, FROZEN, MODELS
+
+# Second benchmark: static but well-conditioned. Most of any model's gain over
+# `sample` is conditioning; the rows against `lw` test what dynamics add.
+LW_BENCHMARK = "lw"
+# SPA / BH family against `lw`: the dynamic frozen models (not the benchmarks,
+# not combinations with marginal sds).
+SPA_FAMILY = {LW_BENCHMARK: tuple(m for m in FROZEN if m not in (BENCHMARK, LW_BENCHMARK))}
 from .scoring import DEFAULT_SUBPERIODS, score_covariances, summary
 
 log = logging.getLogger("assetpred.covariance.run")
@@ -163,9 +170,13 @@ def main(argv=None) -> int:
     subperiods = DEFAULT_SUBPERIODS if args.dev else (
         *DEFAULT_SUBPERIODS, ("pre_holdout", config.OOS_START, config.DEV_END),
         ("holdout", config.HOLDOUT_START, "2099-12-31"))
+    mt_periods = ("full",) if args.dev else tuple(config.MT_PERIODS)
+    extra = (LW_BENCHMARK,) if LW_BENCHMARK in scored else ()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
-        scores, per_date = score_covariances(cov, xr, BENCHMARK, subperiods, reps=args.reps)
+        scores, per_date = score_covariances(cov, xr, BENCHMARK, subperiods, reps=args.reps,
+                                             extra_benchmarks=extra, mt_periods=mt_periods,
+                                             spa_family=SPA_FAMILY)
     run_name = args.run_name or ("cov_" + "+".join(sorted(set(scored) - {BENCHMARK}) or ["baselines"]))[:120]
     root = results_dir / "scores"
     root.mkdir(parents=True, exist_ok=True)
@@ -175,13 +186,33 @@ def main(argv=None) -> int:
     data_fp = engine.data_fingerprint(xr, daily, features)
     (root / f"{run_name}.json").write_text(json.dumps({
         "models": scored, "horizons": args.horizons, "dev": args.dev, "benchmark": BENCHMARK,
+        "benchmarks": [BENCHMARK, *extra], "mt_periods": list(mt_periods),
+        "spa_family": {k: list(v) for k, v in SPA_FAMILY.items()},
         "ends": {h: settings_for(h).end for h in args.horizons}, "data": data_fp,
         "reps": args.reps}, indent=1, default=str))
     if args.dev and not args.no_trials:
         n = log_trials(scores, scored, run_name, data_fp)
         print(f"{n} new configuration(s) logged to {TRIALS}")
+    have = set(scores.period)
+    order = [p for p in ("holdout", "pre_holdout") if p in have] + ["full"]
+    labels = {"holdout": f"HOLDOUT (origins from {config.HOLDOUT_START}): the evidence that counts",
+              "pre_holdout": f"pre-holdout (origins {config.OOS_START} to {config.DEV_END}; the "
+                             "years the frozen list was chosen on)",
+              "full": "full period" + (f" (development: targets realized by {config.DEV_END})"
+                                       if args.dev else " (mixes holdout with selection years)")}
     with pd.option_context("display.width", 200, "display.max_columns", 30):
-        print(summary(scores, BENCHMARK).round(4).to_string())
+        for per in order:
+            for bm in (BENCHMARK, *extra):
+                print(f"\n=== {labels[per]} -- tests vs {bm} ===")
+                tab = summary(scores, bm, per)
+                if bm != BENCHMARK:
+                    tab = tab.drop(index=bm, level="model", errors="ignore")
+                print(tab.round(4).to_string())
+            spa = scores[(scores.model == "*") & (scores.metric == "spa_p_nll") & (scores.period == per)]
+            if len(spa):
+                print("SPA p (does any model of the family beat the benchmark?):")
+                print(spa.pivot_table(index=["benchmark", "asset"], columns="horizon",
+                                      values="value").round(4).to_string())
     print(f"\nscores written to {root / (run_name + '.parquet')}")
     return 0
 

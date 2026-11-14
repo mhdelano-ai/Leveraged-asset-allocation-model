@@ -121,7 +121,10 @@ def main(argv=None) -> int:
         ("holdout", config.HOLDOUT_START, "2099-12-31"))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
-        scores, cum = scoring.score_forecasts(fc, xr, subperiods=subperiods, mt_reps=args.reps)
+        scores, cum = scoring.score_forecasts(
+            fc, xr, subperiods=subperiods, mt_reps=args.reps,
+            mt_periods=("full",) if args.dev else config.MT_PERIODS,
+            families=config.SPA_FAMILIES)
     run_name = args.run_name or "+".join(sorted(args.models) or ["baselines"]) + (
         f"@lag{lag}" if lag else "")
     path = scoring.write_scores(scores, cum, run_name, results_dir, meta={
@@ -129,7 +132,13 @@ def main(argv=None) -> int:
         "settings": {h: vars(s_) for h, s_ in settings.items()},
         "data": walkforward.data_fingerprint(features.sort_index(), xr), "reps": args.reps})
     with pd.option_context("display.width", 160, "display.max_columns", 20):
+        label = f"development (targets realized by {config.DEV_END})" if args.dev else "full sample"
+        print(f"\nPooled summary, period 'full' ({label}):")
         print(scoring.summary(scores).round(4).to_string())
+        if (scores.period == "holdout").any():
+            print(f"\nPooled summary, period 'holdout' (origins from {config.HOLDOUT_START}): "
+                  "THE HOLDOUT, the evidence that counts:")
+            print(scoring.summary(scores, "holdout").round(4).to_string())
     print(f"\nscores written to {path}")
     return 0
 

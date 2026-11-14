@@ -135,16 +135,36 @@ def _per_date(loss: np.ndarray, sel, dates, pooled) -> pd.Series:
     return s.groupby(level=0).sum() if pooled else s
 
 
+# SPA tests run within each named family: family name -> ((loss tag, benchmarks), ...)
+FAMILY_TESTS = {
+    "mean": (("mse", (BENCHMARK,)),),
+    "dist": (("crps", (BENCHMARK, VOL_BENCHMARK)),),
+}
+
+
 def score_forecasts(forecasts: pd.DataFrame, xr: pd.DataFrame,
                     benchmarks=(BENCHMARK, VOL_BENCHMARK), subperiods=DEFAULT_SUBPERIODS,
                     mt_reps: int = 999, mcs_size: float = 0.10, seed: int = config.SEED,
-                    multiple_testing: bool = True) -> tuple[pd.DataFrame, pd.DataFrame]:
+                    multiple_testing: bool = True, mt_periods=("full",),
+                    families: dict | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Score forecasts (``schema.FORECAST_COLUMNS``, any models and horizons).
+
+    ``mt_periods``: periods (``"full"`` or subperiod labels) for which the
+    multiple-testing rows (SPA, MCS, FDR q-values) are computed. ``families``:
+    family name -> model names (``config.SPA_FAMILIES``); each family present in
+    the run gets its own SPA rows with model ``"*<name>"`` (see
+    ``FAMILY_TESTS`` for the loss and benchmarks per family).
 
     Returns ``(scores, cumulative)``: the tidy scores table described in the
     module docstring, and the Goyal-Welch series (model, horizon, asset, date,
     cum_dsse = running sum of SE(hist_mean) - SE(model)) for every model.
     """
+    families = dict(families or {})
+    unknown = set(families) - set(FAMILY_TESTS)
+    if unknown:
+        raise ValueError(f"no SPA test defined for families {sorted(unknown)}; "
+                         f"known: {sorted(FAMILY_TESTS)}")
+    mt_periods = tuple(mt_periods)
     rows: list[tuple] = []
     cum_frames = []
     for h, fh in forecasts.groupby("horizon", sort=True):
@@ -209,37 +229,69 @@ def score_forecasts(forecasts: pd.DataFrame, xr: pd.DataFrame,
 
         if multiple_testing:
             rng_seed = seed + h
-            for a, amask, pooled in cells:
-                if len(np.unique(dates[amask])) < 24:
+            pmasks = {}
+            for plabel, start, end in periods:
+                if start is None:
+                    pmasks[plabel] = np.ones(len(y), bool)
+                else:
+                    pmasks[plabel] = (dates >= np.datetime64(pd.Timestamp(start))) & \
+                        (dates <= np.datetime64(pd.Timestamp(end)))
+            for plabel in mt_periods:
+                if plabel not in pmasks:
                     continue
-                for loss in ("se", "crps"):
-                    L = pd.DataFrame({m: _per_date(getattr(b, loss), amask, dates, pooled)
-                                      for m, b in blocks.items()})
-                    tag = "mse" if loss == "se" else "crps"
-                    for bm in benchmarks:
-                        others = [m for m in L.columns if m != bm]
-                        if loss == "se" and bm != BENCHMARK:
-                            continue
-                        if others:
-                            p = inf.spa_test(L[bm], L[others], h, reps=mt_reps, seed=rng_seed)
-                            rows.append(("*", h, a, "full", bm, f"spa_p_{tag}", p))
-                    if L.shape[1] >= 2:
-                        mcs = inf.model_confidence_set(L, h, size=mcs_size, reps=mt_reps, seed=rng_seed)
-                        for m in mcs.index:
-                            rows.append((m, h, a, "full", "none", f"mcs_p_{tag}", mcs.at[m, "mcs_p"]))
-                            rows.append((m, h, a, "full", "none", f"in_mcs_{tag}", mcs.at[m, "in_mcs"]))
+                for a, amask, pooled in cells:
+                    sel = amask & pmasks[plabel]
+                    if len(np.unique(dates[sel])) < 24:
+                        continue
+                    rows += _multiple_testing_cell(blocks, benchmarks, families, sel, dates, pooled,
+                                                   h, a, plabel, mt_reps, mcs_size, rng_seed)
 
     scores = pd.DataFrame(rows, columns=SCORE_COLUMNS)
     scores["value"] = scores["value"].astype(float)
-    scores = _add_fdr(scores)
+    scores = _add_fdr(scores, mt_periods)
     cum = pd.concat(cum_frames, ignore_index=True) if cum_frames else \
         pd.DataFrame(columns=["model", "horizon", "asset", "date", "cum_dsse"])
     return scores, cum
 
 
-def _add_fdr(scores: pd.DataFrame) -> pd.DataFrame:
-    """Append FDR q-values across the asset x horizon grid (full period, assets only)."""
-    base = scores[(scores.period == "full") & (scores.asset != POOLED)]
+def _multiple_testing_cell(blocks, benchmarks, families, sel, dates, pooled, h, a, plabel,
+                           reps, mcs_size, rng_seed) -> list[tuple]:
+    """SPA (all models, and per family) and MCS rows for one (horizon, asset, period) cell."""
+    rows = []
+    L = {tag: pd.DataFrame({m: _per_date(getattr(b, loss), sel, dates, pooled)
+                            for m, b in blocks.items()})
+         for loss, tag in (("se", "mse"), ("crps", "crps"))}
+    for tag, frame in L.items():
+        for bm in benchmarks:
+            if tag == "mse" and bm != BENCHMARK:
+                continue
+            others = [m for m in frame.columns if m != bm]
+            if others:
+                p = inf.spa_test(frame[bm], frame[others], h, reps=reps, seed=rng_seed)
+                rows.append(("*", h, a, plabel, bm, f"spa_p_{tag}", p))
+        if frame.shape[1] >= 2:
+            mcs = inf.model_confidence_set(frame, h, size=mcs_size, reps=reps, seed=rng_seed)
+            for m in mcs.index:
+                rows.append((m, h, a, plabel, "none", f"mcs_p_{tag}", mcs.at[m, "mcs_p"]))
+                rows.append((m, h, a, plabel, "none", f"in_mcs_{tag}", mcs.at[m, "in_mcs"]))
+    for fam, members in families.items():
+        for tag, fam_benchmarks in FAMILY_TESTS[fam]:
+            for bm in fam_benchmarks:
+                if bm not in blocks:
+                    continue
+                present = [m for m in members if m in blocks and m != bm]
+                if not present:
+                    continue
+                frame = L[tag]
+                p = inf.spa_test(frame[bm], frame[present], h, reps=reps, seed=rng_seed)
+                rows.append((f"*{fam}", h, a, plabel, bm, f"spa_p_{tag}", p))
+    return rows
+
+
+def _add_fdr(scores: pd.DataFrame, mt_periods=("full",)) -> pd.DataFrame:
+    """Append FDR q-values across the asset x horizon grid (assets only), separately
+    for each period in ``mt_periods``."""
+    base = scores[scores.period.isin(list(mt_periods)) & (scores.asset != POOLED)]
     extra = []
 
     def add(df, metric, method, by):
@@ -254,19 +306,22 @@ def _add_fdr(scores: pd.DataFrame) -> pd.DataFrame:
             extra.append(e)
 
     cw = base[base.metric == "cw_p"]
-    add(cw, "cw_q_bh", "bh", ["model", "benchmark"])
-    add(cw, "cw_q_by_all", "by", ["benchmark"])
-    add(base[base.metric == "dm_crps_p"], "dm_crps_q_bh", "bh", ["model", "benchmark"])
+    add(cw, "cw_q_bh", "bh", ["model", "benchmark", "period"])
+    add(cw, "cw_q_by_all", "by", ["benchmark", "period"])
+    add(base[base.metric == "dm_crps_p"], "dm_crps_q_bh", "bh", ["model", "benchmark", "period"])
     for tag in ("mse", "crps"):
-        add(base[base.metric == f"spa_p_{tag}"], f"spa_q_bh_{tag}", "bh", ["benchmark"])
+        # within one SPA label ("*", "*mean", "*dist"), benchmark and period
+        add(base[base.metric == f"spa_p_{tag}"], f"spa_q_bh_{tag}", "bh",
+            ["model", "benchmark", "period"])
     if extra:
         scores = pd.concat([scores, *extra], ignore_index=True)
     return scores
 
 
-def summary(scores: pd.DataFrame) -> pd.DataFrame:
-    """Compact pooled, full-period view: one row per (model, horizon)."""
-    s = scores[(scores.asset == POOLED) & (scores.period == "full")]
+def summary(scores: pd.DataFrame, period: str = "full") -> pd.DataFrame:
+    """Compact pooled view of one period: one row per (model, horizon)."""
+    s = scores[(scores.asset == POOLED) & (scores.period == period)
+               & ~scores.model.str.startswith("*")]
     pick = {
         ("r2_oos", BENCHMARK): "r2_oos",
         ("cw_p", BENCHMARK): "cw_p",

@@ -338,3 +338,63 @@ def test_scoring_prefers_truth_and_reports_overlap(const_panel):
         assert get("*", h, "joint", "n_indep") == pytest.approx(nd / h)
     assert np.isfinite(get("wrong", 12, "joint", "strand_p_median_nll", "sample"))
     assert np.isnan(get("wrong", 1, "joint", "strand_p_median_nll", "sample"))
+
+
+# --------------------------------------------------------------------------
+# second benchmark (lw) and per-period search-adjusted tests
+# --------------------------------------------------------------------------
+@pytest.fixture(scope="module")
+def lw_scores(const_panel):
+    xr, daily = const_panel
+    xr = xr.iloc[-420:]
+    st = CovSettings(oos_start=str(xr.index[120].date()))
+    models = ["sample", "lw", "ewma_cov", "vc_ewma_ewma_m_lwb"]
+    cov = pd.concat([walk_forward_cov(m, xr, h, None, st) for m in models for h in (1, 3)],
+                    ignore_index=True)
+    split = xr.index[300]
+    periods = (("pre_holdout", str(xr.index[0].date()), str(split.date())),
+               ("holdout", str((split + pd.offsets.MonthEnd(1)).date()), "2099-12-31"))
+    fam = {"lw": ("ewma_cov", "vc_ewma_ewma_m_lwb")}
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        old, _ = scoring.score_covariances(cov, xr, "sample", subperiods=periods, reps=99)
+        new, _ = scoring.score_covariances(cov, xr, "sample", subperiods=periods, reps=99,
+                                           extra_benchmarks=("lw",),
+                                           mt_periods=("full", "pre_holdout", "holdout"),
+                                           spa_family=fam)
+    return old, new
+
+
+def test_existing_rows_unchanged_by_new_benchmark_and_periods(lw_scores):
+    old, new = lw_scores
+    key = ["model", "horizon", "asset", "period", "benchmark", "metric"]
+    m = old.merge(new, on=key, how="left", suffixes=("_old", "_new"), indicator=True)
+    assert (m["_merge"] == "both").all(), m[m["_merge"] != "both"][key]   # nothing removed or renamed
+    assert np.allclose(m["value_old"], m["value_new"], equal_nan=True)
+    assert not new.duplicated(key).any()
+
+
+def test_lw_benchmark_rows_and_period_adjustments(lw_scores):
+    _, s = lw_scores
+    for per in ("full", "pre_holdout", "holdout"):
+        for h in (1, 3):
+            g = s[(s.period == per) & (s.horizon == h)]
+            for m in ("sample", "ewma_cov", "vc_ewma_ewma_m_lwb"):
+                for tg in ("joint", "sb"):
+                    for met in ("diff_nll", "dm_p_nll", "dm_stat_nll"):
+                        assert len(g[(g.model == m) & (g.asset == tg) & (g.benchmark == "lw")
+                                     & (g.metric == met)]) == 1, (per, h, m, tg, met)
+            assert not len(g[(g.model == "lw") & (g.benchmark == "lw")])
+            for bm in ("sample", "lw"):
+                for tg in ("joint", "sb"):
+                    v = g[(g.model == "*") & (g.asset == tg) & (g.benchmark == bm) & (g.metric == "spa_p_nll")]
+                    assert len(v) == 1 and 0 <= v.value.iloc[0] <= 1, (per, h, bm, tg)
+            assert set(g[g.metric == "in_mcs_nll"].model) == {"sample", "lw", "ewma_cov", "vc_ewma_ewma_m_lwb"}
+        q = s[(s.period == per) & (s.metric == "dm_q_bh_nll") & (s.benchmark == "lw")]
+        # the lw family is the two dynamic models (not `sample`) x 2 horizons, per target
+        assert set(q.model) == {"ewma_cov", "vc_ewma_ewma_m_lwb"}
+        assert len(q[q.asset == "joint"]) == 4 and len(q[q.asset == "sb"]) == 4
+        assert (q.value >= s[(s.period == per) & (s.metric == "dm_p_nll") & (s.benchmark == "lw")
+                             & s.model.isin(q.model) & (s.asset.isin(["joint", "sb"]))].value.min()).all()
+    # sub-periods outside mt_periods get pairwise rows but no search-adjusted ones
+    assert not len(s[(s.period == "1990s") & (s.metric.isin(["spa_p_nll", "mcs_p_nll"]))])

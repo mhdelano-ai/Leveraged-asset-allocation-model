@@ -35,16 +35,27 @@ z2 = mean(r^2/v), realized_vol / pred_vol (annualized, mvp), gross_lev (mvp),
 cond_median / cond_max (condition number of the implied correlation matrix),
 logdet, corr_pred (sb), corr_real (sb, model '*').
 
-Inference vs the benchmark (``benchmark == 'sample'``): d_t = L_bench - L_model,
+Inference vs a benchmark (``benchmark`` = ``'sample'``, and in the frozen
+run also ``'lw'``, the well-conditioned static benchmark, so that "dynamics
+beat shrinkage" has its own test): d_t = L_bench - L_model,
 ``diff`` = mean d (positive = model better), ``dm_stat``/``dm_p`` (one-sided,
 model better; Newey-West with ``inference.hac_lags`` >= 1.5h lags, Student t),
 ``dm_p2`` (two-sided), and for h > 1 the non-overlapping strands: for each of
 the h offsets the dates t0, t0+h, ... give independent-target series;
 ``strand_p_median`` and ``strand_share_05`` (share of strands with one-sided
 p < 0.05). ``n_indep`` = n_dates / h is the number of non-overlapping
-observations. ``dm_q_bh`` adjusts ``dm_p`` (joint nll) by Benjamini-Hochberg
-across all models and horizons. Rows with model ``'*'``: ``spa_p_nll`` (does
-any model beat the benchmark?) and per-model ``mcs_p_nll`` / ``in_mcs_nll``.
+observations. These rows exist for every period.
+
+Search-adjusted results, for each period in ``mt_periods`` (``("full",)`` in a
+dev run; ``config.MT_PERIODS`` = full, pre_holdout, holdout in the full run),
+when the period has at least ``MIN_MT_DATES`` dates:
+  * ``model='*'``, ``metric='spa_p_nll'``, ``asset`` in {joint, sb},
+    ``benchmark`` = the benchmark: Hansen SPA, does any model of the
+    benchmark's family beat it (family for ``sample``: every other model;
+    for ``lw``: the dynamic frozen models, see ``run.SPA_FAMILY``);
+  * ``metric='mcs_p_nll'`` / ``'in_mcs_nll'`` (asset joint, benchmark none);
+  * ``metric='dm_q_bh_nll'`` (asset joint and sb): Benjamini-Hochberg q-values
+    of ``dm_p_nll`` across the family x horizons, per (period, benchmark).
 """
 from __future__ import annotations
 
@@ -180,19 +191,46 @@ def _strands(d: np.ndarray, h: int) -> tuple[float, float]:
     return float(np.median(ps)), float((ps < 0.05).mean())
 
 
+MIN_MT_DATES = 24   # fewest dates for SPA / MCS in a period
+
+
+def _family(models, bm, benchmarks, spa_family):
+    """Models tested jointly against ``bm`` (SPA, BH). ``spa_family[bm]`` if
+    given, else every other model (the original behaviour for ``sample``)."""
+    if spa_family and bm in spa_family:
+        return [m for m in spa_family[bm] if m in models and m != bm]
+    return [m for m in models if m != bm]
+
+
 def score_covariances(cov: pd.DataFrame, xr: pd.DataFrame, benchmark: str = "sample",
                       subperiods=DEFAULT_SUBPERIODS, reps: int = 999,
-                      seed: int = config.SEED) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Score covariance forecasts; returns (scores, per-date table)."""
+                      seed: int = config.SEED, extra_benchmarks=(),
+                      mt_periods=("full",), spa_family: dict | None = None
+                      ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Score covariance forecasts; returns (scores, per-date table).
+
+    ``benchmark`` is the main benchmark. Each name in ``extra_benchmarks``
+    (e.g. ``lw``, well-conditioned but static) gets the same pairwise tests
+    (rows with ``benchmark`` = that name) for every other model.
+    ``mt_periods``: periods (labels from "full" and ``subperiods``) for which
+    the search-adjusted results are computed: SPA (``spa_p_nll`` on targets
+    ``joint`` and ``sb``, ``model='*'``), the MCS on the joint nll
+    (``mcs_p_nll``/``in_mcs_nll``, ``benchmark='none'``) and BH q-values of
+    ``dm_p_nll`` (``dm_q_bh_nll``, across the benchmark's family x horizons),
+    each needing at least ``MIN_MT_DATES`` dates. ``spa_family`` maps a
+    benchmark to the models in its SPA / BH family (default: all others).
+    """
     pdt = per_date_table(cov, xr)
     rows = []
     periods = [("full", None, None)] + list(subperiods or ())
+    benchmarks = [benchmark] + [b for b in extra_benchmarks if b != benchmark]
     for h, ph in pdt.groupby("horizon", sort=True):
         h = int(h)
         wide = ph.pivot_table(index="date", columns=["model", "target", "metric"], values="value")
         models = sorted(m for m in ph["model"].unique() if m != "*")
-        if benchmark not in models:
-            raise ValueError(f"h={h}: benchmark {benchmark!r} missing")
+        for bm in benchmarks:
+            if bm not in models:
+                raise ValueError(f"h={h}: benchmark {bm!r} missing")
         for plabel, start, end in periods:
             sel = wide
             if start is not None:
@@ -226,48 +264,72 @@ def score_covariances(cov: pd.DataFrame, xr: pd.DataFrame, benchmark: str = "sam
                 ann = math.sqrt(12.0 / h)
                 rows.append((m, h, "mvp", plabel, "none", "realized_vol", math.sqrt(g[("mvp", "mvp_sq")].mean()) * ann))
                 rows.append((m, h, "mvp", plabel, "none", "pred_vol", np.sqrt(g[("mvp", "v")]).mean() * ann))
-                if m == benchmark:
-                    continue
-                gb = sel[benchmark]
-                for tg, met in TEST_LOSSES:
-                    if (tg, met) not in g or (tg, met) not in gb:
+                for bm in benchmarks:
+                    if m == bm:
                         continue
-                    lm, lb = g[(tg, met)].to_numpy(float), gb[(tg, met)].to_numpy(float)
-                    d = lb - lm
-                    stat, p1, p2 = inf.diebold_mariano(lm, lb, h)
-                    sp, sh = _strands(d, h)
-                    for k, v in dict(diff=d.mean(), dm_stat=stat, dm_p=p1, dm_p2=p2,
-                                     strand_p_median=sp, strand_share_05=sh).items():
-                        rows.append((m, h, tg, plabel, benchmark, f"{k}_{met}", v))
-                rm = math.sqrt(g[("mvp", "mvp_sq")].mean())
-                rb = math.sqrt(gb[("mvp", "mvp_sq")].mean())
-                rows.append((m, h, "mvp", plabel, benchmark, "vol_ratio", rm / rb))
-        # data-snooping-robust tests on the joint nll, full period
-        L = wide.xs(("joint", "nll"), axis=1, level=["target", "metric"])[models].dropna()
-        others = [m for m in models if m != benchmark]
-        if others and len(L) >= 24:
-            rows.append(("*", h, "joint", "full", benchmark, "spa_p_nll",
-                         inf.spa_test(L[benchmark], L[others], h, reps=reps, seed=seed + h)))
-            if len(models) >= 2:
-                mcs = inf.model_confidence_set(L, h, size=0.10, reps=reps, seed=seed + h)
-                for m in mcs.index:
-                    rows.append((m, h, "joint", "full", "none", "mcs_p_nll", mcs.at[m, "mcs_p"]))
-                    rows.append((m, h, "joint", "full", "none", "in_mcs_nll", mcs.at[m, "in_mcs"]))
+                    gb = sel[bm]
+                    for tg, met in TEST_LOSSES:
+                        if (tg, met) not in g or (tg, met) not in gb:
+                            continue
+                        lm, lb = g[(tg, met)].to_numpy(float), gb[(tg, met)].to_numpy(float)
+                        d = lb - lm
+                        stat, p1, p2 = inf.diebold_mariano(lm, lb, h)
+                        sp, sh = _strands(d, h)
+                        for k, v in dict(diff=d.mean(), dm_stat=stat, dm_p=p1, dm_p2=p2,
+                                         strand_p_median=sp, strand_share_05=sh).items():
+                            rows.append((m, h, tg, plabel, bm, f"{k}_{met}", v))
+                    rm = math.sqrt(g[("mvp", "mvp_sq")].mean())
+                    rb = math.sqrt(gb[("mvp", "mvp_sq")].mean())
+                    rows.append((m, h, "mvp", plabel, bm, "vol_ratio", rm / rb))
+        # data-snooping-robust tests, per multiple-testing period
+        for plabel, start, end in periods:
+            if plabel not in mt_periods:
+                continue
+            w = wide
+            if start is not None:
+                w = wide.loc[(wide.index >= pd.Timestamp(start)) & (wide.index <= pd.Timestamp(end))]
+            for tg in ("joint", "sb"):
+                if (models[0], tg, "nll") not in w:
+                    continue
+                L = w.xs((tg, "nll"), axis=1, level=["target", "metric"])[models].dropna()
+                if len(L) < MIN_MT_DATES:
+                    continue
+                for bm in benchmarks:
+                    fam = _family(models, bm, benchmarks, spa_family)
+                    if fam:
+                        rows.append(("*", h, tg, plabel, bm, "spa_p_nll",
+                                     inf.spa_test(L[bm], L[fam], h, reps=reps, seed=seed + h)))
+                if tg == "joint" and len(models) >= 2:
+                    mcs = inf.model_confidence_set(L, h, size=0.10, reps=reps, seed=seed + h)
+                    for m in mcs.index:
+                        rows.append((m, h, "joint", plabel, "none", "mcs_p_nll", mcs.at[m, "mcs_p"]))
+                        rows.append((m, h, "joint", plabel, "none", "in_mcs_nll", mcs.at[m, "in_mcs"]))
     scores = pd.DataFrame(rows, columns=SCORE_COLUMNS)
     scores["value"] = scores["value"].astype(float)
-    # BH across models x horizons for the headline test
-    sel = (scores.metric == "dm_p_nll") & (scores.asset == "joint") & (scores.period == "full")
-    if sel.any():
-        q = scores[sel].copy()
-        q["metric"] = "dm_q_bh_nll"
-        q["value"] = inf.fdr(q["value"].to_numpy(), "bh")
-        scores = pd.concat([scores, q], ignore_index=True)
+    # BH q-values of the one-sided DM p-values, per (period, benchmark, target),
+    # across the benchmark's family x horizons
+    extra = []
+    nd = scores[(scores.model == "*") & (scores.metric == "n_dates") & (scores.asset == "joint")]
+    for plabel in mt_periods:
+        ok_h = set(nd[(nd.period == plabel) & (nd.value >= MIN_MT_DATES)].horizon)
+        for bm in benchmarks:
+            fam = set(_family(sorted(set(scores.model) - {"*"}), bm, benchmarks, spa_family))
+            for tg in ("joint", "sb"):
+                sel = ((scores.metric == "dm_p_nll") & (scores.asset == tg) & (scores.period == plabel)
+                       & (scores.benchmark == bm) & scores.model.isin(fam) & scores.horizon.isin(ok_h))
+                if sel.any():
+                    q = scores[sel].copy()
+                    q["metric"] = "dm_q_bh_nll"
+                    q["value"] = inf.fdr(q["value"].to_numpy(), "bh")
+                    extra.append(q)
+    if extra:
+        scores = pd.concat([scores, *extra], ignore_index=True)
     return scores, pdt
 
 
-def summary(scores: pd.DataFrame, benchmark: str = "sample") -> pd.DataFrame:
-    """One row per (model, horizon), full period."""
-    s = scores[scores.period == "full"]
+def summary(scores: pd.DataFrame, benchmark: str = "sample", period: str = "full") -> pd.DataFrame:
+    """One row per (model, horizon) for one period, tests against ``benchmark``."""
+    s = scores[scores.period == period]
     pick = [
         ("joint", "none", "nll", "nll"),
         ("joint", benchmark, "diff_nll", "d_nll"),
@@ -283,6 +345,7 @@ def summary(scores: pd.DataFrame, benchmark: str = "sample") -> pd.DataFrame:
         ("sb", benchmark, "diff_nll", "d_sb"),
         ("joint", "none", "cond_median", "cond"),
         ("joint", "none", "in_mcs_nll", "in_mcs"),
+        ("joint", benchmark, "dm_q_bh_nll", "q_nll"),
     ]
     parts = []
     for tg, bm, met, col in pick:
