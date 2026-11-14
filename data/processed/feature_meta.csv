@@ -1,0 +1,85 @@
+name,family,scope,hindsight,first_date,description
+mom_1m,price,asset,False,1926-07-31,"Excess log return of month t (short-term reversal / momentum). For hy_credit (smoothed fund NAV, monthly autocorrelation ~0.16) part of any signal is stale pricing."
+mom_3m,price,asset,False,1926-09-30,Sum of excess log returns over months t-2..t.
+mom_6m,price,asset,False,1926-12-31,Sum of excess log returns over months t-5..t.
+mom_12m,price,asset,False,1927-06-30,Sum of excess log returns over months t-11..t.
+mom_12_1,price,asset,False,1927-06-30,12-minus-1 momentum: sum of excess log returns over months t-11..t-1 (skips month t).
+lt_rev_60_12,price,asset,False,1931-06-30,Long-term reversal: sum of excess log returns over months t-59..t-12 (48 months).
+mom_1m_vs,price,asset,False,1928-06-30,"mom_1m divided by the asset's trailing monthly volatility (36m, min 24)."
+mom_3m_vs,price,asset,False,1928-06-30,mom_3m / (trailing monthly vol x sqrt(3)): a t-statistic-like 3-month trend.
+mom_12_1_vs,price,asset,False,1928-06-30,"mom_12_1 / (trailing monthly vol x sqrt(11)): volatility-scaled time-series momentum, comparable across assets."
+trend_ma10,price,asset,False,1927-04-30,Log of the excess-return index over its 10-month simple moving average (months t-9..t).
+trend_ma3_12,price,asset,False,1927-06-30,Log ratio of the 3-month to the 12-month moving average of the excess-return index.
+dd_12m,price,asset,False,1927-07-31,"Drawdown of the excess-return index from its maximum over the last 12 months (log, <= 0)."
+dd_max,price,asset,False,1927-06-30,"Drawdown of the excess-return index from its running maximum since the asset's history began (log, <= 0); needs 12 months."
+vol_m_12m,price,asset,False,1927-06-30,Annualised sd of monthly excess log returns over months t-11..t.
+vol_m_36m,price,asset,False,1928-06-30,"Annualised sd of monthly excess log returns over months t-35..t (min 24). Understated for smoothed NAV series (hy_credit, ig_credit)."
+vol_d_1m,price,asset,False,1926-07-31,"Annualised realised vol from daily log returns in month t (sqrt(252 x mean r^2), min 10 days). NaN where no daily series exists: dev_eq before 1990-07, em_eq before 2001, reits/gold before 2004, commodities before 2006-10. Daily sources differ from monthly for reits (VNQ) and commodities (BCOM ETN)."
+vol_d_3m,price,asset,False,1926-09-30,Annualised realised vol from daily log returns over months t-2..t (min 40 days); same coverage caveats as vol_d_1m.
+vol_d_ratio,price,asset,False,1927-06-30,Log of 1-month over 12-month daily realised vol (vol regime shift; self-normalised so comparable across assets and daily sources).
+beta_eq_36m,price,asset,False,1928-06-30,Rolling 36-month (min 24) beta of the asset's monthly excess return on US equity excess return.
+xs_rank_mom_12_1_vs,price,asset,False,1973-11-30,Cross-sectional percentile rank (0..1) of mom_12_1_vs among assets with a value on date t (needs >= 4 assets).
+xs_rank_mom_3m_vs,price,asset,False,1973-11-30,Cross-sectional percentile rank (0..1) of mom_3m_vs among assets with a value on date t (needs >= 4 assets).
+xs_rank_lt_rev,price,asset,False,1976-11-30,Cross-sectional percentile rank of vol-scaled long-term reversal (lt_rev_60_12 / vol_m_36m).
+g_eq_mom_12_1,price,global,False,1927-06-30,US equity 12-minus-1 momentum (global equity trend state).
+g_bond_mom_12_1,price,global,False,1962-06-30,Intermediate Treasury 12-minus-1 momentum (global rates trend state).
+g_cmdty_mom_12_1,price,global,False,1927-06-30,Commodity 12-minus-1 momentum (inflation / growth state).
+g_eq_vol_d_1m,price,global,False,1926-07-31,US equity realised vol from daily returns in month t (annualised).
+g_eq_dd_max,price,global,False,1927-06-30,US equity drawdown from its running maximum (excess-return index).
+g_sb_corr_d_3m,price,global,False,1961-08-31,Correlation of daily US equity and 5y Treasury returns over months t-2..t (min 40 joint days).
+g_sb_corr_m_36m,price,global,False,1963-06-30,Correlation of monthly US equity and 5y Treasury excess returns over 36 months (min 24).
+g_trend_breadth,price,global,False,1972-12-31,Share of assets with positive 12-minus-1 momentum on date t (NaN when fewer than 5 assets have a value).
+carry,valuation_carry,asset,False,1954-01-31,"Own carry slot, % p.a. over cash (what the asset earns if prices do not move). us_eq: S&P 500 dividend yield (%) minus 3m T-bill; dev_eq: Developed ex-US trailing dividend yield (%) minus 3m T-bill; ends 2025-12 with the French file; ust_int: 5y GSW zero yield minus 3m T-bill; ust_long: 10y GSW zero yield minus 3m T-bill (10y used throughout for a consistent series; the GSW 20y starts only 1981-07, the asset is 15y/20y); tips: 7y real zero yield (interp. 5y/10y GSW TIPS) + trailing 12m CPI inflation (expected index accrual) minus 3m T-bill; ig_credit: Average of Moody's Aaa and Baa seasoned long corporate yields (monthly averages) minus 3m T-bill; gold: Minus the 3m T-bill: gold pays no income, so its carry over cash (as in the gold futures basis, ignoring lease rates) is -r_f; commodities: trailing 12-month mean of the WTI crude futures roll yield (12 x ln F1/F2, %), a single-commodity proxy for the basket's basis; already an excess-of-cash carry; ends 2024-04. NaN for em_eq, hy_credit, reits (no yield or basis series in the panel)."
+value,valuation_carry,asset,False,1930-12-31,"Own valuation slot, oriented so high = cheap, standardised against the series' own past (expanding, min 60 months). us_eq: expanding z of log(1/CAPE); dev_eq: expanding z of log developed ex-US book-to-market; ends 2025-12; ust_int: expanding z of the 5y real yield (5y zero minus trailing 12m CPI inflation); ust_long: expanding z of the 10y real yield (10y zero minus trailing 12m CPI inflation); tips: expanding z of the 7y TIPS real yield (min 60 months, so from 2004); ig_credit: expanding z of the Baa minus 10y Treasury spread; gold: minus the expanding z of the log real gold price (monthly average price / CPI), using free-market history from 1975 only. NaN for em_eq, hy_credit, reits, commodities (no credible valuation series; commodity value is left to lt_rev_60_12)."
+g_tbill,valuation_carry,global,False,1954-01-31,"3-month T-bill rate, % (level of the cash rate)."
+g_tbill_chg_12m,valuation_carry,global,False,1955-01-31,"12-month change in the 3m T-bill rate, pp (policy cycle)."
+g_real_tbill,valuation_carry,global,False,1954-01-31,"3m T-bill minus trailing 12m CPI inflation, % (real short rate / monetary stance)."
+g_term_spread,valuation_carry,global,False,1962-01-31,"10y CMT minus 3m T-bill, pp (yield-curve slope)."
+g_term_spread_chg_12m,valuation_carry,global,False,1963-01-31,"12-month change in the 10y-3m term spread, pp."
+g_default_spread,valuation_carry,global,False,1926-07-31,"Moody's Baa minus Aaa yield, pp (monthly averages)."
+g_default_spread_z,valuation_carry,global,False,1930-12-31,Expanding z of the Baa-Aaa default spread.
+g_gz_spread,valuation_carry,global,False,1973-02-28,"Gilchrist-Zakrajsek corporate bond credit spread, pp (all grades)."
+g_gz_spread_chg_3m,valuation_carry,global,False,1973-05-31,"3-month change in the GZ credit spread, pp (credit momentum)."
+g_us_cape_ey_z,valuation_carry,global,False,1930-12-31,Expanding z of log(1/CAPE): US equity valuation as a global risk-appetite state.
+g_us_dy_z,valuation_carry,global,False,1930-12-31,Expanding z of the log S&P 500 dividend yield.
+g_eq_bond_gap,valuation_carry,global,False,1971-08-31,"Excess CAPE yield: 100/CAPE minus the 10y real yield (10y zero minus trailing CPI inflation), pp."
+g_acm_tp_10y,valuation_carry,global,True,1961-06-30,"ACM 10-year Treasury term premium, %. Hindsight: full-sample affine model."
+g_breakeven_10y,valuation_carry,global,False,1999-01-31,"10y zero breakeven inflation (GSW), % (from 1999)."
+g_breakeven_10y_chg_12m,valuation_carry,global,False,2000-01-31,"12-month change in 10y breakeven inflation, pp."
+cpi_yoy,macro,global,False,1926-07-31,"Headline CPI 12-month log change, % (as first published)."
+cpi_yoy_chg_12m,macro,global,False,1927-01-31,"12-month change in headline CPI inflation, pp (inflation momentum)."
+core_cpi_yoy,macro,global,False,1958-02-28,"Core CPI 12-month log change, %."
+infl_exp_1y,macro,global,False,1978-02-28,"Michigan median 1-year inflation expectation, % (from 1978)."
+ip_yoy,macro,global,False,1950-01-31,"Industrial production 12-month log change, % (real-time vintage)."
+payrolls_yoy,macro,global,False,1955-06-30,"Nonfarm payrolls 12-month log change, % (real-time vintage)."
+payrolls_3m,macro,global,False,1955-06-30,"Nonfarm payrolls 3-month log change, annualised % (real-time vintage)."
+unemp_chg_12m,macro,global,False,1961-04-30,"12-month change in the unemployment rate, pp (each end from the vintage in force at its date)."
+unemp_sahm,macro,global,False,1961-06-30,"Sahm-type gap: 3-month average unemployment rate minus its minimum over the prior 12 months, pp."
+hours_mfg_chg_12m,macro,global,False,1962-12-31,12-month change in average weekly manufacturing hours (leading indicator).
+housing_starts_yoy,macro,global,False,1961-08-31,"Housing starts 12-month log change, %."
+permits_yoy,macro,global,False,1961-02-28,"Building permits 12-month log change, %."
+retail_sales_yoy,macro,global,False,1966-02-28,"Nominal retail sales 12-month log change, % (real-time vintage)."
+capacity_util_chg_12m,macro,global,False,1968-02-29,"12-month change in capacity utilisation, pp."
+cfnai_ma3,macro,global,True,1967-06-30,3-month average of the Chicago Fed National Activity Index. Hindsight: full-sample PCA weights.
+claims_yoy,macro,global,False,1968-02-29,"Initial jobless claims (4-week average) 12-month log change, %."
+real_m2_yoy,macro,global,False,1980-03-31,"M2 growth minus CPI inflation (12-month log changes), % (from 1980)."
+ci_loans_yoy,macro,global,False,1948-02-29,"C&I bank loans 12-month log change, % (contains reclassification breaks)."
+consumer_credit_yoy,macro,global,False,1944-03-31,"Consumer credit 12-month log change, %."
+fed_funds_chg_12m,macro,global,False,1955-07-31,"12-month change in the effective fed funds rate, pp."
+fed_funds_chg_3m,macro,global,False,1954-10-31,"3-month change in the effective fed funds rate, pp."
+nfci,macro,global,True,1971-01-31,Chicago Fed NFCI level (positive = tighter than average). Hindsight: full-sample factor model.
+nfci_chg_3m,macro,global,True,1971-04-30,3-month change in NFCI. Hindsight: full-sample factor model.
+usd_chg_3m,macro,global,False,1973-04-30,"Trade-weighted US dollar 3-month log change, %."
+usd_chg_12m,macro,global,False,1974-01-31,"Trade-weighted US dollar 12-month log change, %."
+oil_yoy,macro,global,False,1947-01-31,"WTI spot (monthly average) 12-month log change, %."
+log_vix,sentiment,global,False,1990-01-31,Log VIX at month end (from 1990).
+vix_rel_12m,sentiment,global,False,1990-12-31,Log VIX minus its trailing 12-month mean (fear shock).
+vrp,sentiment,global,False,1990-01-31,"Variance risk premium: VIX^2/12 minus the realised variance of daily US equity (CRSP VW / VTI) log returns in month t, monthly %^2. Computed here rather than taken from the predictor 'vrp', which ends 2025-12."
+umich_sentiment_z,sentiment,global,False,1957-11-30,Expanding z of Michigan consumer sentiment.
+bw_sentiment,sentiment,global,True,1965-08-31,Baker-Wurgler orthogonalised investor sentiment; ends 2018-12. Hindsight: full-sample PCA and regressions.
+bw_sentiment_pit,sentiment,global,False,1966-01-31,"Point-in-time Baker-Wurgler-style sentiment: mean of expanding z-scores of the raw components (minus closed-end discount, log1p IPO count, IPO first-day return, equity share, minus dividend premium); needs 4 of 5; ends 2018-12."
+net_equity_issuance,sentiment,global,False,1927-01-31,Goyal-Welch net equity expansion (12m net issues / market cap); ends 2025-12.
+margin_debt_yoy,sentiment,global,False,1998-02-28,"FINRA margin debt 12-month log change, % (leverage-driven sentiment; from 1998)."
+excess_bond_premium,sentiment,global,True,1973-02-28,"Gilchrist-Zakrajsek excess bond premium, pp. Hindsight: full-sample regression residual."
+epu_z,sentiment,global,False,1930-12-31,Expanding z of the log news-based economic policy uncertainty index.
+gpr_shock,sentiment,global,False,1926-12-31,Log historical geopolitical risk index minus its trailing 12-month mean.
