@@ -5,6 +5,7 @@ between ``<!-- page -->`` and ``<!-- /page -->``. :func:`build` keeps that part
 verbatim and rewrites everything around it: the document head, theme tokens,
 the vendored d3 (``dashboard/vendor/``), every dataset in ``dashboard/datasets.json``
 inlined as JSON, and a small stand-in for the ``dash`` runtime the page calls.
+It also carries the "Refresh forecast" button (``REFRESH``; shown only on claude.ai).
 No number is computed here; the values are the CSVs this package writes, copied
 verbatim. ``python -m assetforecast.dashboard`` runs it after writing the data.
 """
@@ -20,6 +21,8 @@ from .. import paths
 DASH = paths.ROOT / "dashboard"
 PAGE = DASH / "index.html"
 MANIFEST = DASH / "datasets.json"
+# The "Refresh forecast" button: the scheduled task it starts (see refresh.json and REFRESH below).
+REFRESH_CONFIG = DASH / "refresh.json"
 D3 = DASH / "vendor" / "d3-7.9.0.min.js"
 OPEN, CLOSE = "<!-- page -->", "<!-- /page -->"
 NUM = re.compile(r"^-?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$")
@@ -69,9 +72,14 @@ a { color: var(--series-1); }
 .dash-select { font: inherit; font-size: var(--cds-font-size-caption); color: var(--color-fg); background: var(--color-panel);
   border: 1px solid var(--cds-border); border-radius: 6px; padding: 4px 8px; max-width: 100%%; }
 details > summary { cursor: pointer; }
-.sa-bar { max-width: 1080px; margin: 0 auto 16px; display: flex; justify-content: flex-end; }
+.sa-bar { font-family: var(--font-anthropic-sans); max-width: 1080px; margin: 0 auto 16px; display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sa-bar button { font: inherit; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); background: none;
   border: 1px solid var(--cds-border); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+.sa-bar button:disabled { cursor: default; opacity: .6; }
+.sa-refresh { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.sa-refresh-msg { font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); max-width: 60ch; text-align: right; }
+.sa-refresh-msg.sa-bad { color: var(--color-bad); }
+.sa-refresh button.sa-go { color: var(--color-fg); border-color: var(--color-fg-muted); }
 """ % (TOKENS_COMMON, TOKENS_LIGHT, TOKENS_DARK, TOKENS_DARK)
 
 # Stand-in for the hosted runtime's `dash` object: the subset the page uses.
@@ -121,6 +129,81 @@ BOOT = r"""
 })();
 """
 
+# The "Refresh forecast" button. It appears only when the page is opened on claude.ai
+# (where the `mcp` capability exists) and refresh.json names a scheduled task; opened
+# as a local file the page shows no button. A click asks for confirmation, then fires
+# the scheduled task through the viewer's "Claude Code Remote" connector; the task starts
+# a cloud Claude session that downloads data, runs the pipeline and republishes the page.
+REFRESH = r"""
+(() => {
+  const cfg = JSON.parse(document.getElementById('dash-refresh').textContent || 'null');
+  const box = document.getElementById('sa-refresh');
+  if (!cfg || !cfg.trigger_id || !box || !window.claude || typeof window.claude.use !== 'function') return;
+  const S = cfg.connector || 'Claude Code Remote';
+  const btn = document.createElement('button'), msg = document.createElement('span');
+  btn.type = 'button'; btn.className = 'sa-go'; btn.textContent = 'Refresh forecast';
+  msg.className = 'sa-refresh-msg'; msg.setAttribute('aria-live', 'polite');
+  const say = (text, bad, link) => {
+    msg.className = 'sa-refresh-msg' + (bad ? ' sa-bad' : '');
+    msg.replaceChildren(document.createTextNode(text));
+    if (link) { const a = document.createElement('a'); a.href = link; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Open the session'; msg.append(' ', a, '.'); }
+  };
+  const when = (t) => { const d = t ? new Date(t) : null; return d && !isNaN(d) ? d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : ''; };
+  const sessionUrl = (id) => (id ? 'https://claude.ai/code/' + encodeURIComponent(id) : null);
+  const failCopy = (e) => {
+    switch (e && e.code) {
+      case 'server_not_connected': return 'Add the ' + S + ' connector in claude.ai Settings → Connectors, then try again.';
+      case 'needs_reauth': return 'Reconnect the ' + S + ' connector in claude.ai Settings → Connectors, then try again.';
+      case 'selection_required': return 'Choose which ' + S + ' connector this page should use, then try again.';
+      case 'approval_required': case 'not_in_manifest': case 'consent_required': return 'Starting a refresh needs your approval for the ' + S + ' connector on this page.';
+      case 'blocked_by_policy': return 'Your organization does not allow this page to start a refresh.';
+      case 'tool_error': return 'The refresh could not be started: ' + (e.message || 'the scheduled task reported an error') + '.';
+      case 'server_unavailable': case 'upstream_error': case 'cancelled': return 'No answer from claude.ai, so a refresh may or may not have started. Check “Last run” before trying again.';
+      default: return 'The button is not available in this view.';
+    }
+  };
+  let mcp = null, busy = false;
+  const showLast = (p) => {
+    const t = p && (p.trigger || p), r = t && t.last_run;
+    if (!r) { say('No refresh has been run from this button yet.'); return null; }
+    const done = !!r.finished_at, st = String(r.status || '').toLowerCase();
+    if (!done) say('A refresh started ' + when(r.fired_at) + ' is still running (about an hour).', false, sessionUrl(r.session_id));
+    else say('Last refresh ' + (st ? st.replace(/_/g, ' ') + ', ' : '') + 'finished ' + when(r.finished_at) + '.', /fail|error/.test(st), sessionUrl(r.session_id));
+    return r;
+  };
+  const check = async () => {
+    try { const res = await mcp.callTool(S, 'get_trigger', { trigger_id: cfg.trigger_id }, { cache: false }); return showLast(res.payload); }
+    catch (e) { say(failCopy(e), true); return undefined; }
+  };
+  const last = document.createElement('button');
+  last.type = 'button'; last.textContent = 'Last run';
+  last.addEventListener('click', async () => { if (busy) return; busy = true; last.disabled = true; say('Checking…'); await check(); busy = false; last.disabled = false; });
+  btn.addEventListener('click', async () => {
+    if (busy) return;
+    const ok = window.confirm('Start a refresh?\n\nA cloud Claude session will download the latest market data, rerun the pipeline (about an hour), commit the result to a new branch with a pull request, and update this page. It uses your Claude usage. If no new month of data has closed since the last forecast, it stops without changing anything.');
+    if (!ok) return;
+    busy = true; btn.disabled = true; last.disabled = true; say('Starting…');
+    try {
+      await mcp.callTool(S, 'fire_trigger', { trigger_id: cfg.trigger_id }, { cache: false });
+      say('Refresh started. It takes about an hour; this page updates itself when it finishes. You will get a notification.');
+    } catch (e) { say(failCopy(e), true); }
+    busy = false; btn.disabled = false; last.disabled = false;
+  });
+  claude.use('mcp').then((m) => {
+    if (!m) return;
+    mcp = m; box.append(msg, last, btn); box.hidden = false;
+  }, () => {});
+})();
+"""
+
+
+def refresh_config(path: Path = REFRESH_CONFIG) -> dict | None:
+    """The refresh button's settings (``trigger_id``, ``connector``), or None when there is no button."""
+    if not path.exists():
+        return None
+    cfg = json.loads(path.read_text(encoding="utf-8"))
+    return cfg if cfg.get("trigger_id") else None
+
 
 def read_rows(path: Path) -> list[dict]:
     """CSV rows with numeric cells as numbers and empty cells as null."""
@@ -138,8 +221,9 @@ def page_source(html: str) -> str:
     return re.sub(r'^<meta name="dash-one-writer">\s*', "", html.strip("\n"))
 
 
-def build(page: Path = PAGE, manifest: Path = MANIFEST) -> Path:
+def build(page: Path = PAGE, manifest: Path = MANIFEST, refresh: Path = REFRESH_CONFIG) -> Path:
     """Rewrite ``page`` in place around its hand-written part, with the current data inlined."""
+    cfg = json.dumps(refresh_config(refresh)).replace("</", "<\\/")
     datasets = json.loads(manifest.read_text(encoding="utf-8"))
     data = {d["id"]: read_rows(manifest.parent / d["file"]) for d in datasets}
     src = page_source(page.read_text(encoding="utf-8"))
@@ -160,13 +244,16 @@ def build(page: Path = PAGE, manifest: Path = MANIFEST) -> Path:
         f'<script id="dash-d3">{D3.read_text(encoding="utf-8")}</script>',
         f'<script type="application/json" id="dash-data">{payload}</script>',
         f'<script id="dash-runtime">{SHIM}</script>',
+        f'<script type="application/json" id="dash-refresh">{cfg}</script>',
         "</head>",
         "<body>",
-        '<div class="sa-bar"><button type="button" id="sa-theme">Dark mode</button></div>',
+        '<div class="sa-bar"><div class="sa-refresh" id="sa-refresh" hidden></div>'
+        '<button type="button" id="sa-theme">Dark mode</button></div>',
         OPEN,
         src,
         CLOSE,
         f'<script id="dash-boot">{BOOT}</script>',
+        f'<script id="dash-refresh-ui">{REFRESH}</script>',
         "</body>",
         "</html>",
         "",
