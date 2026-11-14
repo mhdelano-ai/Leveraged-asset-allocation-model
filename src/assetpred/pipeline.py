@@ -40,7 +40,7 @@ def main(argv=None) -> int:
 
     steps = {
         "marginal": (marginal_run.main, [
-            *dev, "--models", *config.FROZEN_MARGINAL, "--run-name", SCORES_RUN,
+            *dev, "--models", *config.FROZEN_MARGINAL, *config.ROBUSTNESS, "--run-name", SCORES_RUN,
             "--jobs", str(args.jobs), "--reps", str(args.reps)]),
         "covariance": (cov_run.main, [
             *dev, "--models", "frozen", "--combine", f"{config.PRIMARY_COV}:{config.COMPOSITE}",

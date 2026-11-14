@@ -50,3 +50,19 @@ COMPOSITE = "ens_z__dist_lin_agg"
 FROZEN_MARGINAL = (*BASELINES, *FROZEN_MEAN, *FROZEN_DIST, COMPOSITE)
 FROZEN_COV = ("vc_daily_ewma_m_lwb", "vc_ewma_ewma_m_lwb", "vc_daily_daily_m_lw", "ewma_cov", "lw")
 PRIMARY_COV = "vc_daily_ewma_m_lwb"
+
+# Robustness rows, registered before the holdout run: the same learners without
+# the features estimated over the full sample (which embed holdout-period
+# information). Scored and reported, but not part of any test family.
+ROBUSTNESS = ("gbm_z.nohind", "combo_z.nohind")
+
+# Families for the "does any model beat the benchmark" (SPA) tests, fixed before
+# the holdout run. Mean models are tested against hist_mean on squared error;
+# distribution models against vol_ewma (and hist_mean) on CRPS. The composite
+# and the robustness rows are reported individually and belong to no family.
+SPA_FAMILIES = {"mean": FROZEN_MEAN, "dist": FROZEN_DIST}
+
+# Periods for which the multiple-testing adjustments are computed in a full run.
+# "holdout" is the evidence; "full" mixes it with the years the models were
+# chosen on.
+MT_PERIODS = ("full", "pre_holdout", "holdout")
