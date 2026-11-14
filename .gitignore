@@ -8,3 +8,6 @@ data/processed/raw_manifest.lock
 # development-period outputs are exploratory and regenerable; keep only the trial logs
 results/dev/*
 !results/dev/trials_*.csv
+# bulky and regenerable in under a minute from the committed forecasts and covariances
+results/strategy/returns.parquet
+results/strategy/weights.parquet

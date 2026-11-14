@@ -1,0 +1,21 @@
+{
+ "fingerprint": {
+  "model": "hist_mean",
+  "horizon": 1,
+  "class": "HistoricalMean",
+  "params": {},
+  "data": "bf5526544f8567df",
+  "settings": {
+   "oos_start": "1990-01-31",
+   "refit_every": 12,
+   "min_history": 60,
+   "end": null
+  },
+  "code": "2923a1c2c95d1a7f"
+ },
+ "rows": 4403,
+ "seconds": 2.53,
+ "first_origin": "1990-01-31",
+ "last_origin": "2026-10-31",
+ "written": "2026-11-14T18:21:42+00:00"
+}
