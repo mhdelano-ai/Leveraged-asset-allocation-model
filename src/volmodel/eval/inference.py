@@ -911,53 +911,105 @@ class MCSResult:
         return out.sort_values("mcs_pvalue", ascending=False)
 
 
+def _mcs_step_stats(statistic, mu, C, a, scale):
+    """Studentized MCS statistics for alive set ``a``.
+
+    ``mu`` (..., m) mean losses (or centred bootstrap deviations), ``C`` (..., m, m)
+    long-run covariance (times 1/n via ``scale``). Returns (stat, per-model
+    elimination score).
+    """
+    ma = mu[..., a]
+    Ca = C[..., a[:, None], a[None, :]]
+    if statistic == "R":
+        d = ma[..., :, None] - ma[..., None, :]
+        dg = np.diagonal(Ca, axis1=-2, axis2=-1)
+        v = dg[..., :, None] + dg[..., None, :] - 2.0 * Ca
+        sd = np.sqrt(np.maximum(v, 0.0) * scale)
+        t = np.divide(d, sd, out=np.zeros_like(d), where=sd > 0)
+        return np.max(np.abs(t), axis=(-1, -2)), np.max(t, axis=-1)
+    k = len(a)
+    d = ma - ma.mean(axis=-1, keepdims=True)
+    rs = Ca.sum(axis=-1)
+    v = np.diagonal(Ca, axis1=-2, axis2=-1) - 2.0 * rs / k + rs.sum(axis=-1, keepdims=True) / k**2
+    sd = np.sqrt(np.maximum(v, 0.0) * scale)
+    t = np.divide(d, sd, out=np.zeros_like(d), where=sd > 0)
+    return np.max(t, axis=-1), t
+
+
 def model_confidence_set(
     losses: pd.DataFrame,
     alpha: float = 0.10,
     *,
     statistic: Literal["R", "max"] = "R",
+    variance: Literal["gk", "bootstrap"] = "gk",
     block_length: int | None = None,
     n_boot: int = 2000,
-    bootstrap: BootstrapKind = "stationary",
+    bootstrap: BootstrapKind | None = None,
     h: int = 12,
     min_coverage: float = 0.0,
     seed: int | np.random.Generator | None = None,
     warn: bool = True,
 ) -> MCSResult:
-    """Model Confidence Set via block bootstrap (own implementation, Hansen et al. 2011).
+    """Model Confidence Set by block bootstrap (Hansen, Lunde & Nason 2011).
+
+    Sequentially tests "all models in the current set have equal expected
+    loss" and, on rejection, eliminates the worst model. The MCS p-value of a
+    model is the largest test p-value up to its elimination; models with
+    p-value >= ``alpha`` form the set, which contains the best model(s) with
+    probability >= 1 - alpha (asymptotically).
 
     Parameters
     ----------
     losses : origins x models; lower is better.
-    alpha : MCS level. The set contains the best model(s) with asymptotic
-        probability >= 1 - alpha.
-    statistic : ``"R"`` - range statistic T_R = max_{i,j} |t_ij| with pairwise
-        studentized differences (robust, the default in HLN 2011); ``"max"`` -
-        T_max = max_i t_i. based on each model vs the set average.
-    block_length : mean (stationary) or fixed (circular) block length in months.
-        Default :func:`default_block_length` (36 for h=12); values below
-        ``h`` are allowed but warned about.
-    bootstrap : ``"stationary"`` (default) or ``"circular"``.
-    min_coverage : the MCS needs a common sample. Models observed on fewer than
-        this fraction of origins (relative to the best-covered model) are
-        dropped before forming that common sample (reported in
-        ``dropped_models``). With the default 0, no models are dropped and the
-        common sample is the intersection, which can be short.
+    alpha : MCS level.
+    statistic : ``"R"`` (default) - range statistic max_{i,j} |t_ij| over
+        pairwise studentized differences; ``"max"`` - max_i t_i with each
+        model compared with the set average.
+    variance : how the differences are studentized.
+
+        ``"gk"`` (default): Götze-Künsch studentized circular block
+        bootstrap. The sample statistic uses the overlapping-block long-run
+        covariance of the losses; each bootstrap replicate recomputes the
+        covariance from its own blocks, so the bootstrap distribution
+        includes the noise of the variance estimate. Requires
+        ``bootstrap="circular"`` (the default for this choice).
+
+        ``"bootstrap"``: the original HLN (2011) / ``arch.bootstrap.MCS``
+        recipe - variances are the bootstrap variances of the mean
+        differences and the bootstrap statistic reuses them (stationary
+        bootstrap by default). **Over-rejects badly here**: with 10 equally
+        good models and 40 years of 12-month overlapping losses it excludes
+        at least one model ~40-45% of the time at alpha = 0.10 (arch's
+        implementation does the same). Kept for comparison.
+    block_length : block length in months (mean length for stationary).
+        Default :func:`default_block_length` (36 for h=12). Values below
+        ``h`` are warned about.
+    bootstrap : ``"circular"`` or ``"stationary"``; default circular for
+        ``variance="gk"`` and stationary for ``variance="bootstrap"``.
+    min_coverage : the MCS needs a common sample. Models observed on fewer
+        than this fraction of origins (relative to the best-covered model)
+        are dropped before forming it (reported in ``dropped_models``). With
+        the default 0 nothing is dropped and the common sample is the
+        intersection of all models' histories, which can be short.
 
     Notes
     -----
-    Variances of the pairwise mean differentials are the bootstrap variances
-    (as in HLN 2011). Since both the statistic and its bootstrap distribution
-    are formed from the same resamples, the procedure is in effect a
-    non-studentized block bootstrap, which inherits the block bootstrap's
-    tendency to understate variance when the block is short relative to the
-    dependence. The Monte Carlo shows coverage of the best model close to
-    nominal with 24-month blocks for 2 models with modest differences; with
-    many near-equal models coverage of the *single* best model is above
-    nominal (the set is conservative) but the set is then also wide.
+    Monte Carlo (10 models, see ``tests/eval/test_inference.py``): with the
+    default settings the set keeps all 10 equally good models in roughly
+    85-90% of samples at alpha = 0.10 and contains the best of 10 graded models
+    in >= 95%; models that are 30-40% worse in QLIKE are excluded in most
+    samples only with 90 years of data. See the report for the full table.
     """
     if not isinstance(losses, pd.DataFrame):
         raise TypeError("losses must be a DataFrame (origins x models)")
+    if variance not in ("gk", "bootstrap"):
+        raise ValueError(f"unknown variance {variance!r}")
+    if statistic not in ("R", "max"):
+        raise ValueError(f"unknown statistic {statistic!r}")
+    if bootstrap is None:
+        bootstrap = "circular" if variance == "gk" else "stationary"
+    if variance == "gk" and bootstrap != "circular":
+        raise ValueError("variance='gk' requires bootstrap='circular'")
     L0 = losses.astype(float)
     dropped: list[str] = []
     if min_coverage > 0:
@@ -975,59 +1027,56 @@ def model_confidence_set(
         notes.append(f"common sample uses {n} of {n_full} origins")
     if n < 3:
         raise ValueError("fewer than 3 origins where all models are observed")
+    mu = X.mean(axis=0)
     if m < 2:
         pv = pd.Series(1.0, index=names)
-        return MCSResult(names, [], pv, names, alpha, statistic, np.nan, bootstrap, 0, n, L0.mean(), dropped, tuple(notes))
+        return MCSResult(names, [], pv, names, alpha, statistic, np.nan, bootstrap, 0, n, pd.Series(mu, index=names), dropped, tuple(notes))
     Lb = int(block_length) if block_length is not None else default_block_length(n, h)
+    Lb = max(1, min(Lb, n))
     if Lb < h:
         notes.append(f"WARNING: block length {Lb} < h={h}; the MCS will be too small")
         if warn:
             warnings.warn(notes[-1], InferenceWarning, stacklevel=2)
     rng = np.random.default_rng(seed)
-    ib = block_bootstrap_indices(n, n_boot, Lb, kind=bootstrap, rng=rng)
-    mu = X.mean(axis=0)  # (m,)
-    # bootstrap means, chunked to bound memory
-    mu_b = np.empty((n_boot, m))
-    step = max(1, int(2e7 // max(n * m, 1)))
-    for s in range(0, n_boot, step):
-        mu_b[s : s + step] = X[ib[s : s + step]].mean(axis=1)
-    dev = mu_b - mu  # (B, m) centred bootstrap deviations
+    Xc = X - mu
+    if variance == "gk":
+        k = int(math.ceil(n / Lb))
+        ext = np.concatenate([Xc, Xc[: Lb - 1]], axis=0) if Lb > 1 else Xc
+        cs = np.concatenate([np.zeros((1, m)), np.cumsum(ext, axis=0)], axis=0)
+        obm = (cs[Lb : Lb + n] - cs[:n]) / Lb  # overlapping block means (n, m), mean zero
+        C = Lb * (obm.T @ obm) / n  # GK long-run covariance
+        starts = rng.integers(0, n, size=(n_boot, k))
+        bm = obm[starts]  # (B, k, m) block means of centred data
+        dev = bm.mean(axis=1)  # (B, m) = bootstrap mean - sample mean
+        bmc = bm - dev[:, None, :]
+        Cb = Lb * np.einsum("bki,bkj->bij", bmc, bmc) / k
+        scale, scale_b = 1.0 / n, 1.0 / (k * Lb)
+    else:
+        ib = block_bootstrap_indices(n, n_boot, Lb, kind=bootstrap, rng=rng)
+        dev = np.empty((n_boot, m))
+        step = max(1, int(2e7 // max(n * m, 1)))
+        for s0 in range(0, n_boot, step):
+            dev[s0 : s0 + step] = Xc[ib[s0 : s0 + step]].mean(axis=1)
+        C = dev.T @ dev / n_boot  # bootstrap covariance of the means
+        Cb = C[None]
+        scale = scale_b = 1.0
     alive = list(range(m))
     order: list[int] = []
     step_p: list[float] = []
     while len(alive) > 1:
         a = np.array(alive)
-        if statistic == "R":
-            dij = mu[a][:, None] - mu[a][None, :]  # (k,k)
-            dev_ij = dev[:, a][:, :, None] - dev[:, a][:, None, :]  # (B,k,k)
-            var_ij = np.mean(dev_ij**2, axis=0)
-            np.fill_diagonal(var_ij, 1.0)
-            sd = np.sqrt(np.maximum(var_ij, 1e-300))
-            tij = dij / sd
-            t_obs = np.max(np.abs(tij))
-            t_boot = np.max(np.abs(dev_ij / sd[None]), axis=(1, 2))
-            # eliminate the model whose worst pairwise t is largest
-            elim_local = int(np.argmax(np.max(tij, axis=1)))
-        elif statistic == "max":
-            di = mu[a] - mu[a].mean()
-            dev_i = dev[:, a] - dev[:, a].mean(axis=1, keepdims=True)
-            var_i = np.mean(dev_i**2, axis=0)
-            sd = np.sqrt(np.maximum(var_i, 1e-300))
-            ti = di / sd
-            t_obs = np.max(ti)
-            t_boot = np.max(dev_i / sd[None], axis=1)
-            elim_local = int(np.argmax(ti))
-        else:
-            raise ValueError(f"unknown statistic {statistic!r}")
-        p = float(np.mean(t_boot >= t_obs))
+        t_obs, score = _mcs_step_stats(statistic, mu, C, a, scale)
+        t_boot, _ = _mcs_step_stats(statistic, dev, Cb, a, scale_b)
+        p = float((1 + np.sum(t_boot >= t_obs)) / (n_boot + 1))
         step_p.append(p)
+        elim_local = int(np.argmax(score))
         order.append(alive[elim_local])
         alive.pop(elim_local)
     order.append(alive[0])
     step_p.append(1.0)
     mcs_p = np.maximum.accumulate(np.array(step_p))
-    pvals = pd.Series(mcs_p, index=[names[i] for i in order], name="mcs_pvalue")
     elim_names = [names[i] for i in order]
+    pvals = pd.Series(mcs_p, index=elim_names, name="mcs_pvalue")
     included = [nm for nm in elim_names if pvals[nm] >= alpha]
     excluded = [nm for nm in elim_names if pvals[nm] < alpha]
     if n / max(h, 1) < MIN_INDEPENDENT_WINDOWS:
@@ -1042,7 +1091,7 @@ def model_confidence_set(
         alpha=alpha,
         statistic=statistic,
         block_length=float(Lb),
-        bootstrap=bootstrap,
+        bootstrap=f"{bootstrap}/{variance}",
         n_boot=n_boot,
         n_obs=n,
         mean_loss=pd.Series(mu, index=names),

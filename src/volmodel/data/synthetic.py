@@ -29,6 +29,9 @@ def make_synthetic_panel(seed: int = 0, start: str = "1975-01-01", end: str = "2
                          monthly_only_years: int = 10, stagger: bool = True) -> Panel:
     rng = np.random.default_rng(seed)
     days = pd.bdate_range(start, end)
+    # drop nine pseudo-holidays a year so a year has about 252 trading days
+    pos = pd.Series(np.arange(len(days)), index=days).groupby(days.year).cumcount().values
+    days = days[~np.isin(pos, [0, 14, 35, 75, 103, 127, 172, 233, 255])]
     n, k = len(days), len(ASSET_IDS)
 
     def log_vol_path(persistence=0.995, vol_of_vol=0.035):
