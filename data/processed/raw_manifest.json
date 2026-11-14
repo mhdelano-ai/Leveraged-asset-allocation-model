@@ -1,0 +1,8 @@
+{
+  "fred/TB3MS.csv": {
+    "bytes": 17881,
+    "fetched_utc": "2026-11-14T14:46:43+00:00",
+    "sha256": "33fae406051a658c316580f8e8b5e461157e6663bc03b35648cc7cd3e89ee26b",
+    "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=TB3MS"
+  }
+}

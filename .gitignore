@@ -4,3 +4,4 @@ __pycache__/
 data/raw/
 *.pyc
 .venv/
+data/processed/raw_manifest.lock

@@ -2,8 +2,10 @@
 where each byte came from and when."""
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,16 +39,20 @@ def fetch(url: str, name: str, *, refresh: bool = False, retries: int = 4, **kwa
             time.sleep(2 ** (attempt + 1))
     else:
         raise RuntimeError(f"could not fetch {url}: {last}")
-    path.write_bytes(r.content)
-    manifest = _load_manifest()
-    manifest[name] = {
-        "url": url,
-        "fetched_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "sha256": hashlib.sha256(r.content).hexdigest(),
-        "bytes": len(r.content),
-    }
+    tmp = path.with_name(path.name + f".{os.getpid()}.tmp")
+    tmp.write_bytes(r.content)
+    tmp.replace(path)  # atomic, so a concurrent reader never sees a partial file
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
-    MANIFEST.write_text(json.dumps(manifest, indent=2, sort_keys=True))
+    with open(MANIFEST.with_suffix(".lock"), "w") as lock:  # several builders may fetch at once
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        manifest = _load_manifest()
+        manifest[name] = {
+            "url": url,
+            "fetched_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "sha256": hashlib.sha256(r.content).hexdigest(),
+            "bytes": len(r.content),
+        }
+        MANIFEST.write_text(json.dumps(manifest, indent=2, sort_keys=True))
     return path
 
 
