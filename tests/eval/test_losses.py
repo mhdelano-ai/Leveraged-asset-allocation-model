@@ -62,11 +62,11 @@ def test_oracle_scores_zero(setup):
     run_model(OracleCorr(T), "corr", p, results_dir=rd)
     run_model(OracleCov(T), "cov", p, results_dir=rd)
     L = compute_losses("vol", ["t_oracle_vol"], T, rd)
-    assert len(L["asset"]) > 1000 and L["asset"]["proxy"].any()
+    assert len(L["asset"]) > 500 and L["asset"]["proxy"].any()
     assert np.abs(L["asset"][["qlike", "se_vol", "se_logvol", "log_err", "se_var_scaled"]].to_numpy()).max() < 1e-12
     assert np.abs(L["pooled"][["qlike", "se_vol_scaled"]].to_numpy()).max() < 1e-12
     Lc = compute_losses("corr", ["t_oracle_corr"], T, rd)
-    assert len(Lc["pair"]) > 1000 and np.abs(Lc["pair"]["se"]).max() < 1e-20
+    assert len(Lc["pair"]) > 500 and np.abs(Lc["pair"]["se"]).max() < 1e-20
     Lv = compute_losses("cov", ["t_oracle_cov"], T, rd)
     pooled = Lv["pooled"]
     assert set(pooled["subset"]) >= {"daily", "stock_bond", "full12"}

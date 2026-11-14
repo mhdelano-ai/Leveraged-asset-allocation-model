@@ -589,22 +589,6 @@ def episode_table(diag: dict) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def main(argv=None):
-    import argparse
-    ap = argparse.ArgumentParser(description="Build ig_credit / hy_credit returns and credit-spread predictors")
-    ap.add_argument("--refresh", action="store_true", help="re-download raw files")
-    ap.add_argument("--no-report", action="store_true")
-    a = ap.parse_args(argv)
-    diag = build(refresh=a.refresh)
-    pd.set_option("display.width", 250)
-    pd.set_option("display.max_colwidth", 60)
-    print(diag["segments"][["asset", "start", "end", "freq", "source", "tier"]].to_string(index=False))
-    if not a.no_report:
-        write_report(diag)
-
-
-if __name__ == "__main__":
-    main()
 
 
 # -------------------------------------------------------------------- report
@@ -879,3 +863,21 @@ points), e.g. 0.94 = 94 bp. Monthly series use obs_date = month-end.
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text)
     return text
+
+
+def main(argv=None):
+    import argparse
+    ap = argparse.ArgumentParser(description="Build ig_credit / hy_credit returns and credit-spread predictors")
+    ap.add_argument("--refresh", action="store_true", help="re-download raw files")
+    ap.add_argument("--no-report", action="store_true")
+    a = ap.parse_args(argv)
+    diag = build(refresh=a.refresh)
+    pd.set_option("display.width", 250)
+    pd.set_option("display.max_colwidth", 60)
+    print(diag["segments"][["asset", "start", "end", "freq", "source", "tier"]].to_string(index=False))
+    if not a.no_report:
+        write_report(diag)
+
+
+if __name__ == "__main__":
+    main()
