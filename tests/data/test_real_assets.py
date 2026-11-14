@@ -92,7 +92,12 @@ def test_commodities_episodes():
     assert px.loc["2016-01-31"] / px.loc["2014-06-30"] < 0.65   # 2014-16 bust
     assert px.loc["2022-06-30"] / px.loc["2021-12-31"] > 1.10   # 2022 spike
     d = _load("commodities", "daily")
-    assert (d.loc["2010":, "tier"] == "A").all()
+    assert (d["tier"] == "B").all()                              # BCOM index throughout
+    assert d.index[0] < pd.Timestamp("1991-03-01")
+    assert m.index[0] == pd.Timestamp("1926-07-31")
+    # 1990 Gulf-war spike and the 2020-04 low are visible
+    assert px.loc["1990-10-31"] / px.loc["1990-07-31"] > 1.05
+    assert px.loc["2020-04-30"] / px.loc["2020-01-31"] < 0.85
 
 
 @pytest.mark.realdata
@@ -113,8 +118,8 @@ def test_bundesbank_responds(tmp_path):
 
 
 @pytest.mark.network
-def test_yahoo_responds(tmp_path, monkeypatch):
+def test_ft_responds(tmp_path, monkeypatch):
     monkeypatch.setattr(ra, "RAW_DIR", tmp_path)
-    ra.fetch_yahoo("GLD", refresh=True)
-    df = ra.read_yahoo("GLD")
-    assert df.index[0] <= pd.Timestamp("2004-11-19") and len(df) > 5000
+    ra.fetch_ft("BCOM", first_year=2025, refresh_last=False)
+    s = ra.read_ft("BCOM")
+    assert s.loc["2025"].size > 240 and (s > 0).all()
