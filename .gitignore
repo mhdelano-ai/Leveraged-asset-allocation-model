@@ -10,14 +10,16 @@ results/targets/
 results/dev_noD/
 results/full/
 
-# --- from the assetpred branch
+results/dev/
+# --- archived results of the assetpred project (see results/archive/assetpred)
 .venv/
 data/processed/raw_manifest.lock
-# development-period outputs are exploratory and regenerable; keep only the trial logs
-results/dev/*
-!results/dev/trials_*.csv
-# bulky and regenerable in under a minute from the committed forecasts and covariances
-results/strategy/returns.parquet
-results/strategy/weights.parquet
-# a 17 MB text copy of frozen.parquet
-results/scores/frozen.csv
+# its development-period outputs were exploratory; only the trial logs are kept
+results/archive/assetpred/dev/*
+!results/archive/assetpred/dev/trials_*.csv
+results/archive/assetpred/strategy/returns.parquet
+results/archive/assetpred/strategy/weights.parquet
+results/archive/assetpred/scores/frozen.csv
+# return-side outputs that regenerate in under a minute
+results/returns/strategy/returns.parquet
+results/returns/strategy/weights.parquet
