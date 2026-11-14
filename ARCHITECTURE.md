@@ -292,7 +292,7 @@ statement of method per block and the consistency checks).
 | `results/returns/expected/` | `history.parquet`: mean and interval at every origin | yes |
 | `results/returns/distribution/` | `history.parquet`, `history_portfolios.parquet`, `shape_history.parquet`, `residuals.parquet`, `scores.parquet`, metadata | yes |
 | `results/returns/strategy/` | `metrics.parquet`, `summary.csv`, `summary_by_period.csv`, `meta.json` (`returns.parquet`, `weights.parquet` regenerate in a minute and are not committed) | partly |
-| `results/archive/assetpred/` | the `assetpred` project's results and inputs as merged: its 1-, 3- and 12-month findings (`dashboard.html`, `scores/`, `strategy/`), its development trial logs, and the fixtures the port is checked against | yes, never rewritten |
+| `results/archive/assetpred/` | the `assetpred` project's results and inputs as merged: its 1-, 3- and 12-month findings (`scores/`, `strategy/`; its HTML dashboard was removed, recoverable from git history), its development trial logs, and the fixtures the port is checked against | yes, never rewritten |
 | `results/dev/` | every development run | no |
 | `forecasts/` | the published forecast per origin and `latest/` | yes |
 | `dashboard/` | the published dashboard page and its data | yes |

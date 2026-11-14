@@ -24,7 +24,7 @@ data and the interfaces.
 | side | developed on | frozen | holdout (scored once) | record |
 |---|---|---|---|---|
 | covariance | outcomes known by 2014-12-31 (origins to 2013-12) | the model choice in `reports/SELECTION.md`, committed before the scoring script existed | origins 2014-01 to 2025-10 | `results/final/`, `reports/final_evaluation.md` |
-| returns (`assetpred`) | outcomes known by the end of 2014 | the model lists, test families and scoring rules at `assetpred` commit `7577b13` | origins 2015-01 onward (to 2025-10 at 12 months), at 1, 3 and 12 months | `results/archive/assetpred/` (`dashboard.html`, `scores/frozen.parquet` and `frozen.json`, `strategy/`; the CSV exports are not committed) |
+| returns (`assetpred`) | outcomes known by the end of 2014 | the model lists, test families and scoring rules at `assetpred` commit `7577b13` | origins 2015-01 onward (to 2025-10 at 12 months), at 1, 3 and 12 months | `results/archive/assetpred/` (`scores/frozen.parquet` and `frozen.json`, `strategy/`; the CSV exports are not committed, and its HTML dashboard was removed, recoverable from git history) |
 
 Both were scored once and both are spent: every month up to the merge has now
 been seen. Development continues on data through 2014
