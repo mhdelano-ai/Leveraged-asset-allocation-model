@@ -410,17 +410,19 @@ def _worker(kind, name, source, seed, kw):
 
 
 def run_models(kind: str, names: list[str], *, source: str = "real", seed: int = 0,
-               jobs: int = 1, **kw) -> list[RunResult]:
+               jobs: int = 1, mp_start: str = "spawn", **kw) -> list[RunResult]:
     """Run several REGISTERED models, in parallel across models (processes).
 
     Each model runs in one process and sees its origins in chronological
     order. Failures are collected (``RunResult.error``), not raised, so one
     bad model does not stop the others. ``kw`` is passed to :func:`run_model`.
+    ``mp_start`` is the multiprocessing start method ("spawn" is safe with
+    threaded BLAS; tests use "fork" so test-registered models are inherited).
     """
     if jobs <= 1 or len(names) <= 1:
         return [_worker(kind, n, source, seed, kw) for n in names]
     out = []
-    ctx = get_context("spawn")  # safe with BLAS threads; workers re-import cleanly
+    ctx = get_context(mp_start)
     with ProcessPoolExecutor(max_workers=jobs, mp_context=ctx) as ex:
         futs = {ex.submit(_worker, kind, n, source, seed, kw): n for n in names}
         for f in as_completed(futs):

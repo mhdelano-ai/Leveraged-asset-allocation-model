@@ -313,3 +313,95 @@ def ann_vol_by_decade(r: pd.Series, freq: str) -> pd.Series:
     k = 252 if freq == "D" else 12
     x = np.log1p(r.dropna())
     return x.groupby((x.index.year // 10) * 10).std() * np.sqrt(k)
+
+
+# --------------------------------------------------------------------------- #
+# GOLD
+# --------------------------------------------------------------------------- #
+OZ_PER_KG = 32.1507466
+# Free-market start. Before 15 Aug 1971 the private London/Zurich/Frankfurt
+# price was tethered to the $35 official price (the two-tier market of
+# 1968-71 kept it within ~$35-43, ann. vol < 10%). Convertibility was
+# suspended on 15 Aug 1971; from then on no official price constrained the
+# market. Returns start with the first full month after that, so every
+# monthly return is a complete month of free-market data.
+GOLD_START = pd.Timestamp("1971-09-01")
+
+
+def gold_frankfurt_usd() -> pd.Series:
+    """Frankfurt kilo-bar fixing (DEM/kg) / Frankfurt USD fixing (DEM per USD) -> USD/oz.
+
+    Both are Frankfurt exchange fixings set around 13:00 CET on the same day,
+    so the conversion is synchronous.
+    """
+    g, fx = read_bbk(BBK_KEYS[0]), read_bbk(BBK_KEYS[1])
+    both = pd.concat([g, fx], axis=1, keys=["g", "fx"], sort=True).dropna()
+    return (both.g / both.fx / OZ_PER_KG).rename("gold_frankfurt_usd")
+
+
+def gold_ifs_monthend() -> pd.Series:
+    """IMF IFS: US official gold 'at market price' (USD mn) / volume (mn fine oz).
+
+    IFS values official gold at the end-of-period London price, so the ratio
+    is a month-end market price per ounce.
+    """
+    v = read_dbn("IMF", "IFS", IFS_CODES[0]) / read_dbn("IMF", "IFS", IFS_CODES[1])
+    return v.rename("gold_ifs_monthend")
+
+
+def build_gold() -> tuple[pd.DataFrame, pd.DataFrame, list[Segment], dict]:
+    segs: list[Segment] = []
+    diag: dict = {}
+    fra = gold_frankfurt_usd()
+    ifs = gold_ifs_monthend()
+    gc = read_yahoo("GC=F")["close"]
+    gld = read_yahoo("GLD")["adjclose"]
+
+    # --- daily segments --------------------------------------------------
+    gld_start = first_full_month_start(gld.index)   # GLD listed 2004-11-18
+    gc_start = first_full_month_start(gc.index)      # GC=F starts 2000-08-30
+    d1 = price_returns(fra, GOLD_START, None)
+    d2 = price_returns(gc, gc_start, gld_start - pd.Timedelta(days=1))
+    d3 = price_returns(gld, gld_start)
+    daily = pd.concat([
+        _frame(d1, "bundesbank:frankfurt_fixing_DEM/kg / frankfurt_USD_fixing", "B"),
+        _frame(d2, "yahoo:GC=F (COMEX front-month close)", "B"),
+        _frame(d3, "yahoo:GLD adjclose", "A"),
+    ]).sort_index()
+    daily.index.name = "date"
+    segs += [
+        Segment("gold", d1.index[0], d1.index[-1], "D", "Bundesbank BBEX3 Frankfurt gold fixing (DEM/kg) / Frankfurt USD fixing", "B",
+                "free-market start after the 15 Aug 1971 closing of the gold window; synchronous 13:00 CET fixings; "
+                "series ends 1998-12-30 (the Dec-31 move is not covered)"),
+        Segment("gold", d2.index[0], d2.index[-1], "D", "Yahoo GC=F COMEX gold front-month continuous close", "B",
+                "futures price changes used as spot proxy; contract rolls add small jumps"),
+        Segment("gold", d3.index[0], d3.index[-1], "D", "Yahoo GLD adjusted close", "A",
+                "SPDR Gold Shares, physical gold less 0.40%/yr fee"),
+    ]
+
+    # --- monthly ---------------------------------------------------------
+    md = to_monthly(daily["ret"])
+    md_src = daily.groupby(pd.Grouper(freq="ME"))["source"].last().reindex(md.index)
+    md_tier = daily.groupby(pd.Grouper(freq="ME"))["tier"].last().reindex(md.index)
+    ifs_r = ifs.pct_change()
+    gap = ifs_r.loc[d1.index[-1] + pd.offsets.MonthEnd(1): d2.index[0] - pd.Timedelta(days=1)].dropna()
+    monthly = pd.concat([
+        pd.DataFrame({"ret": md, "source": md_src, "tier": md_tier}),
+        _frame(gap, "dbnomics:IMF/IFS US gold at market price / volume (month-end London price)", "C"),
+    ]).sort_index()
+    monthly.index.name = "date"
+    segs.append(Segment("gold", gap.index[0], gap.index[-1], "M",
+                        "IMF IFS (via DBnomics) US official gold at market price / fine oz = month-end London price", "C",
+                        "fills the daily gap between the Frankfurt series (ends 1998) and GC=F (starts 2000-08)"))
+
+    # --- diagnostics -----------------------------------------------------
+    diag["frankfurt_vs_ifs_M"] = overlap_stats(to_monthly(d1), ifs_r, "M")
+    diag["gcf_vs_gld_D"] = overlap_stats(price_returns(gc), price_returns(gld), "D")
+    diag["gcf_vs_gld_M"] = overlap_stats(to_monthly(price_returns(gc)), to_monthly(price_returns(gld)), "M")
+    diag["gcf_vs_ifs_M"] = overlap_stats(to_monthly(price_returns(gc)), ifs_r, "M")
+    diag["gld_vs_ifs_M"] = overlap_stats(to_monthly(d3), ifs_r, "M")
+    wb = read_worldbank("Gold").pct_change()
+    diag["wb_avg_vs_ifs_eom_M"] = overlap_stats(wb.loc[GOLD_START:], ifs_r.loc[GOLD_START:], "M")
+    diag["wb_avg_ac1"] = np.log1p(wb.loc[GOLD_START:].dropna()).autocorr()
+    diag["ifs_eom_ac1"] = np.log1p(ifs_r.loc[GOLD_START:].dropna()).autocorr()
+    return daily, monthly, segs, diag

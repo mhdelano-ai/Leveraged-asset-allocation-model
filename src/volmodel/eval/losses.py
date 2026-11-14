@@ -11,6 +11,7 @@ Vol (per asset; v = variance, s = vol; f = forecast, r = realized)
     se_vol        (s_f - s_r)^2                   (scale-DEPENDENT)
     se_vol_scaled ((s_f - s_r) / c_a)^2, c_a = the asset's mean realized vol
                   over all origins (a fixed constant per asset)
+    se_var_scaled ((v_f - v_r) / c_a^2)^2  (MSE on variance, fixed scale)
     se_logvol     (log s_f - log s_r)^2           (scale-free)
     log_err       log(s_f / s_r)                  (signed bias; > 0 = over-forecast)
 
@@ -21,6 +22,13 @@ high-vol assets, so it is reported but the comparable pooled MSE is
 ``se_vol_scaled``: dividing by a fixed per-asset constant keeps it a
 consistent loss under noisy unbiased targets (Patton 2011) — unlike dividing
 by the realized value, which would not. QLIKE is the headline metric.
+
+Robustness to target noise (matters for monthly-proxy rows): QLIKE and MSE on
+VARIANCE (``se_var_scaled``) rank forecasts correctly under any unbiased
+variance proxy (Patton 2011). Squared errors of vol / log vol and ``log_err``
+are NOT robust: with a noisy proxy they favour forecasts biased towards the
+proxy's median. They are fine on daily-based targets (small noise) but read
+them on the "daily" subset; ``log_err`` on proxy rows is biased downwards.
 
 Subsets (rows of the ``pooled`` frames, column ``subset``):
     "daily"   all assets with a DAILY-based target at that origin (vol/corr/cov)
@@ -72,7 +80,7 @@ DEFAULT_SUBSETS: dict[str, list[str]] = {
     "full12": list(ASSET_IDS),
 }
 
-VOL_METRICS = ["qlike", "se_logvol", "log_err", "se_vol_scaled", "se_vol"]
+VOL_METRICS = ["qlike", "se_logvol", "log_err", "se_var_scaled", "se_vol_scaled", "se_vol"]
 CORR_METRICS = ["mse", "bias"]
 COV_METRICS = ["stein", "frob_scaled"]
 PRIMARY = {"vol": "qlike", "corr": "mse", "cov": "stein"}
@@ -93,7 +101,9 @@ def vol_losses(fc: pd.DataFrame, targets: Targets, model: str,
     ratio = (vr / vf) ** 2
     d["qlike"] = ratio - np.log(ratio) - 1.0
     d["se_vol"] = (vf - vr) ** 2
-    d["se_vol_scaled"] = ((vf - vr) / d["asset"].map(scale).to_numpy(float)) ** 2
+    c = d["asset"].map(scale).to_numpy(float)
+    d["se_vol_scaled"] = ((vf - vr) / c) ** 2
+    d["se_var_scaled"] = ((vf ** 2 - vr ** 2) / c ** 2) ** 2
     d["log_err"] = np.log(vf / vr)
     d["se_logvol"] = d["log_err"] ** 2
     d.insert(0, "model", model)

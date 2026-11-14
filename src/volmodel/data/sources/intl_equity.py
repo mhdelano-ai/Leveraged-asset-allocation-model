@@ -376,6 +376,7 @@ def diagnostics(out: dict, refresh: bool = False) -> dict:
     eafe_m = msci_returns("990300", "END_OF_MONTH", refresh)
     em_m = msci_returns("891800", "END_OF_MONTH", refresh)
     s = {k: base_series(k, refresh) for k in SOURCE}
+    s["aqr_gxus"] = s["aqr_gxus"].loc["1986":]      # 1984-85 is Canada only
     kfd_d, kfd_m = kf_dev_daily(refresh), kf_dev_monthly(refresh)
     y = {sym: yahoo_returns(sym, refresh) for sym in
          ["VTMGX", "VEA", "VGTSX", "VWO", "TEDMX"] + DIAG_FUNDS_PRE1986}
@@ -430,8 +431,9 @@ def diagnostics(out: dict, refresh: bool = False) -> dict:
     # --- rejected long-history active funds, pre-1986, vs KF EAFE-weighted index
     rows = {}
     for sym in DIAG_FUNDS_PRE1986:
-        rows[f"{sym} vs KF EAFE-wt, ..1985"] = monthly_pair(
-            s["kf_intl_index"], _monthly_from_daily(y[sym]), None, "1985-12")
+        if y[sym].index[0] < pd.Timestamp("1985-06-01"):
+            rows[f"{sym} vs KF EAFE-wt, ..1985"] = monthly_pair(
+                s["kf_intl_index"], _monthly_from_daily(y[sym]), None, "1985-12")
         rows[f"{sym} vs KF EAFE-wt, full"] = monthly_pair(s["kf_intl_index"], _monthly_from_daily(y[sym]))
     rows["TEDMX vs KF EM, full"] = monthly_pair(s["kf_em"], _monthly_from_daily(y["TEDMX"]))
     rows["KF Dev ex US daily vs AQR GxUS (1990-07..2001-08)"] = {
@@ -489,3 +491,64 @@ def diagnostics(out: dict, refresh: bool = False) -> dict:
     D["outliers"] = outl
     D["us_ref"] = "^GSPC price (Yahoo), US close"
     return D
+
+
+# --------------------------------------------------------------- segments
+NOTES = {
+    "kf_intl_index": ("Ken French F-F_International_Indices.zip, Ind_all.Dat, first block "
+                      "(value-weight dollar returns, all firms), Mkt column. Countries at EAFE "
+                      "weights; MSCI raw data 1975-2006, Bloomberg after. Excludes Canada."),
+    "aqr_gxus": ("AQR Betting-Against-Beta daily workbook, MKT sheet 'Global Ex USA' (excess) + "
+                 "RF sheet. Cap-weighted developed ex-US incl. Canada (EFA excludes Canada). "
+                 "Index convention: foreign closes. Weekdays with |r|<0.001% (all closed) dropped."),
+    "EFA": "iShares MSCI EAFE ETF, Yahoo adjclose (checked = close + dividends). US-close prices.",
+    "kf_em": ("Ken French Emerging_5_Factors_CSV.zip, Mkt-RF + RF (RF = US 1m T-bill), "
+              "Bloomberg-based value-weighted EM market."),
+    "VEIEX": ("Vanguard Emerging Markets Stock Index Inv (tracked MSCI Select EM Free in this era), "
+              "Yahoo adjclose. Open-end NAV: foreign closes, with growing fair-value pricing after 2001."),
+    "EEM": "iShares MSCI Emerging Markets ETF, Yahoo adjclose (checked = close + dividends). US-close prices.",
+}
+
+
+def _fmt(d: dict, keys) -> str:
+    return ", ".join(f"{k}={d[k]:.3f}" for k in keys)
+
+
+def segments(out: dict, D: dict | None = None) -> pd.DataFrame:
+    """Provenance rows in the segments.csv schema (asset, start, end, freq, source, tier, notes)."""
+    key_of = {v: k for k, v in SOURCE.items()}
+    over = {}
+    if D is not None:
+        sp, sd = D["splice"], D["splice_daily"]
+        mk = ["corr", "vol_ratio", "te"]
+        dk = ["corr_1d", "corr_3d", "vol_ratio_1d", "vol_ratio_3d"]
+        over = {
+            "aqr_gxus": "Overlap vs KF EAFE-wt monthly 1986-2025: " + _fmt(sp.iloc[0], mk) + ".",
+            "EFA": ("Overlap vs AQR GxUS: monthly " + _fmt(sp.iloc[2], mk) + "; daily "
+                    + _fmt(sd.iloc[0], dk) + " (async closes)."),
+            "VEIEX": ("Overlap vs KF EM monthly 1994-06..2000: " + _fmt(sp.iloc[4], mk)
+                      + "; full overlap " + _fmt(sp.iloc[3], mk) + "."),
+            "EEM": ("Overlap vs VEIEX: monthly " + _fmt(sp.iloc[5], mk) + "; daily "
+                    + _fmt(sd.iloc[2], dk) + "."),
+        }
+    rows = []
+    for asset, (daily, monthly) in out.items():
+        k, tier, *_ = PLAN[asset]["monthly"]
+        m = monthly[monthly["source"] == SOURCE[k]]
+        rows.append((asset, m.index.min().date(), m.index.max().date(), "M", SOURCE[k], tier,
+                     NOTES[k]))
+        for (src, tier), g in daily.groupby(["source", "tier"], sort=False):
+            k = key_of[src]
+            rows.append((asset, g.index.min().date(), g.index.max().date(), "D", src, tier,
+                         (NOTES[k] + " " + over.get(k, "")).strip()))
+    return pd.DataFrame(rows, columns=["asset", "start", "end", "freq", "source", "tier", "notes"])
+
+
+def index_chain(asset: str, refresh: bool = False) -> pd.Series:
+    """ALTERNATIVE daily series in a single FOREIGN-CLOSE (index) convention, not
+    written to disk: intl_dev = AQR GxUS (1986..2000) + MSCI EAFE GR (2001..);
+    em = MSCI EM GR (2001..). For sensitivity checks of the async-close effect."""
+    if asset == "intl_dev":
+        a = aqr_total("Global Ex USA", refresh).loc["1986":"2000-12-31"]
+        return pd.concat([a, msci_returns("990300", refresh=refresh).loc["2001-01-01":]])
+    return msci_returns("891800", refresh=refresh).loc["2001-01-01":]
