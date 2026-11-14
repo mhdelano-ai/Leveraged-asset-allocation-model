@@ -34,6 +34,9 @@ Units: all vol indices are **annualized vol in decimals** (VIX 20 -> 0.20). Exce
 Not built (no data obtainable here): `iv_move`.
 
 
+> **Yahoo gap.** No Yahoo response was available (not in cache, and the chart API answered HTTP 429 for the whole build session) for: ^VIX9D, ^VIX, ^VIX3M, ^VIX6M, ^VIX1Y, ^VXO, ^VXN, ^RVX, ^VXD, ^VXEFA, ^VXEEM, ^VXTLT, ^MOVE, ^GVZ, ^OVX, ^VVIX, ^SKEW. Consequences: `iv_move` is absent; VIX3M/VXN/RVX/VXD/GVZ/OVX start at their Cboe CDN dates (Sep 2009) instead of their earlier Yahoo history; VXO ends 2021-01-07 (Cboe archive) rather than at its 2021 discontinuation. Re-running the module when Yahoo responds fills these automatically (Yahoo data are spliced in only after the overlap check below passes).
+
+
 ## Cboe vs Yahoo on the overlap
 
 Levels in published index points. Yahoo is used to extend a Cboe series only when it agrees (n >= 250, corr > 0.99, median |diff| < 2% of the median level).
@@ -111,7 +114,13 @@ Levels in published index points. Yahoo is used to extend a Cboe series only whe
 * **Holidays.** Cboe files contain trading days only (no stale holiday rows);
   missing business days per year match the NYSE holiday count. Yahoo rows with
   null closes are dropped. Nothing is filled or interpolated.
-* **Not obtainable here.** EVZ (euro FX vol), VXV/VXMT/VXST legacy files,
-  TYVIX/VXTYN (10-yr note vol, discontinued 2020), SRVIX (swaption vol) are
-  403 on the Cboe CDN; Yahoo results for these are in the overlap table if any.
+* **Not obtainable here.** On the Cboe CDN these return 403: VXO_History
+  (VXO comes from the archive files instead), EVZ (euro FX vol, dead),
+  VXV/VXMT/VXST legacy names, TYVIX/VXTYN (10-yr note vol, discontinued
+  2020), SRVIX (swaption vol), VXXLE, and per-index "archive" files for
+  VXN/RVX/VXD. Not attempted on Yahoo because the chart API was rate-limited.
+* **Residual noise.** The bad-print filter is deliberately conservative; thin
+  series (VXHYG, VXIEF, VXLQD, VXEFA, VXD) still contain day-to-day noise and
+  some two-day bad patches. For monthly forecasting prefer month averages or
+  medians of daily values over a single month-end print.
 

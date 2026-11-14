@@ -292,70 +292,104 @@ def _splice(pieces: list[tuple[pd.Series, str, str]]) -> pd.DataFrame:
     return out
 
 
+def last_complete_month(last_day: pd.Timestamp) -> pd.Timestamp:
+    """Month-end of the last month whose final weekday is in the data."""
+    if last_day >= last_day + pd.offsets.BMonthEnd(0):
+        return last_day + pd.offsets.MonthEnd(0)
+    return last_day - pd.offsets.MonthEnd(1)
+
+
 def to_monthly(daily: pd.DataFrame, through: pd.Timestamp) -> pd.DataFrame:
-    """Compound daily to calendar month-ends; source/tier = the dominant segment."""
-    g = daily.groupby(pd.Grouper(freq="ME"))
+    """Compound daily to calendar month-ends; source/tier of the segment with most days."""
+    d = daily.loc[:through]
+    g = d.groupby(pd.Grouper(freq="ME"))
     m = pd.DataFrame({
-        "ret": g["ret"].apply(lambda x: np.prod(1 + x.values) - 1 if len(x) else np.nan),
-        "source": g["source"].agg(lambda x: x.mode().iloc[0] if len(x) else None),
-        "tier": g["tier"].agg(lambda x: x.mode().iloc[0] if len(x) else None),
+        "ret": g["ret"].apply(lambda x: float(np.prod(1 + x.to_numpy()) - 1)),
+        "source": g["source"].agg(lambda x: x.value_counts().index[0]),
+        "tier": g["tier"].agg(lambda x: x.value_counts().index[0]),
     })
-    return m.loc[:through]
+    m.index.name = "date"
+    return m
 
 
 def _segments_of(df: pd.DataFrame, asset: str, freq: str) -> list[Segment]:
     key = df["source"].ne(df["source"].shift()).cumsum()
-    segs = []
-    for _, g in df.groupby(key, sort=False):
-        segs.append(Segment(asset, g.index[0], g.index[-1], freq, g["source"].iloc[0], g["tier"].iloc[0]))
-    return segs
+    return [Segment(asset, g.index[0], g.index[-1], freq, g["source"].iloc[0], g["tier"].iloc[0])
+            for _, g in df.groupby(key, sort=False)]
 
 
-SRC = {
-    "Mkt": "french_mkt_vw",
-    "VFINX": "yahoo_VFINX",
-    "SPY": "yahoo_SPY",
-    "NAESX": "yahoo_NAESX",
-    "IWM": "yahoo_IWM",
-    "shiller": "shiller_sp_composite_avgprice",
+def _src_name(port: str) -> str:
+    return "french_mkt_vw" if port == "Mkt" else "french_me_vw_" + port.replace(" ", "").replace("-", "").lower()
+
+
+SHILLER_SRC = "shiller_sp_composite_avgprice"
+
+# asset -> (French portfolio, [(fund symbol, first return date used), ...])
+SPECS = {
+    "us_large": (LARGE_PORTFOLIO, LARGE_FUNDS),
+    "us_small": (SMALL_PORTFOLIO, SMALL_FUNDS),
 }
+
+
+def _short(s: dict) -> str:
+    return (f"{s['start']}..{s['end']}: corr {s['corr']:.3f}, vol ratio {s['vol_ratio']:.3f}, "
+            f"TE {s['te']:.1%}")
 
 
 def build(refresh: bool = False, write: bool = True) -> dict:
     fd = french_daily(refresh)
-    fund = {s: yahoo_returns(s, refresh) for s, _ in LARGE_FUNDS + SMALL_FUNDS}
-    out: dict = {"segments": [], "diag": {}}
+    fm = french_monthly(refresh)
+    syms = sorted({s for _, f in SPECS.values() for s, _ in f})
+    fund = {s: yahoo_returns(s, refresh) for s in syms}
+    res: dict = {"segments": [], "french_daily": fd, "fund": fund}
 
-    for asset, port, funds in (("us_large", LARGE_PORTFOLIO, LARGE_FUNDS),
-                               ("us_small", SMALL_PORTFOLIO, SMALL_FUNDS)):
-        src0 = SRC["Mkt"] if port == "Mkt" else "french_me_vw_" + port.replace(" ", "").lower()
-        pieces = [(fd[port], src0, "B")]
+    for asset, (port, funds) in SPECS.items():
+        fr = fd[port]
+        pieces = [(fr, _src_name(port), "B")]
+        raw = {_src_name(port): fr}
         for sym, start in funds:
-            r = fund[sym]
-            if start:
-                r = r.loc[start:]
-            pieces.append((r, SRC[sym], "A"))
+            r = fund[sym].loc[start:] if start else fund[sym]
+            pieces.append((r, f"yahoo_{sym}", "A"))
+            raw[f"yahoo_{sym}"] = fund[sym]
         daily = _splice(pieces)
-        last_complete = (daily.index[-1] + pd.offsets.MonthEnd(0)
-                         if daily.index[-1].is_month_end or _is_last_trading_day(daily.index[-1])
-                         else daily.index[-1] - pd.offsets.MonthEnd(1))
-        monthly = to_monthly(daily, last_complete)
+        monthly = to_monthly(daily, last_complete_month(daily.index[-1]))
+        segs = _segments_of(daily, asset, "D")
+
+        # overlap notes ------------------------------------------------
+        last_fund = raw[f"yahoo_{funds[-1][0]}"]
+        segs[0].notes = (f"CRSP via Ken French ({port}); vs {funds[-1][0]} daily {_short(overlap_stats(fr, last_fund))}; "
+                         f"3-day {_short(overlap_stats(fr, last_fund, 'D3'))}")
+        for k in range(1, len(segs)):
+            cur, prev = raw[segs[k].source], raw[segs[k - 1].source]
+            own = cur.loc[segs[k].start:segs[k].end]
+            segs[k].notes = (f"vs {segs[k - 1].source} on full overlap {_short(overlap_stats(cur, prev))}; "
+                             f"vs French {port} on this segment {_short(overlap_stats(own, fr))}")
+
         if asset == "us_large":
-            sh = shiller_monthly(refresh).loc[:monthly.index[0] - pd.Timedelta(days=1)]
-            pre = pd.DataFrame({"ret": sh, "source": SRC["shiller"], "tier": "D"})
+            sh = shiller_monthly(refresh)
+            pre = pd.DataFrame({"ret": sh.loc[:"1926-06-30"], "source": SHILLER_SRC, "tier": "D"})
+            st = overlap_stats(sh, fm["Mkt"], "M")
+            ann = pd.concat([np.log1p(sh), np.log1p(fm["Mkt"])], axis=1).dropna().resample("YE").sum()
+            ann_ratio = ann.iloc[:, 0].std() / ann.iloc[:, 1].std()
+            seg0 = _segments_of(pre, asset, "M")[0]
+            seg0.notes = (f"month-AVERAGE prices (Cowles pre-1926) -> volatility damped; vs French Mkt monthly "
+                          f"{_short(st)}; annual (calendar-year) vol ratio {ann_ratio:.3f}")
             monthly = pd.concat([pre, monthly])
-        monthly.index.name = "date"
+            segs = [seg0] + segs
+            res["shiller_overlap"] = dict(monthly=st, annual_ratio=ann_ratio, annual_corr=ann.corr().iloc[0, 1])
+
         daily["tier"] = daily["tier"].astype(str)
         monthly["tier"] = monthly["tier"].astype(str)
-        out[asset] = (daily, monthly)
-        out["segments"] += _segments_of(daily, asset, "D")
-        if asset == "us_large":
-            out["segments"] = [_segments_of(monthly.loc[monthly.source == SRC["shiller"]], asset, "M")[0]] + out["segments"]
+        monthly.index.name = "date"
+        res[asset] = (daily, monthly)
+        res["segments"] += segs
         if write:
             ASSET_DIR.mkdir(parents=True, exist_ok=True)
             daily.to_parquet(ASSET_DIR / f"{asset}_daily.parquet")
             monthly.to_parquet(ASSET_DIR / f"{asset}_monthly.parquet")
-    return out
+    if write:
+        segments_frame(res).to_csv(CACHE / "segments_us_equity.csv", index=False)
+    return res
 
 
 def segments_frame(res: dict) -> pd.DataFrame:
@@ -364,19 +398,242 @@ def segments_frame(res: dict) -> pd.DataFrame:
                               source=s.source, tier=s.tier, notes=s.notes) for s in res["segments"]])
 
 
-def _is_last_trading_day(d: pd.Timestamp) -> bool:
-    # conservative: a month counts as complete only if its last weekday is in the data
-    last_bd = d + pd.offsets.BMonthEnd(0)
-    return d == last_bd
+# -------------------------------------------------------------------- report
+KNOWN_DATES = ["1929-10-28", "1929-10-29", "1987-10-19", "1987-10-20", "2008-10-13", "2008-10-15",
+               "2020-03-12", "2020-03-16", "2020-03-24"]
+
+
+def _md(df: pd.DataFrame, floatfmt: str = "{:.4f}") -> str:
+    cols = [str(c) for c in df.columns]
+    out = ["| " + " | ".join([df.index.name or ""] + cols) + " |",
+           "|" + "---|" * (len(cols) + 1)]
+    for i, r in df.iterrows():
+        cells = []
+        for v in r:
+            if isinstance(v, (float, np.floating)):
+                cells.append("" if np.isnan(v) else floatfmt.format(v))
+            else:
+                cells.append(str(v))
+        out.append("| " + " | ".join([str(i.date() if hasattr(i, "date") else i)] + cells) + " |")
+    return "\n".join(out)
+
+
+def diagnostics(res: dict) -> dict:
+    fd, fund = res["french_daily"], res["fund"]
+    spy, iwm = fund["SPY"], fund["IWM"]
+    naesx = fund["NAESX"].loc["1990-01-02":"2000-05-25"]
+    end = fd.index[-1]
+    rows = []
+    for c in fd.columns.drop("RF"):
+        row = {"portfolio": c}
+        for ref, rs in (("SPY", spy), ("IWM", iwm), ("NAESX90-00", naesx)):
+            s1 = overlap_stats(fd[c], rs.loc[:end])
+            s3 = overlap_stats(fd[c], rs.loc[:end], "D3")
+            row |= {f"{ref} corr": s1["corr"], f"{ref} volratio": s1["vol_ratio"],
+                    f"{ref} TE": s1["te"], f"{ref} corr3d": s3["corr"], f"{ref} volratio3d": s3["vol_ratio"]}
+        rows.append(row)
+    calib = pd.DataFrame(rows).set_index("portfolio")
+    # date alignment: correlation of French with fund at leads/lags
+    lag = {}
+    for name, a, b in (("Mkt vs SPY", fd["Mkt"], spy), ("Mkt vs VFINX", fd["Mkt"], fund["VFINX"]),
+                       (f"{SMALL_PORTFOLIO} vs IWM", fd[SMALL_PORTFOLIO], iwm),
+                       (f"{SMALL_PORTFOLIO} vs NAESX", fd[SMALL_PORTFOLIO], fund["NAESX"])):
+        lag[name] = {k: pd.concat([a, b.shift(k)], axis=1).dropna().corr().iloc[0, 1] for k in (-1, 0, 1)}
+    lag = pd.DataFrame(lag).T
+    lag.columns = ["fund leads 1d (k=-1)", "same day", "fund lags 1d (k=+1)"]
+    lag.index.name = "pair"
+    # outliers: fund-day returns far from French same-day
+    outl = []
+    for sym, port in (("VFINX", "Mkt"), ("SPY", "Mkt"), ("NAESX", SMALL_PORTFOLIO), ("IWM", SMALL_PORTFOLIO)):
+        d = pd.concat([fund[sym], fd[port]], axis=1, keys=["f", "fr"]).dropna()
+        diff = d["f"] - d["fr"]
+        z = (diff - diff.median()) / (1.4826 * (diff - diff.median()).abs().median())
+        for t in z.index[z.abs() > 8]:
+            outl.append(dict(date=t, fund=sym, fund_ret=d.loc[t, "f"], french=port, french_ret=d.loc[t, "fr"]))
+    outl = pd.DataFrame(outl)
+    return dict(calib=calib, lag=lag, outliers=outl)
+
+
+def vol_by_decade(res: dict) -> pd.DataFrame:
+    rows = {}
+    for asset in SPECS:
+        d, m = res[asset]
+        dl = d["ret"].groupby((d.index.year // 10) * 10)
+        ml = m["ret"].groupby((m.index.year // 10) * 10)
+        rows[f"{asset} daily"] = dl.std() * np.sqrt(252)
+        rows[f"{asset} monthly"] = ml.std() * np.sqrt(12)
+        rows[f"{asset} days/yr"] = dl.size() / d["ret"].groupby(d.index.year).size().groupby(
+            (d["ret"].groupby(d.index.year).size().index // 10) * 10).size()
+    out = pd.DataFrame(rows)
+    out.index = [f"{i}s" for i in out.index]
+    out.index.name = "decade"
+    return out
+
+
+def write_report(res: dict, path: Path | None = None) -> Path:
+    from ...paths import REPORTS
+    path = path or REPORTS / "data" / "us_equity.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    dg = diagnostics(res)
+    seg = segments_frame(res)
+    L, S = res["us_large"], res["us_small"]
+    kd = pd.DataFrame({
+        "us_large": L[0]["ret"].reindex(pd.to_datetime(KNOWN_DATES)),
+        "us_large source": L[0]["source"].reindex(pd.to_datetime(KNOWN_DATES)),
+        "us_small": S[0]["ret"].reindex(pd.to_datetime(KNOWN_DATES)),
+        "us_small source": S[0]["source"].reindex(pd.to_datetime(KNOWN_DATES)),
+    })
+    kd.index.name = "date"
+    mon = pd.DataFrame({"us_large": L[0]["ret"].groupby(pd.Grouper(freq="ME")).apply(lambda x: np.prod(1 + x) - 1),
+                        "us_small": S[0]["ret"].groupby(pd.Grouper(freq="ME")).apply(lambda x: np.prod(1 + x) - 1)})
+    mon = mon.reindex(pd.to_datetime(["1929-10-31", "1987-10-31", "2008-10-31", "2020-03-31"]))
+    mon.index.name = "month"
+    vd = vol_by_decade(res)
+    sh = res["shiller_overlap"]
+    seg_md = ["| asset | start | end | freq | source | tier | overlap notes |", "|---|---|---|---|---|---|---|"]
+    for _, r in seg.iterrows():
+        seg_md.append(f"| {r.asset} | {r.start} | {r.end} | {r.freq} | {r.source} | {r.tier} | {r.notes} |")
+    calib = dg["calib"]
+    pct = calib.copy()
+    txt = TEMPLATE.format(
+        today=pd.Timestamp.today().date(),
+        large_d0=L[0].index[0].date(), large_d1=L[0].index[-1].date(),
+        large_m0=L[1].index[0].date(), large_m1=L[1].index[-1].date(),
+        small_d0=S[0].index[0].date(), small_d1=S[0].index[-1].date(),
+        small_m0=S[1].index[0].date(), small_m1=S[1].index[-1].date(),
+        french_end=res["french_daily"].index[-1].date(),
+        small_port=SMALL_PORTFOLIO,
+        segments="\n".join(seg_md),
+        calib_large=_md(pct[[c for c in pct.columns if c.startswith("SPY")]], "{:.3f}"),
+        calib_small=_md(pct[[c for c in pct.columns if c.startswith(("IWM", "NAESX"))]], "{:.3f}"),
+        lag=_md(dg["lag"], "{:.4f}"),
+        outliers=(_md(dg["outliers"].set_index("date"), "{:.4f}") if len(dg["outliers"]) else "none"),
+        known=_md(kd, "{:+.4f}"), known_m=_md(mon, "{:+.4f}"),
+        vol=_md(vd, "{:.3f}"),
+        sh_corr=sh["monthly"]["corr"], sh_ratio=sh["monthly"]["vol_ratio"],
+        sh_aratio=sh["annual_ratio"], sh_acorr=sh["annual_corr"],
+        extra=REPORT_EXTRA,
+    )
+    path.write_text(txt)
+    return path
+
+
+REPORT_EXTRA = ""  # filled below once findings are known
+
+TEMPLATE = """# US equity data: `us_large`, `us_small`
+
+Generated by `python -m volmodel.data.sources.us_equity --report` on {today}.
+Loader: `src/volmodel/data/sources/us_equity.py`; raw cache: `data/raw/us_equity/`.
+All returns are SIMPLE TOTAL returns (dividends reinvested), in decimals, not excess of cash.
+
+## Coverage
+
+| asset | daily | monthly |
+|---|---|---|
+| us_large | {large_d0} .. {large_d1} | {large_m0} .. {large_m1} |
+| us_small | {small_d0} .. {small_d1} | {small_m0} .. {small_m1} |
+
+The monthly files hold complete calendar months only; in the daily era they are compounded daily returns.
+French data ends {french_end}; the fund/ETF segments carry the series to the latest Yahoo close.
+
+## Sources
+
+* **Ken French data library** (CRSP-based): `F-F_Research_Data_Factors_daily` (Mkt-RF + RF = CRSP value-weighted
+  market total return, NYSE only before 1962, + AMEX 1962, + Nasdaq 1972) and `Portfolios_Formed_on_ME_daily`
+  (value-weighted size portfolios on NYSE market-cap breakpoints, rebalanced each June). Percent, 2 decimals.
+* **Yahoo chart API** `adjclose` (dividend- and split-adjusted): VFINX (Vanguard 500 Index Inv), SPY,
+  NAESX (Vanguard Small-Cap Index Inv), IWM. Dates converted to exchange-local (New York) trading dates.
+* **Shiller** `ie_data.xls`: S&P Composite (Cowles Commission before 1926) monthly price = average of daily closes
+  in the month, and annualized dividends (interpolated from annual data before 1926).
+
+## Construction and why
+
+**us_large (SPY-like).** The French CRSP value-weighted market is used for 1926-07 onward, until VFINX begins.
+On the overlap it is nearly indistinguishable from SPY for volatility purposes (see calibration: correlation ~0.99,
+vol ratio ~1.0); the large-cap size portfolios (Hi 10, Hi 20, Hi 30) are not closer to SPY on tracking error,
+and Mkt is the canonical, best-documented series. VFINX (an S&P 500 index fund, investable) is then used until
+SPY starts trading, then SPY. Before July 1926 only monthly data exists: Shiller's series is used as **tier D**
+because month-average prices damp measured volatility (see below).
+
+**us_small (IWM-like).** IWM tracks the Russell 2000 (ranks ~1001-3000 by cap, value weighted). Every French
+value-weighted size portfolio was compared with IWM (2000-2026) and with NAESX in its Russell-2000 era
+(1990-2000). **`{small_port}`** was chosen: see the calibration table — it matches IWM's volatility level closely
+with the highest correlation / lowest tracking error among single portfolios. Its definition (NYSE breakpoints)
+is stable over time, so it is the same kind of exposure in 1926 as in 2026. NAESX is used from 1990-01-02 (it
+became a Russell 2000 index fund at the end of 1989; before that it was an actively managed fund) until IWM starts,
+then IWM. NAESX switched benchmark (MSCI US Small Cap 1750 in 2003, CRSP in 2013) only after IWM takes over.
+
+Splices are of RETURNS, never of price levels, so no level jump can arise; the first-day return of every
+segment is checked (tests: |r| < 4 x trailing 63-day vol).
+
+## Segments
+
+{segments}
+
+## Calibration of French portfolios against the ETFs (daily, overlap through French end)
+
+`corr`, `volratio` (French / fund), `TE` (annualized tracking error) on same-day daily returns; `corr3d`,
+`volratio3d` on non-overlapping 3-day returns (robust to close-timing differences).
+
+### vs SPY
+
+{calib_large}
+
+### vs IWM (2000-2026) and NAESX (1990-2000, Russell 2000 era)
+
+{calib_small}
+
+### Date alignment
+
+Correlation of French with fund returns at -1/0/+1 day shifts. The peak at "same day" confirms both are indexed
+by the trading date of the return.
+
+{lag}
+
+### Fund days far from the French same-day return (robust z > 8)
+
+{outliers}
+
+## Known dates (daily simple total returns)
+
+{known}
+
+Monthly:
+
+{known_m}
+
+## Annualized volatility by decade
+
+`daily` = std of daily returns x sqrt(252); `monthly` = std of monthly returns x sqrt(12);
+`days/yr` = average trading days per year in the decade (Saturday sessions before 1952 raise it).
+
+{vol}
+
+## Shiller (pre-1926) damping
+
+On 1926-07..2023 the Shiller monthly return has correlation {sh_corr:.3f} with the French market and a vol ratio
+of {sh_ratio:.3f}: averaging prices over the month makes each "monthly return" roughly a two-month moving
+average of true returns, which cuts monthly volatility by ~15-20% and induces positive autocorrelation.
+On calendar-year log returns the ratio is {sh_aratio:.3f} (corr {sh_acorr:.3f}), so the bias is mostly a
+monthly-measurement artifact. That segment is tier D; models should not treat its monthly variance as comparable
+to tier B/A without correction. Dividends before 1926 are interpolated from annual figures.
+There is no credible pre-1926 small-cap series; `us_small` starts 1926-07.
+
+## Caveats
+{extra}
+"""
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--refresh", action="store_true", help="re-download raw files")
+    ap.add_argument("--report", action="store_true", help="also write reports/data/us_equity.md")
     a = ap.parse_args(argv)
     res = build(refresh=a.refresh)
     for s in res["segments"]:
-        print(f"{s.asset:9s} {s.freq} {s.start.date()} .. {s.end.date()} {s.tier} {s.source}")
+        print(f"{s.asset:9s} {s.freq} {s.start.date()} .. {s.end.date()} {s.tier} {s.source}\n    {s.notes}")
+    if a.report:
+        print("wrote", write_report(res))
 
 
 if __name__ == "__main__":
