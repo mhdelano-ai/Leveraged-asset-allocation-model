@@ -358,6 +358,12 @@ def build(refresh: bool = False, write: bool = True) -> dict:
     return out
 
 
+def segments_frame(res: dict) -> pd.DataFrame:
+    """Segments in the ``segments.csv`` layout (asset, start, end, freq, source, tier, notes)."""
+    return pd.DataFrame([dict(asset=s.asset, start=s.start.date(), end=s.end.date(), freq=s.freq,
+                              source=s.source, tier=s.tier, notes=s.notes) for s in res["segments"]])
+
+
 def _is_last_trading_day(d: pd.Timestamp) -> bool:
     # conservative: a month counts as complete only if its last weekday is in the data
     last_bd = d + pd.offsets.BMonthEnd(0)

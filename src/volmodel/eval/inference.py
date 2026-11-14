@@ -122,46 +122,50 @@ class InferenceWarning(UserWarning):
 
 
 def default_ewc_terms(n: int, h: int = 12) -> int:
-    """Default number of cosine terms ``B`` for the EWC estimator.
+    """Default number of cosine terms ``B`` (= t degrees of freedom) for the EWC estimator.
 
-    ``B = clip(floor(n / (2 h)), 4, floor(0.4 n^(2/3)))``.
+    ``B = clip(floor(n / (4 h)), 4, floor(0.4 n^(2/3)))``; 10 for a 40-year
+    monthly backtest, 22 for 90 years.
 
-    The Lazarus-Lu-Stock-Watson rule ``0.4 n^(2/3)`` targets AR(1)-type
-    persistence. With 12-step overlap plus persistent volatility the loss
-    differential's spectrum is concentrated at frequencies below ``1/(2h)``,
-    so the cosine terms used must stay below that: ``B <= n/(2h)``. Equivalently
-    each cosine term spans at least ``2h`` months of data. The degrees of
-    freedom of the t-reference equal ``B``, so a 40-year backtest gives
-    roughly ``t(20)``: inference honestly reflects ~20 'independent' pieces of
-    information.
+    The Lazarus-Lu-Stock-Watson rule ``0.4 n^(2/3)`` is tuned for AR(1)-type
+    persistence and over-rejects here (Monte Carlo: 10-11% at 5% nominal in
+    the persistent design). With a 12-step overlap plus persistent volatility
+    and persistent model errors, the loss differential's spectrum is
+    concentrated at periods longer than several years; the highest cosine
+    frequency used, ``B / (2n)`` cycles per month, must stay below that.
+    ``B = n/(4h)`` keeps every cosine term's period >= ``8h`` months (8 years).
+    The t(B) reference then honestly reflects that the sample holds only about
+    ``B`` independent pieces of information about the mean differential.
     """
     if n < 2:
         return 1
     upper = max(4, int(math.floor(0.4 * n ** (2.0 / 3.0))))
-    b = int(math.floor(n / (2.0 * max(h, 1))))
+    b = int(math.floor(n / (4.0 * max(h, 1))))
     return int(min(max(b, 4), upper, max(n - 1, 1)))
 
 
 def default_bandwidth(n: int, h: int = 12) -> int:
-    """Default Newey-West lag truncation: ``max(2h, ceil(1.3 sqrt(n)))``, capped at ``n-1``.
+    """Default Newey-West lag truncation: ``max(4h, ceil(1.3 sqrt(n)))``, capped at ``n-1``.
 
-    ``1.3 sqrt(n)`` is the Lazarus et al. (2018) recommendation; ``2h`` ensures
-    the Bartlett weights at lag ``h-1`` are still about one half so the
-    overlap-induced autocorrelation is not shrunk away.
+    ``1.3 sqrt(n)`` is the Lazarus et al. (2018) rule; it is too short here
+    (the overlap alone needs lag ``h-1`` with substantial weight, and
+    volatility persistence extends much further), so the floor ``4h`` (48
+    months) dominates for any realistic backtest length. Used with
+    Kiefer-Vogelsang fixed-b critical values.
     """
-    return int(min(max(2 * h, math.ceil(1.3 * math.sqrt(max(n, 1)))), max(n - 1, 0)))
+    return int(min(max(4 * h, math.ceil(1.3 * math.sqrt(max(n, 1)))), max(n - 1, 0)))
 
 
 def default_block_length(n: int | None = None, h: int = 12) -> int:
-    """Default bootstrap (mean) block length: ``max(2h, ceil(n^(1/3)) )`` -> 24 months for h=12.
+    """Default bootstrap (mean) block length: ``max(3h, ceil(n^(1/3)))`` -> 36 months for h=12.
 
-    A block must be long enough to contain the overlap (``h``) and a good part
-    of the volatility persistence. Simulations show a 12-month block
-    over-rejects noticeably; 24 is a reasonable compromise between bias (too
-    short) and too few blocks (too long). ``n`` is accepted so the rule can
-    grow with sample size.
+    A block must contain the overlap (``h``) and a good part of the
+    volatility persistence. In the Monte Carlo a 12-month block over-rejects
+    badly (15-20% at 5% nominal in the persistent design), 24 months
+    moderately, 36 months is close to the EWC default. Longer blocks mean
+    fewer distinct blocks (30 in a 90-year sample), so do not go much higher.
     """
-    base = 2 * h
+    base = 3 * h
     if n is not None and n > 0:
         base = max(base, int(math.ceil(n ** (1.0 / 3.0))))
     return int(base)

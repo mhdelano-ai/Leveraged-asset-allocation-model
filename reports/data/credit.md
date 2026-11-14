@@ -21,11 +21,12 @@ tier-C segment.
 
 * **Yahoo chart API** (`query1.finance.yahoo.com/v8/finance/chart/<sym>`), `adjclose`.
   For every symbol used, adjclose returns were checked against returns computed from
-  `close` plus the dividend events: the median absolute daily difference is ~1e-7 and
-  the 99th percentile < 1e-4 (the residual is NAV rounding to the cent), so adjclose
-  includes distributions correctly back to 1980. Annual returns match published
-  figures I could recall (VWEHX 1990 -5.9%, 1991 +29.4%, 2008 -21.2%; VWESX 2008 +2.3%;
-  LQD 2008 +2.4%, 2022 -17.9%; HYG 2008 -17.6%).
+  `close` plus Yahoo's dividend events (table below): the residual is at the level of
+  NAV rounding to the cent, so adjclose includes distributions (capital-gain
+  distributions are reported by Yahoo as dividends) back to the first date used.
+  Calendar-year returns agree with figures recalled from memory (VWEHX 1990 -5.9%,
+  1991 +29.4%, 2008 -21.2%; VWESX 2008 +2.3%; LQD 2008 +2.4%, 2022 -17.9%; HYG 2008 -17.6%);
+  these were NOT checked against fund documents here.
   * ETFs: LQD (iShares iBoxx $ IG Corp, from 2002-07-30), HYG (iShares iBoxx $ HY Corp,
     from 2007-04-11), JNK (diagnostic only).
   * IG funds: VWESX Vanguard Long-Term Investment-Grade (daily from 1980-01-02),
@@ -39,6 +40,16 @@ tier-C segment.
     ONE NAV PER MONTH before 1985 (on the ex-dividend date, typically the 25th-30th),
     forward-filled so that ~95% of "daily" returns are exactly zero. Those years are
     NOT used as daily data. VWESX and FBNDX are genuinely daily from 1980.
+
+| symbol | first | n_div | median_abs_diff | p99_abs_diff | ann_TR_adjclose | ann_TR_close_div |
+|---|---|---|---|---|---|---|
+| LQD | 2002-07-30 | 291 | 2.50e-07 | 1.88e-05 | 4.41e-02 | 4.41e-02 |
+| HYG | 2007-04-11 | 234 | 2.50e-07 | 2.97e-05 | 4.77e-02 | 4.77e-02 |
+| VWESX | 1980-01-02 | 574 | 2.94e-07 | 5.82e-05 | 7.40e-02 | 7.36e-02 |
+| FBNDX | 1980-01-02 | 586 | 2.13e-07 | 5.61e-05 | 6.18e-02 | 6.14e-02 |
+| VFSTX | 1984-12-26 | 511 | 1.42e-07 | 3.51e-05 | 5.03e-02 | 5.01e-02 |
+| VWEHX | 1984-12-26 | 501 | 8.70e-08 | 6.71e-05 | 7.15e-02 | 7.09e-02 |
+
 * **Fed H.15 full data package** (`federalreserve.gov/datadownload/Output.aspx?rel=H15&filetype=zip`):
   Moody's seasoned Aaa and Baa yields, monthly averages 1919-01..2016-09 and daily
   1983/1986..2016-10-07 (the Fed stopped carrying Moody's in Oct 2016); 10-year CMT.
@@ -92,7 +103,8 @@ Construction logic:
   vs month-end sampling: corr 0.996,
   vol ratio 1.00. No credible HY
   return history before 1980 was found (the modern HY market starts ~1977-78).
-  An equal-weight composite of VWEHX/FHIIX/PRHYX was tried and did not track HYG better.
+  An equal-weight composite of VWEHX/FHIIX/PRHYX was tried and did not track HYG better
+  (monthly corr 0.89, vol ratio 0.84).
 
 ## Overlap diagnostics
 
@@ -138,6 +150,9 @@ difference. W = Friday-to-Friday weeks.
 | AHITX vs HYG | D | 2007-04-12..2026-10-30 | 4921 | 0.604 | 0.056 | 0.108 | 0.519 | 0.086 |
 | AHITX vs HYG | W | 2007-04-13..2026-10-30 | 1021 | 0.836 | 0.078 | 0.112 | 0.696 | 0.064 |
 | AHITX vs HYG | M | 2007-04-30..2026-10-31 | 235 | 0.880 | 0.088 | 0.101 | 0.875 | 0.048 |
+| equal-weight VWEHX/FHIIX/PRHYX vs HYG | D | 2007-04-12..2026-10-30 | 4921 | 0.578 | 0.050 | 0.108 | 0.467 | 0.089 |
+| equal-weight VWEHX/FHIIX/PRHYX vs HYG | W | 2007-04-13..2026-10-30 | 1021 | 0.851 | 0.075 | 0.112 | 0.665 | 0.063 |
+| equal-weight VWEHX/FHIIX/PRHYX vs HYG | M | 2007-04-30..2026-10-31 | 235 | 0.889 | 0.085 | 0.101 | 0.837 | 0.047 |
 | VWEHX ex-div-date-sampled vs month-end (1985-2026) | M | 1985-02-28..2026-10-31 | 497 | 0.996 | 0.070 | 0.070 | 1.004 | 0.006 |
 
 Tier-D maturity calibration (par bond on END-of-month Moody's yields vs LQD, monthly
@@ -263,13 +278,30 @@ What this shows:
   either use multi-day/weekly aggregation or a variance-ratio correction for these
   years; the data are left unadjusted.
 * **IG funds are much less affected**: the IG blends have lag-1 AC 0.08-0.15 in the
-  1980s-90s and ~0 afterwards; monthly/daily ratio ~1.3 in the 1980s (partly the
-  1980-82 rate volatility clustering, not only staleness), ~0.9-1.1 later.
-* **ETFs**: LQD/HYG show slightly NEGATIVE lag-1/2 autocorrelation in 2007-09 (LQD
-  ac1 -0.12, weekly/daily vol 0.79) and big one-day reversals
+  1980s-90s and -0.08..0.10 afterwards (LQD itself has 0.12 in 2020-26); the
+  monthly/daily vol ratio is ~1.3 for the 1980s FBNDX blend (partly 1980-82 rate-vol
+  clustering, not only staleness) and 0.8-1.1 later.
+* **Lead-lag** (daily correlation of the fund today with the ETF k days earlier; a
+  stale fund loads on lagged ETF returns):
+
+| fund_t vs etf_(t-k) | window | k=-1 | k=0 | k=1 | k=2 | k=3 |
+|---|---|---|---|---|---|---|
+| VWEHX vs HYG | 2007-2026 | 0.073 | 0.523 | 0.388 | 0.210 | 0.116 |
+| VWEHX vs HYG | 2010-2026 | 0.056 | 0.625 | 0.366 | 0.227 | 0.125 |
+| FHIIX vs HYG | 2010-2026 | 0.057 | 0.701 | 0.376 | 0.210 | 0.128 |
+| IG blend VWESX/VFSTX vs LQD | 2002-2026 | 0.041 | 0.673 | 0.084 | 0.029 | 0.043 |
+| VWESX vs LQD | 2002-2026 | 0.038 | 0.671 | 0.079 | 0.028 | 0.040 |
+
+  VWEHX picks up a large share of HYG's move one and two days later, the signature
+  of matrix pricing; the IG blend's lagged loadings are much smaller. The modest
+  same-day IG correlation (~0.67) with almost no lagged loading points to
+  non-synchronous measurement (evaluated bond prices are struck around the 3pm bond
+  close, the ETF closes at 4pm) and ETF premium noise rather than to smoothing.
+* **ETFs**: in 2007-09 LQD has NEGATIVE lag-1/2 autocorrelation (ac1
+  -0.12, ac2 -0.14, weekly/daily vol 0.79); HYG is mildly negative at lags 2-3. Big one-day reversals
   (LQD 2008-09-29 -9.1% then +9.8%; HYG 2008-10-10 -6.7% then +12.3%) when the ETF price
-  overshot NAV. In 2020-26, weekly vol exceeds daily vol for both (ratio ~1.16): March 2020
-  ETF discounts persisted for days before the Fed facility announcement.
+  overshot NAV. In 2020-26, weekly vol exceeds daily vol for both (ratio ~1.16), driven by
+  March 2020, when the ETFs traded at multi-day discounts to NAV.
   The ETF-era daily vol of hy_credit therefore includes some liquidity/premium noise.
 * Era jump at the splice: hy_credit daily vol jumps when HYG replaces VWEHX
   in 2007-04 partly for this measurement reason, not only because of the crisis.

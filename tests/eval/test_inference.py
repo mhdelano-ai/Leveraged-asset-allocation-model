@@ -82,12 +82,14 @@ def _quiet():
 
 
 def test_default_rules():
-    assert inf.default_ewc_terms(480, 12) == 20
-    assert inf.default_ewc_terms(1080, 12) == 42  # capped by 0.4 T^(2/3)
+    assert inf.default_ewc_terms(480, 12) == 10
+    assert inf.default_ewc_terms(1080, 12) == 22
     assert inf.default_ewc_terms(60, 12) == 4
-    assert inf.default_bandwidth(480, 12) == 29
-    assert inf.default_bandwidth(100, 12) == 24
-    assert inf.default_block_length(600, 12) == 24
+    assert inf.default_ewc_terms(100, 1) == 8  # capped by 0.4 T^(2/3)
+    assert inf.default_bandwidth(480, 12) == 48
+    assert inf.default_bandwidth(100, 12) == 48
+    assert inf.default_bandwidth(3000, 1) == 72
+    assert inf.default_block_length(600, 12) == 36
 
 
 def test_block_bootstrap_indices():

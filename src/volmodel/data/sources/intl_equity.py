@@ -436,8 +436,8 @@ def diagnostics(out: dict, refresh: bool = False) -> dict:
                 s["kf_intl_index"], _monthly_from_daily(y[sym]), None, "1985-12")
         rows[f"{sym} vs KF EAFE-wt, full"] = monthly_pair(s["kf_intl_index"], _monthly_from_daily(y[sym]))
     rows["TEDMX vs KF EM, full"] = monthly_pair(s["kf_em"], _monthly_from_daily(y["TEDMX"]))
-    rows["KF Dev ex US daily vs AQR GxUS (1990-07..2001-08)"] = {
-        **monthly_pair(_monthly_from_daily(s["aqr_gxus"]), kfd_m, "1990-07", "2001-08")}
+    rows["KF Dev ex US vs AQR GxUS, monthly, 1990-07..2001-08"] = monthly_pair(
+        _monthly_from_daily(s["aqr_gxus"]), kfd_m, "1990-07", "2001-08")
     D["rejected"] = pd.DataFrame(rows).T
     D["kf_vs_aqr_daily"] = pd.DataFrame({
         "KF Dev ex US vs AQR GxUS, 1990-07..2001-08": daily_pair(s["aqr_gxus"], kfd_d, "1990-07", "2001-08"),
@@ -467,7 +467,7 @@ def diagnostics(out: dict, refresh: bool = False) -> dict:
         g = df.groupby(df.index.year)
         yy[(name, "sync")] = g.apply(lambda d: d.x.corr(d.u))
         yy[(name, "lagUS")] = g.apply(lambda d: d.x.corr(d.ul))
-    D["by_year"] = pd.DataFrame(yy)
+    D["by_year"] = pd.DataFrame(yy).rename_axis("year")
 
     # --- vol by decade, episodes, outliers on the FINAL series
     dec, epi, outl = {}, {}, {}
@@ -486,7 +486,7 @@ def diagnostics(out: dict, refresh: bool = False) -> dict:
             epi[(asset, lab)] = float(np.prod(1 + x) - 1) if len(x) else np.nan
         big = daily.loc[daily["ret"].abs() > 0.08, ["ret", "source"]]
         outl[asset] = big
-    D["decade"] = pd.DataFrame(dec)
+    D["decade"] = pd.DataFrame(dec).rename_axis("decade")
     D["episodes"] = pd.Series(epi).unstack(0)
     D["outliers"] = outl
     D["us_ref"] = "^GSPC price (Yahoo), US close"
@@ -560,13 +560,15 @@ def _md(df: pd.DataFrame, digits: int = 3, index: bool = True) -> str:
     if index:
         df = df.reset_index()
     def f(v):
+        if isinstance(v, (int, np.integer)):
+            return str(v)
         if isinstance(v, (float, np.floating)):
             return "" if np.isnan(v) else f"{v:.{digits}f}"
         return str(v)
     cols = [str(c) if not isinstance(c, tuple) else " ".join(map(str, c)) for c in df.columns]
     lines = ["| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
-    for _, r in df.iterrows():
-        lines.append("| " + " | ".join(f(v) for v in r.values) + " |")
+    for r in df.itertuples(index=False):
+        lines.append("| " + " | ".join(f(v) for v in r) + " |")
     return "\n".join(lines)
 
 
@@ -577,7 +579,6 @@ def write_report(out: dict, D: dict, seg: pd.DataFrame, path: Path | None = None
     vm, vd = D["vs_msci_monthly"], D["vs_msci_daily"]
     res = []
     for asset, (d, m) in out.items():
-        first_full = m[m["source"] == m["source"].iloc[-1]]
         res.append(f"* **{asset}** — daily {d.index[0].date()} .. {d.index[-1].date()} "
                    f"({len(d)} obs); monthly {m.index[0].date()} .. {m.index[-1].date()} "
                    f"({len(m)} months; daily era compounded; current incomplete month excluded).")
@@ -641,7 +642,7 @@ def write_report(out: dict, D: dict, seg: pd.DataFrame, path: Path | None = None
         _md(vd, 3), "",
         "### Rejected candidates", "",
         "Old actively managed international funds would extend DAILY history to 1980, but they are poor "
-        "index proxies: monthly correlation with the EAFE-weighted index is 0.75-0.93 before 1986 and "
+        "index proxies: monthly correlation with the EAFE-weighted index is 0.54-0.93 before 1986 and "
         "tracking error 6-10 %/yr (an index fund on the same data shows 1.5-3 %). They were not used; "
         "1975-1985 is monthly tier C instead. TEDMX (Templeton Developing Markets, active, 1991) likewise. "
         "VTMGX (EAFE index fund from 1999-08) would add two years of tier A before EFA, but at the cost of "

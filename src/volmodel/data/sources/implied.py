@@ -123,12 +123,12 @@ SPECS: list[Spec] = [
     Spec("iv_vxtlt", "Cboe 20+yr Treasury ETF (TLT) vol (VXTLT)", "VXTLT", "^VXTLT", 0.01,
          "decimal vol"),
     Spec("iv_vxief", "Cboe 7-10yr Treasury ETF (IEF) vol (VXIEF)", "VXIEF", None, 0.01,
-         "decimal vol", "Thin: long stale runs; not calculated 2022-10..2025-07."),
+         "decimal vol", "Thin: long stale runs (e.g. one value carried 2020-07..2020-12, dropped); no data 2022-11-08..2025-07-13."),
     Spec("iv_vxlqd", "Cboe IG corporate ETF (LQD) vol (VXLQD)", "VXLQD", None, 0.01,
-         "decimal vol", "Starts 2020-11; not calculated 2022-10..2025-07."),
+         "decimal vol", "Starts 2020-11; no data 2022-11-08..2025-07-13."),
     Spec("iv_vxhyg", "Cboe HY corporate ETF (HYG) vol (VXHYG)", "VXHYG", None, 0.01,
          "decimal vol", "Noisy; one garbage print (-19,738,470 on 2017-10-30) removed; "
-         "not calculated 2021-09..2025-05."),
+         "no data 2021-09-24..2025-05-14."),
     Spec("iv_move", "ICE BofA MOVE (1-month Treasury option normal vol)", None, "^MOVE", 1e-4,
          "decimal YIELD vol (bp/1e4)", "Yield (basis-point) vol, not price vol."),
     # --- real assets --------------------------------------------------------
@@ -151,13 +151,14 @@ DERIVED_NOTES = {
                            "over 1990-1994", "decimal vol"),
 }
 
-# Natural predictor per asset id (series, comment).
+# Natural predictor per asset id: (asset, candidate series in order of
+# preference -- the first one that was built is reported, comment).
 ASSET_MAP = [
     ("us_large", "iv_vix1y", "1-yr point matches the horizon; iv_vix / iv_vix_vxo_spliced for long history"),
     ("us_small", "iv_rvx", "30-day only; no small-cap term structure"),
     ("intl_dev", "iv_vxefa", "EFA ETF options (dev ex-US/Canada)"),
     ("em", "iv_vxeem", "EEM ETF options"),
-    ("ust_int", "iv_move", "yield vol x duration (~6.5) ~ price vol; iv_vxief is thin/gappy"),
+    ("ust_int", ("iv_move", "iv_vxief"), "yield vol x duration (~6.5) ~ price vol; iv_vxief is thin/gappy"),
     ("ust_long", "iv_vxtlt", "TLT ETF options; iv_move x duration (~16) as alternative"),
     ("tips", None, "no TIPS implied vol exists; proxy with iv_move / iv_vxief"),
     ("ig_credit", "iv_vxlqd", "short and gappy; rates gauges (iv_move) are the practical proxy"),
@@ -266,7 +267,7 @@ def yahoo_series(sym: str, refresh: bool = False) -> pd.Series | None:
     def fetch() -> bytes:
         global _YAHOO_DOWN
         if _YAHOO_DOWN:
-            raise RuntimeError("skipped: Yahoo rate-limiting this run")
+            raise RuntimeError("skipped: Yahoo rate-limited earlier in this run (or cache-only)")
         s = _session()
         params = {"period1": 0, "period2": int(time.time()) + 86400, "interval": "1d",
                   "includePrePost": "false"}
@@ -529,8 +530,10 @@ def write_report(df: pd.DataFrame, diag: dict, path: Path = REPORT_FILE) -> None
     L.append("\n## Mapping to the 12 assets\n")
     L.append("| asset | natural implied predictor | from | live | comment |")
     L.append("|---|---|---|---|---|")
-    for asset, ser, comment in ASSET_MAP:
-        if ser and ser in t.index:
+    for asset, cands, comment in ASSET_MAP:
+        cands = (cands,) if isinstance(cands, str) else (cands or ())
+        ser = next((c for c in cands if c in t.index), None)
+        if ser:
             L.append(f"| {asset} | `{ser}` | {t.loc[ser, 'start']} | "
                      f"{'live' if t.loc[ser, 'live'] else 'dead'} | {comment} |")
         else:
@@ -569,7 +572,7 @@ METHOD_NOTES = """
   whether Yahoo's pre-2009 VXN is the restated series could not be verified.
 * **ETF vol indices (VXIEF, VXLQD, VXHYG).** Thinly traded underlying options:
   noisy, stale runs, and a multi-year hole (Cboe stopped and later resumed
-  calculating them; no data in roughly 2021/22-2025). Treat as live but
+  calculating them: VXHYG has no data 2021-09..2025-05, VXIEF/VXLQD 2022-11..2025-07). Treat as live but
   unreliable; do not use them to define an estimation sample.
 * **MOVE** is a normal (yield) vol of 1-month options on 2/5/10/30y
   Treasuries; it is not a price vol and its scale differs from VXTLT.
@@ -588,7 +591,12 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--refresh", action="store_true", help="re-download everything")
     ap.add_argument("--refresh-cboe", action="store_true")
     ap.add_argument("--refresh-yahoo", action="store_true")
+    ap.add_argument("--yahoo-cache-only", action="store_true",
+                    help="use only Yahoo responses already cached; never call Yahoo")
     a = ap.parse_args(argv)
+    if a.yahoo_cache_only:
+        global _YAHOO_DOWN
+        _YAHOO_DOWN = True
     df, diag = build(refresh_cboe=a.refresh or a.refresh_cboe,
                      refresh_yahoo=a.refresh or a.refresh_yahoo)
     OUT_FILE.parent.mkdir(parents=True, exist_ok=True)

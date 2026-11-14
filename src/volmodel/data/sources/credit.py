@@ -1,6 +1,28 @@
 """Credit total returns: ``ig_credit`` (LQD-like) and ``hy_credit`` (HYG-like).
 
-placeholder - construction filled in below
+Run ``python -m volmodel.data.sources.credit`` to (re)build
+``data/processed/assets/{ig,hy}_credit_{daily,monthly}.parquet``,
+``data/processed/predictors/credit_spreads.parquet`` and ``reports/data/credit.md``.
+Raw downloads are cached under ``data/raw/credit/``; ``--refresh`` re-downloads.
+
+Construction (numbers and justification in ``reports/data/credit.md``)
+---------------------------------------------------------------------
+ig_credit
+  * 1919-02 .. 1925-12  monthly, par bond (maturity calibrated to LQD vol) priced off
+                        month-AVERAGE Moody's (Aaa+Baa)/2 yields (Fed H.15)    -> D
+  * 1926-01 .. 1980-01  monthly, w x Ibbotson LT corporate TR + (1-w) x T-bill
+                        (Welch-Goyal ``corpr``/``Rfree``; w = vol match to LQD) -> C
+  * 1980-01-03 .. 1984  daily, constant-mix VWESX + FBNDX (Yahoo adjclose)    -> A
+  * 1985-01-02 .. 2002-07-30  daily, constant-mix VWESX + VFSTX               -> A
+  * 2002-07-31 .. today daily, LQD                                            -> A
+hy_credit
+  * 1980-02 .. 1984-12  monthly, VWEHX NAV (Yahoo has one NAV per month, on the
+                        ex-dividend date, before 1985)                        -> C
+  * 1985-01-02 .. 2007-04-11  daily, VWEHX (matrix-priced NAV: stale)         -> A
+  * 2007-04-12 .. today daily, HYG                                            -> A
+
+Every return is a SIMPLE TOTAL return in decimals. Nothing is smoothed,
+unsmoothed or interpolated; staleness is measured and reported, not corrected.
 """
 from __future__ import annotations
 
@@ -168,7 +190,6 @@ ETF_START = {"ig_credit": "2002-07-31", "hy_credit": "2007-04-12"}  # first ETF 
 # monthly-from-daily starts with the first month whose base price is in the
 # previous month (VWESX/FBNDX's first Yahoo price is 1980-01-02).
 MONTHLY_FROM_DAILY = {"ig_credit": "1980-02", "hy_credit": "1985-01"}
-OVERLAP_END_M = None  # set in build: last complete month
 
 
 def yahoo_returns(sym: str, refresh: bool = False) -> pd.Series:
@@ -197,10 +218,6 @@ def sparse_monthly(sym: str, refresh: bool = False) -> pd.Series:
     bad = ~month_has_obs.reindex(r.index, fill_value=False)
     r[bad | bad.shift(1, fill_value=False)] = np.nan
     return r.iloc[1:]
-
-
-def to_log(r):
-    return np.log1p(r)
 
 
 def resample_ret(r: pd.Series | pd.DataFrame, freq: str):
@@ -684,7 +701,23 @@ def write_report(diag: dict) -> str:
         return chk[key][i]
 
     vw = g("VWEHX vs HYG", 0), g("VWEHX vs HYG", 1), g("VWEHX vs HYG", 2)
-    ig85 = g("blend_VWESX_VFSTX vs LQD", 0), g("blend_VWESX_VFSTX vs LQD", 2)
+    comp = g("equal-weight VWEHX/FHIIX/PRHYX vs HYG")
+    used = ["LQD", "HYG", "VWESX", "FBNDX", "VFSTX", "VWEHX"]
+    adj = adjclose_check(used)
+    for c in ("first",):
+        adj[c] = adj[c].astype(str)
+    adj["n_div"] = adj["n_div"].astype(str)
+    r = diag["rets"]
+    ll_rows = []
+    for fund, etf, a, b in [("VWEHX", "HYG", "2007-04-12", "2026-10-31"), ("VWEHX", "HYG", "2010-01-01", "2026-10-31"),
+                            ("FHIIX", "HYG", "2010-01-01", "2026-10-31"),
+                            ("IG blend VWESX/VFSTX", "LQD", "2002-07-31", "2026-10-31"),
+                            ("VWESX", "LQD", "2002-07-31", "2026-10-31")]:
+        f = diag["ig85"] if fund.startswith("IG blend") else r[fund]
+        ll = lead_lag(f, r[etf], a, b)
+        ll_rows.append({"fund_t vs etf_(t-k)": f"{fund} vs {etf}", "window": f"{a[:4]}-{b[:4]}",
+                        **{f"k={k}": v for k, v in ll.items()}})
+    llt = pd.DataFrame(ll_rows)
 
     text = f"""# Credit data: `ig_credit` (LQD-like) and `hy_credit` (HYG-like)
 
@@ -709,11 +742,12 @@ tier-C segment.
 
 * **Yahoo chart API** (`query1.finance.yahoo.com/v8/finance/chart/<sym>`), `adjclose`.
   For every symbol used, adjclose returns were checked against returns computed from
-  `close` plus the dividend events: the median absolute daily difference is ~1e-7 and
-  the 99th percentile < 1e-4 (the residual is NAV rounding to the cent), so adjclose
-  includes distributions correctly back to 1980. Annual returns match published
-  figures I could recall (VWEHX 1990 -5.9%, 1991 +29.4%, 2008 -21.2%; VWESX 2008 +2.3%;
-  LQD 2008 +2.4%, 2022 -17.9%; HYG 2008 -17.6%).
+  `close` plus Yahoo's dividend events (table below): the residual is at the level of
+  NAV rounding to the cent, so adjclose includes distributions (capital-gain
+  distributions are reported by Yahoo as dividends) back to the first date used.
+  Calendar-year returns agree with figures recalled from memory (VWEHX 1990 -5.9%,
+  1991 +29.4%, 2008 -21.2%; VWESX 2008 +2.3%; LQD 2008 +2.4%, 2022 -17.9%; HYG 2008 -17.6%);
+  these were NOT checked against fund documents here.
   * ETFs: LQD (iShares iBoxx $ IG Corp, from 2002-07-30), HYG (iShares iBoxx $ HY Corp,
     from 2007-04-11), JNK (diagnostic only).
   * IG funds: VWESX Vanguard Long-Term Investment-Grade (daily from 1980-01-02),
@@ -727,6 +761,9 @@ tier-C segment.
     ONE NAV PER MONTH before 1985 (on the ex-dividend date, typically the 25th-30th),
     forward-filled so that ~95% of "daily" returns are exactly zero. Those years are
     NOT used as daily data. VWESX and FBNDX are genuinely daily from 1980.
+
+{_md_table(adj, "{:.2e}")}
+
 * **Fed H.15 full data package** (`federalreserve.gov/datadownload/Output.aspx?rel=H15&filetype=zip`):
   Moody's seasoned Aaa and Baa yields, monthly averages 1919-01..2016-09 and daily
   1983/1986..2016-10-07 (the Fed stopped carrying Moody's in Oct 2016); 10-year CMT.
@@ -771,7 +808,8 @@ Construction logic:
   vs month-end sampling: corr {g('VWEHX ex-div-date-sampled vs month-end (1985-2026)')['corr']:.3f},
   vol ratio {g('VWEHX ex-div-date-sampled vs month-end (1985-2026)')['vol_ratio']:.2f}. No credible HY
   return history before 1980 was found (the modern HY market starts ~1977-78).
-  An equal-weight composite of VWEHX/FHIIX/PRHYX was tried and did not track HYG better.
+  An equal-weight composite of VWEHX/FHIIX/PRHYX was tried and did not track HYG better
+  (monthly corr {comp['corr']:.2f}, vol ratio {comp['vol_ratio']:.2f}).
 
 ## Overlap diagnostics
 
@@ -817,13 +855,24 @@ What this shows:
   either use multi-day/weekly aggregation or a variance-ratio correction for these
   years; the data are left unadjusted.
 * **IG funds are much less affected**: the IG blends have lag-1 AC 0.08-0.15 in the
-  1980s-90s and ~0 afterwards; monthly/daily ratio ~1.3 in the 1980s (partly the
-  1980-82 rate volatility clustering, not only staleness), ~0.9-1.1 later.
-* **ETFs**: LQD/HYG show slightly NEGATIVE lag-1/2 autocorrelation in 2007-09 (LQD
-  ac1 {st.query("source=='LQD' and era=='2007-2009'")['ac1'].iloc[0]:.2f}, weekly/daily vol 0.79) and big one-day reversals
+  1980s-90s and -0.08..0.10 afterwards (LQD itself has 0.12 in 2020-26); the
+  monthly/daily vol ratio is ~1.3 for the 1980s FBNDX blend (partly 1980-82 rate-vol
+  clustering, not only staleness) and 0.8-1.1 later.
+* **Lead-lag** (daily correlation of the fund today with the ETF k days earlier; a
+  stale fund loads on lagged ETF returns):
+
+{_md_table(llt)}
+
+  VWEHX picks up a large share of HYG's move one and two days later, the signature
+  of matrix pricing; the IG blend's lagged loadings are much smaller. The modest
+  same-day IG correlation (~0.67) with almost no lagged loading points to
+  non-synchronous measurement (evaluated bond prices are struck around the 3pm bond
+  close, the ETF closes at 4pm) and ETF premium noise rather than to smoothing.
+* **ETFs**: in 2007-09 LQD has NEGATIVE lag-1/2 autocorrelation (ac1
+  {st.query("source=='LQD' and era=='2007-2009'")['ac1'].iloc[0]:.2f}, ac2 {st.query("source=='LQD' and era=='2007-2009'")['ac2'].iloc[0]:.2f}, weekly/daily vol {st.query("source=='LQD' and era=='2007-2009'")['w_over_d'].iloc[0]:.2f}); HYG is mildly negative at lags 2-3. Big one-day reversals
   (LQD 2008-09-29 -9.1% then +9.8%; HYG 2008-10-10 -6.7% then +12.3%) when the ETF price
-  overshot NAV. In 2020-26, weekly vol exceeds daily vol for both (ratio ~1.16): March 2020
-  ETF discounts persisted for days before the Fed facility announcement.
+  overshot NAV. In 2020-26, weekly vol exceeds daily vol for both (ratio ~1.16), driven by
+  March 2020, when the ETFs traded at multi-day discounts to NAV.
   The ETF-era daily vol of hy_credit therefore includes some liquidity/premium noise.
 * Era jump at the splice: hy_credit daily vol jumps when HYG replaces VWEHX
   in 2007-04 partly for this measurement reason, not only because of the crisis.
