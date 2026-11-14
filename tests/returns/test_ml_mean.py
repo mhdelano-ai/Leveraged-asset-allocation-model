@@ -75,7 +75,7 @@ def test_registered_settings_are_the_frozen_ones():
         "gbm_z.nohind": (("gbm",), "all-nohind"), "combo_z.nohind": (("combo",), "all-nohind"),
     }
     for n, (learners, fs) in want.items():
-        m = registry.create(n)
+        m = registry.get_factory(n)()
         assert m.params() == {"calibrate": True, "feature_set": fs, "learners": learners}, n
 
 
@@ -131,6 +131,7 @@ def test_anchor_is_hist_mean_and_zero_shrink_reproduces_it(noise, h):
     np.testing.assert_allclose(m.predict(X)["mean"].to_numpy(), hm.predict(X)["mean"].to_numpy(), rtol=1e-12)
 
 
+@pytest.mark.slow
 def test_calibration_slope_shrinks_on_noise_and_not_on_signal(noise, signal):
     bn = registry.create("gbm_z").fit(_train(noise, 1)).b_
     bs = registry.create("gbm_z").fit(_train(signal, 1)).b_
@@ -147,6 +148,7 @@ def test_learners_handle_nan_and_unknown_asset(signal):
     assert np.isfinite(out.to_numpy()).all()
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("name", ["ridge_z", "combo_z", "gbm_z"])
 def test_no_edge_on_noise(noise, name):
     fc = pd.concat([walk_forward(n, noise.features, noise.xr, 1, SETTINGS) for n in ("hist_mean", "vol_ewma", name)])
@@ -154,6 +156,7 @@ def test_no_edge_on_noise(noise, name):
     assert r2 < 0.005, r2
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("name", ["ridge_z", "combo_z", "gbm_z"])
 def test_planted_signal_recovered(signal, name):
     fc = pd.concat([walk_forward(n, signal.features, signal.xr, 1, SETTINGS) for n in ("hist_mean", "vol_ewma", name)])

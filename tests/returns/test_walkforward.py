@@ -134,6 +134,7 @@ class _MemorizeLastTarget(Forecaster):
         return gaussian_frame([self._last[k] for k in a], [self._sd[k] for k in a], X.index)
 
 
+@pytest.mark.slow
 def test_memorizing_model_is_neutralized_by_purge(noise_data):
     fc = pd.concat([walk_forward("hist_mean", noise_data.features, noise_data.xr, 12, SETTINGS),
                     walk_forward("vol_ewma", noise_data.features, noise_data.xr, 12, SETTINGS),
@@ -187,6 +188,7 @@ def test_lag_features_shifts_within_asset(signal_data):
     pd.testing.assert_frame_equal(g.iloc[1:], f.shift(1).iloc[1:], check_freq=False)
 
 
+@pytest.mark.slow
 # ---------------------------------------------------------------- signal / noise
 def test_planted_signal_is_recovered(signal_scores):
     _, sc = signal_scores
@@ -201,6 +203,7 @@ def test_planted_signal_is_recovered(signal_scores):
     assert (assets.value > 0).mean() >= 0.75
 
 
+@pytest.mark.slow
 def test_pure_noise_gives_no_edge(noise_scores):
     _, sc = noise_scores
     for h in (1, 12):
@@ -211,6 +214,7 @@ def test_pure_noise_gives_no_edge(noise_scores):
         assert _get(sc, "hist_quantile", h, "r2_oos") == pytest.approx(0.0, abs=1e-12)
 
 
+@pytest.mark.slow
 def test_baseline_quantiles_calibrated_under_noise(noise_scores):
     _, sc = noise_scores
     for m in ("hist_mean", "hist_quantile"):
@@ -225,6 +229,7 @@ def test_baseline_quantiles_calibrated_under_noise(noise_scores):
         assert _get(sc, m, 1, "kupiec_p_q05", "none") > 0.01
 
 
+@pytest.mark.slow
 def test_vol_baseline_gets_distribution_not_return_credit():
     d = make_synthetic(n_assets=3, beta=0.0, stoch_vol=True, start="1960-01-31",
                        end="2008-12-31", seed=5)
@@ -234,6 +239,7 @@ def test_vol_baseline_gets_distribution_not_return_credit():
     assert _get(sc, "vol_ewma", 1, "crps_skill") > 0.005
 
 
+@pytest.mark.slow
 # ---------------------------------------------------------------- contract
 def test_quantiles_monotone_and_contract(signal_scores, noise_scores):
     for fc, _ in (signal_scores, noise_scores):
@@ -285,6 +291,7 @@ def test_refit_schedule_and_fresh_objects(signal_data):
     assert len(made) == 1 + 6
 
 
+@pytest.mark.slow
 def test_point_forecaster_residual_distribution(signal_data):
     fc = walk_forward("ridge_z", signal_data.features, signal_data.xr, 3,
                       WalkForwardSettings(oos_start="1990-01-31", end="1995-12-31"))
@@ -294,6 +301,7 @@ def test_point_forecaster_residual_distribution(signal_data):
     assert ((ratio > 0.6) & (ratio < 1.5)).all()
 
 
+@pytest.mark.slow
 # ---------------------------------------------------------------- cache, runner
 def test_cache_and_parallel(signal_data, tmp_path):
     st = WalkForwardSettings(oos_start="1995-01-31", end="1999-12-31")
@@ -399,6 +407,7 @@ def test_runner_end_to_end(tmp_path, monkeypatch):
         run.main(["--models", "hist_mean"])
 
 
+@pytest.mark.slow
 def test_score_forecasts_with_explicit_targets(noise_scores, noise_data):
     fc, _ = noise_scores
     fc = fc[fc.horizon == 12]
@@ -505,6 +514,7 @@ def mt_scores(noise_scores, noise_data):
     return plain, fam
 
 
+@pytest.mark.slow
 def test_multiple_testing_per_period(mt_scores):
     plain, fam = mt_scores
     for metric in ("spa_p_mse", "spa_p_crps", "spa_q_bh_mse", "mcs_p_mse", "in_mcs_crps",
@@ -519,6 +529,7 @@ def test_multiple_testing_per_period(mt_scores):
     np.testing.assert_allclose(q.to_numpy(), scoring.inf.fdr(p.to_numpy(), "bh"))
 
 
+@pytest.mark.slow
 def test_spa_families(mt_scores):
     plain, fam = mt_scores
     star = fam[fam.model.str.startswith("*")]
@@ -544,6 +555,7 @@ def test_spa_families(mt_scores):
                                 families={"other": ("ridge_z",)})
 
 
+@pytest.mark.slow
 def test_summary_by_period(mt_scores):
     _, fam = mt_scores
     full, late = scoring.summary(fam), scoring.summary(fam, "late")
