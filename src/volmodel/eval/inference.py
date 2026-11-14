@@ -1406,7 +1406,7 @@ def skill_score(
     loss_bench: pd.Series | np.ndarray,
     *,
     level: float = 0.90,
-    method: Literal["bootstrap", "hac"] = "bootstrap",
+    method: Literal["fieller", "bootstrap", "hac"] = "fieller",
     h: int = 12,
     block_length: int | None = None,
     n_boot: int = 2000,
@@ -1418,11 +1418,28 @@ def skill_score(
 ) -> SkillResult:
     """Skill = percentage reduction in mean loss vs a benchmark, with a CI.
 
-    Uses the common sample. ``method="bootstrap"`` (default): block bootstrap
-    of origins (both series resampled jointly, so their correlation is kept)
-    and the percentile interval for the ratio of means. ``method="hac"``: the
-    delta method, linearizing the ratio as ``z_t = (l_m,t - R l_b,t) /
-    mean(l_b)`` with an EWC/HAC variance and t(df) quantiles.
+    ``skill = 100 (1 - R)``, ``R = mean(l_model) / mean(l_bench)`` on the
+    common sample of origins.
+
+    ``method``:
+
+    * ``"fieller"`` (default): invert the HAC t-test of
+      ``E[l_model - R0 l_bench] = 0`` over R0 (Fieller 1954), with the joint
+      long-run covariance of the two losses from ``kernel`` (default EWC,
+      t(B) quantiles). Exact treatment of the ratio, no linearization. If the
+      benchmark mean is itself not significantly different from zero at the
+      chosen level the set is unbounded; ``ci_low``/``ci_high`` are then
+      -inf/+inf and a warning is emitted.
+    * ``"hac"``: delta method, ``z_t = (l_m,t - R l_b,t) / mean(l_b)``, HAC
+      variance, t(df) quantiles. Symmetric; under-covers (80-84% for a
+      nominal 90% interval in the Monte Carlo).
+    * ``"bootstrap"``: circular/stationary block bootstrap of origins (both
+      series jointly), percentile interval. Under-covers badly with
+      persistent losses (64-81% for nominal 90%), because the block
+      bootstrap understates the variance and the ratio is skewed.
+
+    Monte Carlo coverage of nominal 90% intervals (true skill 14-18%):
+    Fieller-EWC 90-92% for 40 and 90 years in both designs.
 
     Assumes losses are non-negative with a positive benchmark mean (QLIKE,
     MSE). Skill is a ratio of means, so it is dominated by the periods with
@@ -1446,7 +1463,31 @@ def skill_score(
     z = (vals[:, 0] - R * vals[:, 1]) / mb
     lr = _lrv_core(np.where(mask, z, 0.0), mask, kernel=kernel, h=h, bandwidth=None, ewc_terms=ewc_terms)
     n_eff = lr.n_eff
-    if method == "bootstrap":
+    if method == "fieller":
+        X = np.column_stack(
+            [np.where(mask, vals[:, 0] - mm, 0.0), np.where(mask, vals[:, 1] - mb, 0.0)]
+        )
+        S, df = _hac_matrix(X, mask, kernel=kernel, h=h, bandwidth=None, ewc_terms=ewc_terms)
+        q = stats.t.ppf(1 - a / 2, df) if np.isfinite(df) else stats.norm.ppf(1 - a / 2)
+        qa = q * q / n
+        A = mb * mb - qa * S[1, 1]
+        Bq = -2.0 * (mm * mb - qa * S[0, 1])
+        Cq = mm * mm - qa * S[0, 0]
+        disc = Bq * Bq - 4 * A * Cq
+        if A <= 0 or disc < 0:
+            lo, hi = -np.inf, np.inf
+            notes.append(
+                "WARNING: Fieller set unbounded - the benchmark's mean loss is not "
+                "precisely estimated; skill is not identified at this level"
+            )
+            if warn:
+                warnings.warn(notes[-1], InferenceWarning, stacklevel=2)
+        else:
+            r1 = (-Bq - math.sqrt(disc)) / (2 * A)
+            r2 = (-Bq + math.sqrt(disc)) / (2 * A)
+            lo, hi = 100.0 * (1.0 - r2), 100.0 * (1.0 - r1)
+        meth = f"fieller_{kernel}"
+    elif method == "bootstrap":
         L = int(block_length) if block_length is not None else default_block_length(n, h)
         ib = block_bootstrap_indices(n, n_boot, L, kind=bootstrap, rng=np.random.default_rng(seed))
         Rb = lm[ib].mean(axis=1) / lb[ib].mean(axis=1)
