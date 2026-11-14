@@ -161,6 +161,14 @@ class Scores:
     def has(self, model: str) -> bool:
         return model in set(self.df["model"])
 
+    def run_size(self, run: str | None, exclude: str | None = None) -> int | None:
+        """Number of models in a scores run other than ``exclude`` (the set an SPA test searched)."""
+        if run is None or "run" not in self.df:
+            return None
+        ms = set(self.df.loc[(self.df.run == run) & (self.df.model != "*"), "model"])
+        ms.discard(exclude)
+        return len(ms)
+
     def get(self, model, h, asset, period, bench, metric) -> float:
         try:
             v = self._ix.loc[(model, int(h), asset, period, bench, metric)]

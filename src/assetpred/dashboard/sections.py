@@ -76,6 +76,7 @@ def mean_section(sc: Scores, cum: pd.DataFrame | None, P: dict) -> dict | None:
             "spa_p": clean(sc.star("spa_p_mse", h, POOLED, BENCH, spa_period, models)[0]),
             "spa_run": sc.star("spa_p_mse", h, POOLED, BENCH, spa_period, models)[1],
         }
+        out["info"][h]["spa_n"] = sc.run_size(out["info"][h]["spa_run"], BENCH)
         rows = []
         for m in models + refs:
             rows.append({
@@ -130,6 +131,7 @@ def dist_section(sc: Scores, P: dict) -> dict | None:
             "spa_run": sc.star("spa_p_crps", h, POOLED, VOL_BENCH, spa_period, models)[1],
             "n_indep": clean(sc.get(BENCH, h, POOLED, hp, "none", "n_indep")),
         }
+        out["info"][h]["spa_n"] = sc.run_size(out["info"][h]["spa_run"], VOL_BENCH)
         rows = []
         for m in models + refs:
             r = {"model": m, "ref": m in refs,
@@ -407,7 +409,7 @@ def method_section(root, metas: dict, cov_meta: dict, dev: bool) -> dict:
     if av is not None:
         etf = av[av.check == "etf"]
         out["data"]["validation"] = [{"asset": r.asset, "etf": r.b, "start": str(r.start)[:7], "n": int(r.n),
-                                      "corr": clean(r.corr), "vol_ratio": clean(r.vol_ratio)}
+                                      "corr": clean(r["corr"]), "vol_ratio": clean(r["vol_ratio"])}
                                      for _, r in etf.iterrows()]
     pm = _csv(schema.PREDICTOR_META)
     if pm is not None:

@@ -49,6 +49,17 @@ def pval(x) -> str:
     return "< 0.001" if x < 0.001 else f"{x:.3f}"
 
 
+def eq(name: str, x) -> str:
+    """'p = 0.031' or 'p < 0.001'."""
+    v = pval(x)
+    return f"{name} {v}" if v.startswith("<") else f"{name} = {v}"
+
+
+def _spa_name(info: dict) -> str:
+    n = info.get("spa_n")
+    return f"SPA p ({n} models)" if n else "SPA p"
+
+
 def hlist(hs) -> str:
     hs = [str(h) for h in hs]
     if not hs:
@@ -93,7 +104,7 @@ def mean_verdict(mean: dict | None) -> dict:
         out["cells"][h] = {
             "status": st, "value": f"R² {pct(b['r2'])}",
             "detail": f"best of {nmod}: {gl.label(b['model'])}; detectable ≈ {pct(det, 1, False)}; "
-                      f"SPA p = {pval(spa)}"}
+                      f"{eq(_spa_name(info), spa)}"}
     passing = [h for h in hs if out["status_by_h"].get(h) == "pass"]
     if not passing:
         parts = ", ".join(f"{pct(best_r2[h]['r2'])} at {h}m" for h in hs if h in best_r2)
@@ -105,8 +116,9 @@ def mean_verdict(mean: dict | None) -> dict:
         else:
             s += f" (detectable: about {dets})."
         spas = ", ".join(pval(mean["info"][h]["spa_p"]) for h in hs)
-        s += (f" Allowing for the search over {nmod} models, the test of whether any of them beats the historical "
-              f"mean (SPA) gives p = {spas}.")
+        nspa = mean["info"][hs[0]].get("spa_n") or nmod
+        s += (f" Allowing for the search over the {nspa} models scored together, the test of whether any of them "
+              f"beats the historical mean (SPA) gives p = {spas}.")
         out["text"].append(s)
     else:
         for h in passing:
@@ -114,7 +126,7 @@ def mean_verdict(mean: dict | None) -> dict:
             out["text"].append(
                 f"At {h} month{'s' if h > 1 else ''} the mean forecasts beat the historical mean: "
                 f"{gl.label(b['model'])} has a pooled out-of-sample R² of {pct(b['r2'])} "
-                f"(one-sided Diebold-Mariano p = {pval(b['dm_p'])}; SPA p across all {nmod} models = "
+                f"(one-sided Diebold-Mariano {eq('p', b['dm_p'])}; SPA p across the {mean['info'][h].get('spa_n') or nmod} models = "
                 f"{pval(mean['info'][h]['spa_p'])}).")
         rest = [h for h in hs if h not in passing]
         if rest:
@@ -141,7 +153,7 @@ def mean_verdict(mean: dict | None) -> dict:
     if examples:
         examples.sort(reverse=True)
         r2, h, m, a, q = examples[0]
-        s += f" (largest: {gl.label(m)} on {config.ASSETS[a]} at {h}m, R² {pct(r2)}, q = {pval(q)})"
+        s += f" (largest: {gl.label(m)} on {config.ASSETS[a]} at {h}m, R² {pct(r2)}, {eq('q', q)})"
     out["text"].append(s + ".")
     return out
 
@@ -164,7 +176,8 @@ def dist_verdict(dist: dict | None) -> dict:
         out["status_by_h"][h] = st
         best_by_h[h] = b
         out["cells"][h] = {"status": st, "value": f"CRPS {pct(b['skill_vol'])}",
-                           "detail": f"vs EWMA volatility; best: {gl.label(b['model'])}; SPA p = {pval(spa)}"}
+                           "detail": f"vs EWMA volatility; best: {gl.label(b['model'])}; "
+                                     f"{eq(_spa_name(dist['info'][h]), spa)}"}
     passing = [h for h in hs if out["status_by_h"].get(h) == "pass"]
     weak = [h for h in hs if out["status_by_h"].get(h) == "weak"]
     if passing:
@@ -175,11 +188,21 @@ def dist_verdict(dist: dict | None) -> dict:
         if weak:
             s += f" At {hlist(weak)} the point estimate is positive but not significant."
     elif weak:
-        s = (f"The distribution forecasts score slightly better than the volatility baseline at {hlist(weak)}, "
-             f"but not significantly once the search over models is allowed for.")
+        s = (f"The distribution forecasts score better than the volatility baseline at {hlist(weak)} (best: "
+             + ", ".join(f"{pct(best_by_h[h]['skill_vol'], 1)} at {h}m" for h in weak)
+             + "), but not significantly once the search over models is allowed for.")
     else:
         s = "No distribution model beats the volatility-tracking baseline."
     out["text"].append(s)
+    split = [h for h in hs if out["status_by_h"].get(h) == "weak" and ok(best_by_h[h].get("p_vol"))
+             and best_by_h[h]["p_vol"] < ALPHA]
+    if split:
+        n = dist["info"][split[0]].get("spa_n")
+        out["text"].append(
+            "Taken alone, the best model's one-sided Diebold-Mariano p-value against the volatility baseline is "
+            + ", ".join(f"{pval(best_by_h[h]['p_vol'])} at {h}m" for h in split)
+            + f"; the SPA test over all {n or 'the'} models in the scoring run is the stricter bar and gives "
+            + ", ".join(f"{pval(dist['info'][h]['spa_vol'])}" for h in split) + ".")
     # ML vs linear
     ml_parts = []
     for h in hs:
@@ -215,7 +238,8 @@ def dist_verdict(dist: dict | None) -> dict:
                      else "in the centre")
             out["text"].append(
                 f"By quantile ({gl.label(m)}, {href}m), the improvement over the volatility baseline is larger "
-                f"{where}: from {pct(lo[1], 1)} at the {lo[0]}th percentile to {pct(hi[1], 1)} at the {hi[0]}th.")
+                f"{where}: from {pct(lo[1], 1)} at the {ordinal(lo[0])} percentile to {pct(hi[1], 1)} at the "
+                f"{ordinal(hi[0])}.")
     # calibration of the forecast shown in "now"
     mean_m, dist_m = gl.composite_parts()
     cm = config.COMPOSITE if config.COMPOSITE in dist["models"] else dist_m
@@ -228,7 +252,7 @@ def dist_verdict(dist: dict | None) -> dict:
         good = ok(c90) and abs(c90 - 0.90) <= CALIB_TOL and ok(cp) and cp >= ALPHA
         out["calib_cells"][h] = {"status": "calib_ok" if good else "calib_off",
                                  "value": f"90% band holds {pct(c90, 1, False)}",
-                                 "detail": f"{gl.label(cm)}; PIT test p = {pval(cp)}"}
+                                 "detail": f"{gl.label(cm)}; {eq('PIT test p', cp)}"}
         t = next((x for x in dist["tails"][h] if x["model"] == cm), None)
         if t:
             tails_txt.append(f"{h}m: {pct(t['hit_q01'], 1, False)} below the 1st and {pct(t['hit_q99'], 1, False)} "
@@ -236,7 +260,7 @@ def dist_verdict(dist: dict | None) -> dict:
     if out["calib_cells"]:
         good = [h for h, c in out["calib_cells"].items() if c["status"] == "calib_ok"]
         off = [h for h, c in out["calib_cells"].items() if c["status"] != "calib_ok"]
-        s = f"Calibration of the {gl.label(cm).lower()}: "
+        s = f"Calibration of the {gl.label(cm)}: "
         if good:
             s += f"accurate at {hlist(good)} (90% interval coverage within {CALIB_TOL * 100:.0f} points of 90% and PIT p ≥ {ALPHA:g})"
         if off:
@@ -264,10 +288,10 @@ def cov_verdict(cov: dict | None) -> dict:
         out["status_by_h"][h] = st
         if st == "pass":
             hs_pass.append(h)
-        out["cells"][h] = {"status": st, "value": f"log score {num(r['diff'], 2, True)}",
-                           "detail": f"{gl.label(prim)} vs static sample covariance, nats per asset; "
-                                     f"q = {pval(r.get('q'))}"}
         lw = rows.get("lw")
+        lw_txt = f"; static shrinkage alone {num(lw['diff'], 2, True)}" if lw and ok(lw.get("diff")) else ""
+        out["cells"][h] = {"status": st, "value": f"log score {num(r['diff'], 2, True)}",
+                           "detail": f"{gl.label(prim)}, nats per asset; {eq('q', r.get('q'))}{lw_txt}"}
         if lw and ok(lw.get("diff")):
             lw_parts.append((h, r["diff"], lw["diff"]))
         sbrows = {x["model"]: x for x in cov["sb"][h]["rows"]}
@@ -276,7 +300,7 @@ def cov_verdict(cov: dict | None) -> dict:
             sb_parts.append((h, sbrows[prim]["diff"].get(hp), sbrows["lw"]["diff"].get(hp),
                              sbrows[prim]["p"].get(hp)))
     if hs_pass:
-        out["text"].append(f"The primary covariance model ({gl.label(prim).lower()}) beats the static sample "
+        out["text"].append(f"The primary covariance model ({gl.label(prim)}) beats the static sample "
                            f"covariance on the joint log score at {hlist(hs_pass)} after adjustment.")
     else:
         out["text"].append("The primary covariance model does not reliably beat the static sample covariance.")
@@ -321,17 +345,17 @@ def strategy_verdict(st: dict | None) -> dict:
         minq = min((r["d_cer_q_bh"] for r in g if ok(r.get("d_cer_q_bh"))), default=None)
         out["cells"][h] = {"status": st_, "value": f"CER {pct(b['d_cer'])}/yr",
                            "detail": f"best of {len(g)}: {gl.STRATEGY_RULES.get(b['rule'], (b['rule'],))[0]} with "
-                                     f"{gl.label(b['mean_model'])}, net; smallest q = {pval(minq)}"}
+                                     f"{gl.label(b['mean_model'])}, net; smallest {eq('q', minq)}"}
         out.setdefault("_detail", {})[h] = (g, b, sig_p, sig_q, minq)
     d = out.get("_detail", {})
     if d:
         parts = []
         for h, (g, b, sig_p, sig_q, minq) in sorted(d.items()):
             npos = sum(1 for r in g if r["d_cer"] > 0)
-            parts.append(f"at {h}m, {npos} of {len(g)} rule × model pairs gain certainty-equivalent return over "
-                         f"the same rule run on historical means, {len(sig_p)} with unadjusted p < {ALPHA:g} and "
-                         f"{len(sig_q)} after the Benjamini-Hochberg adjustment (smallest q = {pval(minq)})")
-        out["text"].append("Net of trading costs, " + "; ".join(parts) + ".")
+            parts.append(f"{h}m: {npos} of {len(g)} positive, {len(sig_p)} with p < {ALPHA:g}, {len(sig_q)} after "
+                         f"adjustment (smallest q {pval(minq)})")
+        out["text"].append("Net of trading costs, each rule using a model's forecasts against the same rule using "
+                           "historical means, in certainty-equivalent return: " + "; ".join(parts) + ".")
         anyq = any(v[3] for v in d.values())
         if not anyq:
             out["text"].append("No gain from the return forecasts survives the multiple-testing adjustment.")
@@ -370,24 +394,40 @@ def verdict(ctx: dict) -> dict:
 
 
 def _headline(mv, dv, cv, sv) -> str:
-    mp = [h for h, s in mv["status_by_h"].items() if s == "pass"]
-    dp = [h for h, s in dv["status_by_h"].items() if s == "pass"]
-    cp = [h for h, s in cv["status_by_h"].items() if s == "pass"]
-    sp = [h for h, s in sv["status_by_h"].items() if s == "pass"]
-    parts = []
+    mp = sorted(h for h, s in mv["status_by_h"].items() if s == "pass")
+    mw = sorted(h for h, s in mv["status_by_h"].items() if s == "weak")
+    dp = sorted(h for h, s in dv["status_by_h"].items() if s == "pass")
+    cp = sorted(h for h, s in cv["status_by_h"].items() if s == "pass")
+    sp = sorted(h for h, s in sv["status_by_h"].items() if s == "pass")
+    out = []
     if mv["status_by_h"]:
-        parts.append(f"Expected returns are predictable beyond the historical mean at {hlist(sorted(mp))}"
-                     if mp else "Expected returns are not predictable beyond the historical mean at any horizon")
+        if mp:
+            out.append(f"Mean forecasts beat the historical mean at {hlist(mp)}.")
+        elif mw:
+            out.append("No mean forecast beats the historical mean at any horizon once the search over models is "
+                       "allowed for.")
+        else:
+            out.append("No mean forecast beats the historical mean at any horizon.")
     if dv["status_by_h"]:
-        parts.append(f"the width of the distribution is: risk forecasts beat a volatility-tracking baseline at "
-                     f"{hlist(sorted(dp))}" if dp else "nor does any distribution model beat a volatility-tracking "
-                                                       "baseline")
-    s = "; ".join(parts) + "." if parts else "No results were found."
+        if dp:
+            out.append(f"The distribution forecasts {'also' if mp else 'do'} beat a volatility-tracking baseline at "
+                       f"{hlist(dp)}, by a small margin.")
+        elif any(st == "weak" for st in dv["status_by_h"].values()):
+            out.append("The distribution forecasts score better than a volatility-tracking baseline, but not "
+                       "significantly once the search over models is allowed for.")
+        else:
+            out.append("No distribution forecast beats a volatility-tracking baseline.")
     if cv["status_by_h"]:
-        s += (" Dynamic covariance forecasts beat the static sample covariance" +
-              (f" at {hlist(sorted(cp))}." if cp else " nowhere reliably."))
+        out.append(f"Covariance forecasts beat the static sample covariance at {hlist(cp)}." if cp else
+                   "Covariance forecasts do not reliably beat the static sample covariance.")
     if sv["status_by_h"]:
-        s += (" In the portfolio test, return forecasts add value net of costs that survives multiple-testing "
-              f"adjustment at {hlist(sorted(sp))}." if sp else
-              " In the portfolio test, no gain from the return forecasts survives multiple-testing adjustment.")
-    return s[0].upper() + s[1:]
+        out.append("In the portfolio test, return forecasts add value net of costs that survives multiple-testing "
+                   f"adjustment at {hlist(sp)}." if sp else
+                   "In the portfolio test, no gain from the return forecasts survives multiple-testing adjustment.")
+    return " ".join(out) if out else "No results were found."
+
+
+def ordinal(n: int) -> str:
+    n = int(n)
+    suf = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suf}"

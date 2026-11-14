@@ -98,6 +98,8 @@ section.block > header { display: grid; gap: 6px; }
 .explain { color: var(--ink-2); font-size: 14px; display: grid; gap: 8px; }
 .sub { display: grid; gap: 10px; min-width: 0; padding-top: 16px; border-top: 1px solid var(--line); }
 .sub > header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: baseline; }
+section.block > *, .sub > *, .sub, #provenance, #provenance > * { min-width: 0; }
+.mono { overflow-wrap: anywhere; }
 .caption { font-size: 13px; color: var(--muted); max-width: 90ch; }
 
 /* verdict */
@@ -126,7 +128,7 @@ table.vgrid td.rowh { padding: 8px 8px 8px 0; width: 22%; }
 .chip.na { background: transparent; border: 1px dashed var(--line-2); }
 .chip.na .st { color: var(--muted); }
 .chip.na .st i { background: var(--line-2); }
-.verdict-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px 28px; }
+.verdict-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px 28px; }
 .verdict-cols > div { display: grid; gap: 6px; align-content: start; min-width: 0; }
 .verdict-cols h3 { font-size: 14px; }
 .verdict-cols p { font-size: 14px; color: var(--ink-2); }
@@ -142,7 +144,8 @@ table.vgrid td.rowh { padding: 8px 8px 8px 0; width: 22%; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
 .seg button:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .controls { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
-.controls label { font-size: 13px; color: var(--ink-2); display: inline-flex; gap: 6px; align-items: center; }
+.controls label { font-size: 13px; color: var(--ink-2); display: inline-flex; gap: 6px; align-items: center; max-width: 100%; min-width: 0; }
+.controls select { min-width: 0; flex: 1 1 auto; }
 select { font: inherit; font-size: 13px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); max-width: 100%; }
 
 /* charts */
@@ -190,7 +193,14 @@ dl.terms dt { font-weight: 600; }
 dl.terms dd { margin: 0; color: var(--ink-2); }
 footer.foot { color: var(--muted); font-size: 12.5px; }
 footer.foot .wrap { padding-block: 0 40px; display: grid; gap: 4px; }
+.chip .hz { display: none; }
 @media (max-width: 640px) {
+  table.vgrid { min-width: 0; border-spacing: 0; }
+  table.vgrid thead { display: none; }
+  table.vgrid, table.vgrid tbody, table.vgrid tr, table.vgrid td { display: block; width: auto; }
+  table.vgrid tr { display: grid; gap: 6px; margin-bottom: 14px; }
+  table.vgrid td, table.vgrid td.rowh { padding: 0; width: auto; }
+  .chip .hz { display: block; font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
   h1 { font-size: 24px; }
   .headline { font-size: 18px; }
   section.block { padding: 16px; border-radius: 8px; }
@@ -390,6 +400,8 @@ const minus = (s) => s.replace(/-/g, "−");
 const pct = (x, dp = 2, sign = true) => ok(x) ? minus((sign && x > 0 ? "+" : "") + (x * 100).toFixed(dp) + "%") : "n/a";
 const num = (x, dp = 3, sign = false) => ok(x) ? minus((sign && x > 0 ? "+" : "") + x.toFixed(dp)) : "n/a";
 const pv = (x) => ok(x) ? (x < 0.001 ? "<0.001" : x.toFixed(3)) : "n/a";
+const peq = (x) => { const v = pv(x); return v.startsWith("<") ? "< " + v.slice(1) : "= " + v; };
+const ord = (n) => n + ((n % 100 >= 11 && n % 100 <= 13) ? "th" : ({1: "st", 2: "nd", 3: "rd"}[n % 10] || "th"));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const PLABEL = (p) => (D.periods.labels[p] || p);
@@ -476,7 +488,8 @@ const hLabels = H.map((h) => h === 1 ? "1 month" : `${h} months`);
 // ---------- generic charts
 // rows: [{label, sub, marks:[{v, kind:'dot'|'hollow'|'dia', color, tip}], range:[lo,hi] optional}]
 function dotRows(host, rows, opt) {
-  const w = width(host), lab = Math.min(170, w * 0.36), rh = opt.rowH || 28, top = 8, bot = 30, right = 16;
+  const w = width(host), longest = Math.max(...rows.map((r) => String(r.label).length));
+  const lab = Math.min(w * 0.42, longest * 6.4 + 10), rh = opt.rowH || 28, top = 8, bot = 30, right = 16;
   const h = top + rows.length * rh + bot;
   const s = svgRoot(host, w, h);
   let lo = opt.lo, hi = opt.hi;
@@ -493,7 +506,8 @@ function dotRows(host, rows, opt) {
   (opt.vlines || []).forEach((vl) => { if (vl.v > lo && vl.v < hi) el("line", {x1: x(vl.v), x2: x(vl.v), y1: top, y2: h - bot, stroke: vl.color, "stroke-width": 1.5}, s); });
   rows.forEach((r, i) => {
     const y = top + i * rh + rh / 2;
-    const lt = txt(s, lab, y + 4, r.label, {"text-anchor": "end", style: r.ref ? "fill:var(--muted)" : "fill:var(--ink);font-weight:500"});
+    if (r.group) { txt(s, 0, y + 6, r.label, {style: "fill:var(--ink);font-weight:600;font-size:12px"}); return; }
+    txt(s, lab, y + 4, r.label, {"text-anchor": "end", style: r.ref ? "fill:var(--muted)" : "fill:var(--ink);font-weight:500"});
     if (r.ci) {
       const a = Math.max(lo, r.ci[0]), b = Math.min(hi, r.ci[1]);
       if (ok(r.ci[0]) && ok(r.ci[1])) el("line", {x1: x(a), x2: x(b), y1: y, y2: y, stroke: r.ciColor || "var(--s1)", "stroke-width": 2, "stroke-linecap": "round", opacity: 0.55}, s);
@@ -523,8 +537,10 @@ function divColor(v, lim) {
 }
 function inkFor(v, lim) { return ok(v) && Math.abs(v / lim) > 0.55 ? "#ffffff" : "var(--ink)"; }
 function heat(host, rowKeys, colKeys, cell, opt) {
-  const w0 = width(host), lab = opt.rowLabelW || 150, colW = Math.max(opt.minCol || 46, (w0 - lab - 8) / colKeys.length);
-  const w = lab + 8 + colW * colKeys.length, headH = opt.headH || 70, rh = opt.rowH || 30;
+  const longest = Math.max(...rowKeys.map((r) => String(opt.rowLabel(r)).length));
+  const lab = Math.min(opt.rowLabelW || 240, longest * 6.4 + 8), padR = 56;
+  const w0 = width(host), colW = Math.max(opt.minCol || 46, (w0 - lab - 8 - padR) / colKeys.length);
+  const w = lab + 8 + colW * colKeys.length + padR, headH = opt.headH || 70, rh = opt.rowH || 30;
   const h = headH + rowKeys.length * rh + 4;
   host.style.overflowX = "auto";
   const s = svgRoot(host, w, h);
@@ -604,7 +620,7 @@ function renderVerdict() {
   const icon = {pass: "✓", weak: "!", none: "–", na: "?", calib_ok: "✓", calib_off: "!"};
   tb.innerHTML = V.grid.map((row) => `<tr><td class="rowh"><b>${esc(row.label)}</b><span>${esc(row.sub)}</span></td>` + H.map((h) => {
     const c = row.cells[h] || row.cells[String(h)] || {status: "na", value: "", detail: "not available"};
-    return `<td><div class="chip ${c.status}"><span class="st"><i aria-hidden="true">${icon[c.status] || ""}</i>${esc(V.labels[c.status] || c.status)}</span><span class="v">${esc(c.value)}</span><span class="d">${esc(c.detail)}</span></div></td>`;
+    return `<td><div class="chip ${c.status}"><span class="hz">${h === 1 ? "1 month" : h + " months"}</span><span class="st"><i aria-hidden="true">${icon[c.status] || ""}</i>${esc(V.labels[c.status] || c.status)}</span><span class="v">${esc(c.value)}</span><span class="d">${esc(c.detail)}</span></div></td>`;
   }).join("") + "</tr>").join("");
   $("vgrid-cap").textContent = `"Edge holds" means the estimate favours the model and the test that allows for searching over many models or cells is below ${A}. "Not significant" means the estimate favours the model but that test does not confirm it. Figures are for the ${PLABEL(D.periods.headline).toLowerCase()}.`;
   const cols = [["Expected return", V.mean, "#mean"], ["Distribution and calibration", V.dist, "#dist"], ["Covariance", V.cov, "#cov"], ["Portfolio test", V.strategy, "#strategy"]];
@@ -668,7 +684,7 @@ function renderCovNow(h) {
   heat($("corr-chart"), C.assets, C.assets, (r, c) => {
     const i = C.assets.indexOf(r), j = C.assets.indexOf(c), v = C.corr[i][j];
     return {v: r === c ? null : v, label: r === c ? "" : num(v, 2).replace(/^(−?)0\./, "$1."), tip: `<b>${esc(AS(r))} / ${esc(AS(c))}</b>` + tr("Predicted correlation", num(v, 2))};
-  }, {lim: 1, rowLabel: AS, colLabel: AS, rowLabelW: 110, headH: 84, rowH: 26, minCol: 30, minWidth: 0});
+  }, {lim: 1, rowLabel: AS, colLabel: AS, rowLabelW: 110, headH: 84, rowH: 26, minCol: 30, minWidth: 460});
   legend($("corr-legend"), [{kind: "band", color: divColor(-0.8, 1), label: "Negative"}, {kind: "band", color: "var(--mid)", label: "Near zero"}, {kind: "band", color: divColor(0.8, 1), label: "Positive"}]);
   const X = D.now.h[h];
   const sdAnn = {}; if (X) X.rows.forEach((r) => { sdAnn[r.asset] = r.sd * Math.sqrt(12 / h); });
@@ -694,7 +710,7 @@ function renderMean(h) {
     marks: [ctx ? {v: r.r2_ctx, kind: "small", color: "var(--s-bench)"} : null, {v: r.r2, kind: ok(r.dm_p) && r.dm_p < A ? "dot" : "hollow", color: r.ref ? "var(--s-bench)" : "var(--s1)"}].filter(Boolean),
     tip: () => `<b>${esc(M(r.model))}</b>` + tr("Out-of-sample R²", pct(r.r2)) + (ctx ? tr(PLABEL(ctx), pct(r.r2_ctx)) : "") + tr("Clark-West p", pv(r.cw_p)) + tr("Diebold-Mariano p (one-sided)", pv(r.dm_p)) + tr("Detectable R²", pct(det, 2, false))})),
     {lo: lo - pad, hi: hi + pad, fmt: (t) => pct(t, Math.abs(hi - lo) < 0.02 ? 1 : 0), shade: [0, det]});
-  $("mean-r2-cap").textContent = `${PLABEL(D.periods.headline)}; ${num(info.n_indep, 0)} independent observations; detectable R² ≈ ${pct(det, 2, false)}. SPA p (does any of the ${S.models.length} models beat the historical mean?) = ${pv(info.spa_p)}${S.spa_period !== D.periods.headline ? " (computed on the whole sample)" : ""}.`;
+  $("mean-r2-cap").textContent = `${PLABEL(D.periods.headline)}; ${num(info.n_indep, 0)} independent observations; detectable R² ≈ ${pct(det, 2, false)}. SPA p (does any of the ${info.spa_n || S.models.length} models scored together beat the historical mean?) ${peq(info.spa_p)}${S.spa_period !== D.periods.headline ? " (computed on the whole sample)" : ""}.`;
   table($("mean-r2-table"), [
     {h: "Model", f: (r) => modelCell(r.model)},
     {h: "R²", n: 1, f: (r) => pct(r.r2)},
@@ -710,26 +726,24 @@ function renderMean(h) {
   heat($("mean-grid"), S.models, G.assets, (m, a) => {
     const c = G.cells[m][a];
     const mark = ok(c.r2) && c.r2 > 0 && ok(c.q) && c.q < A;
-    return {v: c.r2, mark, label: ok(c.r2) ? minus((c.r2 * 100).toFixed(1)) : "", tip: `<b>${esc(M(m))} · ${esc(AF(a))}</b>` + tr("R²", pct(c.r2)) + tr("Detectable", pct(G.detectable[a], 1, false)) + tr("Clark-West p", pv(c.cw_p)) + tr("BH q (this model)", pv(c.q)) + tr("BY q (all models)", pv(c.q_all))};
+    return {v: c.r2, mark, label: ok(c.r2) ? minus((c.r2 * 100).toFixed(1)).replace(/^\u22120\.0$/, "0.0") : "", tip: `<b>${esc(M(m))} · ${esc(AF(a))}</b>` + tr("R²", pct(c.r2)) + tr("Detectable", pct(G.detectable[a], 1, false)) + tr("Clark-West p", pv(c.cw_p)) + tr("BH q (this model)", pv(c.q)) + tr("BY q (all models)", pv(c.q_all))};
   }, {lim, rowLabel: M, colLabel: AS, rowLabelW: 150, headH: 80, rowH: 28, minCol: 44, minWidth: 640});
   $("mean-grid-cap").textContent = `Out-of-sample R² in percent; colour scale clipped at ±${(lim * 100).toFixed(1)}%. Detectable R² differs by asset because histories differ (gold and TIPS are short).`;
   legend($("mean-grid-legend"), [{kind: "band", color: divColor(-lim, lim), label: "Worse than historical mean"}, {kind: "band", color: divColor(lim, lim), label: "Better"}, {kind: "ring", label: `R² > 0 and Benjamini-Hochberg q < ${A}${S.q_period !== D.periods.headline ? " (q on the whole sample)" : ""}`}]);
   renderCum();
   // subperiods
   const P = D.periods.order;
-  table($("mean-sub-table"), [{h: "Model", f: (r) => modelCell(r.model)}, ...P.map((p) => ({h: PLABEL(p), n: 1, f: (r) => pct(S.sub[h][r.model][p])}))],
-    [...S.models, ...S.refs].map((m) => ({model: m, _cls: S.refs.includes(m) ? "ref" : ""})).concat([{model: "__det", _cls: "ref"}]).map((r) => r.model === "__det" ? Object.assign(r, {}) : r));
-  // replace last row with detectable
-  const tb = $("mean-sub-table").querySelector("tbody");
-  const last = tb.lastElementChild;
-  last.innerHTML = `<td>Detectable R²<span class="m">5% significance, given sample size</span></td>` + P.map((p) => `<td class="n">${pct(S.sub_detectable[h][p], 2, false)}</td>`).join("");
+  table($("mean-sub-table"), [
+    {h: "Model", f: (r) => r.det ? `Detectable R²<span class="m">5% significance, given sample size</span>` : modelCell(r.model)},
+    ...P.map((p) => ({h: PLABEL(p), n: 1, f: (r) => r.det ? pct(S.sub_detectable[h][p], 2, false) : pct(S.sub[h][r.model][p])}))],
+    [...S.models.map((m) => ({model: m})), ...S.refs.map((m) => ({model: m, _cls: "ref"})), {det: true, _cls: "ref"}]);
 }
 function initCumControls() {
   const S = D.mean; if (!S) return;
   const ms = $("cum-model"), as = $("cum-asset");
   const def = S.models.includes(D.composite) ? D.composite : S.models[S.models.length - 1];
   ms.innerHTML = S.models.map((m) => `<option value="${m}" ${m === def ? "selected" : ""}>${esc(M(m))}</option>`).join("");
-  as.innerHTML = [`<option value="pooled">All assets pooled</option>`, ...D.assets.map((a) => `<option value="${a}">${esc(AF(a))}</option>`)].join("");
+  as.innerHTML = [`<option value="pooled">All assets pooled</option>`, ...D.assets.map((a) => `<option value="${a}">${esc(AS(a))}</option>`)].join("");
   ms.addEventListener("change", renderCum); as.addEventListener("change", renderCum);
 }
 function renderCum() {
@@ -753,7 +767,7 @@ function renderDist(h) {
     marks: [{v: r.skill_hist, kind: "dia", color: "var(--s2)"}, {v: r.skill_vol, kind: ok(r.p_vol) && r.p_vol < A ? "dot" : "hollow", color: "var(--s1)"}],
     tip: () => `<b>${esc(M(r.model))}</b>` + tr("CRPS skill vs EWMA vol", pct(r.skill_vol)) + tr("p (one-sided DM)", pv(r.p_vol)) + tr("CRPS skill vs hist. mean", pct(r.skill_hist)) + tr("p", pv(r.p_hist))})),
     {lo: lo - pad, hi: hi + pad, fmt: (t) => pct(t, 1)});
-  $("dist-skill-cap").textContent = `${PLABEL(D.periods.headline)}. SPA p (does any distribution model beat the EWMA volatility baseline?) = ${pv(info.spa_vol)}; vs historical mean = ${pv(info.spa_hist)}${S.spa_period !== D.periods.headline ? " (computed on the whole sample)" : ""}.`;
+  $("dist-skill-cap").textContent = `${PLABEL(D.periods.headline)}. SPA p (does any of the ${info.spa_n || S.models.length} models scored together beat the EWMA volatility baseline?) ${peq(info.spa_vol)}; vs historical mean ${peq(info.spa_hist)}${S.spa_period !== D.periods.headline ? " (computed on the whole sample)" : ""}.`;
   const ctx = D.periods.context;
   table($("dist-skill-table"), [
     {h: "Model", f: (r) => modelCell(r.model)},
@@ -778,13 +792,13 @@ function renderDist(h) {
   const g = el("g", {class: "grid"}, sv);
   niceTicks(plo - ppad, phi + ppad, 5).forEach((v) => { el("line", {x1: l, x2: w - r, y1: Y(v), y2: Y(v)}, g); txt(el("g", {class: "tick"}, sv), l - 6, Y(v) + 3.5, pct(v, 1), {"text-anchor": "end"}); });
   el("line", {x1: l, x2: w - r, y1: Y(0), y2: Y(0), stroke: "var(--ink-2)"}, sv);
-  qs.forEach((q, i) => txt(el("g", {class: "tick"}, sv), X(i), hh - b + 16, q + "th", {"text-anchor": "middle"}));
+  qs.forEach((q, i) => txt(el("g", {class: "tick"}, sv), X(i), hh - b + 16, ord(q), {"text-anchor": "middle"}));
   pick.forEach((m, k) => {
     const v = S.pinball[h][m].vol;
     el("path", {d: v.map((y, i) => (i ? "L" : "M") + X(i).toFixed(1) + "," + Y(ok(y) ? y : 0).toFixed(1)).join(""), fill: "none", stroke: colors[k], "stroke-width": 2}, sv);
     v.forEach((y, i) => { if (ok(y)) el("circle", {cx: X(i), cy: Y(y), r: 4, fill: colors[k], stroke: "var(--surface)", "stroke-width": 2}, sv); });
   });
-  qs.forEach((q, i) => { const hr = el("rect", {x: X(i) - (X(1) - X(0)) / 2, y: t, width: X(1) - X(0), height: hh - b - t, fill: "transparent"}, sv); hoverable(hr, () => `<b>${q}th percentile</b>` + pick.map((m) => tr(M(m), pct(S.pinball[h][m].vol[i], 2))).join("")); });
+  qs.forEach((q, i) => { const hr = el("rect", {x: X(i) - (X(1) - X(0)) / 2, y: t, width: X(1) - X(0), height: hh - b - t, fill: "transparent"}, sv); hoverable(hr, () => `<b>${ord(q)} percentile</b>` + pick.map((m) => tr(M(m), pct(S.pinball[h][m].vol[i], 2))).join("")); });
   legend($("pin-legend"), pick.map((m, k) => ({kind: "line", color: css(colors[k].slice(4, -1)), label: M(m)})));
   // coverage
   const covModels = [D.composite, D.dist_model, "vol_ewma", "hist_mean"].filter((m, i, arr) => rows.find((r) => r.model === m) && arr.indexOf(m) === i).slice(0, 3);
@@ -811,7 +825,7 @@ function renderDist(h) {
   const glim = Math.max(0.01, Math.max(...allv.map(Math.abs)));
   heat($("dist-grid"), S.models, D.assets, (m, a) => {
     const c = G[m][a];
-    return {v: c.skill, mark: ok(c.skill) && c.skill > 0 && ok(c.q) && c.q < A, label: ok(c.skill) ? minus((c.skill * 100).toFixed(1)) : "", tip: `<b>${esc(M(m))} · ${esc(AF(a))}</b>` + tr("CRPS skill vs EWMA vol", pct(c.skill)) + tr("p", pv(c.p)) + tr("BH q", pv(c.q))};
+    return {v: c.skill, mark: ok(c.skill) && c.skill > 0 && ok(c.q) && c.q < A, label: ok(c.skill) ? minus((c.skill * 100).toFixed(1)).replace(/^\u22120\.0$/, "0.0") : "", tip: `<b>${esc(M(m))} · ${esc(AF(a))}</b>` + tr("CRPS skill vs EWMA vol", pct(c.skill)) + tr("p", pv(c.p)) + tr("BH q", pv(c.q))};
   }, {lim: glim, rowLabel: M, colLabel: AS, rowLabelW: 170, headH: 80, rowH: 28, minCol: 44, minWidth: 640});
   $("dist-grid-cap").textContent = `CRPS skill against the EWMA volatility baseline, percent.`;
   legend($("dist-grid-legend"), [{kind: "band", color: divColor(-glim, glim), label: "Worse than EWMA volatility"}, {kind: "band", color: divColor(glim, glim), label: "Better"}, {kind: "ring", label: `Skill > 0 and BH q < ${A}${S.q_period !== D.periods.headline ? " (q on the whole sample)" : ""}`}]);
@@ -821,7 +835,7 @@ function renderDist(h) {
 function renderCov(h) {
   const S = D.cov; if (!S) return;
   const rows = S.joint[h];
-  $("cov-joint-cap").textContent = `${PLABEL(S.headline)}. Gain = log score of the sample covariance minus that of the model, nats per asset per period (positive = better). SPA p (any model beats the sample covariance) = ${pv(S.info[h].spa_p)}.`;
+  $("cov-joint-cap").textContent = `${PLABEL(S.headline)}. Gain = log score of the sample covariance minus that of the model, nats per asset per period (positive = better). SPA p (any model beats the sample covariance) ${peq(S.info[h].spa_p)}.`;
   table($("cov-joint-table"), [
     {h: "Model", f: (r) => modelCell(r.model)},
     {h: "Gain vs sample", n: 1, f: (r) => r.ref ? "benchmark" : num(r.diff, 3, true)},
@@ -874,7 +888,9 @@ function renderStrategy() {
   const vals = ordered.flatMap((r) => [r.d_cer_ci_lo, r.d_cer_ci_hi, r.d_cer]).filter(ok).concat([0]);
   const lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo) * 0.06;
   legend($("st-legend"), [{kind: "dot", color: css("--s1"), label: `Gain, p < ${A}`}, {kind: "hollow", color: css("--s1"), label: "Gain, not significant"}, {kind: "line", color: css("--s1"), label: "95% confidence interval"}]);
-  dotRows($("st-chart"), ordered.map((r) => ({label: `${stLabel(r.rule)} · ${M(r.mean_model)}`, ci: [r.d_cer_ci_lo, r.d_cer_ci_hi],
+  const grouped = [];
+  rules.forEach((ru) => { grouped.push({group: true, label: stLabel(ru), marks: []}); ordered.filter((r) => r.rule === ru).forEach((r) => grouped.push(r)); });
+  dotRows($("st-chart"), grouped.map((r) => r.group ? r : ({label: M(r.mean_model), ci: [r.d_cer_ci_lo, r.d_cer_ci_hi],
     marks: [{v: r.d_cer, kind: ok(r.d_cer_p) && r.d_cer_p < A ? "dot" : "hollow", color: "var(--s1)"}],
     tip: () => `<b>${esc(stLabel(r.rule))} with ${esc(M(r.mean_model))}</b>` + tr("CER gain, net, per year", pct(r.d_cer)) + tr("95% CI", `${pct(r.d_cer_ci_lo)} to ${pct(r.d_cer_ci_hi)}`) + tr("p", pv(r.d_cer_p)) + tr("BH q", pv(r.d_cer_q_bh)) + tr("Sharpe gain", num(r.d_sharpe, 2, true)) + tr("Break-even cost (bp)", num(r.breakeven_cost_bp, 0))})),
     {lo: lo - pad, hi: hi + pad, fmt: (t) => pct(t, 1), rowH: 24});
@@ -952,10 +968,10 @@ function renderMethod() {
   txt(s, X(devEnd), 22, `targets realized by ${D.dev_end}`, {"text-anchor": w < 520 ? "middle" : "end", style: "fill:var(--muted);font-size:10.5px"});
   $("design-text").innerHTML = D.design.map((p) => `<p>${esc(p)}</p>`).join("");
   // trials
-  const tri = T.trials, names = {mean: "Mean models", dist: "Distribution models", cov: "Covariance models"};
+  const tri = T.trials, names = {mean: "Mean-model", dist: "Distribution-model", cov: "Covariance-model"};
   $("trials").innerHTML = `<div class="facts">` + Object.keys(names).map((k) => `<div class="fact"><span class="v">${tri[k] ? tri[k].n : "n/a"}</span><span class="l">${names[k]} configurations logged in development; ${D.frozen_counts[k]} frozen</span></div>`).join("") + `</div>` +
     `<p class="caption">Each logged configuration is a model variant scored on development data. The multiple-testing adjustments on this page (SPA, model confidence sets, Benjamini-Hochberg) cover the frozen models only, not everything that was tried during development; the trial counts are the context for that.</p>` +
-    Object.keys(names).filter((k) => tri[k]).map((k) => `<details><summary>${names[k]}: all ${tri[k].n} logged configurations</summary><div><div class="tbl"><table class="t"><thead><tr><th>Name</th><th>Description</th><th>Status / run</th></tr></thead><tbody>${tri[k].rows.map((r) => `<tr><td class="mono">${esc(r.name)}</td><td>${esc(r.desc || "")}</td><td>${esc(r.status || "")}</td></tr>`).join("")}</tbody></table></div></div></details>`).join("");
+    Object.keys(names).filter((k) => tri[k]).map((k) => `<details><summary>${names[k]} configurations: all ${tri[k].n} logged</summary><div><div class="tbl"><table class="t"><thead><tr><th>Name</th><th>Description</th><th>Status / run</th></tr></thead><tbody>${tri[k].rows.map((r) => `<tr><td class="mono">${esc(r.name)}</td><td>${esc(r.desc || "")}</td><td>${esc(r.status || "")}</td></tr>`).join("")}</tbody></table></div></div></details>`).join("");
   table($("models-table"), [{h: "Model", f: (r) => modelCell(r.m)}, {h: "Role", f: (r) => esc(r.role)}, {h: "What it is", f: (r) => esc(r.d)}], D.frozen_models);
   $("limits").innerHTML = D.limits.map((x) => `<li>${esc(x)}</li>`).join("");
   const DA = T.data.assets || [];

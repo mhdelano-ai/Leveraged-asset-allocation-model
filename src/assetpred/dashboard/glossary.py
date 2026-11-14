@@ -140,6 +140,9 @@ TERMS = [
 def label(model: str) -> str:
     if model == config.COMPOSITE:
         return "Composite forecast"
+    if "__sd_" in model:
+        c, sd = model.split("__sd_", 1)
+        return f"{label(c)}, {label(sd).lower()} vols"
     return MODELS.get(model, (model, ""))[0]
 
 
