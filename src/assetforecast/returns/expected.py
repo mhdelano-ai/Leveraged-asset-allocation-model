@@ -22,15 +22,20 @@ Standard error and interval
 ``se_12m = 12 * sqrt(LRV / n)`` with LRV the long-run variance of the monthly
 excess returns from the equal-weighted cosine estimator
 (``assetforecast.eval.inference.long_run_variance``, kernel ``"ewc"``) with
-``B = EWC_TERMS_RULE(n)`` cosine terms, and the interval is
+``B = default_ewc_terms(n, h=12)`` cosine terms (``assetforecast.eval.inference``), and the interval is
 ``mean_12m +/- t_B(0.95) * se_12m`` (Student-t with B degrees of freedom, the
 estimator's fixed-b reference distribution, which pays for the noise in the
 variance estimate; with 30 years of data B is small and the interval is
 correspondingly wider than a normal one).
 
 The rule was chosen on simulated data before any interval on the real panel
-was looked at (scratch Monte Carlo, 1500 replications per cell, MC s.e. about
-0.8 points; ``tests/returns/test_expected.py`` re-checks two cells). Coverage
+was looked at (Monte Carlo, 1500 replications per cell, MC s.e. about 0.8
+points). That Monte Carlo was run from scratch code that is NOT in the
+repository, so the table below is a record, not a reproducible result: the
+only part reproducible from the repository is the one cell re-checked by
+``tests/returns/test_expected.py::test_coverage_under_serial_correlation``
+(AR(1) 0.2 returns at n = 357, 400 replications: the chosen interval covers
+86-95%, the iid interval at least 3 points less). Coverage
 of the nominal 90% interval for the mean of a monthly series and the average
 width relative to the iid-normal interval, at n = 357 / 448 / 622 / 1204 months
 (TIPS, EM, intl equity, the 1926 assets today):

@@ -24,7 +24,7 @@ data and the interfaces.
 | side | developed on | frozen | holdout (scored once) | record |
 |---|---|---|---|---|
 | covariance | outcomes known by 2014-12-31 (origins to 2013-12) | the model choice in `reports/SELECTION.md`, committed before the scoring script existed | origins 2014-01 to 2025-10 | `results/final/`, `reports/final_evaluation.md` |
-| returns (`assetpred`) | outcomes known by the end of 2014 | the model lists, test families and scoring rules at `assetpred` commit `7577b13` | origins 2015-01 onward (to 2025-10 at 12 months), at 1, 3 and 12 months | `results/archive/assetpred/` (`dashboard.html`, `scores/frozen.*`, `strategy/`) |
+| returns (`assetpred`) | outcomes known by the end of 2014 | the model lists, test families and scoring rules at `assetpred` commit `7577b13` | origins 2015-01 onward (to 2025-10 at 12 months), at 1, 3 and 12 months | `results/archive/assetpred/` (`dashboard.html`, `scores/frozen.parquet` and `frozen.json`, `strategy/`; the CSV exports are not committed) |
 
 Both were scored once and both are spent: every month up to the merge has now
 been seen. Development continues on data through 2014
@@ -91,7 +91,35 @@ Allowed:
   re-verified (so far: the asset ids; `ust_int` on the 7-year zero yield;
   `us_small` with no carry or value; `us_large` as the price features'
   equity reference; the pooling groups keyed by the new ids; a 10bp one-way
-  cost for `us_small`, a new judgement);
+  cost for `us_small`, a new judgement). Further changes the code makes,
+  each checked against it:
+  - **strategy risk model**: the replication's strategy test uses the
+    package covariance (`af_primary`, the 12-month matrix of `combo_cov_main`
+    from `covhistory`) instead of `assetpred`'s own primary model
+    (`vc_daily_ewma_m_lwb`). The old matrices from `assetpred`'s covariance
+    engine were multiplied by `mean_uncertainty_factor` (widened for the
+    uncertainty of the mean they were centred on); `af_primary` has no such
+    widening. Only the static `sample` comparator keeps it
+    (`returns/evaluation/static_cov.py`);
+  - **strategy models dropped**: the composite `ens_z__dist_lin_agg` and the
+    original's other risk models (`vc_ewma_ewma_m_lwb`, `vc_daily_daily_m_lw`,
+    `ewma_cov`, `lw`) are not in the strategy run (compare the two
+    `strategy/meta.json` files);
+  - **static references and horizons**: 12 months only. The static reference
+    portfolios (1/N, 60/40) are held over the holding months of the 12-month
+    rules, and the one-month comparisons against them (`vs_static`) are gone;
+  - **feature list pinned** to the 82 names of `FROZEN_FEATURE_COLUMNS`
+    (`assetpred` chose them from the data at run time; the two Baker-Wurgler
+    sentiment features drop out either way);
+  - **unknown asset ids raise** in `returns/models/ml_mean.py` instead of being
+    put in the "equity" pooling group;
+  - **stock-bond correlation features** (`g_sb_corr_d_3m`, `g_sb_corr_m_36m`)
+    use `ust_int`, which is now the 7-10 year Treasury, instead of
+    `assetpred`'s 5-year series;
+  - **variance risk premium** (`vrp`) uses the realised variance of `us_large`
+    instead of the CRSP total market;
+  - **cross-sectional rank features** (`xs_rank_*`, at least 4 assets) start in
+    1928 instead of 1973, because the 12-asset panel has more assets early.
 - a bug fix that makes the code do what was frozen, listed, with the
   replication rerun and the change in its outputs reported;
 - imports, paths, logging, error messages and docstrings.

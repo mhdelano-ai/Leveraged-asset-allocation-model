@@ -71,9 +71,9 @@
   <header class="vf-head" id="top">
     <h1 id="title">Twelve asset classes: risk, expected return and the range of next year's outcomes</h1>
     <p id="takeaway">For <b data-draw="v" data-source="snapshot" data-field="window" data-where="key=now">—</b>, a 60/40 portfolio's expected excess return over T-bills is
-      <b data-draw="v" data-fmt="s1" data-source="outlook_portfolios" data-field="er" data-where="portfolio=p6040&amp;shape=portfolios">—</b>% with
-      <b data-draw="v" data-source="outlook_portfolios" data-field="vol12" data-where="portfolio=p6040&amp;shape=portfolios">—</b>% volatility, and one year in twenty it would return
-      <b data-draw="v" data-source="outlook_portfolios" data-field="q05" data-where="portfolio=p6040&amp;shape=portfolios">—</b>% or less.
+      <b data-draw="v" data-fmt="s1" data-source="outlook_portfolios" data-field="er" data-where="portfolio=p6040&amp;shape=portfolios">—</b>% (standard error <span data-draw="v" data-fmt="f1" data-source="outlook_portfolios" data-field="er_se" data-where="portfolio=p6040&amp;shape=portfolios">—</span> points) with
+      <b data-draw="v" data-source="outlook_portfolios" data-field="vol12" data-where="portfolio=p6040&amp;shape=portfolios">—</b>% volatility. Its published range puts one year in twenty at
+      <b data-draw="v" data-source="outlook_portfolios" data-field="q05" data-where="portfolio=p6040&amp;shape=portfolios">—</b>% or worse (<span data-draw="v" data-source="outlook_portfolios" data-field="q05" data-where="portfolio=p6040&amp;shape=assets">—</span>% with the alternative, asset-based shape); that range has been checked only on years already seen, and its 5% point rests on <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_p_episodes_q05" data-where="key=now">—</span> historical episodes.
       <span class="vf-verdict" data-verdict="mean_orig">
         <span data-when="weak" hidden>The expected returns are each asset's long-run average: no forecasting model beat that average on years it had not seen.</span>
         <span data-when="none" hidden>The expected returns are each asset's long-run average: no forecasting model beat that average on years it had not seen.</span>
@@ -87,12 +87,12 @@
     <div class="vf-tile" id="tile-6040">
       <span class="vf-cap">60/40 portfolio, next 12 months</span>
       <span class="vf-big"><span data-draw="v" data-fmt="s1" data-source="outlook_portfolios" data-field="er" data-where="portfolio=p6040&amp;shape=portfolios">—</span>%</span>
-      <span class="vf-cap">Expected excess return. Volatility <span data-draw="v" data-source="forecast_portfolios" data-field="vol12" data-where="portfolio=p6040">—</span>%; 5% quantile <span data-draw="v" data-source="outlook_portfolios" data-field="q05" data-where="portfolio=p6040&amp;shape=portfolios">—</span>%.</span>
+      <span class="vf-cap">Expected excess return, standard error <span data-draw="v" data-fmt="f1" data-source="outlook_portfolios" data-field="er_se" data-where="portfolio=p6040&amp;shape=portfolios">—</span> points. Volatility <span data-draw="v" data-source="forecast_portfolios" data-field="vol12" data-where="portfolio=p6040">—</span>%; 5% quantile <span data-draw="v" data-source="outlook_portfolios" data-field="q05" data-where="portfolio=p6040&amp;shape=portfolios">—</span>%.</span>
     </div>
     <div class="vf-tile" id="tile-balanced">
       <span class="vf-cap">Balanced 12-asset mix, next 12 months</span>
       <span class="vf-big"><span data-draw="v" data-fmt="s1" data-source="outlook_portfolios" data-field="er" data-where="portfolio=p_balanced&amp;shape=portfolios">—</span>%</span>
-      <span class="vf-cap">Expected excess return. Volatility <span data-draw="v" data-source="forecast_portfolios" data-field="vol12" data-where="portfolio=p_balanced">—</span>%; 5% quantile <span data-draw="v" data-source="outlook_portfolios" data-field="q05" data-where="portfolio=p_balanced&amp;shape=portfolios">—</span>%.</span>
+      <span class="vf-cap">Expected excess return, standard error <span data-draw="v" data-fmt="f1" data-source="outlook_portfolios" data-field="er_se" data-where="portfolio=p_balanced&amp;shape=portfolios">—</span> points. Volatility <span data-draw="v" data-source="forecast_portfolios" data-field="vol12" data-where="portfolio=p_balanced">—</span>%; 5% quantile <span data-draw="v" data-source="outlook_portfolios" data-field="q05" data-where="portfolio=p_balanced&amp;shape=portfolios">—</span>%.</span>
     </div>
     <div class="vf-tile" id="tile-corr">
       <span class="vf-cap">Stock–bond correlation, forecast</span>
@@ -102,7 +102,7 @@
     <div class="vf-tile" id="tile-holdout">
       <span class="vf-cap">Volatility loss on 2014–2025, scored once (lower is better)</span>
       <span class="vf-big" data-draw="v" data-fmt="f3" data-source="candidates" data-field="holdout" data-where="role=primary">—</span>
-      <span class="vf-cap">Against <span data-draw="v" data-fmt="f3" data-source="candidates" data-field="holdout" data-where="role=reference">—</span> for the simple reference. The return side has no such test of its own yet.</span>
+      <span class="vf-cap">Against <span data-draw="v" data-fmt="f3" data-source="candidates" data-field="holdout" data-where="role=reference">—</span> for the simple reference. The return side's out-of-sample test is the original project's holdout, below.</span>
     </div>
   </section>
 
@@ -136,6 +136,7 @@
         <tbody data-draw="outlook-rows"></tbody>
       </table>
     </div>
+    <p class="vf-muted"><b data-draw="v" data-fmt="int" data-source="snapshot" data-field="er_n_zero" data-where="key=now">—</b> of the <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="er_n" data-where="key=now">—</span> 90% intervals for the expected return include zero; the lower bound for <span data-draw="v" data-source="snapshot" data-field="er_near_zero" data-where="key=now">—</span> is essentially zero. History alone cannot say that these assets earn more than T-bills.</p>
     <p class="vf-cap">The arithmetic equivalent is the simple 12-month excess return implied by the log mean and the forecast variance; it is the input for an optimizer that works in simple returns. Averages start in <span data-draw="v" data-source="snapshot" data-field="return_panel_from" data-where="key=now">—</span> or when an asset's history begins, whichever is later; the covariance side uses longer histories.</p>
 
     <h3 id="now-port-h">Policy portfolios</h3>
@@ -151,7 +152,9 @@
           <th data-field="label">Portfolio</th>
           <th class="vf-txt" data-field="shape_label">Shape</th>
           <th data-field="er">Expected return, %</th>
+          <th data-field="er_se">Its standard error</th>
           <th data-field="vol12">Volatility, %</th>
+          <th data-field="sd">Spread of the range (sd), %</th>
           <th data-field="q01">1% quantile</th>
           <th data-field="q05">5% quantile</th>
           <th data-field="q50">Median</th>
@@ -162,7 +165,8 @@
         <tbody data-draw="outlook-port-rows"></tbody>
       </table>
     </div>
-    <p class="vf-cap">The portfolio shape is pooled from <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_p_n" data-where="key=now">—</span> past 12-month outcomes of the three portfolios, forecast from <span data-draw="v" data-source="snapshot" data-field="shape_p_from" data-where="key=now">—</span> to <span data-draw="v" data-source="snapshot" data-field="shape_p_to" data-where="key=now">—</span>, which overlap heavily: its 1% tail rests on <b data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_p_episodes_q01" data-where="key=now">—</b> separate historical episodes and its 5% tail on <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_p_episodes_q05" data-where="key=now">—</span>. The asset shape rests on <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_a_episodes_q01" data-where="key=now">—</span> and <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_a_episodes_q05" data-where="key=now">—</span>. Portfolio log returns are approximated by the weighted sum of the assets' log returns.</p>
+    <p class="vf-muted"><b>The published portfolio ranges are narrower than the package's own covariance forecast.</b> The portfolio shape keeps the spread of past portfolio outcomes, <span data-draw="v" data-fmt="f3" data-source="snapshot" data-field="shape_p_sd" data-where="key=now">—</span> of the scale then predicted, and its tails are floored at a normal with that same narrower spread. For 60/40 the range's standard deviation is <span data-draw="v" data-fmt="f2" data-source="snapshot" data-field="p6040_sd" data-where="key=now">—</span>% against a 12-month volatility forecast of <span data-draw="v" data-fmt="f2" data-source="snapshot" data-field="p6040_vol12" data-where="key=now">—</span>%, its middle half is <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="p6040_iqr_narrower" data-where="key=now">—</span>% narrower than a normal at the predictive scale, and its <span data-draw="v" data-source="snapshot" data-field="shape_p_floored" data-where="key=now">—</span> quantiles sit on that narrower floor. The asset-shape rows do not narrow this way. For any other portfolio, and for anything levered or optimized, use the asset shape on the covariance-implied scale.</p>
+    <p class="vf-cap">The expected return's standard error for a portfolio adds the assets' standard errors (as if their errors were perfectly correlated); no interval is published for it. The portfolio shape is pooled from <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_p_n" data-where="key=now">—</span> past 12-month outcomes of the three portfolios, forecast from <span data-draw="v" data-source="snapshot" data-field="shape_p_from" data-where="key=now">—</span> to <span data-draw="v" data-source="snapshot" data-field="shape_p_to" data-where="key=now">—</span>, which overlap heavily: its 1% tail rests on <b data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_p_episodes_q01" data-where="key=now">—</b> separate historical episodes and its 5% tail on <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_p_episodes_q05" data-where="key=now">—</span>. The asset shape rests on <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_a_episodes_q01" data-where="key=now">—</span> and <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_a_episodes_q05" data-where="key=now">—</span>. Before every asset's history begins, the "policy portfolios" behind it are the policy weights renormalized over the assets then available. Portfolio log returns are approximated by the weighted sum of the assets' log returns.</p>
   </section>
 
   <!-- ====================================================================== TRUST -->
@@ -172,12 +176,17 @@
     <div class="vf-three">
       <div class="vf-card" id="trust-cov">
         <span class="vf-tag vf-oos">Tested out of sample</span>
-        <h3>Volatility and correlation: the covariance model's holdout, <span data-draw="v" data-fmt="month" data-source="verdicts" data-field="first_origin" data-where="question=cov_vol">—</span> to <span data-draw="v" data-fmt="month" data-source="verdicts" data-field="last_origin" data-where="question=cov_vol">—</span></h3>
+        <h3>Volatility, correlation and the whole matrix: the covariance model's holdout, <span data-draw="v" data-fmt="month" data-source="verdicts" data-field="first_origin" data-where="question=cov_vol">—</span> to <span data-draw="v" data-fmt="month" data-source="verdicts" data-field="last_origin" data-where="question=cov_vol">—</span></h3>
         <ul>
           <li class="vf-verdict" data-verdict="cov_vol">
             <span data-when="pass" hidden><span class="vf-pill vf-ok">Edge holds</span> Volatility forecasts beat the simple reference: loss <span data-draw="v" data-fmt="f3" data-source="verdicts" data-field="q_model" data-where="question=cov_vol">—</span> against <span data-draw="v" data-fmt="f3" data-source="verdicts" data-field="q_ref" data-where="question=cov_vol">—</span>, skill <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=cov_vol">—</span>% (p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="p" data-where="question=cov_vol">—</span>).</span>
             <span data-when="weak" hidden><span class="vf-pill vf-warn">Not significant</span> Volatility forecasts were ahead of the simple reference (skill <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=cov_vol">—</span>%), but not significantly (p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="p" data-where="question=cov_vol">—</span>).</span>
             <span data-when="none" hidden><span class="vf-pill vf-bad">No edge</span> Volatility forecasts did not beat the simple reference (skill <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=cov_vol">—</span>%).</span>
+          </li>
+          <li class="vf-verdict" data-verdict="cov_corr">
+            <span data-when="pass" hidden><span class="vf-pill vf-ok">Edge holds</span> Correlation forecasts beat the ten-year reference (skill <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=cov_corr">—</span>%, p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="p" data-where="question=cov_corr">—</span>).</span>
+            <span data-when="weak" hidden><span class="vf-pill vf-warn">Not significant</span> Correlation forecasts were ahead of the ten-year reference only in point estimate (skill <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=cov_corr">—</span>%, p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="p" data-where="question=cov_corr">—</span>).</span>
+            <span data-when="none" hidden><span class="vf-pill vf-bad">No edge</span> Correlation forecasts did not beat the ten-year reference (skill <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=cov_corr">—</span>%).</span>
           </li>
           <li class="vf-verdict" data-verdict="cov_matrix">
             <span data-when="pass" hidden><span class="vf-pill vf-ok">Edge holds</span> The whole matrix beat the reference matrix (difference in covariance loss <span data-draw="v" data-fmt="f3" data-source="verdicts" data-field="diff" data-where="question=cov_matrix">—</span>, p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="p" data-where="question=cov_matrix">—</span>).</span>
@@ -199,7 +208,7 @@
         <ul>
           <li class="vf-verdict" data-verdict="mean_orig">
             <span data-when="pass" hidden><span class="vf-pill vf-ok">Edge holds</span> At <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_pass" data-where="question=mean_orig">—</span> of the 3 horizons a model beat the historical mean after allowing for the search over models.</span>
-            <span data-when="weak" hidden><span class="vf-pill vf-bad">No edge</span> No expected-return model beat the historical mean at any horizon once the search over six models is allowed for (figures below).</span>
+            <span data-when="weak" hidden><span class="vf-pill vf-warn">Not significant</span> No expected-return model beat the historical mean at any horizon once the search over six models is allowed for (figures below).</span>
             <span data-when="none" hidden><span class="vf-pill vf-bad">No edge</span> No expected-return model even had a higher R² than the historical mean.</span>
           </li>
           <li class="vf-verdict" data-verdict="dist_orig">
@@ -241,11 +250,28 @@
         <p class="vf-label" data-draw="v" data-source="verdicts" data-field="label" data-where="question=mean_rep">—</p>
       </div>
     </div>
-    <p class="vf-verdict" data-verdict="mean_orig">
-      <span data-when="weak" hidden><b>What this means for the figures above.</b> The volatilities and correlations have passed a test on unseen years. The expected returns are plain historical averages because nothing tried did better; their interval measures only how precisely history pins the average down, not whether the future will resemble it. The predictive ranges combine the two and have been checked only on years already seen.</span>
-      <span data-when="none" hidden><b>What this means for the figures above.</b> The volatilities and correlations have passed a test on unseen years. The expected returns are plain historical averages because nothing tried did better; their interval measures only how precisely history pins the average down, not whether the future will resemble it. The predictive ranges combine the two and have been checked only on years already seen.</span>
-      <span data-when="pass" hidden><b>What this means for the figures above.</b> The volatilities and correlations have passed a test on unseen years. The expected returns are plain historical averages, by decision, even though a model beat them at some horizon. The predictive ranges combine the two and have been checked only on years already seen.</span>
-    </p>
+    <p><b>What this means for the figures above.</b>
+      <span class="vf-verdict" data-verdict="cov_vol">
+        <span data-when="pass" hidden>The volatilities beat a simple reference on unseen years.</span>
+        <span data-when="weak" hidden>The volatilities were ahead of a simple reference on unseen years, but not significantly.</span>
+        <span data-when="none" hidden>The volatilities did not beat a simple reference on unseen years.</span>
+      </span>
+      <span class="vf-verdict" data-verdict="cov_corr">
+        <span data-when="pass" hidden>The correlations beat theirs too.</span>
+        <span data-when="weak" hidden>The correlations were ahead of theirs only in point estimate.</span>
+        <span data-when="none" hidden>The correlations did not beat theirs.</span>
+      </span>
+      <span class="vf-verdict" data-verdict="cov_matrix">
+        <span data-when="pass" hidden>The matrix as a whole beat the reference matrix.</span>
+        <span data-when="weak" hidden>The matrix as a whole was ahead of its reference only in point estimate.</span>
+        <span data-when="none" hidden>The matrix as a whole did not beat the reference matrix.</span>
+      </span>
+      <span class="vf-verdict" data-verdict="mean_orig">
+        <span data-when="weak" hidden>The expected returns are plain historical averages because nothing tried did better;</span>
+        <span data-when="none" hidden>The expected returns are plain historical averages because nothing tried did better;</span>
+        <span data-when="pass" hidden>The expected returns are plain historical averages, by decision, even though a model beat them at some horizon;</span>
+      </span>
+      their interval measures only how precisely history pins the average down, not whether the future will resemble it. The predictive ranges combine the two and have been checked only on years already seen.</p>
     <p class="vf-muted">New evidence for the return side starts with the forecast made at the end of <b data-draw="v" data-source="snapshot" data-field="oos_from" data-where="key=now">—</b>, the first whose whole 12-month window lies after the projects were combined; its outcome is known at the end of <b data-draw="v" data-source="snapshot" data-field="first_oos_outcome" data-where="key=now">—</b>.</p>
   </section>
 
@@ -387,6 +413,7 @@
   <section class="vf-sec" id="mean">
     <h2 id="mean-h">Does anything beat the historical mean?</h2>
     <p class="vf-muted">Six expected-return models, fixed before their test, against each asset's expanding historical mean. R² is the share of the historical mean's squared error that a model removed, pooled over assets; positive means closer. The marker at the right of each panel is roughly the R² this sample could have detected.</p>
+    <span class="vf-tag vf-oos">Original holdout: tested out of sample</span>
     <p class="vf-verdict" data-verdict="mean_orig">
       <span data-when="pass" hidden><b>Original holdout:</b> a model beat the historical mean at <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_pass" data-where="question=mean_orig">—</span> of 3 horizons after allowing for the search.</span>
       <span data-when="weak" hidden><b>Original holdout:</b> no model beat the historical mean at 1, 3 or 12 months once the search over six models is allowed for (family test p =
@@ -395,6 +422,7 @@
         <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=mean_orig_h12">—</span>). The best R² at 12 months was <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="r2" data-where="question=mean_orig_h12">—</span>%.</span>
       <span data-when="none" hidden><b>Original holdout:</b> no model had a higher R² than the historical mean at any horizon.</span>
     </p>
+    <span class="vf-tag vf-desc">Replication: seen data, described not tested</span>
     <p class="vf-verdict" data-verdict="mean_rep">
       <span data-when="pass" hidden><b>Replication:</b> the same models, unchanged, beat the historical mean on the twelve-asset panel (family p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=mean_rep">—</span>). These years had been seen, so this is not evidence of skill.</span>
       <span data-when="weak" hidden><b>Replication:</b> the same models, unchanged, on the twelve-asset panel: best R² <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="r2" data-where="question=mean_rep">—</span>% (<span data-draw="v" data-source="verdicts" data-field="best_label" data-where="question=mean_rep">—</span>), <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_positive" data-where="question=mean_rep">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_models" data-where="question=mean_rep">—</span> positive, family test p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=mean_rep">—</span>. Not a beat, and in any case not new evidence.</span>
@@ -515,12 +543,14 @@
   <section class="vf-sec" id="portfolio">
     <h2 id="portfolio-h">Is any of it worth anything in a portfolio?</h2>
     <p class="vf-muted">Three portfolio rules fixed in advance (mean-variance, mean-variance at 10% volatility, per-asset timing) were run on each model's expected returns and, separately, on the historical means, with the same risk model; the bars are the difference in certainty-equivalent return per year after costs, with its 95% interval. Above zero, the forecasts helped.</p>
+    <span class="vf-tag vf-oos">Original holdout: tested out of sample</span>
     <p class="vf-verdict" data-verdict="strat_orig">
       <span data-when="pass" hidden><b>Original holdout:</b> <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_q_pos" data-where="question=strat_orig">—</span> rule-model pairs gained significantly after adjustment.</span>
       <span data-when="weak" hidden><b>Original holdout:</b> <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_pos" data-where="question=strat_orig">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=strat_orig">—</span> pairs were ahead, none significantly after adjustment.</span>
       <span data-when="worse" hidden><b>Original holdout:</b> across 1, 3 and 12 months, <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_neg" data-where="question=strat_orig">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=strat_orig">—</span> rule-model pairs did worse than the same rule on historical means, <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_sig_neg" data-where="question=strat_orig">—</span> of them with p &lt; 0.05; no gain survived adjustment.</span>
       <span data-when="none" hidden><b>Original holdout:</b> no rule-model pair gained.</span>
     </p>
+    <span class="vf-tag vf-desc">Replication: seen data, described not tested</span>
     <p class="vf-verdict" data-verdict="strat_rep">
       <span data-when="pass" hidden><b>Replication, with this package's covariance as the risk model:</b> some gains survive adjustment, on years already seen.</span>
       <span data-when="weak" hidden><b>Replication, with this package's covariance as the risk model:</b> <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_pos" data-where="question=strat_rep">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=strat_rep">—</span> ahead, none significantly after adjustment (largest <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="best_d_cer" data-where="question=strat_rep">—</span>% a year).</span>
@@ -549,6 +579,7 @@
       <span data-when="worse" hidden>With historical means as the expected returns, the package's covariance did worse than a static sample covariance in <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_neg" data-where="question=risk_rep">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=risk_rep">—</span> rules (<span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_sig_neg" data-where="question=risk_rep">—</span> with p &lt; 0.05).</span>
       <span data-when="none" hidden>With historical means as the expected returns, the package's covariance gained nothing over a static sample covariance.</span>
     </p>
+    <p class="vf-verdict">Rules under which the point estimates favour the static matrix: <span data-draw="v" data-source="verdicts" data-field="behind_list" data-where="question=risk_rep">—</span>.</p>
     <div class="vf-scroll">
       <table id="risk-table" data-source="strategy" data-row-key="id">
         <thead><tr>
@@ -583,7 +614,7 @@
     <ul>
       <li>When a crisis starts. The volatility forecast reacts after the fact; the predictive range assumes next year's shape resembles the past's.</li>
       <li>Whether expected returns have shifted. A historical average is slow by construction, and its interval says nothing about a change of regime.</li>
-      <li>Much about the portfolio tails. The portfolio shape's 1% point rests on a handful of historical episodes (first section); the asset-shape row shows how much a different, also defensible, choice moves it.</li>
+      <li>Much about the portfolio tails. The portfolio shape's 1% point rests on a handful of historical episodes, and its spread is narrower than the covariance forecast (first section); the asset-shape row shows how much a different, also defensible, choice moves it.</li>
       <li>The return side uses the history from <span data-draw="v" data-source="snapshot" data-field="return_panel_from" data-where="key=now">—</span> without the month-average price eras; the covariance side uses everything back to the 1870s. US small caps have no carry or valuation measure among the return predictors, and several daily-volatility predictors change level where their data source changes.</li>
       <li>The backtests can detect only large differences: twelve held-out years can show that nothing collapsed, not which close model is best.</li>
     </ul>
@@ -687,7 +718,7 @@
     }));
   });
   table('outlook-rows', 'outlook_assets', ['asset'], [['name'], ['er', 'vf-key'], ['er_lo'], ['er_hi'], ['er_arith'], ['vol12'], ['q01'], ['q05'], ['q50'], ['q95'], ['q99'], ['history_from']]);
-  table('outlook-port-rows', 'outlook_portfolios', ['portfolio', 'shape'], [['label'], ['shape_label', 'vf-txt'], ['er', 'vf-key'], ['vol12'], ['q01'], ['q05'], ['q50'], ['q95'], ['q99'], ['weights', 'vf-txt']], { rowClass: (d) => (d.published === 'yes' ? '' : 'vf-sens') });
+  table('outlook-port-rows', 'outlook_portfolios', ['portfolio', 'shape'], [['label'], ['shape_label', 'vf-txt'], ['er', 'vf-key'], ['er_se'], ['vol12'], ['sd'], ['q01'], ['q05'], ['q50'], ['q95'], ['q99'], ['weights', 'vf-txt']], { rowClass: (d) => (d.published === 'yes' ? '' : 'vf-sens') });
   table('assets-rows', 'forecast_assets', ['asset'], [['name'], ['vol12', 'vf-key'], ['vol21'], ['p10'], ['p90'], ['last12'], ['longrun'], ['miss_lo'], ['miss_hi'], ['since']]);
   table('cand-rows', 'candidates', ['role'], [['label'], ['dev'], ['holdout', 'vf-key'], ['rf_dev'], ['rf_holdout']]);
   table('exp-rows', 'expectations', ['id'], [['id'], ['expectation', 'vf-txt'], ['status', 'vf-txt', (td, d) => pill(td, d.status, d.outcome === 'met' ? 'vf-ok' : d.outcome === 'partly' ? 'vf-warn' : 'vf-bad')], ['evidence', 'vf-txt']]);

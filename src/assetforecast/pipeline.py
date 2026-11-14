@@ -41,7 +41,8 @@ dashboard step is skipped under ``--max-date`` (it publishes ``dashboard/``).
 Without ``--max-date`` the variable is removed from the steps' environment, so
 a value left in the shell cannot turn a full run into a partial one.
 
-Every step also gets ``OMP_NUM_THREADS=1`` (parallelism comes from ``--jobs``)
+Every step also gets ``ASSETFORECAST_PYTHON`` (this interpreter, which ``scripts/run_all.sh``
+uses so the covariance step imports the same copy of the package), ``OMP_NUM_THREADS=1`` (parallelism comes from ``--jobs``)
 and runs without ``ASSETFORECAST_DROP_TIERS`` (the return side drops tier D
 explicitly; the covariance side must see every tier) or
 ``ASSETFORECAST_RESULTS`` (each step finds its own store; the forecast step is
@@ -182,6 +183,7 @@ def step_env(c: Config, base: dict | None = None) -> dict:
         env[_MAX_ENV] = c.max_date
     env["OMP_NUM_THREADS"] = "1"
     env["PYTHONUNBUFFERED"] = "1"
+    env["ASSETFORECAST_PYTHON"] = sys.executable      # scripts/run_all.sh runs the same interpreter
     return env
 
 

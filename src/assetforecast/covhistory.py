@@ -36,7 +36,8 @@ only on the view, never on the call order ("cold equals warm").
 
 Tail dispersion ``s2`` (``bridge.vol_uncertainty``) is recorded per origin
 under the two conventions the package uses: ``tail_s2_origin`` on the view at
-the origin (what ``forecast.py`` publishes as ``tail_model.s2``) and
+the origin (the convention of the old scale-mixture quantiles, which
+``forecast.py`` no longer publishes; ``results/final`` keeps them) and
 ``tail_s2_anchor`` on the view at the bridge anchor (what
 ``score_final.stage_bridge`` uses).
 
