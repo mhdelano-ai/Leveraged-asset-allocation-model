@@ -205,7 +205,7 @@ def _meta(model, bridge, results_dir, src, panel, max_date, seconds) -> dict:
                       "covariance of the 12-month return",
         "bridge_reestimation": "once a year, from the view at the last December month-end <= origin "
                                "(bridge_anchor), per eligible asset set",
-        "tail_s2": {"tail_s2_origin": "vol_uncertainty(panel.asof(origin)); forecast.py's tail_model.s2",
+        "tail_s2": {"tail_s2_origin": "vol_uncertainty(panel.asof(origin)); published as tail_model.s2 by forecast.py before the distribution files replaced it",
                     "tail_s2_anchor": "vol_uncertainty(panel.asof(bridge_anchor)); score_final.stage_bridge's s2"},
         "panel": {
             "drop_tiers": "",
