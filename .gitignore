@@ -5,3 +5,6 @@ data/raw/
 *.pyc
 .venv/
 data/processed/raw_manifest.lock
+# development-period outputs are exploratory and regenerable; keep only the trial logs
+results/dev/*
+!results/dev/trials_*.csv
