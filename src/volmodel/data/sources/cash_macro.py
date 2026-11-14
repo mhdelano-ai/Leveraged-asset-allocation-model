@@ -228,7 +228,9 @@ def _yield_daily_returns(dates: pd.DatetimeIndex, mm_rate: pd.Series, prev_date:
     days = (dates - prevs).days.values
     ret = rate.values[pos] * days / 360.0
     ret = np.where(stale > MAX_YIELD_FFILL_DAYS, np.nan, ret)
-    return pd.DataFrame({"ret": ret, "stale_days": stale}, index=dates.rename("date"))
+    # carried: the previous trading day is after the last published yield
+    carried = prevs > rate.index[-1]
+    return pd.DataFrame({"ret": ret, "stale_days": stale, "carried": carried}, index=dates.rename("date"))
 
 
 def build_cash(refresh: bool = False) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
@@ -285,9 +287,9 @@ def build_cash(refresh: bool = False) -> tuple[pd.DataFrame, pd.DataFrame, dict]
     ov = spy[(spy > last_french - pd.Timedelta(days=35)) & (spy <= last_french)]
     diag["calendar_overlap_mismatch"] = sorted(set(ov) ^ set(cal[cal >= ov[0]])) if len(ov) else None
     tail = _yield_daily_returns(tail_dates, mm4, cal[-1])
-    diag["tail"] = (tail.index[0], tail.index[-1], int((tail["stale_days"] > 3).sum()), w4.dropna().index[-1])
+    diag["tail"] = (tail.index[0], tail.index[-1], int(tail["carried"].sum()), w4.dropna().index[-1])
 
-    src_tail = np.where(tail["stale_days"] > 3, "h15_tbill4w_ffill", "h15_tbill4w")
+    src_tail = np.where(tail["carried"], "h15_tbill4w_ffill", "h15_tbill4w")
     daily = pd.concat([
         pd.DataFrame({"ret": daily_fr, "source": "french_rf", "tier": "C"}),
         pd.DataFrame({"ret": tail["ret"], "source": src_tail, "tier": "D"}),
@@ -566,6 +568,15 @@ def write_report(daily, monthly, cdiag, macro, mdiag, path: Path) -> None:
 - Market-rate series (short rate, long yield, policy rate, dollar) are monthly averages of market
   observations and are dated available at the month-end. Long-yield splices across sources change
   the level (railroad bonds yield more than governments): see diagnostics above.
+- The long-yield splice in 1941-10 (m13033a -> m13033b, different bond baskets) shifts the level
+  by about 0.5 pp (overlap corr is low because both are nearly flat under the 1940s peg).
+- Unemployment before the BLS API window (last ten years) comes from the DBnomics copy (vintage of
+  early 2025), the last ten years from the BLS API: up to 0.1 pp vintage differences between the two.
+- The October-2025 CPI was never published, so `macro_infl_yoy` (and real rate) for 2026-10 and
+  `macro_unrate_chg_12m` for 2026-10 are missing rather than imputed.
+- The BLS v1 API allows 25 requests/day per IP; the loader makes one request and caches it.
+- Monthly French RF is rounded to 0.01 %/month (0.12 % p.a.), which is why the correlation with the
+  yield-based series drops in the flat-rate last 24 months while the mean difference stays ~5 bp/yr.
 - Pre-1926 cash is a model (tier D); its level could be off by ~0.5-1 pp p.a., which is
   immaterial for volatility but matters for long-run means.
 """)

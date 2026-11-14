@@ -45,10 +45,10 @@ def test_cash_format(daily, monthly):
 def test_no_gaps_in_daily_cash(daily, monthly):
     assert daily["ret"].notna().all()
     assert monthly["ret"].notna().all()
-    # every weekday not present must be a market holiday: no gaps longer than a long weekend + holiday,
-    # except known historical closures (1933 bank holiday, 1914 is before the start, 9/11 2001)
+    # no gaps longer than a 4-day weekend + bridge day (5 calendar days, e.g. Hurricane Sandy 2012,
+    # 1950s-60s holiday closures), except the 1933 bank holiday and the 9/11 closure
     gaps = daily.index.to_series().diff().dt.days
-    big = gaps[gaps > 4]
+    big = gaps[gaps > 5]
     allowed = {pd.Timestamp("1933-03-15"), pd.Timestamp("2001-09-17")}
     assert set(big.index) <= allowed, big
     # the daily series runs close to "now" (within a month of the latest monthly row)
