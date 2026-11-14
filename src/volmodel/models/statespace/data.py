@@ -83,9 +83,7 @@ def build_obs(view) -> Obs:
         with np.errstate(divide="ignore", invalid="ignore"):
             y2 = np.log(rv.to_numpy(float))
         y2[~np.isfinite(y2)] = np.nan
-        # the first daily month is often partial: use y2 only where the month
-        # before also had daily data or the asset has daily data from the
-        # first trading row of the month (covered by the 80% rule above)
+        # a partial first daily month fails the 80%-of-rows rule above
     has2 = np.isfinite(y2)
     dact = np.cumsum(has2, axis=0) > 0
 
