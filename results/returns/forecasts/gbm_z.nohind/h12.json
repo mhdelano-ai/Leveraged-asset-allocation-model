@@ -20,9 +20,9 @@
   "code": "3c30b0f1a2c49a9c"
  },
  "rows": 5107,
- "seconds": 129.93,
+ "seconds": 125.66,
  "first_origin": "1990-01-31",
  "last_origin": "2026-10-31",
- "written": "2026-11-14T20:34:26+00:00",
+ "written": "2026-11-14T21:46:57+00:00",
  "label": "Replication on the 12-asset panel, frozen models unchanged; both holdouts already spent, so not out-of-sample evidence"
 }

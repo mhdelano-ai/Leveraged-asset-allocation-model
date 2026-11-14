@@ -21,5 +21,6 @@
  "seconds": 3.86,
  "first_origin": "1990-01-31",
  "last_origin": "2026-10-31",
- "written": "2026-11-14T21:43:36+00:00"
+ "written": "2026-11-14T21:43:36+00:00",
+ "label": "Replication on the 12-asset panel, frozen models unchanged; both holdouts already spent, so not out-of-sample evidence"
 }

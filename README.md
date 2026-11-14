@@ -65,7 +65,7 @@ python scripts/make_report_tables.py           # -> generated blocks in reports/
 python -m pytest -m "not network"              # the test suite
 ```
 
-`results/full/` is not committed: on a fresh clone the pipeline's first step (about 30 minutes on 4 cores) must run before the rest. `python -m assetforecast.pipeline --list` shows the steps; `--max-date D` makes a development run under `results/dev/`. Rebuilding the data from source and rerunning the frozen covariance evaluation are described in the report, section 9.
+`results/full/` is not committed: on a fresh clone the pipeline's first step (about 30 minutes on 4 cores) must run before the rest. `python -m assetforecast.pipeline --list` shows the steps; `--max-date D` makes a development run under `results/dev/`. Rebuilding the data from source and rerunning the frozen covariance evaluation are described in the report, section 9. Run the steps through the pipeline rather than one by one: it runs the numerical libraries single-threaded, which is what makes a rerun reproduce the committed results exactly. The strategy test run by hand with multi-threaded linear algebra comes out about 1e-9 different; it is identical across 2, 3 and 4 worker processes.
 
 ## Main caveats
 

@@ -6,7 +6,7 @@
  "cov_annual": "get_bridge('vr_market').cov_annual(cov_21d, panel.asof(origin)): covariance of the 12-month return",
  "bridge_reestimation": "once a year, from the view at the last December month-end <= origin (bridge_anchor), per eligible asset set",
  "tail_s2": {
-  "tail_s2_origin": "vol_uncertainty(panel.asof(origin)); forecast.py's tail_model.s2",
+  "tail_s2_origin": "vol_uncertainty(panel.asof(origin)); published as tail_model.s2 by forecast.py before the distribution files replaced it",
   "tail_s2_anchor": "vol_uncertainty(panel.asof(bridge_anchor)); score_final.stage_bridge's s2"
  },
  "panel": {
@@ -33,12 +33,12 @@
   "forecast_run_at": "2026-11-14T20:17:49"
  },
  "code": {
-  "git_head": "e47f3f5b85a78a0ae346f18caf3047f9fb672845",
-  "covhistory_sha256_16": "77f584990628d3b5",
+  "git_head": "94ad4f9df7ca05acfcba098bbbe075bbd8a68a50",
+  "covhistory_sha256_16": "e57bee8f7bfb1f18",
   "bridge_sha256_16": "e32676ef957cc10a",
   "panel_sha256_16": "33de81bb6d33c7bf"
  },
- "build_seconds": 25.5,
+ "build_seconds": 25.1,
  "n_origins": 1258,
  "first_origin": "1922-01-31",
  "last_origin": "2026-10-31",
@@ -120,5 +120,5 @@
    "max_abs_diff_unrounded": 4.999597123700461e-05
   }
  },
- "written": "2026-11-14T21:38:17"
+ "written": "2026-11-14T21:49:27"
 }
