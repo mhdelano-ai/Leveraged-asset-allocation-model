@@ -53,17 +53,35 @@ Variance estimators (``kernel``)
     The rectangular kernel can produce a negative variance; when it does the
     estimate falls back to Bartlett at the same lag and a note is recorded.
 
-Monte Carlo summary (DGP: latent log-vol AR(1) with phi = 0.95 per month and
-t(4) shocks, heavy-tailed monthly realized variance, 12-month targets,
-persistent model-specific forecast errors; QLIKE and MSE losses; T = 480 and
-1080 monthly origins). See the report/test module for the full table. In
-short: the classic DM-HLN test over-rejects badly (5% nominal -> 15-25%),
-Newey-West with an h-1 or sqrt(T) bandwidth over-rejects moderately, and
-EWC with ``B ~ T/(2h)`` cosine terms is close to nominal for QLIKE. The block
-bootstraps behave like a NW estimator with bandwidth ~ block length: they
-over-reject when the block is not much longer than ``h``. MSE on variances
-(very heavy-tailed) over-rejects with every method; treat MSE p-values as
-optimistic.
+Monte Carlo summary
+-------------------
+DGP (reproduced in ``tests/eval/test_inference.py::simulate_losses``): latent
+monthly log-variance AR(1) with clipped t(5) shocks; monthly realized
+variance = exp(x) times Gamma(4)/4 noise; target = mean of the next 12
+months; two forecasts with log-errors that are AR(1) with a common component.
+"base": phi = 0.95, error rho = 0.90 (loss-differential LRV/variance ~ 8);
+"persistent": phi = 0.98, error rho = 0.97 (LRV/variance ~ 19, i.e. n_eff
+~ T/19). QLIKE loss, H0 exact by symmetry, 500 replications (MC s.e. ~1pp at
+5%). Rejection rates at 5% / 10% nominal:
+
+=====================  ==========  ==========  ==========  ==========  ==========  ==========
+variant                base T=240  base 480    base 1080   pers. 240   pers. 480   pers. 1080
+=====================  ==========  ==========  ==========  ==========  ==========  ==========
+classic DM+HLN (h-1)   6.4 / 12.4  5.2 / 13.2  5.8 / 11.2  8.8 / 17.6  11.4 / 21   11.4 / 20
+NW bw=11, fixed-b      --          7.2 / 14.2  9.6 / 17.0  --          19.0 / 29.6 23.2 / 32.8
+NW default bw (48)     4.0 / 12.4  5.4 / 12.2  5.8 / 11.2  5.4 / 12.8  6.2 / 15.0  7.4 / 15.6
+EWC B=0.4T^(2/3)       --          3.4 / 8.8   5.8 / 11.4  --          10.2 / 18.6 11.2 / 21.6
+**EWC default T/(4h)** 3.6 / 9.0   4.0 / 9.8   5.2 / 10.6  3.8 / 10.0  4.8 / 12.2  6.4 / 12.0
+GK boot L=12           --          4.4 / 10.8  8.0 / 16.0  --          14.8 / 25.8 20.4 / 30.8
+GK boot default L=36   1.0 / 6.6   3.4 / 8.6   4.6 / 9.4   3.2 / 6.6   4.4 / 12.0  6.4 / 14.6
+stationary, no stud.   15.6 / 23.6 9.4 / 17.6  7.4 / 14.8  19.0 / 29.8 13.6 / 22.4 10.8 / 18.0
+=====================  ==========  ==========  ==========  ==========  ==========  ==========
+
+Power is low for differences of the size that separate reasonable models.
+At 5% (default EWC): base T=480/1080 -- 6%/9% for a true 5% QLIKE skill,
+12%/22% for 14% skill, 22%/52% for 22% skill, 39%/82% for 32% skill. In the
+persistent design 15%/41% for 28% skill. A 40-model horse race will mostly
+fail to separate models whose true mean losses differ by less than ~15-20%.
 """
 
 from __future__ import annotations
@@ -631,9 +649,12 @@ def dm_test_bootstrap(
     * ``studentize=False``: percentile test on the centred bootstrap mean;
       supports the stationary bootstrap.
 
-    ``block_length`` defaults to :func:`default_block_length` (24 months for
-    h=12). Blocks shorter than ~2h behave like an under-sized HAC bandwidth
-    and over-reject. ``se`` is the bootstrap standard deviation of the mean.
+    ``block_length`` defaults to :func:`default_block_length` (36 months for
+    h=12). Blocks shorter than ~3h behave like an under-sized HAC bandwidth
+    and over-reject (L=12: 15-20% rejections at 5% nominal in the persistent
+    design). The non-studentized variant over-rejects in 20-40 year samples
+    (10-19% at 5%) and is provided for comparison only. ``se`` is the
+    bootstrap standard deviation of the mean.
     """
     frame = _pair_frame(loss_a, loss_b)
     vals, mask, idx = _to_grid(frame)
@@ -685,6 +706,8 @@ def dm_test_bootstrap(
     n_eff = float(min(n, np.var(d) / max(sd_boot**2, 1e-300)))
     if L < 2 * h:
         notes.append(f"block length {L} < 2h={2 * h}: expect over-rejection")
+    if not studentize:
+        notes.append("non-studentized block bootstrap over-rejects in samples under ~50 years")
     notes += _reliability_notes(n, n_eff, h, warn)
     return DMResult(
         mean_diff=dbar,
@@ -912,8 +935,8 @@ def model_confidence_set(
         studentized differences (robust, the default in HLN 2011); ``"max"`` -
         T_max = max_i t_i. based on each model vs the set average.
     block_length : mean (stationary) or fixed (circular) block length in months.
-        Default :func:`default_block_length` (24 for h=12); values below 12
-        are allowed but warned about.
+        Default :func:`default_block_length` (36 for h=12); values below
+        ``h`` are allowed but warned about.
     bootstrap : ``"stationary"`` (default) or ``"circular"``.
     min_coverage : the MCS needs a common sample. Models observed on fewer than
         this fraction of origins (relative to the best-covered model) are

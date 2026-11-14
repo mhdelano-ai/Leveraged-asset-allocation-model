@@ -1,0 +1,11 @@
+{
+  "model": "scratch_const",
+  "kind": "vol",
+  "run_at": "2026-11-14T14:11:48",
+  "n_new": 445,
+  "n_skipped_stored": 0,
+  "seconds": 0.635,
+  "model_seconds": 0.056,
+  "mean_model_ms_per_origin": 0.125,
+  "error": null
+}
