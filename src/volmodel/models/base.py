@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+import warnings
 from abc import ABC, abstractmethod
 from typing import Callable
 
@@ -92,6 +93,7 @@ class Composite(CovForecaster):
 # ---------------------------------------------------------------- registry
 _REGISTRY: dict[str, dict[str, Callable[[], object]]] = {"vol": {}, "corr": {}, "cov": {}}
 _loaded = False
+LOAD_ERRORS: dict[str, str] = {}  # family -> error, for families that failed to import
 
 
 def register(kind: str, name: str):
@@ -116,8 +118,13 @@ def _load_all():
     _loaded = True
     pkg = importlib.import_module("volmodel.models")
     for m in pkgutil.iter_modules(pkg.__path__):
-        if m.name != "base":
+        if m.name == "base":
+            continue
+        try:
             importlib.import_module(f"volmodel.models.{m.name}")
+        except Exception as e:  # one broken family must not take the others down
+            LOAD_ERRORS[m.name] = repr(e)
+            warnings.warn(f"model family '{m.name}' failed to import and is unavailable: {e!r}")
 
 
 def list_models(kind: str) -> list[str]:
