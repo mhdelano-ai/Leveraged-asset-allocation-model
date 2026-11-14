@@ -32,7 +32,10 @@ RESULTS_RETURNS = ROOT / "results" / ("dev/returns" if _DEV else "returns")
 # which the ported code is checked. Never rewritten.
 ARCHIVE_AP = ROOT / "results" / "archive" / "assetpred"
 
-FEATURES = PROCESSED / "features.parquet"
-FEATURE_META = PROCESSED / "feature_meta.csv"
+# The committed feature panel is the full-sample build. A development build
+# (ASSETFORECAST_MAX_DATE set) goes under results/dev so it cannot overwrite it.
+_FEATURE_DIR = ROOT / "results" / "dev" / "features" if _DEV else PROCESSED
+FEATURES = _FEATURE_DIR / "features.parquet"
+FEATURE_META = _FEATURE_DIR / "feature_meta.csv"
 FORECASTS_OUT = ROOT / "forecasts"
 DASHBOARD_DATA = ROOT / "dashboard" / "data"
