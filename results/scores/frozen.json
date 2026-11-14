@@ -1,0 +1,51 @@
+{
+ "models": [
+  "hist_mean",
+  "vol_ewma",
+  "hist_quantile",
+  "vol_ewma_fhs",
+  "zero",
+  "ridge_z",
+  "combo_z",
+  "gbm_z",
+  "rf_z",
+  "ens_z",
+  "gbm_z.price",
+  "dist_ewma_fhs",
+  "dist_lin_agg",
+  "dist_lin_agg_grp",
+  "dist_gbm_agg",
+  "dist_lin_agg_cshape",
+  "ens_z__dist_lin_agg",
+  "gbm_z.nohind",
+  "combo_z.nohind"
+ ],
+ "horizons": [
+  1,
+  3,
+  12
+ ],
+ "dev": false,
+ "settings": {
+  "1": {
+   "oos_start": "1990-01-31",
+   "refit_every": 12,
+   "min_history": 60,
+   "end": null
+  },
+  "3": {
+   "oos_start": "1990-01-31",
+   "refit_every": 12,
+   "min_history": 60,
+   "end": null
+  },
+  "12": {
+   "oos_start": "1990-01-31",
+   "refit_every": 12,
+   "min_history": 60,
+   "end": null
+  }
+ },
+ "data": "bf5526544f8567df",
+ "reps": 999
+}

@@ -1,0 +1,36 @@
+{
+ "fingerprint": {
+  "model": "vc_daily_daily_m_lw",
+  "horizon": 1,
+  "params": {
+   "vol": "daily",
+   "corr": "daily",
+   "shrink_target": "constant",
+   "vr": true,
+   "base": "1",
+   "space": "corr",
+   "lam_v": 0.94,
+   "phi_v": 0.9,
+   "lam_r": 0.97,
+   "phi_r": 0.95,
+   "window": 60,
+   "daily_window": 126,
+   "shrink": "lw",
+   "refit_every": 1,
+   "uses_daily": true
+  },
+  "data": "a5761224ecac4d2c",
+  "settings": {
+   "oos_start": "1990-01-31",
+   "min_history": 60,
+   "end": null,
+   "mean_adjust": true
+  },
+  "code": "4ba04156d837704a"
+ },
+ "rows": 44391,
+ "seconds": 6.24,
+ "first_origin": "1990-01-31",
+ "last_origin": "2026-10-31",
+ "written": "2026-11-14T18:51:59+00:00"
+}

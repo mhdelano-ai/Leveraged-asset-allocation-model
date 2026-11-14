@@ -1,0 +1,42 @@
+{
+ "models": [
+  "sample",
+  "vc_daily_ewma_m_lwb",
+  "vc_ewma_ewma_m_lwb",
+  "vc_daily_daily_m_lw",
+  "ewma_cov",
+  "lw",
+  "vc_daily_ewma_m_lwb__sd_ens_z__dist_lin_agg"
+ ],
+ "horizons": [
+  1,
+  3,
+  12
+ ],
+ "dev": false,
+ "benchmark": "sample",
+ "benchmarks": [
+  "sample",
+  "lw"
+ ],
+ "mt_periods": [
+  "full",
+  "pre_holdout",
+  "holdout"
+ ],
+ "spa_family": {
+  "lw": [
+   "vc_daily_ewma_m_lwb",
+   "vc_ewma_ewma_m_lwb",
+   "vc_daily_daily_m_lw",
+   "ewma_cov"
+  ]
+ },
+ "ends": {
+  "1": null,
+  "3": null,
+  "12": null
+ },
+ "data": "a5761224ecac4d2c",
+ "reps": 999
+}

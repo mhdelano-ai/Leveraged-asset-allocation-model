@@ -1,0 +1,160 @@
+{
+ "dev": false,
+ "results_dir": "/home/user/Leveraged-asset-allocation-model/results",
+ "mean_models": [
+  "ridge_z",
+  "combo_z",
+  "gbm_z",
+  "rf_z",
+  "ens_z",
+  "gbm_z.price",
+  "gbm_z.nohind",
+  "combo_z.nohind",
+  "ens_z__dist_lin_agg"
+ ],
+ "bench_mean": "hist_mean",
+ "cov_model": "vc_daily_ewma_m_lwb",
+ "risk_models": [
+  "vc_daily_ewma_m_lwb",
+  "vc_ewma_ewma_m_lwb",
+  "vc_daily_daily_m_lw",
+  "ewma_cov",
+  "lw"
+ ],
+ "static_cov": "sample",
+ "horizons": [
+  1,
+  3,
+  12
+ ],
+ "universes": {
+  "all": [],
+  "ex_hy": [
+   "hy_credit"
+  ]
+ },
+ "rule_settings": {
+  "gamma": 5.0,
+  "max_weight": 1.0,
+  "max_gross": 2.0,
+  "vol_target": 0.1,
+  "timing_cap": 1.5
+ },
+ "cost_bp_one_way": {
+  "us_eq": 5,
+  "dev_eq": 10,
+  "em_eq": 25,
+  "ust_int": 3,
+  "ust_long": 5,
+  "tips": 10,
+  "ig_credit": 20,
+  "hy_credit": 40,
+  "reits": 20,
+  "gold": 10,
+  "commodities": 10
+ },
+ "financing_spread_annual": 0.005,
+ "boot_reps": 999,
+ "seed": 20261114,
+ "subperiods": [
+  [
+   "1990s",
+   "1990-01-01",
+   "1999-12-31"
+  ],
+  [
+   "2000s",
+   "2000-01-01",
+   "2009-12-31"
+  ],
+  [
+   "2010s",
+   "2010-01-01",
+   "2019-12-31"
+  ],
+  [
+   "2020s",
+   "2020-01-01",
+   "2029-12-31"
+  ]
+ ],
+ "n_strategies": 309,
+ "n_comparisons": 384,
+ "holdout_periods": true,
+ "dev_end": "2014-12-31",
+ "holdout_start": "2015-01-31",
+ "period_rule": "pre_holdout = holding months <= dev_end; holdout = positions all of whose sleeves were formed at origins >= holdout_start (h=1: first return 2015-02; h=3/12: first formation holdout_start + h-1 months); straddling months are only in 'full'",
+ "bh_family": [
+  "ridge_z",
+  "combo_z",
+  "gbm_z",
+  "rf_z",
+  "ens_z",
+  "gbm_z.price"
+ ],
+ "not_in_bh_family": [
+  "gbm_z.nohind",
+  "combo_z.nohind",
+  "ens_z__dist_lin_agg"
+ ],
+ "diagnostics": {
+  "first_month": "1990-02-28",
+  "last_month": "2026-10-31",
+  "n_months_h1": 441,
+  "eligible_assets_first": [
+   "us_eq",
+   "dev_eq",
+   "ust_int",
+   "ust_long",
+   "ig_credit",
+   "hy_credit",
+   "reits",
+   "commodities"
+  ],
+  "eligible_assets_last": [
+   "us_eq",
+   "dev_eq",
+   "em_eq",
+   "ust_int",
+   "ust_long",
+   "tips",
+   "ig_credit",
+   "hy_credit",
+   "reits",
+   "gold",
+   "commodities"
+  ],
+  "avg_eligible_assets": 9.959183673469388,
+  "asset_entry": {
+   "us_eq": "1990-01-31",
+   "dev_eq": "1990-01-31",
+   "em_eq": "1994-06-30",
+   "ust_int": "1990-01-31",
+   "ust_long": "1990-01-31",
+   "tips": "2004-01-31",
+   "ig_credit": "1990-01-31",
+   "hy_credit": "1990-01-31",
+   "reits": "1990-01-31",
+   "gold": "2009-11-30",
+   "commodities": "1990-01-31"
+  },
+  "effective_n_assets_all": 3.296223295035649,
+  "effective_n_assets_all_months": 441,
+  "effective_n_assets_all_11_common_window": 3.358881389077707,
+  "effective_n_assets_all_11_common_window_months": 263,
+  "ac1_monthly_excess": {
+   "us_eq": 0.02490245513821961,
+   "dev_eq": 0.06515335933861223,
+   "em_eq": 0.14924212773026532,
+   "ust_int": 0.10277213155878759,
+   "ust_long": 0.04923045486133275,
+   "tips": 0.000981439775157891,
+   "ig_credit": 0.02055295686951171,
+   "hy_credit": 0.15534664620660277,
+   "reits": 0.03178504311978857,
+   "gold": -0.06321699657343004,
+   "commodities": 0.13590404728109454
+  }
+ },
+ "runtime_s": 60.5
+}

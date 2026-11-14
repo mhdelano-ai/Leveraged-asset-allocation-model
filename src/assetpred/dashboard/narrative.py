@@ -399,6 +399,21 @@ def strategy_verdict(st: dict | None) -> dict:
                            f"same rule using historical means, in certainty-equivalent return: " + "; ".join(parts) + ".")
         if not any(v[2] for v in detail.values()):
             out["text"].append("No gain from the return forecasts survives the multiple-testing adjustment.")
+        # A null verdict hides the direction: say plainly when the forecasts cost money.
+        losses = []
+        for h, (g, _sp, _sq, _mq) in sorted(detail.items()):
+            neg = [r for r in g if r["d_cer"] < 0]
+            if 2 * len(neg) <= len(g):
+                continue
+            neg_p = [r for r in neg if ok(r.get("d_cer_p")) and r["d_cer_p"] < ALPHA]
+            worst = min(neg, key=lambda r: r["d_cer"])
+            losses.append(
+                f"at {h}m, {len(neg)} of {len(g)} did worse than the historical-mean version, {len(neg_p)} of them "
+                f"with unadjusted p < {ALPHA:g} (largest loss {pct(worst['d_cer'])} a year: "
+                f"{gl.STRATEGY_RULES.get(worst['rule'], (worst['rule'],))[0]} with {gl.label(worst['mean_model'])})")
+        if losses:
+            out["text"].append("Most model-driven portfolios lost to their historical-mean counterparts: "
+                               + "; ".join(losses) + ".")
     comp = [r for r in rows if r.get("role") == "composite" and ok(r.get("d_cer"))]
     if comp:
         cb = max(comp, key=lambda r: r["d_cer"])

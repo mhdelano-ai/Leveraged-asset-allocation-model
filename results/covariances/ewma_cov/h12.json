@@ -1,0 +1,22 @@
+{
+ "fingerprint": {
+  "model": "ewma_cov",
+  "horizon": 12,
+  "params": {
+   "lam": 0.97
+  },
+  "data": "a5761224ecac4d2c",
+  "settings": {
+   "oos_start": "1990-01-31",
+   "min_history": 60,
+   "end": null,
+   "mean_adjust": true
+  },
+  "code": "4ba04156d837704a"
+ },
+ "rows": 44391,
+ "seconds": 1.0,
+ "first_origin": "1990-01-31",
+ "last_origin": "2026-10-31",
+ "written": "2026-11-14T18:52:03+00:00"
+}

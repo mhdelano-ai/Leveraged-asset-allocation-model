@@ -11,3 +11,5 @@ results/dev/*
 # bulky and regenerable in under a minute from the committed forecasts and covariances
 results/strategy/returns.parquet
 results/strategy/weights.parquet
+# a 17 MB text copy of frozen.parquet
+results/scores/frozen.csv
