@@ -12,6 +12,7 @@ panel, whenever the features reach it, and must agree with the pinned set there.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 import pandas as pd
 
@@ -49,14 +50,42 @@ def check_frozen_columns(features: pd.DataFrame) -> None:
             f"only old rule {sorted(set(live_old) - set(config.FROZEN_FEATURE_COLUMNS))}")
 
 
+class FeatureMetaMissing(RuntimeError):
+    """The feature panel or its metadata is not on disk. Deliberately not an
+    ``OSError``: a caller must not quietly fall back to a different column list."""
+
+
+# (meta_path, features_path) override; None means paths.FEATURE_META / paths.FEATURES
+_SOURCE: tuple | None = None
+
+
+def use_source(meta_path=None, features_path=None) -> None:
+    """Point the selector at another feature panel (e.g. assetpred's archived
+    ``feature_meta.csv`` and ``features.parquet``); no arguments restores the default."""
+    global _SOURCE
+    _SOURCE = None if meta_path is None and features_path is None else (meta_path, features_path)
+    _meta.cache_clear()
+
+
+def _source():
+    from ... import paths
+    m, f = _SOURCE if _SOURCE is not None else (None, None)
+    return (m or paths.FEATURE_META), (f or paths.FEATURES)
+
+
 @lru_cache(maxsize=1)
 def _meta() -> pd.DataFrame:
-    from ... import paths
-    meta = pd.read_csv(paths.FEATURE_META).set_index("name")
-    f = pd.read_parquet(paths.FEATURES)
+    meta_path, features_path = _source()
+    for p in (meta_path, features_path):
+        if not Path(p).exists():
+            raise FeatureMetaMissing(
+                f"{p} not found: build it with `python -m assetforecast.returns.features.build`. "
+                "The frozen feature sets need its families and hindsight flags.")
+    meta = pd.read_csv(meta_path).set_index("name")
+    f = pd.read_parquet(features_path)
     missing = set(config.FROZEN_FEATURE_COLUMNS) - set(meta.index)
     if missing:
-        raise ValueError(f"pinned features missing from {paths.FEATURE_META}: {sorted(missing)}")
+        raise ValueError(f"pinned features missing from {meta_path}: {sorted(missing)}")
     check_frozen_columns(f)
     dates = f.index.get_level_values("date")
     last = pd.Series({c: dates[f[c].notna().to_numpy()].max() for c in f.columns})
