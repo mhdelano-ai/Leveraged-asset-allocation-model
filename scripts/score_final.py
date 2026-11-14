@@ -950,7 +950,10 @@ def stage_dashboard(ctx: Ctx):
     C = C.join(R, how="left").reset_index()
     sel = []
     for a, b in KEY_PAIRS:
-        s = C[((C.asset_i == a) & (C.asset_j == b)) | ((C.asset_i == b) & (C.asset_j == a))].copy()
+        # forecasts hold both orientations; targets only (i, j) in panel order, as KEY_PAIRS are
+        s = C[(C.asset_i == a) & (C.asset_j == b)].copy()
+        if s.duplicated(["origin"]).any():
+            raise ValueError(f"duplicate origins for pair {a}~{b}")
         s["pair"] = f"{a}~{b}"
         sel.append(s)
     C = pd.concat(sel, ignore_index=True)
@@ -1265,8 +1268,12 @@ def stage_expectations(ctx: Ctx):
         ev.append(f"{p}: identity {a['var_z']:.2f} [{a['ci_lo']:.2f}, {a['ci_hi']:.2f}], vr_market {b['var_z']:.2f} "
                   f"[{b['ci_lo']:.2f}, {b['ci_hi']:.2f}], chi2 (non-overlap, ~{b['n_nonoverlap']:.0f} yrs) "
                   f"[{b['chi2_lo']:.2f}, {b['chi2_hi']:.2f}]")
-    st = ("inconclusive (vr_market nearer 1 for all, intervals overlap 1 for both)" if all(closer) else
-          "inconclusive (vr_market not nearer 1 for every policy portfolio; intervals cannot separate them)")
+    if all(closer):
+        st = "met in point estimate (vr_market nearer 1 for all); inconclusive statistically"
+    elif not any(closer):
+        st = "not met in point estimate (vr_market further from 1 for all); inconclusive statistically"
+    else:
+        st = "mixed (vr_market nearer 1 for some policy portfolios only); inconclusive statistically"
     rows.append({"id": 5, "expectation": "with the bridge, Var(z) of policy portfolios nearer 1 than without",
                  "status": st, "evidence": "; ".join(ev)})
     ctx.write("expectations.csv", pd.DataFrame(rows))
