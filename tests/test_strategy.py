@@ -266,7 +266,7 @@ DEV = config.RESULTS / "dev"
 def test_dev_run_end_to_end(tmp_path):
     res = stg.run(DEV, ["ridge_z"], "vc_daily_ewma_m_lwb", ["ewma_cov"], [1], dev=True, jobs=1,
                   out_dir=tmp_path)
-    for f in ("metrics.parquet", "summary.csv", "returns.parquet", "weights.parquet", "meta.json"):
+    for f in ("metrics.parquet", "summary.csv", "summary_by_period.csv", "returns.parquet", "weights.parquet", "meta.json"):
         assert (tmp_path / f).exists()
     r = res["returns"]
     assert r.date.max() <= pd.Timestamp(config.DEV_END)
@@ -278,3 +278,75 @@ def test_dev_run_end_to_end(tmp_path):
     # gold and TIPS enter late: no weight before their first forecast origin
     assert w[(w.asset == "gold") & (w.formation < "2009-11-30")].empty
     assert w[(w.asset == "tips") & (w.formation < "2004-01-31")].empty
+
+
+# ----------------------------------------------------------------- holdout periods (synthetic dates only)
+@pytest.mark.parametrize("h,first_formation", [(1, "2015-01-31"), (3, "2015-03-31"), (12, "2015-12-31")])
+def test_holdout_masks_assign_straddling_months_to_neither(h, first_formation):
+    formation = pd.date_range("2013-01-31", "2017-12-31", freq="ME")
+    dates = formation + pd.offsets.MonthEnd(1)
+    pre, ho = stg.holdout_masks(dates, formation, h)
+    assert not (pre & ho).any()
+    assert dates[pre].max() == pd.Timestamp(config.DEV_END)
+    assert formation[ho].min() == pd.Timestamp(first_formation)
+    if h == 1:
+        assert dates[ho].min() == pd.Timestamp("2015-02-28")
+    # oldest sleeve of every holdout position is a holdout origin
+    assert (formation[ho] - pd.offsets.MonthEnd(h - 1) >= pd.Timestamp(config.HOLDOUT_START)).all()
+    # straddling months (h - 1 of them, plus 2015-01 at h = 1) are in neither
+    assert (~pre & ~ho).sum() == h
+
+
+def _synthetic_full_run(h):
+    """Synthetic panel spanning the holdout boundary (no real post-2014 data)."""
+    inp = synthetic_inputs(seed=5, T=120, horizons=(h,))
+    shift = pd.DatetimeIndex(pd.date_range("2008-01-31", periods=len(inp.returns), freq="ME"))
+    inp.returns.index = shift
+    inp.cash.index = shift
+    inp.origins[h] = shift[:120]
+    return inp
+
+
+@pytest.mark.parametrize("h", [1, 3])
+def test_full_run_periods_metrics_and_tests(h):
+    inp = _synthetic_full_run(h)
+    s = rules.RuleSettings()
+    a, _ = stg.run_spec(stg.Spec("mv_vt", "model", "dyn", "all", h), inp)
+    b, _ = stg.run_spec(stg.Spec("mv_vt", "hist_mean", "dyn", "all", h), inp)
+    lv = pd.DataFrame(stg.level_metrics(a, s, h, holdout=True), columns=["period", "basis", "metric", "value"])
+    assert {"full", "pre_holdout", "holdout"} <= set(lv.period)
+    # holdout metrics are computed on exactly the holdout months
+    pre, ho = stg.holdout_masks(a.date, a.formation, h)
+    n = lv[(lv.period == "holdout") & (lv.basis == "net") & (lv.metric == "n_months")].value.item()
+    assert n == ho.sum()
+    sr = lv[(lv.period == "holdout") & (lv.basis == "net") & (lv.metric == "sharpe")].value.item()
+    assert math.isclose(sr, st.sharpe(a.net[ho]))
+    cmp = pd.DataFrame(stg.compare(a, b, h, s, 1, {}, holdout=True), columns=["period", "basis", "metric", "value"])
+    for per in ("pre_holdout", "holdout"):
+        got = set(cmp[(cmp.period == per) & (cmp.basis == "net")].metric)
+        assert {"d_sharpe", "d_sharpe_p", "d_cer_ci_lo", "d_cer_ci_hi", "d_cer_boot_p", "breakeven_cost_bp"} <= got
+    # the default (dev) path has no holdout periods
+    assert "holdout" not in {p for p, *_ in stg.level_metrics(a, s, h)}
+
+
+def test_bh_family_is_frozen_models_only_and_per_period():
+    rows = []
+    for per in ("full", "holdout"):
+        for m in (*stg.FROZEN_MEAN, *config.ROBUSTNESS, config.COMPOSITE):
+            for r in ("mv", "timing"):
+                rows.append(["x", "mean", r, m, "c", "all", 1, per, "net", "hist_mean", "d_cer_p",
+                             0.01 if per == "holdout" else 0.5])
+    met = pd.DataFrame(rows, columns=["strategy", "family", "rule", "mean_model", "cov_model", "universe",
+                                      "horizon", "period", "basis", "benchmark", "metric", "value"])
+    out = stg._add_fdr(met)
+    q = out[out.metric == "d_cer_q_bh"]
+    assert set(q.mean_model) == set(stg.FROZEN_MEAN)
+    assert len(q) == 2 * 2 * len(stg.FROZEN_MEAN)
+    assert np.allclose(q[q.period == "holdout"].value, 0.01) and np.allclose(q[q.period == "full"].value, 0.5)
+    tab = stg.summary_by_period(out.assign(metric=out.metric))
+    assert list(tab.index.get_level_values("period").unique()) == ["holdout", "full"]
+
+
+def test_default_mean_models_read_from_config():
+    assert set(stg.DEFAULT_MEAN) == {*config.FROZEN_MEAN, *config.ROBUSTNESS, config.COMPOSITE}
+    assert stg.BH_FAMILY == tuple(config.FROZEN_MEAN)

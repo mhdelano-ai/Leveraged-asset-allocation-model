@@ -73,8 +73,22 @@ Outputs under ``<results root>/strategy/``: ``metrics.parquet``
 (tidy: strategy, family, rule, mean_model, cov_model, universe, horizon,
 period, basis, benchmark, metric, value), ``returns.parquet`` (monthly series
 of every strategy), ``weights.parquet`` (held weights by formation date),
-``summary.csv`` (headline comparisons, net, full sample) and ``meta.json`` (all
-assumptions and sample diagnostics).
+``summary.csv`` (headline comparisons, net, full sample),
+``summary_by_period.csv`` (the same with a leading ``period`` column) and
+``meta.json`` (all assumptions and sample diagnostics).
+
+Periods. Every run has ``full`` and the decades. A full (non-dev) run also
+has ``pre_holdout`` (holding months <= config.DEV_END) and ``holdout``
+(positions all of whose sleeves were formed at origins >= config.HOLDOUT_START:
+at h = 1 the first holdout return is 2015-02; at h = 3 / 12 the first holdout
+formation is HOLDOUT_START + 2 / 11 months). Months whose staggered sleeves
+straddle the boundary, and at h = 1 the month 2015-01, are only in ``full``.
+Every metric, test, CI, break-even and BH q-value is computed per period. Select
+holdout figures with ``metrics.period == "holdout"`` (or ``period == holdout``
+in ``summary_by_period.csv``); ``full`` mixes in the years the models were
+chosen on. BH q-values (``*_q_bh``) cover only config.FROZEN_MEAN; the
+robustness rows (config.ROBUSTNESS) and the composite (config.COMPOSITE) are
+in the comparison but reported individually.
 """
 from __future__ import annotations
 
@@ -103,9 +117,15 @@ log = logging.getLogger("assetpred.evaluation.strategy")
 ASSETS = list(config.ASSETS)
 BENCH_MEAN = "hist_mean"
 STATIC_COV = "sample"
-FROZEN_MEAN = ("ridge_z", "combo_z", "gbm_z", "rf_z", "ens_z", "gbm_z.price")
-PRIMARY_COV = "vc_daily_ewma_m_lwb"
-FROZEN_COV = ("vc_daily_ewma_m_lwb", "vc_ewma_ewma_m_lwb", "vc_daily_daily_m_lw", "ewma_cov", "lw")
+FROZEN_MEAN = tuple(config.FROZEN_MEAN)
+PRIMARY_COV = config.PRIMARY_COV
+FROZEN_COV = tuple(config.FROZEN_COV)
+# Mean models in the comparison by default: the frozen six, the robustness rows
+# (same learners without full-sample "hindsight" features) and the composite.
+# Only the frozen six form the Benjamini-Hochberg family; the others are
+# reported individually.
+DEFAULT_MEAN = (*FROZEN_MEAN, *config.ROBUSTNESS, config.COMPOSITE)
+BH_FAMILY = FROZEN_MEAN
 UNIVERSES = {"all": (), "ex_hy": ("hy_credit",)}
 SUBPERIODS = (("1990s", "1990-01-01", "1999-12-31"),
               ("2000s", "2000-01-01", "2009-12-31"),
@@ -318,17 +338,39 @@ def comparisons(specs, mean_models, cov_model, risk_models) -> list[tuple[str, S
 
 
 # ----------------------------------------------------------------- metrics
-def _periods(dates: pd.Series):
+def holdout_masks(dates, formation, h: int) -> tuple[np.ndarray, np.ndarray]:
+    """(pre_holdout, holdout) masks over holding months.
+
+    pre_holdout: holding month <= DEV_END (so every sleeve was formed before the
+    holdout). holdout: every sleeve in the position was formed at an origin
+    >= HOLDOUT_START, i.e. the oldest sleeve origin, formation - (h-1) months,
+    is a holdout origin. At h = 1 the first holdout return is the month after
+    HOLDOUT_START (2015-02). Months of a staggered portfolio whose sleeves
+    straddle the boundary (and, at h = 1, the single month 2015-01, formed at
+    the 2014-12 origin) belong to neither; they stay in "full"."""
+    dates = pd.DatetimeIndex(dates)
+    oldest = _months_after(pd.DatetimeIndex(formation), -(h - 1)) if h > 1 else pd.DatetimeIndex(formation)
+    pre = np.asarray(dates <= pd.Timestamp(config.DEV_END))
+    ho = np.asarray(oldest >= pd.Timestamp(config.HOLDOUT_START))
+    return pre, ho
+
+
+def _periods(dates: pd.Series, formation=None, h: int = 1, holdout: bool = False):
     yield "full", np.ones(len(dates), bool)
     for name, a, b in SUBPERIODS:
         m = ((dates >= a) & (dates <= b)).to_numpy()
         if m.sum() >= 24:
             yield name, m
+    if holdout:
+        pre, ho = holdout_masks(dates, formation, h)
+        for name, m in (("pre_holdout", pre), ("holdout", ho)):
+            if m.sum() >= 12:
+                yield name, m
 
 
-def level_metrics(ret: pd.DataFrame, s: rules.RuleSettings) -> list[tuple]:
+def level_metrics(ret: pd.DataFrame, s: rules.RuleSettings, h: int = 1, holdout: bool = False) -> list[tuple]:
     rows = []
-    for per, m in _periods(ret.date):
+    for per, m in _periods(ret.date, ret.formation, h, holdout):
         r = ret[m]
         for basis in ("gross", "net"):
             x = r[basis].to_numpy()
@@ -355,10 +397,12 @@ def level_metrics(ret: pd.DataFrame, s: rules.RuleSettings) -> list[tuple]:
 
 
 def compare(a: pd.DataFrame, b: pd.DataFrame, h: int, s: rules.RuleSettings, rng_seed: int,
-            boot_cache: dict) -> list[tuple]:
+            boot_cache: dict, holdout: bool = False) -> list[tuple]:
     j = a.merge(b, on="date", suffixes=("_a", "_b"))
+    if holdout and not (j.formation_a == j.formation_b).all():
+        raise ValueError("compared strategies have different formation dates")
     rows = []
-    for per, m in _periods(j.date):
+    for per, m in _periods(j.date, j.formation_a, h, holdout):
         r = j[m]
         n = len(r)
         key = (n, h)
@@ -428,6 +472,8 @@ def run(results_dir: Path, mean_models, cov_model, risk_models, horizons, dev: b
         for h, o in inp.origins.items():
             if len(o) and _months_after(o[-1:], h)[0] > pd.Timestamp(config.DEV_END):
                 raise RuntimeError("dev run would use a target realized after DEV_END")
+    # a full (non-dev) run adds the periods pre_holdout and holdout
+    holdout = not dev
     specs = build_specs(mean_models, cov_model, risk_models, horizons)
     fam = {sp: f for f, sp in specs}
     log.info("%d strategies, loading took %.1fs", len(specs), time.time() - t0)
@@ -452,12 +498,13 @@ def run(results_dir: Path, mean_models, cov_model, risk_models, horizons, dev: b
 
     rows = []
     for sp, (ret, _) in results.items():
-        for per, basis, k, v in level_metrics(ret, s):
+        for per, basis, k, v in level_metrics(ret, s, sp.horizon, holdout):
             rows.append([*ident(sp, fam[sp]), per, basis, "none", k, v])
     boot_cache = {}
     pairs = comparisons(specs, mean_models, cov_model, risk_models)
     for family, a, b in pairs:
-        for per, basis, k, v in compare(results[a][0], results[b][0], a.horizon, s, config.SEED, boot_cache):
+        for per, basis, k, v in compare(results[a][0], results[b][0], a.horizon, s, config.SEED, boot_cache,
+                                       holdout):
             rows.append([*ident(a, family), per, basis, b.name, k, v])
     metrics = pd.DataFrame(rows, columns=[*cols, "period", "basis", "benchmark", "metric", "value"])
     metrics = _add_fdr(metrics)
@@ -486,6 +533,8 @@ def run(results_dir: Path, mean_models, cov_model, risk_models, horizons, dev: b
     metrics.to_parquet(out / "metrics.parquet", index=False, compression="zstd")
     # human-readable headline: full-sample comparisons, every horizon
     summary_table(metrics, horizon=None).to_csv(out / "summary.csv", float_format="%.6g")
+    # the same with a period column: full, and in a full run pre_holdout and holdout
+    summary_by_period(metrics).to_csv(out / "summary_by_period.csv", float_format="%.6g")
     rets[[*cols, "formation", "date", "rf", "gross", "net", "turnover", "cost", "financing", "leverage",
           "ex_ante_vol", *[f"c_{a}" for a in ASSETS]]].to_parquet(out / "returns.parquet", index=False,
                                                                   compression="zstd")
@@ -498,6 +547,12 @@ def run(results_dir: Path, mean_models, cov_model, risk_models, horizons, dev: b
         "rule_settings": asdict(s), "cost_bp_one_way": COST_BP, "financing_spread_annual": FINANCING_SPREAD,
         "boot_reps": BOOT_REPS, "seed": config.SEED, "subperiods": SUBPERIODS,
         "n_strategies": len(specs), "n_comparisons": len(pairs),
+        "holdout_periods": holdout, "dev_end": config.DEV_END, "holdout_start": config.HOLDOUT_START,
+        "period_rule": ("pre_holdout = holding months <= dev_end; holdout = positions all of whose sleeves "
+                        "were formed at origins >= holdout_start (h=1: first return 2015-02; h=3/12: first "
+                        "formation holdout_start + h-1 months); straddling months are only in 'full'"),
+        "bh_family": list(BH_FAMILY),
+        "not_in_bh_family": [m for m in mean_models if m not in BH_FAMILY],
         "diagnostics": diagnostics(inp), "runtime_s": round(time.time() - t0, 1),
     }
     (out / "meta.json").write_text(json.dumps(meta, indent=1, default=str))
@@ -507,9 +562,11 @@ def run(results_dir: Path, mean_models, cov_model, risk_models, horizons, dev: b
 
 def _add_fdr(metrics: pd.DataFrame) -> pd.DataFrame:
     """Benjamini-Hochberg q-values for the mean-forecast comparisons, across
-    models x rules within (universe, horizon, period, basis)."""
+    the frozen models (``BH_FAMILY``) x rules within (universe, horizon,
+    period, basis). Robustness rows and the composite get no q-value."""
     extra = []
-    sel = metrics[(metrics.family == "mean") & metrics.metric.isin(["d_sharpe_p", "d_cer_p"])]
+    sel = metrics[(metrics.family == "mean") & metrics.metric.isin(["d_sharpe_p", "d_cer_p"])
+                  & metrics.mean_model.isin(BH_FAMILY)]
     for _, g in sel.groupby(["universe", "horizon", "period", "basis", "metric"]):
         q = inf.fdr(g.value.to_numpy(), "bh")
         e = g.copy()
@@ -524,7 +581,8 @@ def main(argv=None):
     ap.add_argument("--dev", action="store_true",
                     help=f"development run: returns truncated at {config.DEV_END}, inputs and outputs under results/dev/")
     ap.add_argument("--results-dir", default=None, help="results root (default results/dev with --dev, else results)")
-    ap.add_argument("--mean-models", nargs="+", default=list(FROZEN_MEAN))
+    ap.add_argument("--mean-models", nargs="+", default=list(DEFAULT_MEAN),
+                    help="default: config.FROZEN_MEAN + config.ROBUSTNESS + config.COMPOSITE")
     ap.add_argument("--cov-model", default=PRIMARY_COV, help="risk model held fixed in the mean-forecast test")
     ap.add_argument("--risk-models", nargs="+", default=list(FROZEN_COV),
                     help="dynamic covariance models compared with the static 'sample' (mean = hist_mean)")
@@ -540,7 +598,16 @@ def main(argv=None):
         results_dir = config.RESULTS / "dev" if args.dev else config.RESULTS
     mean_models = [m for m in args.mean_models if m != BENCH_MEAN]
     res = run(results_dir, mean_models, args.cov_model, args.risk_models, args.horizons, args.dev, args.jobs)
-    print(summary_table(res["metrics"]).to_string())
+    met = res["metrics"]
+    if (met.period == "holdout").any():
+        print(f"HOLDOUT: positions formed at origins >= {config.HOLDOUT_START} (net, h=1). This is the evidence.")
+        print(summary_table(met, period="holdout").to_string())
+        print(f"\nPRE-HOLDOUT (holding months <= {config.DEV_END}; the years the models were chosen on):")
+        print(summary_table(met, period="pre_holdout").to_string())
+        print("\nFULL SAMPLE (mixes both):")
+    else:
+        print(f"Development run: no holdout period; all months <= {config.DEV_END}. FULL SAMPLE (net, h=1):")
+    print(summary_table(met).to_string())
     return 0
 
 
@@ -557,6 +624,17 @@ def summary_table(metrics: pd.DataFrame, period: str = "full", basis: str = "net
                                                   "cov_model"],
                                            columns="metric", values="value", observed=True)
     return t.reindex(columns=keep).round(4)
+
+
+SUMMARY_PERIODS = ("holdout", "pre_holdout", "full")
+
+
+def summary_by_period(metrics: pd.DataFrame, basis: str = "net") -> pd.DataFrame:
+    """``summary_table`` for every horizon and each period in SUMMARY_PERIODS
+    present (holdout first), with a leading ``period`` index level."""
+    parts = {p: summary_table(metrics, period=p, basis=basis, horizon=None)
+             for p in SUMMARY_PERIODS if (metrics.period == p).any()}
+    return pd.concat(parts, names=["period"])
 
 
 if __name__ == "__main__":
