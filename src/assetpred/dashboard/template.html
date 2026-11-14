@@ -62,7 +62,7 @@
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 60px); }
 body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.55; }
 a { color: var(--accent); }
 h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; line-height: 1.2; margin: 0; }
@@ -91,7 +91,7 @@ nav.sections a:hover, nav.sections a:focus-visible { background: var(--accent-so
 .mode.final { background: var(--good-bg); color: var(--good-ink); border-color: var(--good); }
 
 main .wrap { display: grid; gap: 28px; padding-block: 28px 64px; }
-section.block { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 24px; display: grid; gap: 18px; min-width: 0; scroll-margin-top: 56px; }
+section.block { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 24px; display: grid; gap: 18px; min-width: 0; }
 section.block > header { display: grid; gap: 6px; }
 .claims { display: grid; gap: 8px; }
 .claims p { color: var(--ink); }
@@ -324,7 +324,7 @@ footer.foot .wrap { padding-block: 0 40px; display: grid; gap: 4px; }
   <div id="cov-body">
   <div class="controls"><div class="seg" data-ctl="cov-h"></div></div>
   <div class="sub">
-    <header><h3>Joint log score against the static sample covariance</h3><span class="caption" id="cov-joint-cap"></span></header>
+    <header><h3>Joint log score against the static benchmarks</h3><span class="caption" id="cov-joint-cap"></span></header>
     <div class="tbl" id="cov-joint-table"></div>
   </div>
   <div class="sub">
@@ -334,7 +334,7 @@ footer.foot .wrap { padding-block: 0 40px; display: grid; gap: 4px; }
     <div class="tbl" id="sb-table"></div>
   </div>
   <div class="sub">
-    <header><h3>Test portfolios</h3><span class="caption">Gain in portfolio QLIKE loss over the sample covariance (positive = better) for fixed portfolios, and in squared realized return of each model's own minimum-variance portfolio.</span></header>
+    <header><h3>Test portfolios</h3><span class="caption" id="cov-port-cap"></span></header>
     <div class="tbl" id="cov-port-table"></div>
   </div>
   </div>
@@ -470,6 +470,9 @@ function table(host, cols, rows, opts) {
 }
 const sigp = (p) => ok(p) && p < A ? `<span class="sig">${pv(p)}</span>` : pv(p);
 const modelCell = (m) => `${esc(M(m))}<span class="m">${esc(m)}</span>`;
+const ROLE_NOTE = (r) => r.role === "composite" ? "own model, no test family" : r.role === "robust" ? `robustness check of ${r.parent || "its parent"}; no test family` : r.role === "ref" ? "reference" : "";
+const modelCellR = (r) => `${esc(M(r.model))}<span class="m">${esc(r.model)}${ROLE_NOTE(r) ? " · " + esc(ROLE_NOTE(r)) : ""}</span>`;
+const rowCls = (r) => (r.ref || r.role === "robust" || r.role === "ref") ? "ref" : "";
 
 // segmented horizon controls
 const state = {};
@@ -507,7 +510,9 @@ function dotRows(host, rows, opt) {
   rows.forEach((r, i) => {
     const y = top + i * rh + rh / 2;
     if (r.group) { txt(s, 0, y + 6, r.label, {style: "fill:var(--ink);font-weight:600;font-size:12px"}); return; }
-    txt(s, lab, y + 4, r.label, {"text-anchor": "end", style: r.ref ? "fill:var(--muted)" : "fill:var(--ink);font-weight:500"});
+    const maxc = Math.floor(lab / 6.3), lbl = String(r.label).length > maxc ? String(r.label).slice(0, maxc - 1) + "\u2026" : r.label;
+    const lt = txt(s, lab, y + 4, lbl, {"text-anchor": "end", style: r.ref ? "fill:var(--muted)" : "fill:var(--ink);font-weight:500"});
+    if (lbl !== r.label) el("title", {}, lt).textContent = r.label;
     if (r.ci) {
       const a = Math.max(lo, r.ci[0]), b = Math.min(hi, r.ci[1]);
       if (ok(r.ci[0]) && ok(r.ci[1])) el("line", {x1: x(a), x2: x(b), y1: y, y2: y, stroke: r.ciColor || "var(--s1)", "stroke-width": 2, "stroke-linecap": "round", opacity: 0.55}, s);
@@ -538,8 +543,9 @@ function divColor(v, lim) {
 function inkFor(v, lim) { return ok(v) && Math.abs(v / lim) > 0.55 ? "#ffffff" : "var(--ink)"; }
 function heat(host, rowKeys, colKeys, cell, opt) {
   const longest = Math.max(...rowKeys.map((r) => String(opt.rowLabel(r)).length));
-  const lab = Math.min(opt.rowLabelW || 240, longest * 6.4 + 8), padR = 56;
+  const lab = Math.min(opt.rowLabelW || 240, longest * 6.4 + 8), padR = 84;
   const w0 = width(host), colW = Math.max(opt.minCol || 46, (w0 - lab - 8 - padR) / colKeys.length);
+  /* rotated column labels lean right; leave room for the last one */
   const w = lab + 8 + colW * colKeys.length + padR, headH = opt.headH || 70, rh = opt.rowH || 30;
   const h = headH + rowKeys.length * rh + 4;
   host.style.overflowX = "auto";
@@ -706,43 +712,45 @@ function renderMean(h) {
   const legendItems = [{kind: "dot", color: css("--s1"), label: `Model, Diebold-Mariano p < ${A}`}, {kind: "hollow", color: css("--s1"), label: "Model, not significant"}, {kind: "band", color: css("--mid"), label: "Too small to detect in this sample"}];
   if (ctx) legendItems.splice(2, 0, {kind: "dot", color: css("--s-bench"), label: PLABEL(ctx)});
   legend($("mean-r2-legend"), legendItems);
-  dotRows($("mean-r2-chart"), rows.map((r) => ({label: M(r.model), ref: r.ref,
-    marks: [ctx ? {v: r.r2_ctx, kind: "small", color: "var(--s-bench)"} : null, {v: r.r2, kind: ok(r.dm_p) && r.dm_p < A ? "dot" : "hollow", color: r.ref ? "var(--s-bench)" : "var(--s1)"}].filter(Boolean),
+  dotRows($("mean-r2-chart"), rows.map((r) => ({label: M(r.model), ref: r.ref || r.role === "robust",
+    marks: [ctx ? {v: r.r2_ctx, kind: "small", color: "var(--s-bench)"} : null, {v: r.r2, kind: ok(r.dm_p) && r.dm_p < A ? "dot" : "hollow", color: (r.ref || r.role === "robust") ? "var(--s-bench)" : "var(--s1)"}].filter(Boolean),
     tip: () => `<b>${esc(M(r.model))}</b>` + tr("Out-of-sample R²", pct(r.r2)) + (ctx ? tr(PLABEL(ctx), pct(r.r2_ctx)) : "") + tr("Clark-West p", pv(r.cw_p)) + tr("Diebold-Mariano p (one-sided)", pv(r.dm_p)) + tr("Detectable R²", pct(det, 2, false))})),
     {lo: lo - pad, hi: hi + pad, fmt: (t) => pct(t, Math.abs(hi - lo) < 0.02 ? 1 : 0), shade: [0, det]});
-  $("mean-r2-cap").textContent = `${PLABEL(D.periods.headline)}; ${num(info.n_indep, 0)} independent observations; detectable R² ≈ ${pct(det, 2, false)}. SPA p (does any of the ${info.spa_n || S.models.length} models scored together beat the historical mean?) ${peq(info.spa_p)}${S.spa_period !== D.periods.headline ? " (computed on the whole sample)" : ""}.`;
+  const W = S.weights[h] || {};
+  const wsum = (as) => as.reduce((t, a) => t + (W[a] || 0), 0);
+  $("mean-r2-cap").textContent = `${PLABEL(D.periods.headline)}; ${num(info.n_indep, 0)} independent observations; detectable R² ≈ ${pct(det, 2, false)}. SPA over the ${S.family.length} frozen mean models (does any beat the historical mean?) ${ok(info.spa_p) ? "p " + peq(info.spa_p) : "not in the results"}${S.spa_period !== D.periods.headline ? " (computed on the whole sample)" : ""}. The composite and the robustness rows are shown for information and are not part of that test. Pooled R² weights every asset-month equally on squared error, so it is dominated by the volatile assets: equities and REITs carry ${pct(wsum(["us_eq", "dev_eq", "em_eq", "reits"]), 0, false)} of the historical mean's squared error here, 5-year Treasuries and TIPS ${pct(wsum(["ust_int", "tips"]), 0, false)} (20-year Treasuries ${pct(wsum(["ust_long"]), 0, false)}). See the per-asset view below.`;
   table($("mean-r2-table"), [
-    {h: "Model", f: (r) => modelCell(r.model)},
+    {h: "Model", f: (r) => modelCellR(r)},
     {h: "R²", n: 1, f: (r) => pct(r.r2)},
     ...(ctx ? [{h: "R², development", n: 1, f: (r) => pct(r.r2_ctx)}] : []),
     {h: "Clark-West p", n: 1, title: "Encompassing test; read together with R²", f: (r) => sigp(r.cw_p)},
     {h: "DM p", n: 1, title: "One-sided Diebold-Mariano: model has lower squared error", f: (r) => sigp(r.dm_p)},
-    {h: "In 90% MCS", n: 1, title: "Model confidence set on squared error, whole sample", f: (r) => ok(r.in_mcs) ? (r.in_mcs ? "yes" : "no") : "n/a"},
-  ], rows.map((r) => Object.assign({_cls: r.ref ? "ref" : ""}, r)));
+    {h: "In 90% MCS", n: 1, title: "Model confidence set on squared error", f: (r) => ok(r.in_mcs) ? (r.in_mcs ? "yes" : "no") : "n/a"},
+  ], rows.map((r) => Object.assign({_cls: rowCls(r)}, r)));
   // grid
   const G = S.grid[h];
   const allv = Object.values(G.cells).flatMap((c) => Object.values(c).map((x) => x.r2)).filter(ok);
   const lim = Math.max(0.005, Math.min(Math.max(...allv.map(Math.abs)), (Math.max(...Object.values(G.detectable).filter(ok)) || 0.05)));
-  heat($("mean-grid"), S.models, G.assets, (m, a) => {
+  heat($("mean-grid"), [...S.models, ...(S.robust || [])], G.assets, (m, a) => {
     const c = G.cells[m][a];
     const mark = ok(c.r2) && c.r2 > 0 && ok(c.q) && c.q < A;
     return {v: c.r2, mark, label: ok(c.r2) ? minus((c.r2 * 100).toFixed(1)).replace(/^\u22120\.0$/, "0.0") : "", tip: `<b>${esc(M(m))} · ${esc(AF(a))}</b>` + tr("R²", pct(c.r2)) + tr("Detectable", pct(G.detectable[a], 1, false)) + tr("Clark-West p", pv(c.cw_p)) + tr("BH q (this model)", pv(c.q)) + tr("BY q (all models)", pv(c.q_all))};
-  }, {lim, rowLabel: M, colLabel: AS, rowLabelW: 150, headH: 80, rowH: 28, minCol: 44, minWidth: 640});
-  $("mean-grid-cap").textContent = `Out-of-sample R² in percent; colour scale clipped at ±${(lim * 100).toFixed(1)}%. Detectable R² differs by asset because histories differ (gold and TIPS are short).`;
+  }, {lim, rowLabel: M, colLabel: AS, rowLabelW: 260, headH: 80, rowH: 28, minCol: 44, minWidth: 640});
+  $("mean-grid-cap").textContent = `Out-of-sample R² in percent; colour scale clipped at ±${(lim * 100).toFixed(1)}%. Detectable R² differs by asset because histories differ (gold and TIPS are short). Last rows: the composite and the robustness rows, shown for comparison.`;
   legend($("mean-grid-legend"), [{kind: "band", color: divColor(-lim, lim), label: "Worse than historical mean"}, {kind: "band", color: divColor(lim, lim), label: "Better"}, {kind: "ring", label: `R² > 0 and Benjamini-Hochberg q < ${A}${S.q_period !== D.periods.headline ? " (q on the whole sample)" : ""}`}]);
   renderCum();
   // subperiods
   const P = D.periods.order;
   table($("mean-sub-table"), [
-    {h: "Model", f: (r) => r.det ? `Detectable R²<span class="m">5% significance, given sample size</span>` : modelCell(r.model)},
+    {h: "Model", f: (r) => r.det ? `Detectable R²<span class="m">5% significance, given sample size</span>` : modelCellR(r)},
     ...P.map((p) => ({h: PLABEL(p), n: 1, f: (r) => r.det ? pct(S.sub_detectable[h][p], 2, false) : pct(S.sub[h][r.model][p])}))],
-    [...S.models.map((m) => ({model: m})), ...S.refs.map((m) => ({model: m, _cls: "ref"})), {det: true, _cls: "ref"}]);
+    [...S.pooled[h].map((r) => Object.assign({_cls: rowCls(r)}, r)), {det: true, _cls: "ref"}]);
 }
 function initCumControls() {
   const S = D.mean; if (!S) return;
   const ms = $("cum-model"), as = $("cum-asset");
   const def = S.models.includes(D.composite) ? D.composite : S.models[S.models.length - 1];
-  ms.innerHTML = S.models.map((m) => `<option value="${m}" ${m === def ? "selected" : ""}>${esc(M(m))}</option>`).join("");
+  ms.innerHTML = [...S.models, ...(S.robust || [])].map((m) => `<option value="${m}" ${m === def ? "selected" : ""}>${esc(M(m))}</option>`).join("");
   as.innerHTML = [`<option value="pooled">All assets pooled</option>`, ...D.assets.map((a) => `<option value="${a}">${esc(AS(a))}</option>`)].join("");
   ms.addEventListener("change", renderCum); as.addEventListener("change", renderCum);
 }
@@ -750,7 +758,7 @@ function renderCum() {
   const S = D.mean; if (!S) return;
   const h = Number(state["mean-h"]), m = $("cum-model").value, a = $("cum-asset").value;
   const C = S.cum[h] || {};
-  const series = S.models.filter((x) => C[x] && C[x][a]).map((x) => ({key: x, label: M(x), color: x === m ? "var(--s1)" : "var(--line-2)", width: x === m ? 2.5 : 1.25, dim: x !== m, points: C[x][a]}));
+  const series = [...S.models, ...(S.robust || [])].filter((x) => C[x] && C[x][a]).map((x) => ({key: x, label: M(x), color: x === m ? "var(--s1)" : "var(--line-2)", width: x === m ? 2.5 : 1.25, dim: x !== m, points: C[x][a]}));
   legend($("cum-legend"), [{kind: "line", color: css("--s1"), label: M(m)}, {kind: "line", color: css("--line-2"), label: "Other mean models"}]);
   const marks = D.periods.holdout_present ? [{at: D.holdout_start, label: "holdout starts"}] : [];
   tsChart($("cum-chart"), series, {fmt: (v) => num(v, Math.abs(v) < 0.1 ? 3 : 2), marks, left: 56});
@@ -767,10 +775,10 @@ function renderDist(h) {
     marks: [{v: r.skill_hist, kind: "dia", color: "var(--s2)"}, {v: r.skill_vol, kind: ok(r.p_vol) && r.p_vol < A ? "dot" : "hollow", color: "var(--s1)"}],
     tip: () => `<b>${esc(M(r.model))}</b>` + tr("CRPS skill vs EWMA vol", pct(r.skill_vol)) + tr("p (one-sided DM)", pv(r.p_vol)) + tr("CRPS skill vs hist. mean", pct(r.skill_hist)) + tr("p", pv(r.p_hist))})),
     {lo: lo - pad, hi: hi + pad, fmt: (t) => pct(t, 1)});
-  $("dist-skill-cap").textContent = `${PLABEL(D.periods.headline)}. SPA p (does any of the ${info.spa_n || S.models.length} models scored together beat the EWMA volatility baseline?) ${peq(info.spa_vol)}; vs historical mean ${peq(info.spa_hist)}${S.spa_period !== D.periods.headline ? " (computed on the whole sample)" : ""}.`;
+  $("dist-skill-cap").textContent = `${PLABEL(D.periods.headline)}. SPA over the ${S.family.length} frozen distribution models (does any beat the EWMA volatility baseline?) ${ok(info.spa_vol) ? "p " + peq(info.spa_vol) : "not in the results"}; against the historical mean ${ok(info.spa_hist) ? "p " + peq(info.spa_hist) : "n/a"}${S.spa_period !== D.periods.headline ? " (computed on the whole sample)" : ""}. The composite is shown for information and is not part of that test.`;
   const ctx = D.periods.context;
   table($("dist-skill-table"), [
-    {h: "Model", f: (r) => modelCell(r.model)},
+    {h: "Model", f: (r) => modelCellR(r)},
     {h: "Skill vs EWMA vol", n: 1, f: (r) => pct(r.skill_vol)},
     ...(ctx ? [{h: "Development", n: 1, f: (r) => pct(r.skill_vol_ctx)}] : []),
     {h: "p", n: 1, f: (r) => sigp(r.p_vol)},
@@ -778,7 +786,7 @@ function renderDist(h) {
     {h: "p", n: 1, f: (r) => sigp(r.p_hist)},
     {h: "In 90% MCS", n: 1, f: (r) => ok(r.in_mcs) ? (r.in_mcs ? "yes" : "no") : "n/a"},
     {h: "PIT p", n: 1, title: "Calibration test; small = miscalibrated", f: (r) => ok(r.calib_p) && r.calib_p < A ? `<span class="flag w">${pv(r.calib_p)}</span>` : pv(r.calib_p)},
-  ], rows.map((r) => Object.assign({_cls: r.ref ? "ref" : ""}, r)));
+  ], rows.map((r) => Object.assign({_cls: rowCls(r)}, r)));
   // pinball
   const pick = [D.composite, D.dist_model, "dist_gbm_agg", "dist_ewma_fhs"].filter((m, i, arr) => S.pinball[h][m] && arr.indexOf(m) === i).slice(0, 3);
   const colors = ["var(--s1)", "var(--s2)", "var(--s3)"];
@@ -818,7 +826,7 @@ function renderDist(h) {
     ...tq.map((q) => ({h: q === "q01" ? "Below 1st" : q === "q05" ? "Below 5th" : q === "q95" ? "Above 95th" : "Above 99th", n: 1,
       f: (r) => pct(r["hit_" + q], 1, false) + (showK ? `<span class="m">p ${pv(r["kupiec_" + q])}</span>` : "")})),
   ], S.tails[h].map((r) => Object.assign({_cls: r.ref ? "ref" : ""}, r)));
-  $("tail-cap").textContent = `Share of outcomes beyond each predicted percentile (nominal 1% and 5%). ` + (showK ? "Kupiec test p-values under each rate." : `Kupiec test p-values are not shown at ${h} months: the pooled test at horizons above one month is under review and may be unreliable.`);
+  $("tail-cap").textContent = `Share of outcomes beyond each predicted percentile, pooled over assets (nominal 1% and 5%). ` + (showK ? "Under each rate, the p-value of the pooled Kupiec test, whose null is that every asset's own hit rate is nominal: it can reject even when the pooled rate looks right, if assets miss in offsetting directions. It holds its size at every horizon and is conservative at 3 and 12 months, but it has little power against a shortfall that all assets share, so compare each rate with its nominal value directly." : `Kupiec test p-values are not shown at ${h} months.`);
   // grid
   const G = S.grid[h];
   const allv = Object.values(G).flatMap((c) => Object.values(c).map((x) => x.skill)).filter(ok);
@@ -826,7 +834,7 @@ function renderDist(h) {
   heat($("dist-grid"), S.models, D.assets, (m, a) => {
     const c = G[m][a];
     return {v: c.skill, mark: ok(c.skill) && c.skill > 0 && ok(c.q) && c.q < A, label: ok(c.skill) ? minus((c.skill * 100).toFixed(1)).replace(/^\u22120\.0$/, "0.0") : "", tip: `<b>${esc(M(m))} · ${esc(AF(a))}</b>` + tr("CRPS skill vs EWMA vol", pct(c.skill)) + tr("p", pv(c.p)) + tr("BH q", pv(c.q))};
-  }, {lim: glim, rowLabel: M, colLabel: AS, rowLabelW: 170, headH: 80, rowH: 28, minCol: 44, minWidth: 640});
+  }, {lim: glim, rowLabel: M, colLabel: AS, rowLabelW: 260, headH: 80, rowH: 28, minCol: 44, minWidth: 640});
   $("dist-grid-cap").textContent = `CRPS skill against the EWMA volatility baseline, percent.`;
   legend($("dist-grid-legend"), [{kind: "band", color: divColor(-glim, glim), label: "Worse than EWMA volatility"}, {kind: "band", color: divColor(glim, glim), label: "Better"}, {kind: "ring", label: `Skill > 0 and BH q < ${A}${S.q_period !== D.periods.headline ? " (q on the whole sample)" : ""}`}]);
 }
@@ -835,18 +843,26 @@ function renderDist(h) {
 function renderCov(h) {
   const S = D.cov; if (!S) return;
   const rows = S.joint[h];
-  $("cov-joint-cap").textContent = `${PLABEL(S.headline)}. Gain = log score of the sample covariance minus that of the model, nats per asset per period (positive = better). SPA p (any model beats the sample covariance) ${peq(S.info[h].spa_p)}.`;
+  const st = S.static, bn = (b) => b === "lw" ? "Ledoit-Wolf" : "sample";
+  const spaTxt = S.benches.map((b) => `vs ${bn(b)} ${ok(S.info[h].spa[b].joint) ? "p " + peq(S.info[h].spa[b].joint) : "n/a"}`).join("; ");
+  $("cov-joint-cap").textContent = `${PLABEL(S.headline)}. Gain = log score of the benchmark minus that of the model, nats per asset per period (positive = model better). ` +
+    (st === "lw" ? "The verdict rests on the comparison with static Ledoit-Wolf shrinkage (well-conditioned but not dynamic); the raw sample covariance is badly conditioned, so most of the gain over it is conditioning, not dynamics. " : "") +
+    `SPA (does any dynamic model beat the benchmark?): ${spaTxt}. BH q-values cover the frozen dynamic models across horizons.`;
+  const vcol = (b) => [
+    {h: `Gain vs ${bn(b)}`, n: 1, f: (r) => r.vs[b] ? num(r.vs[b].diff, 3, true) : "benchmark"},
+    ...(S.context ? [{h: "Development", n: 1, f: (r) => r.vs[b] ? num(r.vs[b].diff_ctx, 3, true) : ""}] : []),
+    {h: "p", n: 1, f: (r) => r.vs[b] ? sigp(r.vs[b].p) : ""},
+    {h: "BH q", n: 1, f: (r) => r.vs[b] ? (ok(r.vs[b].q) ? sigp(r.vs[b].q) : "\u2013") : ""},
+  ];
+  const order = [st, ...S.benches.filter((b) => b !== st)];
   table($("cov-joint-table"), [
-    {h: "Model", f: (r) => modelCell(r.model)},
-    {h: "Gain vs sample", n: 1, f: (r) => r.ref ? "benchmark" : num(r.diff, 3, true)},
-    ...(S.context ? [{h: "Development", n: 1, f: (r) => r.ref ? "" : num(r.diff_ctx, 3, true)}] : []),
-    {h: "p", n: 1, f: (r) => r.ref ? "" : sigp(r.p)},
-    {h: "BH q", n: 1, f: (r) => r.ref ? "" : sigp(r.q)},
+    {h: "Model", f: (r) => modelCell(r.model) + (r.model.includes("__sd_") ? `<span class="m">no test family</span>` : "")},
+    ...order.flatMap(vcol),
     {h: "In 90% MCS", n: 1, f: (r) => ok(r.in_mcs) ? (r.in_mcs ? "yes" : "no") : "n/a"},
     {h: "Mahalanobis", n: 1, title: "Average squared standardized error per asset; 1 = calibrated", f: (r) => num(r.mahal, 2)},
     {h: "90% ellipsoid cover", n: 1, f: (r) => pct(r.cover90, 1, false)},
     {h: "Median condition no.", n: 1, f: (r) => num(r.cond, 0)},
-  ], rows.map((r) => Object.assign({_cls: r.ref ? "ref" : ""}, r)));
+  ], rows.map((r) => Object.assign({_cls: S.benches.includes(r.model) ? "ref" : ""}, r)));
   // stock-bond
   const SB = S.sb[h];
   const ser = S.sb_series[h] || S.sb_series[1];
@@ -865,8 +881,9 @@ function renderCov(h) {
   ], [
     {lab: "Realized correlation", f: (p) => num(SB.real[p], 2)},
     ...SB.rows.filter((r) => [D.primary_cov, "lw", "sample", "ewma_cov"].includes(r.model)).map((r) => ({lab: `Predicted: ${esc(M(r.model))}`, f: (p) => num(r.pred[p], 2)})),
-    ...SB.rows.filter((r) => !r.ref && [D.primary_cov, "lw", "ewma_cov", "vc_daily_daily_m_lw"].includes(r.model)).map((r) => ({lab: `Log-score gain: ${esc(M(r.model))}`, f: (p) => ok(r.diff[p]) ? num(r.diff[p], 3, true) + `<span class="m">p ${pv(r.p[p])}</span>` : "n/a"})),
+    ...order.flatMap((b) => SB.rows.filter((r) => r.vs[b] && [D.primary_cov, "ewma_cov", "vc_daily_daily_m_lw", "lw"].includes(r.model)).map((r) => ({lab: `Gain vs ${bn(b)}: ${esc(M(r.model))}`, f: (p) => ok(r.vs[b].diff[p]) ? num(r.vs[b].diff[p], 3, true) + `<span class="m">p ${pv(r.vs[b].p[p])}</span>` : "n/a"}))),
   ]);
+  $("cov-port-cap").textContent = `Gain in portfolio QLIKE loss over the ${st === "lw" ? "static Ledoit-Wolf covariance" : "sample covariance"} (positive = better) for fixed portfolios, and in squared realized return of each model's own minimum-variance portfolio.`;
   table($("cov-port-table"), [
     {h: "Model", f: (r) => modelCell(r.model)},
     {h: "1/N", n: 1, f: (r) => num(r.port_ew.diff, 3, true) + `<span class="m">p ${pv(r.port_ew.p)}</span>`},
@@ -884,31 +901,33 @@ function renderStrategy() {
   const h = Number(state["st-h"]), u = $("st-universe").value;
   const rows = S.rows.filter((r) => r.family === "mean" && r.horizon === h && r.universe === u);
   const rules = [...new Set(rows.map((r) => r.rule))];
-  const ordered = rules.flatMap((ru) => rows.filter((r) => r.rule === ru).sort((a, b) => a.mean_model < b.mean_model ? -1 : 1));
+  const rk = (r) => ({family: 0, composite: 1, robust: 2}[r.role] ?? 3);
+  const ordered = rules.flatMap((ru) => rows.filter((r) => r.rule === ru).sort((a, b) => rk(a) - rk(b) || (a.mean_model < b.mean_model ? -1 : 1)));
+  const sLabel = (r) => M(r.mean_model) + (r.role === "composite" ? " (own model)" : r.role === "robust" ? " (robustness)" : "");
   const vals = ordered.flatMap((r) => [r.d_cer_ci_lo, r.d_cer_ci_hi, r.d_cer]).filter(ok).concat([0]);
   const lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo) * 0.06;
   legend($("st-legend"), [{kind: "dot", color: css("--s1"), label: `Gain, p < ${A}`}, {kind: "hollow", color: css("--s1"), label: "Gain, not significant"}, {kind: "line", color: css("--s1"), label: "95% confidence interval"}]);
   const grouped = [];
   rules.forEach((ru) => { grouped.push({group: true, label: stLabel(ru), marks: []}); ordered.filter((r) => r.rule === ru).forEach((r) => grouped.push(r)); });
-  dotRows($("st-chart"), grouped.map((r) => r.group ? r : ({label: M(r.mean_model), ci: [r.d_cer_ci_lo, r.d_cer_ci_hi],
-    marks: [{v: r.d_cer, kind: ok(r.d_cer_p) && r.d_cer_p < A ? "dot" : "hollow", color: "var(--s1)"}],
+  dotRows($("st-chart"), grouped.map((r) => r.group ? r : ({label: sLabel(r), ref: r.role !== "family", ci: [r.d_cer_ci_lo, r.d_cer_ci_hi], ciColor: r.role === "family" ? "var(--s1)" : "var(--s-bench)",
+    marks: [{v: r.d_cer, kind: ok(r.d_cer_p) && r.d_cer_p < A ? "dot" : "hollow", color: r.role === "family" ? "var(--s1)" : "var(--s-bench)"}],
     tip: () => `<b>${esc(stLabel(r.rule))} with ${esc(M(r.mean_model))}</b>` + tr("CER gain, net, per year", pct(r.d_cer)) + tr("95% CI", `${pct(r.d_cer_ci_lo)} to ${pct(r.d_cer_ci_hi)}`) + tr("p", pv(r.d_cer_p)) + tr("BH q", pv(r.d_cer_q_bh)) + tr("Sharpe gain", num(r.d_sharpe, 2, true)) + tr("Break-even cost (bp)", num(r.breakeven_cost_bp, 0))})),
     {lo: lo - pad, hi: hi + pad, fmt: (t) => pct(t, 1), rowH: 24});
-  const lab0 = D.strategy.period === "holdout" ? PLABEL("holdout") : "Whole strategy sample";
-  $("st-cap").textContent = `${lab0}. Certainty-equivalent return gain per year (risk aversion 5), net of costs and financing, of each rule using a model's forecasts over the same rule using historical means; risk model held fixed (${M(S.meta.cov_model)}).`;
+  const lab0 = D.strategy.period === "holdout" ? "Holdout (only positions formed at holdout origins)" : "Whole strategy sample";
+  $("st-cap").textContent = `${lab0}. Certainty-equivalent return gain per year (risk aversion 5), net of costs and financing, of each rule using a model's forecasts over the same rule using historical means; risk model held fixed (${M(S.meta.cov_model)}). Benjamini-Hochberg q-values are computed within the period over the ${S.bh_family.length} frozen mean models only; the composite and the robustness rows (grey) are reported individually, with no q-value.`;
   table($("st-table"), [
-    {h: "Rule", f: (r) => esc(stLabel(r.rule))}, {h: "Forecast", f: (r) => modelCell(r.mean_model)},
+    {h: "Rule", f: (r) => esc(stLabel(r.rule))}, {h: "Forecast", f: (r) => modelCellR({model: r.mean_model, role: r.role === "family" ? "family" : r.role, parent: (D.mean && D.mean.robust_parent || {})[r.mean_model]})},
     {h: "ΔSharpe", n: 1, f: (r) => num(r.d_sharpe, 2, true)}, {h: "p", n: 1, f: (r) => sigp(r.d_sharpe_p)},
-    {h: "ΔCER /yr", n: 1, f: (r) => pct(r.d_cer)}, {h: "p", n: 1, f: (r) => sigp(r.d_cer_p)}, {h: "BH q", n: 1, f: (r) => sigp(r.d_cer_q_bh)},
+    {h: "ΔCER /yr", n: 1, f: (r) => pct(r.d_cer)}, {h: "p", n: 1, f: (r) => sigp(r.d_cer_p)}, {h: "BH q", n: 1, f: (r) => r.role === "family" ? sigp(r.d_cer_q_bh) : "\u2013"},
     {h: "Break-even cost", n: 1, title: "Uniform one-way cost (bp) at which the net CER gain is zero", f: (r) => ok(r.breakeven_cost_bp) ? num(r.breakeven_cost_bp, 0) + " bp" : "n/a"},
     {h: "ΔTurnover /yr", n: 1, f: (r) => num(r.d_turnover_ann, 2, true)},
-  ], ordered);
+  ], ordered.map((r) => Object.assign({_cls: r.role === "family" ? "" : "ref"}, r)));
   // vs static
-  const vs = S.rows.filter((r) => r.family === "vs_static" && r.horizon === 1 && r.universe === u && r.mean_model !== "none" && r.mean_model !== "hist_mean" ? true : (r.family === "vs_static" && r.horizon === 1 && r.universe === u && r.mean_model === "hist_mean" && r.cov_model === S.meta.cov_model));
+  const vs = S.rows.filter((r) => r.family === "vs_static" && r.horizon === 1 && r.universe === u && r.mean_model !== "none" && r.cov_model === S.meta.cov_model);
   const lv = S.levels.filter((x) => x.universe === u && x.family === "static" || (x.family === "static" && x.rule === "sixty_forty"));
   $("st-static-cap").textContent = `One-month rules against equal weight (1/N), net, ${lab0.toLowerCase()}. Static portfolios: ` + lv.map((x) => `${stLabel(x.rule)} Sharpe ${num(x.sharpe, 2)}, CER ${pct(x.cer, 1)}`).join("; ") + ".";
   table($("st-static-table"), [
-    {h: "Rule", f: (r) => esc(stLabel(r.rule))}, {h: "Forecast", f: (r) => modelCell(r.mean_model)},
+    {h: "Rule", f: (r) => esc(stLabel(r.rule))}, {h: "Forecast", f: (r) => modelCellR({model: r.mean_model, role: r.role, parent: (D.mean && D.mean.robust_parent || {})[r.mean_model]})},
     {h: "ΔSharpe vs 1/N", n: 1, f: (r) => num(r.d_sharpe, 2, true)}, {h: "p", n: 1, f: (r) => sigp(r.d_sharpe_p)},
     {h: "ΔCER vs 1/N", n: 1, f: (r) => pct(r.d_cer)}, {h: "p", n: 1, f: (r) => sigp(r.d_cer_p)},
   ], vs.sort((a, b) => (a.rule + a.mean_model < b.rule + b.mean_model ? -1 : 1)));
@@ -919,7 +938,7 @@ function initWealth() {
   const rules = [...new Set(S.rows.filter((r) => r.family === "mean").map((r) => r.rule))];
   const models = [...new Set(S.rows.filter((r) => r.family === "mean").map((r) => r.mean_model))];
   $("w-rule").innerHTML = rules.map((r) => `<option value="${r}">${esc(stLabel(r))}</option>`).join("");
-  const def = models.includes(D.mean_model) ? D.mean_model : models[0];
+  const def = models.includes(D.composite) ? D.composite : models.includes(D.mean_model) ? D.mean_model : models[0];
   $("w-model").innerHTML = models.map((m) => `<option value="${m}" ${m === def ? "selected" : ""}>${esc(M(m))}</option>`).join("");
   $("w-rule").addEventListener("change", renderWealth); $("w-model").addEventListener("change", renderWealth);
 }

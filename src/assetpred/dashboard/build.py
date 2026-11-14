@@ -45,9 +45,10 @@ TITLE = "Asset Return Predictability"
 MAX_BYTES = 16 * 1024 * 1024
 WARN_BYTES = 5 * 1024 * 1024
 
-# The pooled tail-hit (Kupiec) p-values at horizons above one month are under
-# review and may be unreliable. Flip to True to show them on the page.
-SHOW_KUPIEC_P_ABOVE_H1 = False
+# Whether the pooled tail-hit (Kupiec) p-values are shown at horizons above one
+# month. The pooled test was replaced by one that holds its size at every
+# horizon (null: every asset's tail hit rate is nominal), so they are shown.
+SHOW_KUPIEC_P_ABOVE_H1 = True
 
 # With --dev and no run named: the consolidated run written by `python -m assetpred.pipeline --dev` when it
 # exists, else the earlier development runs that together cover the frozen models.
@@ -88,7 +89,7 @@ def build_context(root: Path, dev: bool, score_runs: list[str], cov_run: str | N
     }
     now = sections.now_section(root, sc)
     method = sections.method_section(root, metas, cov_meta or {}, dev)
-    V = narrative.verdict(ctx)
+    V = narrative.verdict(ctx, SHOW_KUPIEC_P_ABOVE_H1)
 
     mean_m, dist_m = gl.composite_parts()
     model_ids = set(sc.models) | set(config.FROZEN_MARGINAL) | set(config.FROZEN_COV) | {"sample"}
@@ -131,10 +132,13 @@ def _frozen_models(sc, ctx) -> list[dict]:
     for m in config.BASELINES:
         rows.append({"m": m, "role": "Baseline", "d": gl.describe(m)})
     for m in config.FROZEN_MEAN:
-        rows.append({"m": m, "role": "Mean model", "d": gl.describe(m)})
+        rows.append({"m": m, "role": "Mean model (SPA family)", "d": gl.describe(m)})
+    for m in getattr(config, "ROBUSTNESS", ()):
+        rows.append({"m": m, "role": "Robustness row (no test family)", "d": gl.describe(m)})
     for m in config.FROZEN_DIST:
-        rows.append({"m": m, "role": "Distribution model", "d": gl.describe(m)})
-    rows.append({"m": config.COMPOSITE, "role": "Composite (the forecast shown)", "d": gl.describe(config.COMPOSITE)})
+        rows.append({"m": m, "role": "Distribution model (SPA family)", "d": gl.describe(m)})
+    rows.append({"m": config.COMPOSITE, "role": "Composite (the forecast shown; no test family)",
+                 "d": gl.describe(config.COMPOSITE)})
     for m in config.FROZEN_COV:
         rows.append({"m": m, "role": "Covariance model" + (" (primary)" if m == config.PRIMARY_COV else ""),
                      "d": gl.describe(m)})
@@ -156,6 +160,22 @@ def _design_text(dev: bool, P: dict) -> list[str]:
         "All significance statements use a 5% threshold. Overlapping multi-month outcomes are handled with "
         "autocorrelation-robust standard errors; the number of independent observations is the number of months "
         "divided by the horizon.",
+        "The multiple-testing adjustments were fixed before the holdout run. Whether any model beats the benchmark is "
+        "tested (Hansen's SPA) within two pre-registered families: the six frozen mean models against the historical "
+        "mean, and the five frozen distribution models against the volatility baseline. The composite forecast and the "
+        "robustness rows are scored and shown, but belong to no family, so they never enlarge the search.",
+        "Size of the tests at 12 months: in a Monte Carlo on the real panel shapes, Clark-West and SPA rejected a true "
+        "null 7.5-10.5% of the time at a nominal 5% at the 12-month horizon, and more on the shorter holdout. Read "
+        "12-month p-values near 0.05 as roughly 0.10.",
+        "The feature list was fixed knowing which series were later discontinued: two Baker-Wurgler sentiment features "
+        "that end in 2019 are excluded throughout. This uses knowledge of the data's future availability, not of "
+        "future returns.",
+        "Late in the holdout some features stop updating: developed ex-US valuation and net equity issuance after "
+        "2025-12, and the commodity roll yield after 2024-04. The models handle the gaps, but forecasts for the "
+        "affected assets shift by roughly 10-50% of their typical signal in those months.",
+        f"Period labels: the development period selects forecast origins through {pd.Timestamp(config.DEV_END):%B %Y}, "
+        f"so its 3- and 12-month outcomes run a few months into the following year; in a full run the 2010s decade "
+        f"contains both development and holdout origins.",
     ]
     if dev or not P["holdout_present"]:
         out.append("This build contains development results only: the models were selected on these same outcomes, "
@@ -191,13 +211,23 @@ def _facts(ctx, method, P, dev) -> dict:
                          "figure is likely to flatter them. The holdout has not been scored in this build.")
     points.append("Adjusted tests (SPA, model confidence sets, Benjamini-Hochberg q-values) account for the search "
                   "over the frozen models and assets, not for every configuration tried during development.")
+    points.append("At 12 months Clark-West and SPA reject a true null 7.5-10.5% of the time at a nominal 5% (more on "
+                  "the shorter holdout), so 12-month p-values near 0.05 should be read as roughly 0.10.")
+    if mean and mean.get("weights", {}).get(1):
+        w = mean["weights"][1]
+        eq_ = sum(w.get(a) or 0 for a in ("us_eq", "dev_eq", "em_eq", "reits"))
+        bd = sum(w.get(a) or 0 for a in ("ust_int", "tips"))
+        points.append(f"Pooled R² weights every asset-month equally on squared error, so volatile assets dominate it: "
+                      f"equities and REITs carry {narrative.pct(eq_, 0, False)} of the benchmark's squared error at 1 "
+                      f"month, 5-year Treasuries and TIPS {narrative.pct(bd, 0, False)}. The per-asset view is the remedy.")
     if not SHOW_KUPIEC_P_ABOVE_H1:
         points.append("Tail hit rates are shown at every horizon, but the pooled Kupiec test p-values above one month "
-                      "are withheld while their reliability is reviewed.")
-    if mean and mean["q_period"] != P["headline"]:
-        points.append("The results files carry Benjamini-Hochberg q-values, SPA and model-confidence-set results for the "
-                      "whole sample only; where the headline is the holdout, those adjusted figures mix holdout and "
-                      "development forecasts.")
+                      "are withheld.")
+    adj = [k for k, sec in (("mean", mean), ("distribution", ctx.get("dist")), ("covariance", ctx.get("cov")))
+           if sec and P["holdout_present"] and sec.get("q_period") != P["headline"]]
+    if adj:
+        points.append(f"The {', '.join(adj)} results files carry the multiple-testing adjustments for the whole sample "
+                      f"only; where those are shown next to holdout figures they mix holdout and development forecasts.")
     return {"tiles": tiles, "points": points}
 
 

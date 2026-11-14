@@ -83,14 +83,18 @@ def test_mean_numbers_match_scores(dev_page):
             v = sc.get(r["model"], h, "pooled", "full", "hist_mean", "r2_oos")
             if np.isfinite(v):
                 assert r["r2"] == pytest.approx(v, rel=1e-4, abs=1e-9)
-        spa = df[(df.model == "*") & (df.horizon == h) & (df.asset == "pooled") & (df.metric == "spa_p_mse")
-                 & (df.run == d["mean"]["info"][str(h)]["spa_run"])].value
-        assert d["mean"]["info"][str(h)]["spa_p"] == pytest.approx(float(spa.iloc[0]), rel=1e-4)
+        # the verdict reads the pre-registered family SPA ('*mean'), never the all-model row ('*')
+        spa = df[(df.model == "*mean") & (df.horizon == h) & (df.asset == "pooled") & (df.metric == "spa_p_mse")
+                 & (df.period == "full")].value
+        if len(spa):
+            assert d["mean"]["info"][str(h)]["spa_p"] == pytest.approx(float(spa.iloc[0]), rel=1e-4)
         det = sc.get("hist_mean", h, "pooled", "full", "none", "r2_detectable")
         assert d["mean"]["info"][str(h)]["r2_detectable"] == pytest.approx(det, rel=1e-4)
     # the verdict sentence quotes the best pooled R² at each horizon, formatted from the table
-    best = {h: max(r["r2"] for r in d["mean"]["pooled"][str(h)] if not r["ref"] and r["r2"] is not None)
+    best = {h: max(r["r2"] for r in d["mean"]["pooled"][str(h)] if r["role"] == "family" and r["r2"] is not None)
             for h in config.HORIZONS}
+    assert all(r["role"] == "family" for r in d["mean"]["pooled"]["1"] if r["model"] in config.FROZEN_MEAN)
+    assert all(not m.startswith("*") for m in d["mean"]["models"])
     text = " ".join(d["verdict"]["mean"])
     for h, v in best.items():
         assert narrative.pct(v) in text
@@ -106,9 +110,15 @@ def test_distribution_covariance_strategy_numbers_match(dev_page):
             assert r["skill_vol"] == pytest.approx(v, rel=1e-4)
     c = pd.read_parquet(DEV / "scores" / f"{d['cov_run']}.parquet")
     prim = next(r for r in d["cov"]["joint"]["1"] if r["model"] == config.PRIMARY_COV)
-    v = c[(c.model == config.PRIMARY_COV) & (c.horizon == 1) & (c.asset == "joint") & (c.period == "full")
-          & (c.metric == "diff_nll")].value
-    assert prim["diff"] == pytest.approx(float(v.iloc[0]), rel=1e-4)
+    for b in d["cov"]["benches"]:
+        v = c[(c.model == config.PRIMARY_COV) & (c.horizon == 1) & (c.asset == "joint") & (c.period == "full")
+              & (c.benchmark == b) & (c.metric == "diff_nll")].value
+        assert prim["vs"][b]["diff"] == pytest.approx(float(v.iloc[0]), rel=1e-4)
+    if "lw" in set(c.benchmark):   # the covariance verdict rests on the comparison with Ledoit-Wolf
+        assert d["cov"]["static"] == "lw"
+        cell = next(g for g in d["verdict"]["grid"] if g["key"] == "cov")["cells"]["1"]
+        assert narrative.num(prim["vs"]["lw"]["diff"], 3, True) in cell["value"]
+        assert "difference of score differences" not in " ".join(d["verdict"]["cov"])
     if (DEV / "strategy" / "metrics.parquet").exists():
         m = pd.read_parquet(DEV / "strategy" / "metrics.parquet")
         r = next(x for x in d["strategy"]["rows"] if x["family"] == "mean" and x["horizon"] == 1
@@ -116,6 +126,11 @@ def test_distribution_covariance_strategy_numbers_match(dev_page):
         v = m[(m.family == "mean") & (m.horizon == 1) & (m.universe == "all") & (m.rule == "mv")
               & (m.mean_model == "ens_z") & (m.period == "full") & (m.basis == "net") & (m.metric == "d_cer")].value
         assert r["d_cer"] == pytest.approx(float(v.iloc[0]), rel=1e-4)
+        # the verdict counts only the BH family; composite and robustness rows are reported individually
+        fam = [x for x in d["strategy"]["rows"] if x["family"] == "mean" and x["universe"] == "all"
+               and x["horizon"] == 1 and x["role"] == "family"]
+        assert {x["mean_model"] for x in fam} <= set(config.FROZEN_MEAN)
+        assert f"of {len(fam)} positive" in " ".join(d["verdict"]["strategy"])
 
 
 @needs_dev
@@ -142,37 +157,82 @@ def test_unknown_scores_run_names_the_alternatives(tmp_path):
     assert "no_such_run" in str(e.value) and RUNS[0] in str(e.value)
 
 
-def test_kupiec_switch_defaults_off():
-    assert build.SHOW_KUPIEC_P_ABOVE_H1 is False
+@needs_dev
+def test_kupiec_shown_at_every_horizon(dev_page):
+    d = page_data(dev_page)
+    assert isinstance(build.SHOW_KUPIEC_P_ABOVE_H1, bool)
+    assert d["show_kupiec_long"] is build.SHOW_KUPIEC_P_ABOVE_H1
+    if build.SHOW_KUPIEC_P_ABOVE_H1:
+        assert any(r["kupiec_q99"] is not None for r in d["dist"]["tails"]["12"])
+        assert "Kupiec p" in " ".join(d["verdict"]["dist"])
+
+
+def test_set_labels_are_not_models():
+    df = pd.DataFrame({"model": ["*", "*mean", "*dist", "a", "b"], "horizon": 1, "asset": "pooled",
+                       "period": "full", "benchmark": "hist_mean", "metric": "x", "value": 1.0, "run": "r"})
+    sc = ex.Scores(df)
+    assert sc.models == ["a", "b"]
+    assert sc.run_size("r", exclude="a") == 1
+
+
+@needs_dev
+def test_robustness_and_composite_are_not_candidates(dev_page):
+    d = page_data(dev_page)
+    roles = {r["model"]: r["role"] for r in d["mean"]["pooled"]["1"]}
+    for m in getattr(config, "ROBUSTNESS", ()):
+        if m in roles:
+            assert roles[m] == "robust"
+    if config.COMPOSITE in roles:
+        assert roles[config.COMPOSITE] == "composite"
+        assert "refitted every January" in d["glossary"]["models"][config.COMPOSITE][1]
+    assert d["mean"]["family"] == [m for m in config.FROZEN_MEAN if m in roles]
 
 
 # --------------------------------------------------------------------------- synthetic holdout root
 
-def _fake_full_root(tmp_path: Path, holdout_r2: float, spa: float) -> Path:
-    """A results root shaped like the final run: the dev scores relabelled with
-    pre_holdout and holdout periods, with chosen holdout values for ens_z."""
+def _relabel(df: pd.DataFrame) -> pd.DataFrame:
+    """Dev rows as a full run would carry them: the same values under pre_holdout and holdout too."""
+    full = df[df.period == "full"]
+    return pd.concat([df, full.assign(period="pre_holdout"), full.assign(period="holdout")], ignore_index=True)
+
+
+def _fake_full_root(tmp_path: Path, holdout_r2: float, spa_family: float, spa_all: float = 0.5,
+                    strategy_q: float | None = None) -> Path:
+    """A results root shaped like the final run, built from the dev results: every
+    period-``full`` row copied to pre_holdout and holdout (adjusted tests included,
+    as MT_PERIODS gives them), with chosen holdout values for ens_z and the SPA rows."""
     root = tmp_path / "results"
     (root / "scores").mkdir(parents=True)
-    s = pd.read_parquet(DEV / "scores" / f"{RUNS[0]}.parquet")
-    full = s[s.period == "full"]
-    pre = full.assign(period="pre_holdout")
-    hold = full.assign(period="holdout").copy()
-    sel = (hold.model == "ens_z") & (hold.asset == "pooled") & (hold.benchmark == "hist_mean")
-    hold.loc[sel & (hold.metric == "r2_oos"), "value"] = holdout_r2
-    hold.loc[sel & (hold.metric == "dm_mse_p1"), "value"] = 0.001
-    out = pd.concat([s, pre, hold], ignore_index=True)
-    out.loc[(out.model == "*") & (out.metric == "spa_p_mse"), "value"] = spa
-    out.to_parquet(root / "scores" / "fake.parquet", index=False)
+    s = _relabel(pd.read_parquet(DEV / "scores" / f"{RUNS[0]}.parquet"))
+    hold = s.period == "holdout"
+    sel = hold & (s.model == "ens_z") & (s.asset == "pooled") & (s.benchmark == "hist_mean")
+    s.loc[sel & (s.metric == "r2_oos"), "value"] = holdout_r2
+    s.loc[sel & (s.metric == "dm_mse_p1"), "value"] = 0.001
+    s.loc[hold & (s.model == "*mean") & (s.metric == "spa_p_mse"), "value"] = spa_family
+    s.loc[hold & (s.model == "*") & (s.metric == "spa_p_mse"), "value"] = spa_all
+    s.to_parquet(root / "scores" / "fake.parquet", index=False)
     shutil.copy(DEV / "scores" / f"{RUNS[0]}_cumdsse.parquet", root / "scores" / "fake_cumdsse.parquet")
     (root / "scores" / "fake.json").write_text(json.dumps({"models": ["ens_z"], "dev": False}))
+    c = _relabel(pd.read_parquet(DEV / "scores" / f"{COV_RUN}.parquet"))
+    c.to_parquet(root / "scores" / "cov_fake.parquet", index=False)
+    if strategy_q is not None:
+        (root / "strategy").mkdir()
+        m = pd.read_parquet(DEV / "strategy" / "metrics.parquet")
+        m = pd.concat([m, m[m.period == "full"].assign(period="holdout")], ignore_index=True)
+        sel = ((m.period == "holdout") & (m.family == "mean") & (m.horizon == 1) & (m.universe == "all")
+               & (m.rule == "mv") & (m.mean_model == "ens_z") & (m.basis == "net"))
+        m.loc[sel & (m.metric == "d_cer"), "value"] = 0.03
+        m.loc[sel & (m.metric == "d_cer_q_bh"), "value"] = strategy_q
+        m.to_parquet(root / "strategy" / "metrics.parquet", index=False)
+        shutil.copy(DEV / "strategy" / "meta.json", root / "strategy" / "meta.json")
     return root
 
 
 @needs_dev
 def test_holdout_is_headline_and_verdict_follows_data(tmp_path):
-    root = _fake_full_root(tmp_path, holdout_r2=0.04, spa=0.001)
+    root = _fake_full_root(tmp_path, holdout_r2=0.04, spa_family=0.001, strategy_q=0.01)
     out = tmp_path / "full.html"
-    assert build.main(["--results-dir", str(root), "--scores-run", "fake", "--no-covariance",
+    assert build.main(["--results-dir", str(root), "--scores-run", "fake", "--cov-scores-run", "cov_fake",
                        "--out", str(out)]) == 0
     page = out.read_text(encoding="utf-8")
     d = page_data(page)
@@ -183,16 +243,30 @@ def test_holdout_is_headline_and_verdict_follows_data(tmp_path):
     assert ens["r2"] == pytest.approx(0.04)
     assert d["verdict"]["grid"][0]["cells"]["1"]["status"] == "pass"
     assert "Mean forecasts beat the historical mean" in d["verdict"]["headline"]
-    # no forecasts or strategy in this root: those sections are empty, not errors
-    assert d["now"]["h"]["1"] is None and d["strategy"] is None
+    # adjusted tests come from the holdout period itself, so no "whole sample" fallback note
+    assert d["mean"]["spa_period"] == "holdout" and d["mean"]["q_period"] == "holdout"
+    assert d["cov"]["q_period"] == "holdout" and d["cov"]["headline"] == "holdout"
+    assert not any("whole sample only" in p for p in d["facts"]["points"])
+    # strategy verdict uses the holdout period
+    assert d["strategy"]["period"] == "holdout"
+    assert next(g for g in d["verdict"]["grid"] if g["key"] == "strategy")["cells"]["1"]["status"] == "pass"
+    # period labels say what the periods contain
+    assert "2015" in d["periods"]["labels"]["pre_holdout"] and "straddle" in d["periods"]["labels"]["2010s"]
+    assert d["now"]["h"]["1"] is None   # no forecasts in this root: empty section, not an error
 
-    # same files with a negative holdout R²: the verdict turns
-    root2 = _fake_full_root(tmp_path / "b", holdout_r2=-0.02, spa=0.6)
+    # same files, negative holdout R² and a family SPA that fails: the verdict turns, even when the
+    # all-model SPA row says otherwise (it must never drive a verdict)
+    root2 = _fake_full_root(tmp_path / "b", holdout_r2=-0.02, spa_family=0.6, spa_all=0.001)
     assert build.main(["--results-dir", str(root2), "--scores-run", "fake", "--no-covariance",
                        "--out", str(out)]) == 0
     d2 = page_data(out.read_text(encoding="utf-8"))
     assert d2["verdict"]["grid"][0]["cells"]["1"]["status"] != "pass"
     assert "No mean forecast beats" in d2["verdict"]["headline"]
+    root3 = _fake_full_root(tmp_path / "c", holdout_r2=0.04, spa_family=0.6, spa_all=0.001)
+    assert build.main(["--results-dir", str(root3), "--scores-run", "fake", "--no-covariance",
+                       "--out", str(out)]) == 0
+    d3 = page_data(out.read_text(encoding="utf-8"))
+    assert d3["verdict"]["grid"][0]["cells"]["1"]["status"] == "weak"
 
 
 def test_full_mode_requires_named_runs(tmp_path):

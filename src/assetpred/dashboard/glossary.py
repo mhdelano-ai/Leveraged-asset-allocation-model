@@ -35,7 +35,13 @@ MODELS: dict[str, tuple[str, str]] = {
     "rf_z": ("Random forest", "A shallow random forest on all predictors."),
     "ens_z": ("Ensemble mean",
               "Equal-weight average of the ridge, combination, boosting and random-forest forecasts, then "
-              "calibrated. This is the mean half of the composite forecast."),
+              "calibrated. The composite forecast uses the same recipe on a January refit schedule."),
+    "gbm_z.nohind": ("Boosting without hindsight features",
+                     "Robustness row: the gradient-boosting model without the five features estimated over the full "
+                     "sample (which embed later information). Not a candidate in any test."),
+    "combo_z.nohind": ("Combination without hindsight features",
+                       "Robustness row: the forecast combination without the five features estimated over the full "
+                       "sample (which embed later information). Not a candidate in any test."),
     "gbm_z.price": ("Boosting, price predictors only",
                     "The gradient-boosting model restricted to price-based predictors (momentum, reversal, "
                     "volatility)."),
@@ -46,7 +52,7 @@ MODELS: dict[str, tuple[str, str]] = {
     "dist_lin_agg": ("Linear volatility model",
                      "A small linear model of next month's variance from recent volatility measures (EWMA, "
                      "12-month, daily realized volatility, VIX, down-moves), aggregated to h months, with an "
-                     "empirical shape. This is the scale half of the composite forecast."),
+                     "empirical shape. The composite forecast takes its width and shape from it."),
     "dist_lin_agg_grp": ("Linear volatility, shape by asset class",
                          "The linear volatility model with a distribution shape estimated per asset class."),
     "dist_lin_agg_cshape": ("Linear volatility, conditional shape",
@@ -115,8 +121,9 @@ TERMS = [
                  "(probability integral transform at the 10th, 50th and 90th percentiles). A small p-value "
                  "means miscalibration."),
     ("Tail hit rate", "Share of outcomes below the 1st/5th or above the 95th/99th predicted percentile; "
-                      "the nominal rates are 1% and 5%. The Kupiec test asks whether the rate differs from "
-                      "nominal."),
+                      "the nominal rates are 1% and 5%. The pooled Kupiec test asks whether every asset's own rate "
+                      "is nominal, so it also rejects when assets miss in offsetting directions that cancel in the "
+                      "pooled rate. It holds its size at every horizon (conservative at 3 and 12 months)."),
     ("Clark-West test", "Tests whether a model's forecasts contain information beyond the historical mean. "
                         "Read it only together with R²: very noisy forecasts can pass it while losing on R²."),
     ("Diebold-Mariano test", "Tests whether one model's average loss is lower than another's, with "
@@ -149,8 +156,11 @@ def label(model: str) -> str:
 def describe(model: str) -> str:
     if model == config.COMPOSITE:
         mean, dist = composite_parts()
-        return (f"The forecast this project would show: the mean of {label(mean)} ({mean}) with the "
-                f"distribution width and shape of the {label(dist)} ({dist}).")
+        return (f"The forecast this page shows, scored as a model in its own right. Its centre is an ensemble mean "
+                f"built like {label(mean)} ({mean}) but refitted every January, while the standalone {mean} refits "
+                f"on the engine's own schedule, so the two means differ at about half the origins (typically by "
+                f"20-30% of the ensemble's deviation from the historical mean). Its width and shape come from the "
+                f"{label(dist)} ({dist}). It belongs to no test family.")
     if "__sd_" in model:
         c, s = model.split("__sd_", 1)
         return f"Correlations of {label(c)} ({c}) combined with the volatilities of {label(s)} ({s})."
