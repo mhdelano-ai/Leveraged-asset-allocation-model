@@ -59,6 +59,9 @@ def main(argv=None) -> int:
     ap.add_argument("--reps", type=int, default=999, help="bootstrap reps for SPA / MCS")
     ap.add_argument("--skip-audit", action="store_true",
                     help="do not stop on features that look like look-ahead (not recommended)")
+    ap.add_argument("--dev", action="store_true",
+                    help=f"development run: only targets realized by {config.DEV_END}; "
+                         "forecasts and scores go under results/dev/ and the holdout is never touched")
     ap.add_argument("--list", action="store_true", help="list registered models and exit")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args(argv)
@@ -90,23 +93,40 @@ def main(argv=None) -> int:
         for m in args.models:
             registry.register(f"{m}@lag{lag}", registry.get_factory(m), overwrite=True)
         test_models = [f"{m}@lag{lag}" for m in args.models]
-    settings = walkforward.WalkForwardSettings()
-    status = walkforward.run_many(models, args.horizons, features, xr, settings,
-                                  n_jobs=args.jobs, force=args.force)
-    if lag:
-        status = pd.concat([status, walkforward.run_many(
-            test_models, args.horizons, lagged, xr, settings, n_jobs=args.jobs, force=args.force)])
-        models += test_models
-    print(status.to_string(index=False))
+    results_dir = config.RESULTS / "dev" if args.dev else config.RESULTS
 
-    fc = walkforward.load_forecasts(models, args.horizons)
+    def settings_for(h: int) -> walkforward.WalkForwardSettings:
+        if not args.dev:
+            return walkforward.WalkForwardSettings()
+        # last origin whose h-month target is realized by DEV_END
+        end = pd.Timestamp(config.DEV_END) - pd.offsets.MonthEnd(h)
+        return walkforward.WalkForwardSettings(end=str(end.date()))
+
+    settings = {h: settings_for(h) for h in args.horizons}
+    parts = []
+    for h in args.horizons:
+        parts.append(walkforward.run_many(models, [h], features, xr, settings[h], results_dir,
+                                          n_jobs=args.jobs, force=args.force))
+        if lag:
+            parts.append(walkforward.run_many(test_models, [h], lagged, xr, settings[h], results_dir,
+                                              n_jobs=args.jobs, force=args.force))
+    if lag:
+        models += test_models
+    print(pd.concat(parts).to_string(index=False))
+
+    fc = walkforward.load_forecasts(models, args.horizons, results_dir)
+    subperiods = scoring.DEFAULT_SUBPERIODS if args.dev else (
+        *scoring.DEFAULT_SUBPERIODS,
+        ("pre_holdout", config.OOS_START, config.DEV_END),
+        ("holdout", config.HOLDOUT_START, "2099-12-31"))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
-        scores, cum = scoring.score_forecasts(fc, xr, mt_reps=args.reps)
+        scores, cum = scoring.score_forecasts(fc, xr, subperiods=subperiods, mt_reps=args.reps)
     run_name = args.run_name or "+".join(sorted(args.models) or ["baselines"]) + (
         f"@lag{lag}" if lag else "")
-    path = scoring.write_scores(scores, cum, run_name, meta={
-        "models": models, "horizons": args.horizons, "settings": vars(settings),
+    path = scoring.write_scores(scores, cum, run_name, results_dir, meta={
+        "models": models, "horizons": args.horizons, "dev": args.dev,
+        "settings": {h: vars(s_) for h, s_ in settings.items()},
         "data": walkforward.data_fingerprint(features.sort_index(), xr), "reps": args.reps})
     with pd.option_context("display.width", 160, "display.max_columns", 20):
         print(scoring.summary(scores).round(4).to_string())

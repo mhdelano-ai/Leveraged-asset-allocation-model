@@ -31,3 +31,9 @@ OOS_START = "1990-01-31"     # first forecast origin that is scored
 REFIT_EVERY = 12             # months between refits; expanding window
 MIN_ASSET_HISTORY = 60       # months of an asset's own returns before it is forecast
 SEED = 20261114
+
+# Holdout. Models are chosen and tuned looking only at targets realized by
+# DEV_END (`run --dev`). Origins from HOLDOUT_START are scored once, after the
+# model list is frozen, and are the evidence that counts.
+DEV_END = "2014-12-31"
+HOLDOUT_START = "2015-01-31"
