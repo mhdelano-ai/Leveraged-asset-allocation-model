@@ -60,6 +60,12 @@ H15_CODES = {  # H.15 Treasury constant maturities, nominal
 }
 YAHOO_SYMBOLS = ["IEF", "TLT", "VUSTX", "VFITX"]
 
+# Definitional breaks in H.15 series: the return across the break is not a
+# market move, so that day's return is dropped (a gap, never filled).
+# 1973-01-04: the 20y CMT jumps +74bp while the 10y CMT and the GSW curve fall
+# 2-3bp (the long-end series was re-based, flower bonds stopped setting it).
+H15_BREAKS = {"cmt_20y": ["1973-01-04"]}
+
 # Ladders (years) that mimic the ICE/Barclays maturity buckets the ETFs track.
 LADDERS = {
     "ust_int": np.arange(7.0, 10.01, 0.5),    # IEF: 7-10y Treasuries
@@ -317,14 +323,17 @@ def cmt_ladder_yields(h15: dict[str, pd.Series], mats, anchors: list[tuple[float
     return pd.DataFrame(out, index=a.index)
 
 
-def cmt_ladder(yields: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+def cmt_ladder(yields: pd.DataFrame, breaks=()) -> tuple[pd.Series, pd.Series]:
     """Daily ladder return and modified duration from par yields per maturity
-    (columns = maturity in years, values in percent)."""
+    (columns = maturity in years, values in percent). Returns on ``breaks``
+    dates are dropped."""
     rets = [cmt_par_bond_returns(yields[m], m) for m in yields.columns]
     durs = [pd.Series(par_mod_duration(yields[m].to_numpy() / 100, m), index=yields.index)
             for m in yields.columns]
     mean = lambda xs: pd.concat(xs, axis=1).mean(axis=1, skipna=False)
-    return mean(rets), mean(durs)
+    ret = mean(rets)
+    ret = ret.drop(pd.DatetimeIndex(breaks).intersection(ret.index))
+    return ret, mean(durs)
 
 
 def monthly_ladder(y_pct: pd.Series, mats) -> pd.Series:
@@ -389,9 +398,9 @@ def build(refresh: bool = False) -> dict:
     y_int = cmt_ladder_yields(h15, LADDERS["ust_int"], [(10.0, "cmt_10y")])
     cmt_int, cmt_int_dur = cmt_ladder(y_int)
     y_long_20 = cmt_ladder_yields(h15, LADDERS["ust_long"], [(20.0, "cmt_20y")])
-    cmt_long20, cmt_long20_dur = cmt_ladder(y_long_20)
+    cmt_long20, cmt_long20_dur = cmt_ladder(y_long_20, H15_BREAKS["cmt_20y"])
     y_long_2030 = cmt_ladder_yields(h15, LADDERS["ust_long"], [(20.0, "cmt_20y"), (30.0, "cmt_30y")])
-    cmt_long2030, cmt_long2030_dur = cmt_ladder(y_long_2030)
+    cmt_long2030, cmt_long2030_dur = cmt_ladder(y_long_2030, H15_BREAKS["cmt_20y"])
 
     # ------------------------------------------------------------ daily splice
     daily_parts = {

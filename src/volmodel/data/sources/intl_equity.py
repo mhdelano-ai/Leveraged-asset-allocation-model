@@ -552,3 +552,198 @@ def index_chain(asset: str, refresh: bool = False) -> pd.Series:
         a = aqr_total("Global Ex USA", refresh).loc["1986":"2000-12-31"]
         return pd.concat([a, msci_returns("990300", refresh=refresh).loc["2001-01-01":]])
     return msci_returns("891800", refresh=refresh).loc["2001-01-01":]
+
+
+# ----------------------------------------------------------------- report
+def _md(df: pd.DataFrame, digits: int = 3, index: bool = True) -> str:
+    df = df.copy()
+    if index:
+        df = df.reset_index()
+    def f(v):
+        if isinstance(v, (float, np.floating)):
+            return "" if np.isnan(v) else f"{v:.{digits}f}"
+        return str(v)
+    cols = [str(c) if not isinstance(c, tuple) else " ".join(map(str, c)) for c in df.columns]
+    lines = ["| " + " | ".join(cols) + " |", "|" + "---|" * len(cols)]
+    for _, r in df.iterrows():
+        lines.append("| " + " | ".join(f(v) for v in r.values) + " |")
+    return "\n".join(lines)
+
+
+def write_report(out: dict, D: dict, seg: pd.DataFrame, path: Path | None = None) -> Path:
+    from ...paths import REPORTS
+    path = path or REPORTS / "data" / "intl_equity.md"
+    A, sp, sd = D["async"], D["splice"], D["splice_daily"]
+    vm, vd = D["vs_msci_monthly"], D["vs_msci_daily"]
+    res = []
+    for asset, (d, m) in out.items():
+        first_full = m[m["source"] == m["source"].iloc[-1]]
+        res.append(f"* **{asset}** — daily {d.index[0].date()} .. {d.index[-1].date()} "
+                   f"({len(d)} obs); monthly {m.index[0].date()} .. {m.index[-1].date()} "
+                   f"({len(m)} months; daily era compounded; current incomplete month excluded).")
+    s = [
+        "# intl_equity — international developed (`intl_dev`) and emerging (`em`) equity",
+        "",
+        f"Built by `python -m volmodel.data.sources.intl_equity` on {pd.Timestamp.today().date()}. "
+        "USD, unhedged, SIMPLE TOTAL returns in decimals (not excess; cash is another track).",
+        "",
+        "## Result", "", *res, "",
+        "## Sources", "",
+        "Used:",
+        "* **Ken French data library** — `F-F_International_Indices.zip` (`Ind_all.Dat`: EAFE-country-weighted, "
+        "value-weighted within country, USD, with dividends, monthly 1975-01..2025-12; MSCI raw data "
+        "1975-2006, Bloomberg after) and `Emerging_5_Factors_CSV.zip` (EM Mkt-RF + RF, monthly 1989-07..).",
+        "* **AQR** `Betting-Against-Beta-Equity-Factors-Daily.xlsx` — sheet MKT column `Global Ex USA` "
+        "(excess return) + sheet RF. Daily from 1984, but until 1985-10 it is Canada only and until "
+        "1985-12 Canada + Australia; Europe and Japan enter 1986-01, so it is used from 1986-01. Runs to 2026-08.",
+        "* **Yahoo chart API** adjclose for EFA, VEIEX, EEM (adjclose verified against close + dividend "
+        "events: max daily discrepancy 6 bp, on one day; no duplicated dividends; splits handled).",
+        "",
+        "Diagnostics only (not in the files):",
+        "* **MSCI** public graph endpoint `app2.msci.com/.../getLevelDataForGraph` — works, but refuses "
+        "start dates before 1997-01-01 and serves gross/net TOTAL return levels only from 2000-12-29 "
+        "(price index from 1997-01). EAFE 990300 and EM 891800 GRTR daily and month-end, to 2026-11-13. "
+        "Used as the reference index for every overlap test. MSCI EAFE from 1970 / EM from 1988 is NOT "
+        "reachable here.",
+        "* Ken French `Developed_ex_US_3_Factors(_Daily)` (from 1990-07) — tracks MSCI EAFE slightly better "
+        "monthly than AQR but worse daily (its daily FX timing makes it more synchronous with the US); "
+        "AQR also starts 4.5 years earlier. Not used.",
+        "* Yahoo: VTMGX, VEA, VGTSX, VWO, TEDMX and long-lived active international funds SCINX (1980), "
+        "PRITX (1980), VWIGX (1981), VTRIX (1983), FOSFX (1984), TEMFX (1986). See *Rejected candidates*.",
+        "* `^GSPC` (Yahoo, price) as the US-close reference for correlation diagnostics.",
+        "",
+        "## Segments", "",
+        _md(seg[["asset", "start", "end", "freq", "tier", "source", "notes"]], index=False),
+        "",
+        "Splices are on calendar-month boundaries, so every month in the monthly files is single-source "
+        "and monthly == compounded daily exactly. Price conventions by segment:",
+        "",
+        _md(pd.DataFrame({"segment source": list(CONVENTION), "price-time convention": list(CONVENTION.values())}),
+            index=False),
+        "",
+        "## Splice / overlap diagnostics", "",
+        "Monthly log returns on the full overlap of the two sources (`vol_ratio` = new / ref, `te` = "
+        "annualized tracking error, `mean_diff_ann` = new − ref):", "",
+        _md(sp, 3),
+        "",
+        "Daily log returns on the overlap. `corr_3d`/`vol_ratio_3d` use overlapping 3-day sums "
+        "(the ARCHITECTURE correlation convention):", "",
+        _md(sd, 3),
+        "",
+        "Reading: the monthly overlaps show no level or vol jump at the splices (vol ratios 0.98-1.04 "
+        "outside the noisy 1994-2000 EM window). The daily overlaps are dominated by the "
+        "asynchronous-close effect (next section), not by index differences.",
+        "",
+        "### Every candidate vs the MSCI index (2001+)", "",
+        "Monthly (reference = MSCI EAFE GR or MSCI EM GR, month-ends aligned):", "",
+        _md(vm, 3), "",
+        "Daily (same reference; MSCI weekday holidays with zero change removed):", "",
+        _md(vd, 3), "",
+        "### Rejected candidates", "",
+        "Old actively managed international funds would extend DAILY history to 1980, but they are poor "
+        "index proxies: monthly correlation with the EAFE-weighted index is 0.75-0.93 before 1986 and "
+        "tracking error 6-10 %/yr (an index fund on the same data shows 1.5-3 %). They were not used; "
+        "1975-1985 is monthly tier C instead. TEDMX (Templeton Developing Markets, active, 1991) likewise. "
+        "VTMGX (EAFE index fund from 1999-08) would add two years of tier A before EFA, but at the cost of "
+        "a third price convention (partially fair-valued NAV); not used.", "",
+        _md(D["rejected"], 3), "",
+        _md(D["kf_vs_aqr_daily"], 3), "",
+        "## Asynchronous closes", "",
+        "Correlation with the US market (^GSPC, US close) on the same day (`corr_us_1d`), with overlapping "
+        "3-day sums (`corr_us_3d`) and with the PREVIOUS US day (`corr_us_lag1`); own first-order "
+        "autocorrelation; annualized vol from 1-day, overlapping 3-day and monthly returns; and the "
+        "monthly-to-daily variance ratio (vol_monthly / vol_1d)^2:", "",
+        _md(A, 3), "",
+        "What this shows:",
+        f"* **Index / foreign-close data** (AQR, MSCI, VEIEX before ~2001) react to the US day one day "
+        f"late: lag-1 US correlation {A.iloc[0]['corr_us_lag1']:.2f} (AQR 1986-2001), "
+        f"{A.iloc[2]['corr_us_lag1']:.2f} (MSCI EAFE 2001+), {A.iloc[7]['corr_us_lag1']:.2f} (MSCI EM). "
+        f"Same-day correlation with the US is badly understated (EAFE {A.iloc[2]['corr_us_1d']:.2f} vs "
+        f"{A.iloc[2]['corr_us_3d']:.2f} with 3-day sums). Daily returns are positively autocorrelated "
+        "(staggered closes and stale prices), so the 1-day vol UNDERSTATES monthly vol: variance ratio "
+        f"{A.iloc[0]['var_ratio_monthly_to_1d']:.2f} for the AQR segment 1986-2001, "
+        f"{A.iloc[5]['var_ratio_monthly_to_1d']:.2f} for the VEIEX segment 1994-2003.",
+        f"* **US-listed ETFs** (EFA, EEM) price at the US close: same-day US correlation is high "
+        f"({A.iloc[3]['corr_us_1d']:.2f}, {A.iloc[8]['corr_us_1d']:.2f}) and 3-day correlation barely "
+        f"changes it. But they OVERREACT to the US day and partially revert the next day (lag-1 US "
+        f"correlation {A.iloc[3]['corr_us_lag1']:.2f} / {A.iloc[8]['corr_us_lag1']:.2f}, own autocorrelation "
+        f"{A.iloc[3]['autocorr_1d']:.2f} / {A.iloc[8]['autocorr_1d']:.2f}), so 1-day vol OVERSTATES monthly "
+        f"vol: EFA {A.iloc[3]['vol_1d']:.3f} vs {A.iloc[3]['vol_monthly']:.3f} monthly (variance ratio "
+        f"{A.iloc[3]['var_ratio_monthly_to_1d']:.2f}); EEM {A.iloc[8]['vol_1d']:.3f} vs "
+        f"{A.iloc[8]['vol_monthly']:.3f} (ratio {A.iloc[8]['var_ratio_monthly_to_1d']:.2f}). On the same "
+        f"dates the MSCI index has 1-day vol {A.iloc[2]['vol_1d']:.3f} (EAFE) and {A.iloc[7]['vol_1d']:.3f} (EM): "
+        f"EFA's daily vol is {vd.loc['intl_dev EFA','vol_ratio_1d']:.2f}x the index's and EEM's "
+        f"{vd.loc['em EEM','vol_ratio_1d']:.2f}x, while MONTHLY vols agree within 2 %.",
+        "* **Open-end fund NAVs** (VTMGX, VEIEX) sit in between and drift over time: Vanguard's fair-value "
+        "pricing moved them from foreign-close behaviour (lag-1 US corr ≈ 0.3-0.45 in the 1990s) to "
+        "near-US-close behaviour by 2007 (see year table).",
+        "* **Consequence for the model.** The daily-RV level of `intl_dev` and `em` has a structural break "
+        "at the ETF splice (2001-09 and 2003-05) that is NOT a change in risk: the monthly-to-daily variance "
+        "ratio drops from ~1.5-1.8 (index/NAV era) to ~0.6-0.65 (ETF era). Models trained on daily RV "
+        "across the splice, and the RV→annual bridge, should treat `source`/`tier` (or the splice date) as a "
+        "regime, or use the 3-day / monthly measures. 3-day overlapping sums remove most of the "
+        "correlation bias for index data (EAFE–US 0.50 → 0.73) but not all of it, and do not fully remove "
+        "the ETF vol excess (EFA 3-day vol still 1.07x the index).",
+        "* `index_chain()` in the module returns a single-convention foreign-close alternative "
+        "(AQR → MSCI EAFE GR; MSCI EM GR from 2001) for sensitivity checks; it is not written to disk.",
+        "",
+        "Same-day (`sync`) and lagged (`lagUS`) correlation with ^GSPC by calendar year:", "",
+        _md(D["by_year"].round(2), 2), "",
+        "## Annualized volatility by decade", "",
+        "Uncentered, log returns: `monthly` from the monthly file (√12), `daily_1d` from daily returns (√252), "
+        "`daily_3d` from overlapping 3-day sums. The 2000s daily row mixes conventions (index to 2001-08 / "
+        "VEIEX to 2003-04, ETF after).", "",
+        _md(D["decade"], 3), "",
+        "## Known episodes (compounded from the monthly files)", "",
+        _md(D["episodes"], 3), "",
+        "1987-10 (intl_dev −12.5 %, daily low −13.5 % on 1987-10-20, the day after the US crash: foreign-close "
+        "convention), 1990 Japan crash (−31 % Jan-Sep 1990), the 1997-98 Asia/Russia crisis for EM (−53 % "
+        "1997-07..1998-08, −26 % in 1998-08), 2008 and 2020-03 all look right.", "",
+        "Daily returns beyond ±8 %:", "",
+    ]
+    for asset, big in D["outliers"].items():
+        b = big.copy()
+        b.index = b.index.date
+        s += [f"*{asset}*", "", _md(b, 4), ""]
+    s += [
+        "## Caveats", "",
+        "* `intl_dev` 1986-2001 (AQR) includes Canada (~5-8 % weight; EFA excludes it, VEA includes it). "
+        "Canada trades in US hours, so this segment is slightly more synchronous with the US than EAFE.",
+        "* The 1975-1985 segment (KF, tier C) uses EAFE country weights with Ken French's own value-weighted "
+        "country portfolios, not MSCI's constituents; its monthly tracking error vs MSCI EAFE is 1.5 %/yr "
+        "on 2001-2025. MSCI EAFE 1970-1974 was not reachable.",
+        "* EM monthly 1989-07..1994-05 (KF) is the only pre-VEIEX EM source found; KF EM vs MSCI EM price "
+        "index 1997-2000: corr 0.99. MSCI EM 1988 monthly was not reachable. No daily EM source before 1994.",
+        "* VEIEX 1994-2000 tracked MSCI EM less tightly than later (monthly corr 0.95 and TE 8 %/yr vs KF EM, "
+        "0.97 vs the MSCI EM price index 1997-2000), partly because it tracked 'Select EM Free' (country "
+        "subset) and partly NAV timing. VEIEX carried purchase/redemption fees in the 1990s that are not in "
+        "the NAV return.",
+        "* After 9/11 the US-close series have no prices 2001-09-11..14; the 2001-09-17 return spans five "
+        "foreign trading days (VEIEX −10.4 %).",
+        "* Yahoo `adjclose` is a vendor series and can be revised; raw JSON is cached in `data/raw/intl_equity/`.",
+        "* Daily files keep each source's own calendar: the AQR segment includes non-US trading days "
+        "(e.g. US Thanksgiving) when foreign markets traded; the assembler should compound or drop such "
+        "days consistently with cash.",
+    ]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(s) + "\n")
+    return path
+
+
+def main(argv=None):
+    import argparse
+    ap = argparse.ArgumentParser(description="Build intl_dev / em total-return files")
+    ap.add_argument("--refresh", action="store_true", help="re-download all raw files")
+    ap.add_argument("--no-report", action="store_true")
+    a = ap.parse_args(argv)
+    out = build(refresh=a.refresh)
+    D = diagnostics(out, refresh=False) if not a.no_report else None
+    seg = segments(out, D)
+    if D is not None:
+        print("report:", write_report(out, D, seg))
+    pd.set_option("display.width", 200)
+    print(seg.drop(columns="notes").to_string(index=False))
+
+
+if __name__ == "__main__":
+    main()

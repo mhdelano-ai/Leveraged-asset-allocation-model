@@ -39,7 +39,8 @@ Cleaning (never interpolates; dropped values are simply absent):
 * isolated bad prints dropped: a value whose log-distance from BOTH
   neighbours exceeds ``SPIKE_LOG`` in the same direction while the two
   neighbours agree within ``SPIKE_NEIGHBOUR_LOG`` (e.g. VXD 2021-07-13 = 2.71
-  between ~14 and ~15);
+  between ~14 and ~15), unless VIX itself moved the same way by more than
+  ``REF_CONFIRM_LOG`` that day (genuine market-wide jump);
 * stale repeats dropped: within a run of >= ``STALE_RUN`` identical
   consecutive closes only the first is kept (thin ETF vol indices such as
   VXIEF carry values forward for weeks).
@@ -75,8 +76,9 @@ YAHOO_URL = "https://{host}.finance.yahoo.com/v8/finance/chart/{sym}"
 # "today" for live/dead classification; a series is live if its last close is
 # within LIVE_DAYS calendar days of the newest close in the whole file.
 LIVE_DAYS = 10
-SPIKE_LOG = 0.5
-SPIKE_NEIGHBOUR_LOG = 0.2
+SPIKE_LOG = 0.4
+SPIKE_NEIGHBOUR_LOG = 0.15
+REF_CONFIRM_LOG = 0.15
 STALE_RUN = 4
 
 
@@ -89,6 +91,7 @@ class Spec:
     scale: float              # multiply the published level by this
     unit: str
     notes: str = ""
+    start: str | None = None  # drop an unreliable start-up period before this date
 
 
 SPECS: list[Spec] = [
@@ -134,7 +137,8 @@ SPECS: list[Spec] = [
          "USO options; peaked at 3.25 on 2020-04-21 (negative WTI front month)."),
     # --- higher moments -----------------------------------------------------
     Spec("iv_vvix", "Cboe VIX of VIX (VVIX)", "VVIX", "^VVIX", 0.01, "decimal vol of VIX",
-         "Gappy in 2006."),
+         "2006-03..05 dropped: 3-8 prints a month, levels 16-92 vs ~90 after (start-up noise).",
+         start="2006-06-01"),
     Spec("iv_skew_index", "Cboe S&P 500 SKEW index", "SKEW", "^SKEW", 1.0,
          "index level (NOT a vol)", "100 - 10 x risk-neutral skewness of 30-day SPX returns."),
 ]
@@ -236,7 +240,7 @@ def cboe_vxo(refresh: bool = False) -> pd.Series | None:
         x = pd.read_excel(io.BytesIO(a), header=None)
         x = x.iloc[:, :5]
         x.columns = ["date", "open", "high", "low", "close"]
-        x["date"] = pd.to_datetime(x["date"], errors="coerce")
+        x["date"] = pd.to_datetime(x["date"], errors="coerce", format="mixed")
         x = x.dropna(subset=["date"])
         # one cell reads "32.50  1.01" (2000-10-18): take the first number
         parts.append(pd.Series(x["close"].map(_first_number).to_numpy(), index=x["date"]))
@@ -303,9 +307,17 @@ def yahoo_series(sym: str, refresh: bool = False) -> pd.Series | None:
 
 
 # ------------------------------------------------------------------- cleaning
-def clean(s: pd.Series) -> tuple[pd.Series, dict]:
-    """Drop non-positive values, isolated bad prints and stale repeats."""
+def clean(s: pd.Series, ref: pd.Series | None = None,
+          start: str | None = None) -> tuple[pd.Series, dict]:
+    """Drop non-positive values, isolated bad prints and stale repeats.
+
+    A candidate spike is kept if ``ref`` (VIX) moved the same way by more than
+    ``REF_CONFIRM_LOG`` on that day (e.g. VIX9D on 2011-08-08 is genuine).
+    ``start`` drops a documented unreliable start-up period.
+    """
     s = s.dropna()
+    if start is not None:
+        s = s[s.index >= pd.Timestamp(start)]
     n0 = len(s)
     nonpos = int((s <= 0).sum())
     s = s[s > 0]
@@ -313,8 +325,14 @@ def clean(s: pd.Series) -> tuple[pd.Series, dict]:
     d_prev = lx - lx.shift(1)
     d_next = lx - lx.shift(-1)
     neigh = (lx.shift(-1) - lx.shift(1)).abs()
-    spike = (((d_prev > SPIKE_LOG) & (d_next > SPIKE_LOG)) |
-             ((d_prev < -SPIKE_LOG) & (d_next < -SPIKE_LOG))) & (neigh < SPIKE_NEIGHBOUR_LOG)
+    up = (d_prev > SPIKE_LOG) & (d_next > SPIKE_LOG)
+    down = (d_prev < -SPIKE_LOG) & (d_next < -SPIKE_LOG)
+    spike = (up | down) & (neigh < SPIKE_NEIGHBOUR_LOG)
+    if ref is not None:
+        r = np.log(ref[ref > 0])
+        dr = (r - r.shift(1)).reindex(s.index)
+        confirmed = (up & (dr > REF_CONFIRM_LOG)) | (down & (dr < -REF_CONFIRM_LOG))
+        spike &= ~confirmed.fillna(False)
     spikes = list(s.index[spike].date)
     s = s[~spike]
     same = s.diff() == 0
@@ -341,6 +359,7 @@ def overlap_stats(a: pd.Series, b: pd.Series) -> dict:
 def build(refresh_cboe: bool = False, refresh_yahoo: bool = False) -> tuple[pd.DataFrame, dict]:
     levels: dict[str, pd.Series] = {}
     diag: dict[str, dict] = {}
+    vix_ref = cboe_history("VIX", refresh_cboe)  # reference for confirming big moves
     for spec in SPECS:
         print(f"{spec.series}: ", end="", flush=True)
         info: dict = {"sources": []}
@@ -382,7 +401,8 @@ def build(refresh_cboe: bool = False, refresh_yahoo: bool = False) -> tuple[pd.D
             print("NO DATA")
             diag[spec.series] = info
             continue
-        s, cinfo = clean(s)
+        s, cinfo = clean(s, ref=None if spec.series == "iv_vix" else vix_ref,
+                         start=spec.start)
         info.update(cinfo)
         levels[spec.series] = s
         diag[spec.series] = info

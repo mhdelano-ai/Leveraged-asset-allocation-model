@@ -215,7 +215,7 @@ def overlap_stats(a: pd.Series, b: pd.Series, freq: str = "M", start=None, end=N
     ann = {"D": 252, "W": 52, "M": 12}[freq]
     code = {"D": "D", "W": "W-FRI", "M": "ME"}[freq]
     x = pd.concat([resample_ret(a.loc[start:end], code), resample_ret(b.loc[start:end], code)],
-                  axis=1, keys=["a", "b"]).dropna()
+                  axis=1, keys=["a", "b"], sort=True).dropna()
     la, lb = np.log1p(x["a"]), np.log1p(x["b"])
     return {"freq": freq, "n": len(x), "start": x.index[0].date(), "end": x.index[-1].date(),
             "corr": la.corr(lb), "vol_a": la.std() * np.sqrt(ann), "vol_b": lb.std() * np.sqrt(ann),
@@ -229,7 +229,7 @@ def fmt_stats(s: dict) -> str:
 
 def vol_match_weight(a: pd.Series, b: pd.Series, target: pd.Series) -> float:
     """w in [0,1] such that the monthly vol of w*a + (1-w)*b equals that of target."""
-    x = pd.concat([a, b, target], axis=1, keys=["a", "b", "t"]).dropna()
+    x = pd.concat([a, b, target], axis=1, keys=["a", "b", "t"], sort=True).dropna()
     goal = np.log1p(x["t"]).std()
     grid = np.linspace(0, 1, 1001)
     vols = np.array([np.log1p(w * x["a"] + (1 - w) * x["b"]).std() for w in grid])
@@ -442,7 +442,7 @@ def build_predictors(refresh: bool = False) -> pd.DataFrame:
 # ---------------------------------------------------------------- diagnostics
 def splice_checks(diag: dict) -> dict[str, list[dict]]:
     """Overlap statistics behind every splice (candidate vs target)."""
-    r, M = diag["rets"], None
+    r = diag["rets"]
     last = diag["last_m"]
     lqd, hyg = r["LQD"], r["HYG"]
     ov_ig, ov_hy = (ETF_START["ig_credit"], last), (ETF_START["hy_credit"], last)
@@ -467,9 +467,35 @@ def splice_checks(diag: dict) -> dict[str, list[dict]]:
     chk["VWEHX vs HYG"] = [overlap_stats(r["VWEHX"], hyg, f, *ov_hy) for f in "DWM"]
     for s in ["JNK", "FHIIX", "PRHYX", "SPHIX", "AHITX"]:
         chk[f"{s} vs HYG"] = [overlap_stats(r[s], hyg, f, *ov_hy) for f in "DWM"]
+    comp = pd.concat([r["VWEHX"], r["FHIIX"], r["PRHYX"]], axis=1, sort=True).mean(axis=1, skipna=False)
+    chk["equal-weight VWEHX/FHIIX/PRHYX vs HYG"] = [overlap_stats(comp, hyg, f, *ov_hy) for f in "DWM"]
     # effect of ex-dividend-date sampling (pre-1985 HY monthly), measured on 1985-2026
     chk["VWEHX ex-div-date-sampled vs month-end (1985-2026)"] = [exdiv_sampling_check()]
     return chk
+
+
+def adjclose_check(symbols: list[str], refresh: bool = False) -> pd.DataFrame:
+    """Do Yahoo adjclose returns equal (close + distribution) / previous close?"""
+    rows = []
+    for s in symbols:
+        df = yahoo_frame(s, refresh)
+        if s in DAILY_START:
+            df = df.loc[pd.Timestamp(DAILY_START[s]) - pd.Timedelta(days=7):]
+        ra = df["adjclose"].pct_change()
+        ro = (df["close"] + df["div"]) / df["close"].shift() - 1
+        dd = (ra - ro).abs().dropna()
+        n_years = len(dd) / 252
+        rows.append({"symbol": s, "first": df.index[0].date(), "n_div": int((df["div"] > 0).sum()),
+                     "median_abs_diff": dd.median(), "p99_abs_diff": dd.quantile(0.99),
+                     "ann_TR_adjclose": np.expm1(np.log1p(ra.dropna()).sum() / n_years),
+                     "ann_TR_close_div": np.expm1(np.log1p(ro.dropna()).sum() / n_years)})
+    return pd.DataFrame(rows)
+
+
+def lead_lag(fund: pd.Series, etf: pd.Series, start, end, lags=range(-1, 4)) -> dict:
+    """corr(fund_t, etf_{t-k}): positive k = fund reacts k days after the ETF."""
+    x = pd.concat([fund, etf], axis=1, keys=["f", "e"], sort=True).loc[start:end].dropna()
+    return {k: x["f"].corr(x["e"].shift(k)) for k in lags}
 
 
 def exdiv_sampling_check(refresh: bool = False) -> dict:
@@ -485,7 +511,7 @@ def exdiv_sampling_check(refresh: bool = False) -> dict:
 
 
 def overlap_stats_monthly(a: pd.Series, b: pd.Series) -> dict:
-    x = pd.concat([a, b], axis=1, keys=["a", "b"]).dropna()
+    x = pd.concat([a, b], axis=1, keys=["a", "b"], sort=True).dropna()
     la, lb = np.log1p(x["a"]), np.log1p(x["b"])
     return {"freq": "M", "n": len(x), "start": x.index[0].date(), "end": x.index[-1].date(),
             "corr": la.corr(lb), "vol_a": la.std() * np.sqrt(12), "vol_b": lb.std() * np.sqrt(12),
