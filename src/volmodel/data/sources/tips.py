@@ -18,7 +18,16 @@ TIPS were first auctioned in January 1997, so nothing before then is credible
   its month-end distributions re-spread as daily accruals (see below) -> tier B
 * 2004-01-02 .. today       iShares TIPS Bond ETF (TIP), Yahoo close + dividend
   events (ex-date reinvestment, == adjclose except where Yahoo duplicates a
-  dividend, e.g. TIP 2008-04-03) -> tier A
+  dividend, e.g. TIP 2008-04-03), every distribution validated against the
+  ex-date price move (``distributions.validate_distributions``) -> tier A
+
+Tiers (project-wide): A = daily price of an exchange-traded fund (market
+close); B = daily open-end mutual-fund NAV, index, or reconstruction; C =
+monthly index total return; D = monthly model-based reconstruction.
+
+Confirmed bad NAV prints are dropped before the returns are computed
+(``BAD_PRICES``: PRRIX 2000-12-12, +0.84% then -0.99% with ACITX and VIPSX
+unchanged); the next return spans the gap.
 
 The monthly file is the compounded daily series (first full month 1997-02; the
 current incomplete month is left out).
@@ -72,6 +81,7 @@ import pandas as pd
 import requests
 
 from ...paths import ASSET_DIR, PREDICTOR_DIR, RAW, REPORTS
+from . import distributions as dist
 
 ASSET = "tips"
 CACHE = RAW / "tips"
@@ -96,8 +106,12 @@ SOURCE = {
 NOTES = {
     "PRRIX": "Earliest TIPS fund (inception 1997-01-29). Daily-declared dividends re-spread over "
              "their accrual month; December specials kept on ex-date. Active manager: some "
-             "non-TIPS exposure. Tier B because of the accrual reconstruction and active mandate.",
-    "TIP": "Market price (not NAV): includes premium/discount noise, notably 2008 Q4.",
+             "non-TIPS exposure. Tier B: open-end fund NAV (also an accrual reconstruction and an active "
+             "mandate). Bad NAV print 2000-12-12 (+0.84%/-0.99%, ACITX and VIPSX flat) dropped: the 12-13 "
+             "return spans it.",
+    "TIP": "Market price (not NAV): includes premium/discount noise, notably 2008 Q4. Every Yahoo distribution "
+           "validated by the ex-date price test against GSW real-yield changes and VIPSX/SCHP (none rejected; "
+           "Yahoo's duplicate of 2008-04-01 on 2008-04-03 removed).",
 }
 PREDICTOR_SERIES = {  # GSW mnemonic -> series name (percent, cont. compounded zero-coupon)
     "TIPSY05": "real_yield_5y",
@@ -106,6 +120,14 @@ PREDICTOR_SERIES = {  # GSW mnemonic -> series name (percent, cont. compounded z
     "BKEVEN10": "breakeven_10y",
 }
 GSW_PUBLICATION_LAG_BDAYS = 10
+# Confirmed bad NAV prints (price dropped; the next return spans it). PRRIX 2000-12-12:
+# +0.84% then -0.99% the next day while ACITX and VIPSX were unchanged (audit C-2).
+BAD_PRICES = {"PRRIX": ["2000-12-12"]}
+# TIP's distributions follow monthly CPI accruals and swing several-fold from month to
+# month, so their size relative to neighbours is not evidence: only an overwhelming
+# price-test residual can reject one (``ratio_reject`` disabled).
+TIP_VALIDATION = dict(ratio_reject=np.inf)
+TIP_PEERS = ["VIPSX", "SCHP"]          # total returns (adjclose) of other TIPS funds
 
 
 # --------------------------------------------------------------------- fetch
@@ -360,15 +382,27 @@ def load_all(refresh: bool = False) -> dict:
     return data
 
 
+def validated_return(df: pd.DataFrame, data: dict) -> tuple[pd.Series, pd.DataFrame]:
+    """ETF total return with every distribution validated against the ex-date move
+    relative to GSW real-yield changes and other TIPS funds' total returns."""
+    g = data["gsw"]
+    peers = pd.DataFrame({"ry5": g["TIPSY05"].diff() / 100, "ry10": g["TIPSY10"].diff() / 100,
+                          **{p: data[p][0]["adj"].pct_change() for p in TIP_PEERS}})
+    div, table = dist.validate_distributions(df["close"], df["div"], peers, **TIP_VALIDATION)
+    return dist.total_return(df["close"], div), table
+
+
 def build_daily(data: dict) -> tuple[pd.DataFrame, dict]:
     pieces, extra = [], {}
     for sym, start, end in SEGMENTS:
         df, _ = data[sym]
+        df, dropped = dist.drop_bad_prices(df, BAD_PRICES.get(sym, []))
+        extra[f"{sym}_dropped"] = dropped
         if sym == "PRRIX":
             r, cls = accrual_total_return(df)
             extra["prrix_classification"] = cls
         else:
-            r = adjclose_return(df)
+            r, extra[f"{sym}_div_table"] = validated_return(df, data)
         r = r.loc[start:end].dropna()
         pieces.append(pd.DataFrame({"ret": r, "source": SOURCE[sym], "tier": TIER[sym]}))
     daily = pd.concat(pieces)

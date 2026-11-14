@@ -15,7 +15,8 @@ and price change), not excess over cash.
 
 | source | what | used for |
 |---|---|---|
-| Yahoo chart API, `adjclose` | IEF, TLT (from 2002-07-30); VFITX, VUSTX (validation only) | tier A |
+| Yahoo chart API, `close` + dividend events (validated; see below) | IEF, TLT (from 2002-07-30); VFITX, VUSTX (`adjclose`, validation only) | tier A |
+| Nasdaq dividend history (`api.nasdaq.com/api/quote/<sym>/dividends`, cached as `nasdaq_div_<sym>.json`) | IEF, TLT distributions (gaps 2005-2010) | second source for the distribution check |
 | Fed GSW curve `feds200628.csv` (Gürkaynak, Sack & Wright) | daily Nelson-Siegel-Svensson parameters, 1961-06-14 to 2026-11-06 | tier B |
 | Fed H.15 constant-maturity yields, through DBnomics (`FED/H15`) | daily 5y/10y (1962), 7y (1969), 20y (1962, gap 1987-1993), 30y (1977); monthly averages of 10y and 20y (1953-04) | tier B (pre-GSW), tier D, predictors |
 | NBER Macrohistory m13033a / m13033b | yields on long-term US government bonds, monthly averages, 1919-01 to 1944-02 and 1941-10 to 1967-12 | tier D |
@@ -72,16 +73,32 @@ filled, so it is a gap.
 | ust_int | monthly | 1953-05-31 | 1962-01-31 | D | H.15 10y monthly-average yield, ladder 7-10y |
 | ust_int | daily | 1962-01-03 | 1971-08-16 | B | H.15 10y CMT, ladder 7-10y (flat curve) |
 | ust_int | daily | 1971-08-17 | 2002-07-30 | B | GSW curve, ladder 7-10y |
-| ust_int | daily | 2002-07-31 | 2026-11-13 | A | IEF adjclose |
+| ust_int | daily | 2002-07-31 | 2026-11-13 | A | IEF close + validated distributions (Yahoo; Nasdaq dividend record) |
 | ust_long | monthly | 1919-02-28 | 1941-10-31 | D | NBER m13033a long-term US bond yield (monthly avg), ladder 20-30y |
 | ust_long | monthly | 1941-11-30 | 1953-04-30 | D | NBER m13033b, ladder 20-30y |
 | ust_long | monthly | 1953-05-31 | 1962-01-31 | D | H.15 20y monthly-average yield, ladder 20-30y |
 | ust_long | daily | 1962-01-03 | 1977-02-15 | B | H.15 20y CMT, ladder 20-30y (flat beyond 20y); 1973-01-04 dropped |
 | ust_long | daily | 1977-02-16 | 1985-11-25 | B | H.15 20y/30y CMT, ladder 20-30y (interpolated) |
 | ust_long | daily | 1985-11-26 | 2002-07-30 | B | GSW curve, ladder 20-30y |
-| ust_long | daily | 2002-07-31 | 2026-11-13 | A | TLT adjclose |
+| ust_long | daily | 2002-07-31 | 2026-11-13 | A | TLT close + validated distributions (Yahoo; Nasdaq dividend record) |
 
 Each row's notes in `segments_treasuries.csv` carry its overlap statistics.
+
+**Tiers.** Tier A is the daily price of an exchange-traded fund (market close); the
+reconstructions are tier B (daily) or D (month-average yields).
+
+**ETF distributions.** The ETF returns are close + distributions, not Yahoo's adjclose.
+Each distribution is checked on its ex-date: the ETF's total return is compared with a
+regression on daily CMT yield changes fitted on surrounding non-ex days (a paid distribution
+leaves a residual near zero, one never paid a residual of its own size), and against
+Nasdaq's dividend record where it exists
+(`volmodel.data.sources.distributions.validate_distributions`; every check is in
+`data/raw/treasuries/distribution_checks.csv`). Five IEF distributions of 2003 were inflated
+in Yahoo's record and are corrected: 2003-07-01 0.663 -> 0.304 (price-implied), 2003-08-01
+0.717 -> 0.416 (price-implied), 2003-09-02 0.764 -> 0.276 (Nasdaq), 2003-10-01 0.731 ->
+0.274 (Nasdaq), 2003-12-16 0.840 -> 0.103 (price-implied; Yahoo's amount was 2.5-3x IEF's
+regular payment and the price did not drop by it). `ust_int` 2003 is now +2.4% (was
++5.3%). TLT: all 290 distributions pass (204 agree with Nasdaq).
 
 **Why VFITX and VUSTX are not spliced in as tier A before 2002.** Both have
 shorter duration than the target. Our ladder is 17-18% more volatile than either
@@ -233,13 +250,20 @@ Monthly volatility of `ust_long` in 1979-82 is more than twice that of 1962-68
 
 ## Predictors: `data/processed/predictors/treasury_curve.parquet`
 
-The file is in long format (`obs_date, available_date, series, value`) with
-`available_date = obs_date`, since these are market prices. Yields are in
-**decimals**; durations are in years.
+The file is in long format (`obs_date, available_date, series, value`). Yields are in
+**decimals**; durations are in years. `available_date` follows the publication of the
+input: H.15 CMT yields are posted the next business day (`available_date = obs_date + 1
+business day`); everything priced off the GSW fitted curve (`yield_ladder_*`, the ladder
+durations in the GSW era, and the ETF duration estimates, whose regressor is the GSW ladder
+yield) is published by the Fed with a lag of about a week, so it is stamped 10 business days
+after observation (the same rule as the TIPS track's GSW series). `yield_20y` starts on
+1973-01-04: on that day the H.15 20y series was re-based (+74bp while the 10y moved -2bp;
+the level stays shifted), so the earlier observations are a different series and are not
+published as the same predictor.
 
 | series | from | content |
 |---|---|---|
-| `yield_2y`, `yield_5y`, `yield_7y`, `yield_10y`, `yield_20y`, `yield_30y` | 1976-06, 1962-01, 1969-07, 1962-01, 1962-01 (gap 1987-01 to 1993-09), 1977-02 | H.15 CMT par yields |
+| `yield_2y`, `yield_5y`, `yield_7y`, `yield_10y`, `yield_20y`, `yield_30y` | 1976-06, 1962-01, 1969-07, 1962-01, 1973-01-04 (gap 1987-01 to 1993-09), 1977-02 | H.15 CMT par yields |
 | `duration_ust_int`, `duration_ust_long` | 1962-01 | modified duration of the par-bond ladder, using the yields of the segment in force (CMT before GSW coverage; GSW after; CMT after the last GSW date) |
 | `yield_ladder_ust_int`, `yield_ladder_ust_long` | 1971-08, 1985-11 | mean GSW par yield of the ladder |
 | `duration_ust_int_etf_est`, `duration_ust_long_etf_est` | 2003-08 | rolling 252-day regression of the ETF's 5-day log return on −Δ(ladder par yield); uses only past data |

@@ -26,9 +26,13 @@ close.
   * Returns are total returns in percent, rounded to 2 decimals (1 bp).
 * **Yahoo chart API** (`query1.finance.yahoo.com/v8/finance/chart`, User-Agent `Mozilla/5.0`) for SPY and IWM. Each
   return is computed as (close_t + dividend_t) / close_(t-1) - 1, where close is split-adjusted and the dividend is
-  dated on its ex-date. Timestamps are converted to New York trading dates. Yahoo's `adjclose` was checked against
-  this calculation and was not used directly. The largest absolute daily difference for each fund is:
-* SPY: 0.00025
+  dated on its ex-date. Timestamps are converted to New York trading dates. Every dividend is validated against
+  the ex-date price move relative to the CRSP market and the other ETF (`distributions.validate_distributions`;
+  none rejected). Confirmed bad closes are dropped so the next return spans them: SPY 2001-04-30 (Yahoo +0.70% then +0.31%;
+  the S&P 500 index moved -0.29% then +1.36% and CRSP Hi 30 -0.08% then +1.41%; markets.ft.com's close is wrong
+  the other way; all agree on the two-day move). Yahoo's `adjclose` was checked against this calculation and was
+  not used directly. The largest absolute daily difference for each fund is (SPY's is the dropped bad close):
+* SPY: 0.00702
 * IWM: 0.00013
 * VFINX: 0.00085
 * NAESX: 0.00537
@@ -76,8 +80,8 @@ segment is checked below and in the tests.
 | asset | start | end | freq | source | tier | overlap notes |
 |---|---|---|---|---|---|---|
 | us_large | 1871-02-28 | 1926-06-30 | M | shiller_sp_composite_avgprice | D | month-AVERAGE prices (Cowles pre-1926) -> volatility damped; vs French Mkt monthly 1926-07-31..2023-06-30: corr 0.672, vol ratio 0.836, TE 14.0%; annual (calendar-year) vol ratio 0.956 |
-| us_large | 1926-07-01 | 1993-01-29 | D | french_me_vw_hi30 | B | CRSP via Ken French (Hi 30); vs SPY daily 1993-02-01..2026-09-30: corr 0.984, vol ratio 0.988, TE 3.3%; 3-day 1993-02-03..2026-09-28: corr 0.992, vol ratio 0.992, TE 2.3% |
-| us_large | 1993-02-01 | 2026-11-13 | D | yahoo_SPY | A | vs french_me_vw_hi30 daily 1993-02-01..2026-09-30: corr 0.984, vol ratio 1.012, TE 3.3%; 3-day 1993-02-03..2026-09-28: corr 0.992, vol ratio 1.008, TE 2.3% |
+| us_large | 1926-07-01 | 1993-01-29 | D | french_me_vw_hi30 | B | CRSP via Ken French (Hi 30); vs SPY daily 1993-02-01..2026-09-30: corr 0.984, vol ratio 0.988, TE 3.3%; 3-day 1993-02-03..2026-09-29: corr 0.992, vol ratio 0.997, TE 2.3% |
+| us_large | 1993-02-01 | 2026-11-13 | D | yahoo_SPY | A | vs french_me_vw_hi30 daily 1993-02-01..2026-09-30: corr 0.984, vol ratio 1.012, TE 3.3%; 3-day 1993-02-03..2026-09-29: corr 0.992, vol ratio 1.003, TE 2.3% |
 | us_small | 1926-07-01 | 2000-05-26 | D | french_me_vw_qnt2_qnt3_5050 | B | CRSP via Ken French (Qnt 2+3); vs IWM daily 2000-05-30..2026-09-30: corr 0.984, vol ratio 0.977, TE 4.3%; 3-day 2000-06-01..2026-09-30: corr 0.990, vol ratio 0.987, TE 3.2% |
 | us_small | 2000-05-30 | 2026-11-13 | D | yahoo_IWM | A | vs french_me_vw_qnt2_qnt3_5050 daily 2000-05-30..2026-09-30: corr 0.984, vol ratio 1.024, TE 4.3%; 3-day 2000-06-01..2026-09-30: corr 0.990, vol ratio 1.013, TE 3.2% |
 
@@ -98,26 +102,26 @@ non-overlapping 3-day returns, which are robust to differences in closing times.
 
 | portfolio | SPY corr | SPY volratio | SPY TE | SPY corr3d | SPY volratio3d |
 |---|---|---|---|---|---|
-| Mkt | 0.979 | 0.996 | 0.038 | 0.987 | 1.009 |
-| Lo 30 | 0.798 | 1.171 | 0.131 | 0.807 | 1.224 |
-| Med 40 | 0.884 | 1.121 | 0.097 | 0.893 | 1.173 |
-| Hi 30 | 0.984 | 0.988 | 0.033 | 0.992 | 0.992 |
-| Lo 20 | 0.771 | 1.143 | 0.137 | 0.777 | 1.203 |
-| Qnt 2 | 0.832 | 1.213 | 0.125 | 0.843 | 1.257 |
-| Qnt 3 | 0.877 | 1.146 | 0.102 | 0.887 | 1.194 |
-| Qnt 4 | 0.915 | 1.066 | 0.080 | 0.923 | 1.119 |
-| Hi 20 | 0.984 | 0.987 | 0.033 | 0.992 | 0.988 |
-| Lo 10 | 0.726 | 1.024 | 0.139 | 0.728 | 1.119 |
-| 2-Dec | 0.783 | 1.267 | 0.146 | 0.794 | 1.301 |
-| 3-Dec | 0.817 | 1.238 | 0.132 | 0.829 | 1.282 |
-| 4-Dec | 0.838 | 1.205 | 0.122 | 0.848 | 1.248 |
-| 5-Dec | 0.861 | 1.190 | 0.112 | 0.871 | 1.239 |
-| 6-Dec | 0.880 | 1.125 | 0.099 | 0.890 | 1.173 |
-| 7-Dec | 0.894 | 1.081 | 0.090 | 0.903 | 1.139 |
-| 8-Dec | 0.919 | 1.068 | 0.078 | 0.928 | 1.117 |
-| 9-Dec | 0.946 | 1.015 | 0.061 | 0.952 | 1.037 |
-| Hi 10 | 0.982 | 0.991 | 0.035 | 0.989 | 0.988 |
-| Qnt 2+3 | 0.859 | 1.172 | 0.111 | 0.869 | 1.219 |
+| Mkt | 0.979 | 0.996 | 0.038 | 0.986 | 1.015 |
+| Lo 30 | 0.798 | 1.171 | 0.131 | 0.798 | 1.234 |
+| Med 40 | 0.884 | 1.121 | 0.097 | 0.890 | 1.193 |
+| Hi 30 | 0.984 | 0.988 | 0.033 | 0.992 | 0.997 |
+| Lo 20 | 0.771 | 1.143 | 0.137 | 0.770 | 1.212 |
+| Qnt 2 | 0.832 | 1.213 | 0.125 | 0.834 | 1.273 |
+| Qnt 3 | 0.877 | 1.146 | 0.102 | 0.884 | 1.215 |
+| Qnt 4 | 0.915 | 1.066 | 0.080 | 0.921 | 1.136 |
+| Hi 20 | 0.984 | 0.987 | 0.033 | 0.992 | 0.992 |
+| Lo 10 | 0.726 | 1.024 | 0.139 | 0.724 | 1.135 |
+| 2-Dec | 0.783 | 1.266 | 0.146 | 0.783 | 1.307 |
+| 3-Dec | 0.817 | 1.238 | 0.132 | 0.817 | 1.294 |
+| 4-Dec | 0.838 | 1.205 | 0.122 | 0.841 | 1.268 |
+| 5-Dec | 0.861 | 1.190 | 0.112 | 0.867 | 1.255 |
+| 6-Dec | 0.880 | 1.125 | 0.099 | 0.887 | 1.197 |
+| 7-Dec | 0.894 | 1.081 | 0.090 | 0.901 | 1.161 |
+| 8-Dec | 0.919 | 1.068 | 0.078 | 0.925 | 1.132 |
+| 9-Dec | 0.946 | 1.015 | 0.061 | 0.952 | 1.048 |
+| Hi 10 | 0.982 | 0.991 | 0.035 | 0.989 | 0.991 |
+| Qnt 2+3 | 0.859 | 1.172 | 0.111 | 0.863 | 1.237 |
 
 ### vs IWM (2000-05 .. 2026-09-30) and NAESX (1990-2000, Russell 2000 era)
 
@@ -151,9 +155,9 @@ non-overlapping 3-day returns, which are robust to differences in closing times.
 | SPY 1993-1999 Mkt | 0.973 | 0.952 | 0.035 |
 | SPY 1993-1999 Hi 20 | 0.987 | 0.982 | 0.024 |
 | SPY 1993-1999 Hi 30 | 0.986 | 0.973 | 0.025 |
-| SPY 2000-2009 Mkt | 0.982 | 1.004 | 0.037 |
-| SPY 2000-2009 Hi 20 | 0.988 | 0.974 | 0.030 |
-| SPY 2000-2009 Hi 30 | 0.988 | 0.983 | 0.030 |
+| SPY 2000-2009 Mkt | 0.985 | 1.004 | 0.038 |
+| SPY 2000-2009 Hi 20 | 0.989 | 0.976 | 0.031 |
+| SPY 2000-2009 Hi 30 | 0.990 | 0.983 | 0.031 |
 | SPY 2010-2019 Mkt | 0.996 | 1.039 | 0.015 |
 | SPY 2010-2019 Hi 20 | 0.998 | 0.994 | 0.008 |
 | SPY 2010-2019 Hi 30 | 0.999 | 1.004 | 0.007 |
@@ -173,6 +177,33 @@ non-overlapping 3-day returns, which are robust to differences in closing times.
 | IWM 2020-2026 Lo 30 | 0.975 | 1.050 | 0.057 |
 | IWM 2020-2026 Qnt 2+3 | 0.993 | 1.001 | 0.029 |
 
+### Holdout independence of the choice
+
+The evaluation holdout starts 2015-01. Re-doing the comparison on overlaps that end in 2014 (3-day returns)
+gives the same ranking: for SPY, Hi 20 and Hi 30 tie on tracking error and Hi 30's vol ratio is closer to 1;
+for IWM, Qnt 2+3 has the lowest tracking error. So the portfolio choice does not depend on post-2014 data.
+
+| ref / portfolio / overlap | TE3d | volratio3d | corr3d |
+|---|---|---|---|
+| SPY Mkt to 2014 | 0.034 | 1.006 | 0.982 |
+| SPY Mkt full | 0.030 | 1.015 | 0.986 |
+| SPY Hi 10 to 2014 | 0.029 | 0.979 | 0.987 |
+| SPY Hi 10 full | 0.026 | 0.991 | 0.989 |
+| SPY Hi 20 to 2014 | 0.026 | 0.982 | 0.989 |
+| SPY Hi 20 full | 0.022 | 0.992 | 0.992 |
+| SPY Hi 30 to 2014 | 0.026 | 0.988 | 0.989 |
+| SPY Hi 30 full | 0.023 | 0.997 | 0.992 |
+| IWM Qnt 2 to 2014 | 0.036 | 1.006 | 0.987 |
+| IWM Qnt 2 full | 0.035 | 1.022 | 0.988 |
+| IWM Qnt 3 to 2014 | 0.051 | 0.949 | 0.974 |
+| IWM Qnt 3 full | 0.044 | 0.965 | 0.979 |
+| IWM Lo 30 to 2014 | 0.053 | 0.966 | 0.972 |
+| IWM Lo 30 full | 0.051 | 1.002 | 0.973 |
+| IWM 4-Dec to 2014 | 0.039 | 0.997 | 0.985 |
+| IWM 4-Dec full | 0.037 | 1.012 | 0.986 |
+| IWM Qnt 2+3 to 2014 | 0.036 | 0.971 | 0.987 |
+| IWM Qnt 2+3 full | 0.032 | 0.987 | 0.990 |
+
 ## Fund data quality and date alignment
 
 Each fund is compared with the French portfolio on the same day and with the fund shifted one day either way. A peak
@@ -181,7 +212,7 @@ pass this check, while NAESX does not.
 
 | fund (window) | vs | corr fund t-1 | corr same day | corr fund t+1 | zero-return days | days robust z>8 | days |diff|>2% |
 |---|---|---|---|---|---|---|---|
-| SPY (1993-02-01..2026-09-30) | Hi 30 | -0.066 | 0.984 | -0.080 | 62 | 86 | 4 |
+| SPY (1993-02-01..2026-09-30) | Hi 30 | -0.066 | 0.984 | -0.080 | 62 | 85 | 4 |
 | VFINX (1980-01-03..1993-01-29) | Hi 30 | 0.074 | 0.967 | 0.064 | 98 | 45 | 14 |
 | IWM (2000-05-30..2026-09-30) | Qnt 2+3 | -0.046 | 0.984 | -0.064 | 19 | 15 | 5 |
 | NAESX (1990-01-02..2000-05-26) | Qnt 2+3 | 0.225 | 0.989 | 0.228 | 128 | 1 | 0 |
@@ -253,7 +284,7 @@ Monthly:
 | 1970s | 0.136 | 0.162 | 0.259 | 252.600 | 0.133 | 0.223 | 0.406 | 252.600 |
 | 1980s | 0.166 | 0.164 | 0.077 | 252.800 | 0.134 | 0.191 | 0.289 | 252.800 |
 | 1990s | 0.148 | 0.133 | -0.021 | 252.800 | 0.128 | 0.173 | 0.249 | 252.800 |
-| 2000s | 0.224 | 0.161 | -0.072 | 251.500 | 0.268 | 0.213 | -0.065 | 251.500 |
+| 2000s | 0.224 | 0.161 | -0.072 | 251.400 | 0.268 | 0.213 | -0.065 | 251.500 |
 | 2010s | 0.147 | 0.124 | -0.042 | 251.600 | 0.192 | 0.170 | -0.036 | 251.600 |
 | 2020s | 0.200 | 0.168 | -0.151 | 246.714 | 0.258 | 0.226 | -0.079 | 246.714 |
 

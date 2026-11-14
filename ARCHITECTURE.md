@@ -74,10 +74,15 @@ The panel's daily calendar is the US equity trading calendar (the dates of the
 cash series). A return dated off that calendar is compounded into the next
 calendar day; a calendar day on which an asset did not trade is NaN.
 
-Quality tiers: **A** daily investable fund/ETF total return · **B** daily index
-or reconstructed total return · **C** monthly index total return · **D**
-monthly model-based reconstruction (bond returns from yields, month-average
-prices, …).
+Quality tiers: **A** daily price of an exchange-traded fund (market close),
+total return · **B** daily open-end mutual-fund NAV, index, or reconstructed
+total return · **C** monthly index total return · **D** monthly model-based
+reconstruction (bond returns from yields, month-average prices, …). Every
+NAV-to-ETF splice is therefore a B→A tier change. Parameters fitted on overlaps
+(blend weights, splice factors, selection rules) may use only data up to
+2014-12-31, the start of the holdout. ETF total returns are built from close
+plus validated distributions (`volmodel.data.sources.distributions`), not from
+Yahoo's adjusted close, which lists some distributions that were never paid.
 
 Rules for data code:
 - Loaders live in `src/volmodel/data/sources/<track>.py`, are plain Python

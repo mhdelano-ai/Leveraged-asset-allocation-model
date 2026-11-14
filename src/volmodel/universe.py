@@ -30,8 +30,8 @@ BY_ID = {a.id: a for a in ASSETS}
 
 # Data-quality tiers for each (asset, period) segment.
 TIERS = {
-    "A": "daily, investable fund or ETF total return",
-    "B": "daily, index or reconstructed total return",
+    "A": "daily price of an exchange-traded fund (market close), total return",
+    "B": "daily open-end mutual-fund NAV, index, or reconstructed total return",
     "C": "monthly, index total return",
     "D": "monthly, model-based reconstruction (e.g. bond returns from yields, month-average prices)",
 }

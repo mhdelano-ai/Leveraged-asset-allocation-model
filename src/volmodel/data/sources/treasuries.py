@@ -10,7 +10,15 @@ Run ``python -m volmodel.data.sources.treasuries`` to download (cached under
 
 Method (details and numbers in reports/data/treasuries.md)
 ---------------------------------------------------------
-Tier A  ETF adjclose (IEF, TLT) from Yahoo, from their 2002-07 inception.
+Tiers (project-wide): A = daily price of an exchange-traded fund (market
+close); B = daily open-end mutual-fund NAV, index, or reconstruction; C =
+monthly index total return; D = monthly model-based reconstruction.
+
+Tier A  ETF total return (IEF, TLT) from their 2002-07 inception: Yahoo close
+        plus distributions, every distribution validated against the ex-date
+        price behaviour (``distributions.validate_distributions``) and against
+        Nasdaq's dividend record. Yahoo's adjclose is NOT used: it credits five
+        inflated IEF distributions in 2003.
 Tier B  Daily reconstruction from the Fed's Gurkaynak-Sack-Wright (GSW)
         fitted Nelson-Siegel-Svensson curve. Every day a par bond of the
         target maturity is bought at the close (coupon = that day's fitted par
@@ -30,6 +38,16 @@ Tier D  Monthly reconstruction from month-AVERAGE long-bond yields (NBER
         Macrohistory m13033a/b, Fed H.15 monthly averages): returns are
         smoothed (vol damped, positive autocorrelation); quantified in the
         report.
+
+Predictor timing: H.15 constant-maturity yields are published the next
+business day (``H15_PUBLICATION_LAG_BDAYS``); anything derived from the GSW
+fitted curve is published by the Fed with a lag of about a week, so it is
+stamped ``GSW_PUBLICATION_LAG_BDAYS`` = 10 business days after observation
+(the same rule as the TIPS track's GSW series).
+
+Nothing here is fitted on the ETF overlap: the ladder maturities are the
+index maturity buckets (7-10y, 20-30y), not calibrated, and the overlap
+statistics are diagnostics only.
 """
 from __future__ import annotations
 
@@ -42,8 +60,12 @@ import pandas as pd
 import requests
 
 from ...paths import ASSET_DIR, PREDICTOR_DIR, PROCESSED, RAW, REPORTS
+from . import distributions as dist
 
 RAW_DIR = RAW / "treasuries"
+# Publication lags of the predictor inputs (business days after the observation).
+H15_PUBLICATION_LAG_BDAYS = 1     # H.15 posts a day's CMT yields the next business day
+GSW_PUBLICATION_LAG_BDAYS = 10    # GSW curve file: ~1 week lag; same rule as tips.py
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
 
@@ -65,6 +87,14 @@ YAHOO_SYMBOLS = ["IEF", "TLT", "VUSTX", "VFITX"]
 # 1973-01-04: the 20y CMT jumps +74bp while the 10y CMT and the GSW curve fall
 # 2-3bp (the long-end series was re-based, flower bonds stopped setting it).
 H15_BREAKS = {"cmt_20y": ["1973-01-04"]}
+# The 20y CMT is a different series before that re-basing (the level jumps 74bp
+# and stays): the ``yield_20y`` PREDICTOR starts on the break date, so no level
+# break enters a predictor or a spread built on it. (The return reconstruction
+# only uses yield CHANGES and drops the break day.)
+PREDICTOR_START = {"cmt_20y": "1973-01-04"}
+
+# Peers for the ETF distribution test: daily changes of these CMT yields.
+ETF_PEERS = {"IEF": ["cmt_5y", "cmt_7y", "cmt_10y"], "TLT": ["cmt_10y", "cmt_20y", "cmt_30y"]}
 
 # Ladders (years) that mimic the ICE/Barclays maturity buckets the ETFs track.
 LADDERS = {
@@ -72,6 +102,7 @@ LADDERS = {
     "ust_long": np.arange(20.0, 30.01, 1.0),  # TLT: 20y+ Treasuries
 }
 ETF = {"ust_int": "IEF", "ust_long": "TLT"}
+ETF_SOURCE = {s: f"{s} close + validated distributions (Yahoo; Nasdaq dividend record)" for s in ("IEF", "TLT")}
 
 
 # =================================================================== downloads
@@ -130,7 +161,13 @@ def load_h15(key: str, refresh: bool = False) -> pd.Series:
 
 
 def load_yahoo(sym: str, refresh: bool = False) -> pd.Series:
-    """Adjusted close (dividends reinvested) from the Yahoo chart API."""
+    """Adjusted close (dividends reinvested) from the Yahoo chart API (diagnostics only)."""
+    return load_yahoo_frame(sym, refresh)["adjclose"].rename(sym)
+
+
+def load_yahoo_frame(sym: str, refresh: bool = False) -> pd.DataFrame:
+    """Daily close (split-adjusted), adjclose and listed cash distributions (on the
+    trading day of their ex-date) from the Yahoo chart API."""
     path = RAW_DIR / f"y_{sym}.json"
     if refresh or not path.exists():
         RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -153,12 +190,35 @@ def load_yahoo(sym: str, refresh: bool = False) -> pd.Series:
         time.sleep(1.5)
     res = json.loads(path.read_text())["chart"]["result"][0]
     tz = res["meta"].get("exchangeTimezoneName", "America/New_York")
-    idx = pd.to_datetime(res["timestamp"], unit="s", utc=True).tz_convert(tz).tz_localize(None).normalize()
-    s = pd.Series(res["indicators"]["adjclose"][0]["adjclose"], index=idx, dtype=float, name=sym)
-    s = s[~s.index.duplicated(keep="last")].dropna()
-    s = s[s > 0]
-    s.index.name = "date"
-    return s
+    to_date = lambda t: pd.to_datetime(t, unit="s", utc=True).tz_convert(tz).tz_localize(None).normalize()  # noqa: E731
+    idx = to_date(res["timestamp"])
+    df = pd.DataFrame({"close": res["indicators"]["quote"][0]["close"],
+                       "adjclose": res["indicators"]["adjclose"][0]["adjclose"]}, index=idx, dtype=float)
+    df = df[~df.index.duplicated(keep="last")].dropna()
+    df = df[(df["close"] > 0) & (df["adjclose"] > 0)]
+    df.index.name = "date"
+    ev = res.get("events", {}).get("dividends", {})
+    div = pd.Series({to_date(int(v["date"])): float(v["amount"]) for v in ev.values()}, dtype=float)
+    div = div.groupby(level=0).sum() if len(div) else div
+    div, _ = dist.dedupe_repeats(div)
+    df["div"] = dist.align_dividends(div, df.index)
+    return df
+
+
+def etf_total_return(sym: str, h15: dict[str, pd.Series], refresh: bool = False
+                     ) -> tuple[pd.Series, pd.DataFrame]:
+    """ETF total return from close + VALIDATED distributions.
+
+    Each Yahoo distribution is tested against the ex-date move of the ETF relative to
+    daily CMT yield changes, and against Nasdaq's dividend record (cached as
+    ``nasdaq_div_<sym>.json``; Nasdaq lists dividends of Nasdaq-listed ETFs such as
+    IEF and TLT). Returns (daily simple returns, validation table)."""
+    df = load_yahoo_frame(sym, refresh)
+    peers = pd.DataFrame({k: h15[k].diff() / 100.0 for k in ETF_PEERS[sym]})
+    second = dist.fetch_nasdaq_dividends(sym, RAW_DIR / f"nasdaq_div_{sym}.json", refresh)
+    div, table = dist.validate_distributions(df["close"], df["div"], peers, second=second)
+    r = dist.total_return(df["close"], div).iloc[1:].rename(sym)
+    return r, table
 
 
 def load_nber(code: str, refresh: bool = False) -> pd.Series:
@@ -383,7 +443,13 @@ def build(refresh: bool = False) -> dict:
     h15 = {k: load_h15(k, refresh) for k in H15_CODES}
     etf = {s: load_yahoo(s, refresh) for s in YAHOO_SYMBOLS}
     nber = {c: load_nber(c, refresh) for c in ["m13033a", "m13033b"]}
+    # VFITX/VUSTX (diagnostics only): adjclose; IEF/TLT: close + validated distributions
     etf_ret = {s: v.pct_change().iloc[1:] for s, v in etf.items()}
+    div_tables = {}
+    for s in ETF.values():
+        etf_ret[s], div_tables[s] = etf_total_return(s, h15, refresh)
+        # total-return index of the ETF as used in the panel (base = first close)
+        etf[s] = (1 + etf_ret[s]).cumprod().rename(s)
 
     # first date at which each GSW maturity is published (in-sample)
     pub = {m: gsw[f"SVENY{m:02d}"].first_valid_index() for m in (10, 20, 30)}
@@ -409,7 +475,7 @@ def build(refresh: bool = False) -> dict:
              "H.15 10y CMT par-bond ladder 7-10y (flat curve)", "B"),
             (lad["ust_int"][0],
              "GSW fitted curve, par-bond ladder 7-10y", "B"),
-            (etf_ret["IEF"], "IEF adjclose (Yahoo)", "A"),
+            (etf_ret["IEF"], ETF_SOURCE["IEF"], "A"),
         ],
         "ust_long": [
             (cmt_long20,
@@ -418,7 +484,7 @@ def build(refresh: bool = False) -> dict:
              "H.15 20y/30y CMT par-bond ladder 20-30y (interpolated)", "B"),
             (lad["ust_long"][0],
              "GSW fitted curve, par-bond ladder 20-30y", "B"),
-            (etf_ret["TLT"], "TLT adjclose (Yahoo)", "A"),
+            (etf_ret["TLT"], ETF_SOURCE["TLT"], "A"),
         ],
     }
     # ---------------------------------------------------------- monthly-only
@@ -486,7 +552,7 @@ def build(refresh: bool = False) -> dict:
                          cmt_int=cmt_int, cmt_long20=cmt_long20, cmt_long2030=cmt_long2030,
                          cmt_int_dur=cmt_int_dur, cmt_long20_dur=cmt_long20_dur,
                          cmt_long2030_dur=cmt_long2030_dur, int_m=int_m, long_m20=long_m20,
-                         long_a=long_a, long_b=long_b, pub=pub)
+                         long_a=long_a, long_b=long_b, pub=pub, div_tables=div_tables)
     out["predictors"] = build_predictors(out)
     out["diag"] = diagnostics(out)
     out["segments"] = segments_table(out)
@@ -498,6 +564,14 @@ def _fmt(d: dict, freq: str) -> str:
         return "n/a"
     return (f"{freq} {d['start'][:7]}..{d['end'][:7]}: vol ratio {d['vol_ratio']:.3f}, "
             f"corr {d['corr']:.3f}, TE {100 * d['te']:.1f}%/yr")
+
+
+def _div_note(D: dict, sym: str) -> str:
+    ch = D.get(f"{sym}_distributions_changed", [])
+    if not ch:
+        return "No Yahoo distribution changed."
+    return "Yahoo distributions corrected: " + "; ".join(
+        f"{c['date']} {c['amount']:.3f} -> {c['used']:.3f} ({c['action'].split(':')[1]})" for c in ch) + "."
 
 
 def segment_notes(D: dict) -> dict[str, str]:
@@ -513,7 +587,8 @@ def segment_notes(D: dict) -> dict[str, str]:
             "vs IEF: " + _fmt(D["ust_int_gsw_vs_IEF_D_all"], "daily") + "; "
             + _fmt(D["ust_int_gsw_vs_IEF_M_all"], "monthly")
             + ". Daily corr limited by quote time (curve ~3pm vs ETF 4pm close)",
-        "IEF adjclose (Yahoo)": "investable ETF, total return (adjclose)",
+        ETF_SOURCE["IEF"]: "investable ETF; total return = close + distributions, each validated by the "
+                           "ex-date price test and Nasdaq's dividend record. " + _div_note(D, "IEF"),
         "H.15 10y CMT monthly-average yield, par-bond ladder 7-10y":
             "MONTH-AVERAGE yields: vs month-end returns " + _fmt(D["ust_int_monthavg_vs_monthend_all"], "monthly")
             + f"; AC1 {D['ust_int_monthavg_vs_monthend_all']['ac1_rec']:.2f} vs "
@@ -531,7 +606,8 @@ def segment_notes(D: dict) -> dict[str, str]:
             + _fmt(D["ust_long_gsw_vs_TLT_M_all"], "monthly")
             + f"; 2020-26 daily vol ratio {D['ust_long_gsw_vs_TLT_D_2020']['vol_ratio']:.3f} "
             "(TLT holds low-coupon discount bonds: higher duration than par bonds)",
-        "TLT adjclose (Yahoo)": "investable ETF, total return (adjclose)",
+        ETF_SOURCE["TLT"]: "investable ETF; total return = close + distributions, each validated by the "
+                           "ex-date price test and Nasdaq's dividend record. " + _div_note(D, "TLT"),
         "NBER m13033a long-term US bond yield (monthly avg), ladder 20-30y":
             "MONTH-AVERAGE yields (partially tax-exempt bonds, 12y+). vs m13033b on 1941-44 overlap: "
             + _fmt(D["ust_long_nber_a_vs_nber_b_M"], "monthly"),
@@ -563,17 +639,26 @@ def segments_table(out: dict) -> pd.DataFrame:
 # =============================================================== predictors
 def build_predictors(out: dict) -> pd.DataFrame:
     """Daily yield levels (decimal, H.15 CMT par yields) and modified durations
-    (years) of the constructed par-bond ladders; long format."""
+    (years) of the constructed par-bond ladders; long format.
+
+    ``available_date``: H.15 inputs + ``H15_PUBLICATION_LAG_BDAYS``; GSW-curve inputs
+    + ``GSW_PUBLICATION_LAG_BDAYS`` (a series switching between the two inputs takes
+    the lag of the input used for each observation)."""
     S = out["series"]
     rows = []
+    h15_lag, gsw_lag = pd.offsets.BDay(H15_PUBLICATION_LAG_BDAYS), pd.offsets.BDay(GSW_PUBLICATION_LAG_BDAYS)
 
-    def add(series: pd.Series, name: str):
+    def add(series: pd.Series, name: str, lag=h15_lag, gsw_span=None):
         s = series.dropna()
-        rows.append(pd.DataFrame({"obs_date": s.index, "available_date": s.index,
+        avail = s.index + lag
+        if gsw_span is not None:    # observations priced off the GSW curve
+            on = (s.index >= gsw_span[0]) & (s.index <= gsw_span[1])
+            avail = pd.DatetimeIndex(np.where(on, s.index + gsw_lag, s.index + h15_lag))
+        rows.append(pd.DataFrame({"obs_date": s.index, "available_date": avail,
                                   "series": name, "value": s.to_numpy(dtype=float)}))
 
     for k in ["cmt_2y", "cmt_5y", "cmt_7y", "cmt_10y", "cmt_20y", "cmt_30y"]:
-        add(S["h15"][k] / 100.0, "yield_" + k.split("_")[1])
+        add((S["h15"][k] / 100.0).loc[PREDICTOR_START.get(k):], "yield_" + k.split("_")[1])
 
     gi, gl = S["lad"]["ust_int"], S["lad"]["ust_long"]
     # durations: consistent with the yields each era's reconstruction used;
@@ -585,13 +670,13 @@ def build_predictors(out: dict) -> pd.DataFrame:
                                                   gl[1].index[0] - pd.Timedelta(days=1)],
                         gl[1],
                         S["cmt_long2030_dur"].loc[gl[1].index[-1] + pd.Timedelta(days=1):]])
-    add(d_int, "duration_ust_int")
-    add(d_long, "duration_ust_long")
-    add(gi[2], "yield_ladder_ust_int")
-    add(gl[2], "yield_ladder_ust_long")
-    # empirical effective duration of the ETFs (rolling regression)
+    add(d_int, "duration_ust_int", gsw_span=(gi[1].index[0], gi[1].index[-1]))
+    add(d_long, "duration_ust_long", gsw_span=(gl[1].index[0], gl[1].index[-1]))
+    add(gi[2], "yield_ladder_ust_int", gsw_lag)
+    add(gl[2], "yield_ladder_ust_long", gsw_lag)
+    # empirical effective duration of the ETFs (rolling regression on the GSW ladder yield)
     for a, (ret, _, y) in [("ust_int", gi), ("ust_long", gl)]:
-        add(etf_effective_duration(S["etf"][ETF[a]], y), f"duration_{a}_etf_est")
+        add(etf_effective_duration(S["etf"][ETF[a]], y), f"duration_{a}_etf_est", gsw_lag)
     pred = pd.concat(rows, ignore_index=True)
     pred["obs_date"] = pd.to_datetime(pred["obs_date"])
     pred["available_date"] = pd.to_datetime(pred["available_date"])
@@ -627,6 +712,13 @@ def diagnostics(out: dict) -> dict:
     S = out["series"]
     E = S["etf_ret"]
     D: dict = {}
+    for sym, t in S["div_tables"].items():
+        ch = dist.changed_distributions(t)
+        D[f"{sym}_distributions_changed"] = [
+            dict(date=str(d.date()), amount=float(r.amount), used=float(r.used),
+                 second=None if not np.isfinite(r.second) else float(r.second),
+                 implied=float(r.implied), z=float(r.z), action=r.action) for d, r in ch.iterrows()]
+        D[f"{sym}_distributions_summary"] = t["action"].value_counts().to_dict()
     gi, gl = S["lad"]["ust_int"][0], S["lad"]["ust_long"][0]
     periods = [(None, None), ("2002", "2007"), ("2008", "2014"), ("2015", "2019"), ("2020", "2026")]
     # 1. reconstruction vs ETFs
@@ -719,6 +811,10 @@ def save(out: dict) -> None:
             df.to_parquet(ASSET_DIR / f"{a}_{f}.parquet")
     out["predictors"].to_parquet(PREDICTOR_DIR / "treasury_curve.parquet", index=False)
     out["segments"].to_csv(RAW_DIR / "segments_treasuries.csv", index=False)
+    (PROCESSED / "segments").mkdir(parents=True, exist_ok=True)
+    out["segments"].to_csv(PROCESSED / "segments" / "treasuries.csv", index=False)
+    pd.concat({s: t for s, t in out["series"]["div_tables"].items()}, names=["etf", "date"]).to_csv(
+        RAW_DIR / "distribution_checks.csv")
     (RAW_DIR / "diagnostics.json").write_text(json.dumps(out["diag"], indent=1, default=str))
 
 

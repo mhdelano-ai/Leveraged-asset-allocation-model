@@ -4,7 +4,7 @@ Built by `python -m volmodel.data.sources.tips` on 2026-11-14.
 
 ## Result
 
-* daily: 1997-01-30 .. 2026-11-13 (7495 obs)
+* daily: 1997-01-30 .. 2026-11-13 (7494 obs)
 * monthly: 1997-02-28 .. 2026-10-31 (357 months; compounded daily; current incomplete month excluded)
 * returns are SIMPLE TOTAL returns in decimals (not excess).
 * TIPS were first issued in Jan 1997; nothing earlier is reported or synthesized.
@@ -19,8 +19,8 @@ Built by `python -m volmodel.data.sources.tips` on 2026-11-14.
 
 | start | end | freq | tier | source | notes |
 |---|---|---|---|---|---|
-| 1997-01-30 | 2003-12-31 | D | B | yahoo:PRRIX NAV + distributions, month-end distributions spread as daily accrual (PIMCO Real Return Instl, active) | Earliest TIPS fund (inception 1997-01-29). Daily-declared dividends re-spread over their accrual month; December specials kept on ex-date. Active manager: some non-TIPS exposure. Tier B because of the accrual reconstruction and active mandate. |
-| 2004-01-02 | 2026-11-13 | D | A | yahoo:TIP close + dividends (iShares TIPS Bond ETF) | Market price (not NAV): includes premium/discount noise, notably 2008 Q4. |
+| 1997-01-30 | 2003-12-31 | D | B | yahoo:PRRIX NAV + distributions, month-end distributions spread as daily accrual (PIMCO Real Return Instl, active) | Earliest TIPS fund (inception 1997-01-29). Daily-declared dividends re-spread over their accrual month; December specials kept on ex-date. Active manager: some non-TIPS exposure. Tier B: open-end fund NAV (also an accrual reconstruction and an active mandate). Bad NAV print 2000-12-12 (+0.84%/-0.99%, ACITX and VIPSX flat) dropped: the 12-13 return spans it. |
+| 2004-01-02 | 2026-11-13 | D | A | yahoo:TIP close + dividends (iShares TIPS Bond ETF) | Market price (not NAV): includes premium/discount noise, notably 2008 Q4. Every Yahoo distribution validated by the ex-date price test against GSW real-yield changes and VIPSX/SCHP (none rejected; Yahoo's duplicate of 2008-04-01 on 2008-04-03 removed). |
 
 Monthly file = compounded daily; first month 1997-02 (Jan 1997 has only 2 trading days of fund history and is dropped).
 
@@ -31,7 +31,7 @@ PIMCO and American Century declare dividends daily and pay monthly: the NAV does
 | treated as | n | mean distribution yield | mean NAV return on pay day |
 |---|---|---|---|
 | daily_accrual | 85 | 0.46% | 0.07% |
-| ex_date | 5 | 1.53% | -1.33% |
+| ex_date | 5 | 1.53% | -1.53% |
 
 Effect on the 1997-2003 PRRIX daily vol (annualized): adjclose 4.66% vs rebuilt 4.23%; monthly returns are essentially unchanged (see the adjclose-vs-fix row below).
 
@@ -103,7 +103,7 @@ Empirical real duration = −β of weekly log returns on weekly changes in the G
 | 1997 | 3.24 | 3.24 | 6.04 |  |  |  |  |  |
 | 1998 | 3.65 | 3.65 | 3.87 |  |  |  |  |  |
 | 1999 | 2.27 | 2.27 | 2.45 |  |  |  |  | 2.57 |
-| 2000 | 2.56 | 2.56 | 2.47 | 3.24 |  |  |  | 3.10 |
+| 2000 | 2.22 | 2.56 | 2.47 | 3.24 |  |  |  | 3.10 |
 | 2001 | 4.30 | 4.30 | 4.22 | 4.67 |  |  |  | 4.93 |
 | 2002 | 4.56 | 4.56 | 4.15 | 5.25 |  |  |  | 5.56 |
 | 2003 | 7.06 | 7.06 | 6.97 | 6.92 |  |  | 4.59 | 8.84 |

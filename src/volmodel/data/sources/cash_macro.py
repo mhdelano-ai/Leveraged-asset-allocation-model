@@ -351,8 +351,14 @@ LAGS = {  # series -> description used in the report
     "unrate": "end of M+1 (from 1960; Employment Situation ~first Friday of M+1); end of M+2 before 1960; "
               "Sept-2025 report -> 2025-11-20",
     "ip": "end of M+1 (from 1960; G.17 ~15th-17th of M+1); end of M+2 before 1960",
-    "market": "end of month M (monthly average of observed market rates)",
+    "market": "end of month M + 1 business day (monthly average of daily market rates; H.15 publishes a "
+              "day's rates the next business day)",
+    "h10": "end of month M + 5 business days (H.10 dollar index is released weekly, on Mondays, for the "
+           "previous week)",
 }
+# Publication lags of monthly averages of daily market data (business days after month-end).
+MARKET_LAG_BDAYS = 1   # H.15 rates (and the historical NBER compilations treated alike)
+H10_LAG_BDAYS = 5      # H.10 broad dollar index: weekly release
 
 
 def build_macro(cash_monthly: pd.DataFrame, refresh: bool = False) -> tuple[pd.DataFrame, dict]:
@@ -397,9 +403,12 @@ def build_macro(cash_monthly: pd.DataFrame, refresh: bool = False) -> tuple[pd.D
         diag[f"long splice {lbl}"] = (len(j), float((j.iloc[:, 0] - j.iloc[:, 1]).mean()),
                                       float(j.corr().iloc[0, 1]))
     term = (long - short).dropna()
-    frames += [_long("macro_short_rate", short),
-               _long("macro_long_yield", long),
-               _long("macro_term_spread", term)]
+
+    def mkt_av(s: pd.Series, bdays: int = MARKET_LAG_BDAYS) -> pd.Series:
+        return pd.Series(s.index + pd.offsets.BDay(bdays), index=s.index)
+    frames += [_long("macro_short_rate", short, mkt_av(short)),
+               _long("macro_long_yield", long, mkt_av(long)),
+               _long("macro_term_spread", term, mkt_av(term))]
     real = (short - infl_yoy).dropna()
     frames.append(_long("macro_real_short_rate", real, cpi_av.reindex(real.index)))
 
@@ -408,10 +417,10 @@ def build_macro(cash_monthly: pd.DataFrame, refresh: bool = False) -> tuple[pd.D
     ff = dbnomics("FED/H15/RIFSPFF_N.M", refresh)
     pol_parts = [disc.loc[:"1954-06"].dropna(), ff.loc["1954-07":].dropna()]
     policy = pd.concat(pol_parts)
-    frames.append(_long("macro_policy_rate", policy))
+    frames.append(_long("macro_policy_rate", policy, mkt_av(policy)))
     for k in (3, 12):
         ch = pd.concat([p - p.shift(k, freq="ME").reindex(p.index) for p in pol_parts]).dropna()
-        frames.append(_long(f"macro_policy_rate_chg_{k}m", ch))
+        frames.append(_long(f"macro_policy_rate_chg_{k}m", ch, mkt_av(ch)))
 
     # ---------------- unemployment and a real-time-safe Sahm indicator
     un_db = dbnomics("BLS/ln/LNS14000000", refresh)
@@ -456,7 +465,7 @@ def build_macro(cash_monthly: pd.DataFrame, refresh: bool = False) -> tuple[pd.D
     j = pd.concat([yo, yn], axis=1).dropna()
     diag["usd_splice"] = (len(j), float(j.corr().iloc[0, 1]), float((j.iloc[:, 0] - j.iloc[:, 1]).mean()))
     usd = pd.concat([yo.loc[:"2006-12"], yn.loc["2007-01":]]).dropna()
-    frames.append(_long("macro_usd_broad_yoy", usd))
+    frames.append(_long("macro_usd_broad_yoy", usd, mkt_av(usd, H10_LAG_BDAYS)))
 
     out = pd.concat(frames, ignore_index=True)
     out["obs_date"] = pd.to_datetime(out["obs_date"])
@@ -490,7 +499,7 @@ SERIES_META = {
     "macro_ip_yoy": ("12-month log change in industrial production (SA), %",
                      "Fed G.17 IP.B50001.S via DBnomics", "ip"),
     "macro_usd_broad_yoy": ("12-month log change of nominal broad dollar index, %: goods-only broad (to 2006), "
-                            "broad (2007+)", "Fed H.10 V0.JRXWTFB_N.M, JRXWTFB_N.M via DBnomics", "market"),
+                            "broad (2007+)", "Fed H.10 V0.JRXWTFB_N.M, JRXWTFB_N.M via DBnomics", "h10"),
 }
 
 
@@ -565,8 +574,10 @@ def write_report(daily, monthly, cdiag, macro, mdiag, path: Path) -> None:
   the latest vintage is available here (ALFRED is not reachable). Use with caution.
 - **Recession indicator**: NBER dates are deliberately not used. `macro_sahm_recession` is built
   from published unemployment and is available when its latest input is.
-- Market-rate series (short rate, long yield, policy rate, dollar) are monthly averages of market
-  observations and are dated available at the month-end. Long-yield splices across sources change
+- Market-rate series (short rate, long yield, policy rate, dollar) are monthly averages of daily market
+  observations. The last day's H.15 rate is published the next business day, so they are dated available
+  one business day after month-end; the broad dollar (H.10, released weekly on Mondays) five business days
+  after month-end. Long-yield splices across sources change
   the level (railroad bonds yield more than governments): see diagnostics above.
 - The long-yield splice in 1941-10 (m13033a -> m13033b, different bond baskets) shifts the level
   by about 0.5 pp (overlap corr is low because both are nearly flat under the 1940s peg).

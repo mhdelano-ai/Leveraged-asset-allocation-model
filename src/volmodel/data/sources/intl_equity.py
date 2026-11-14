@@ -15,15 +15,25 @@ intl_dev
   * 1986-01 .. 2001-08  daily, AQR market return "Global Ex USA" (cap-weighted
                         developed ex-US incl. Canada) = excess + AQR T-bill  -> tier B
                         Convention: index, FOREIGN closes.
-  * 2001-09 .. today    daily, iShares MSCI EAFE ETF (EFA) Yahoo adjclose  -> tier A
+  * 2001-09 .. today    daily, iShares MSCI EAFE ETF (EFA), close + validated
+                        distributions                                       -> tier A
                         Convention: US close.
 em
   * 1989-07 .. 1994-05  monthly, Ken French Emerging Markets Mkt-RF + RF  -> tier C
   * 1994-06 .. 2003-04  daily, Vanguard Emerging Markets Stock Index Fund
                         (VEIEX) adjclose; open-end NAV, mostly foreign-close
-                        prices in this era (fair-value pricing grew from 2001) -> tier A
-  * 2003-05 .. today    daily, iShares MSCI Emerging Markets ETF (EEM) adjclose -> tier A
+                        prices in this era (fair-value pricing grew from 2001) -> tier B
+  * 2003-05 .. today    daily, iShares MSCI Emerging Markets ETF (EEM), close +
+                        validated distributions                             -> tier A
                         Convention: US close.
+
+Tiers (project-wide): A = daily price of an exchange-traded fund (market
+close); B = daily open-end mutual-fund NAV, index, or reconstruction; C =
+monthly index total return; D = monthly model-based reconstruction.
+
+ETF total returns are close + Yahoo distributions, each validated against the
+ex-date price move relative to peer funds (``distributions.validate_distributions``).
+Confirmed bad NAV prints are dropped (``BAD_PRICES``; the next return spans them).
 
 Splices are at calendar-month boundaries, so every month is single-source.
 Nothing is interpolated; index days with a ~zero total return (|r| < 0.001%:
@@ -44,6 +54,7 @@ import pandas as pd
 import requests
 
 from ...paths import ASSET_DIR, RAW
+from . import distributions as dist
 
 CACHE = RAW / "intl_equity"
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -107,8 +118,14 @@ def yahoo(sym: str, refresh: bool = False) -> pd.DataFrame:
     df = pd.DataFrame({"close": q["quote"][0]["close"],
                        "adjclose": q.get("adjclose", [{}])[0].get("adjclose")}, index=idx)
     df.index.name = "date"
-    df = df[~df.index.duplicated(keep="last")].dropna(how="all")
-    return df.astype(float)
+    df = df[~df.index.duplicated(keep="last")].dropna(how="all").astype(float)
+    ev = res.get("events", {}).get("dividends", {})
+    to_date = lambda t: pd.to_datetime(t, unit="s", utc=True).tz_convert(tz).tz_localize(None).normalize()  # noqa: E731
+    div = pd.Series({to_date(int(v["date"])): float(v["amount"]) for v in ev.values()}, dtype=float)
+    div = div.groupby(level=0).sum() if len(div) else div
+    div, _ = dist.dedupe_repeats(div)
+    df["div"] = dist.align_dividends(div, df.index[df["close"].notna()]).reindex(df.index).fillna(0.0)
+    return df
 
 
 # ------------------------------------------------------------------ parsers
@@ -201,9 +218,16 @@ PLAN = {
                  "daily": [("aqr_gxus", "B", "1986-01-01", "2001-08-31"),
                            ("EFA", "A", "2001-09-01", None)]},
     "em": {"monthly": ("kf_em", "C", "1989-07-31", "1994-05-31"),
-           "daily": [("VEIEX", "A", "1994-06-01", "2003-04-30"),
+           "daily": [("VEIEX", "B", "1994-06-01", "2003-04-30"),
                      ("EEM", "A", "2003-05-01", None)]},
 }
+# Confirmed bad prints: the PRICE is dropped (the next return spans it; never interpolated).
+# VEIEX 2001-07-16: NAV +5.6% then -5.9% the next day, while EM peers TEDMX (-0.6%, -0.8%),
+# FOSFX and SCINX were flat (independent audit, section C-2).
+BAD_PRICES = {"VEIEX": ["2001-07-16"]}
+# ETFs whose return is close + VALIDATED distributions; peers are total returns (adjclose)
+# of related funds plus the S&P 500 price index.
+ETF_PEERS = {"EFA": ["VEA", "VTMGX", "^GSPC"], "EEM": ["VWO", "IEMG", "^GSPC"]}
 CONVENTION = {
     "kf_intl_index": "monthly index (foreign closes; month-end timing)",
     "aqr_gxus": "daily index, foreign local closes converted to USD",
@@ -215,9 +239,27 @@ CONVENTION = {
 
 
 def yahoo_returns(sym: str, refresh: bool = False) -> pd.Series:
+    """Daily total returns: close + validated distributions for the ETFs in
+    ``ETF_PEERS``; adjclose for funds and diagnostics. ``BAD_PRICES`` are dropped."""
+    if sym in ETF_PEERS:
+        return etf_returns(sym, refresh)[0]
     a = yahoo(sym, refresh)["adjclose"].dropna()
     a = a[a > 0]
+    a = a.drop(pd.DatetimeIndex(BAD_PRICES.get(sym, [])), errors="ignore")
     return a.pct_change().iloc[1:].rename(sym)
+
+
+def etf_returns(sym: str, refresh: bool = False) -> tuple[pd.Series, pd.DataFrame]:
+    df = yahoo(sym, refresh).dropna(subset=["close"])
+    df = df[df["close"] > 0]
+    peers = {}
+    for p in ETF_PEERS[sym]:
+        y = yahoo(p, refresh)
+        col = "close" if p.startswith("^") else "adjclose"
+        peers[p] = y[col].dropna().pct_change()
+    div, table = dist.validate_distributions(df["close"], df["div"], pd.DataFrame(peers))
+    r = dist.total_return(df["close"], div).iloc[1:].dropna()
+    return r.rename(sym), table
 
 
 ZERO_DAY = 1e-5
@@ -377,10 +419,11 @@ def diagnostics(out: dict, refresh: bool = False) -> dict:
     em_m = msci_returns("891800", "END_OF_MONTH", refresh)
     s = {k: base_series(k, refresh) for k in SOURCE}
     s["aqr_gxus"] = s["aqr_gxus"].loc["1986":]      # 1984-85 is Canada only
+    D_tables = {sym: etf_returns(sym, refresh)[1] for sym in ETF_PEERS}
     kfd_d, kfd_m = kf_dev_daily(refresh), kf_dev_monthly(refresh)
     y = {sym: yahoo_returns(sym, refresh) for sym in
          ["VTMGX", "VEA", "VGTSX", "VWO", "TEDMX"] + DIAG_FUNDS_PRE1986}
-    D: dict = {}
+    D: dict = {"div_tables": D_tables}
 
     # --- splice overlaps (full overlap of the two sources)
     D["splice"] = pd.DataFrame({
@@ -390,11 +433,11 @@ def diagnostics(out: dict, refresh: bool = False) -> dict:
             monthly_pair(s["kf_intl_index"], _monthly_from_daily(s["aqr_gxus"]), "1986", "1995"),
         "intl_dev: AQR GxUS (B) -> EFA (A), monthly":
             monthly_pair(_monthly_from_daily(s["aqr_gxus"]), _monthly_from_daily(s["EFA"])),
-        "em: KF EM (C) -> VEIEX (A), monthly":
+        "em: KF EM (C) -> VEIEX (B), monthly":
             monthly_pair(s["kf_em"], _monthly_from_daily(s["VEIEX"])),
         "em: KF EM -> VEIEX, monthly, 1994-06..2000":
             monthly_pair(s["kf_em"], _monthly_from_daily(s["VEIEX"]), "1994-06", "2000-12"),
-        "em: VEIEX (A) -> EEM (A), monthly":
+        "em: VEIEX (B) -> EEM (A), monthly":
             monthly_pair(_monthly_from_daily(s["VEIEX"]), _monthly_from_daily(s["EEM"])),
     }).T
     D["splice_daily"] = pd.DataFrame({
@@ -501,12 +544,15 @@ NOTES = {
     "aqr_gxus": ("AQR Betting-Against-Beta daily workbook, MKT sheet 'Global Ex USA' (excess) + "
                  "RF sheet. Cap-weighted developed ex-US incl. Canada (EFA excludes Canada). "
                  "Index convention: foreign closes. Weekdays with |r|<0.001% (all closed) dropped."),
-    "EFA": "iShares MSCI EAFE ETF, Yahoo adjclose (checked = close + dividends). US-close prices.",
+    "EFA": ("iShares MSCI EAFE ETF, Yahoo close + distributions, each validated by the ex-date price test "
+            "against VEA/VTMGX/S&P 500 (all passed). US-close prices."),
     "kf_em": ("Ken French Emerging_5_Factors_CSV.zip, Mkt-RF + RF (RF = US 1m T-bill), "
               "Bloomberg-based value-weighted EM market."),
     "VEIEX": ("Vanguard Emerging Markets Stock Index Inv (tracked MSCI Select EM Free in this era), "
-              "Yahoo adjclose. Open-end NAV: foreign closes, with growing fair-value pricing after 2001."),
-    "EEM": "iShares MSCI Emerging Markets ETF, Yahoo adjclose (checked = close + dividends). US-close prices.",
+              "Yahoo adjclose. Open-end NAV (tier B): foreign closes, with growing fair-value pricing after 2001. "
+              "Bad NAV print 2001-07-16 (+5.6% then -5.9%, EM peers flat) dropped: the 07-17 return spans it."),
+    "EEM": ("iShares MSCI Emerging Markets ETF, Yahoo close + distributions, each validated by the ex-date price "
+            "test against VWO/IEMG/S&P 500 (all passed). US-close prices."),
 }
 
 
@@ -597,8 +643,11 @@ def write_report(out: dict, D: dict, seg: pd.DataFrame, path: Path | None = None
         "* **AQR** `Betting-Against-Beta-Equity-Factors-Daily.xlsx` — sheet MKT column `Global Ex USA` "
         "(excess return) + sheet RF. Daily from 1984, but until 1985-10 it is Canada only and until "
         "1985-12 Canada + Australia; Europe and Japan enter 1986-01, so it is used from 1986-01. Runs to 2026-08.",
-        "* **Yahoo chart API** adjclose for EFA, VEIEX, EEM (adjclose verified against close + dividend "
-        "events: max daily discrepancy 6 bp, on one day; no duplicated dividends; splits handled).",
+        "* **Yahoo chart API**: EFA and EEM as close + distributions, every distribution validated against "
+        "the ex-date price move relative to peer funds (`distributions.validate_distributions`: "
+        + "; ".join(f"{s} {len(t)} tested, {int(t['action'].str.startswith('replaced').sum())} changed"
+                    for s, t in D.get("div_tables", {}).items()) + "); VEIEX adjclose (open-end fund NAV, tier B), "
+        f"bad print(s) dropped: {BAD_PRICES['VEIEX']}.",
         "",
         "Diagnostics only (not in the files):",
         "* **MSCI** public graph endpoint `app2.msci.com/.../getLevelDataForGraph` — works, but refuses "
@@ -645,7 +694,7 @@ def write_report(out: dict, D: dict, seg: pd.DataFrame, path: Path | None = None
         "index proxies: monthly correlation with the EAFE-weighted index is 0.54-0.93 before 1986 and "
         "tracking error 6-10 %/yr (an index fund on the same data shows 1.5-3 %). They were not used; "
         "1975-1985 is monthly tier C instead. TEDMX (Templeton Developing Markets, active, 1991) likewise. "
-        "VTMGX (EAFE index fund from 1999-08) would add two years of tier A before EFA, but at the cost of "
+        "VTMGX (EAFE index fund from 1999-08) would add two years of fund-NAV data (tier B) before EFA, at the cost of "
         "a third price convention (partially fair-valued NAV); not used.", "",
         _md(D["rejected"], 3), "",
         _md(D["kf_vs_aqr_daily"], 3), "",

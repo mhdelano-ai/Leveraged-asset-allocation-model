@@ -97,6 +97,20 @@ def test_macro_point_in_time(macro):
 
 @pytest.mark.realdata
 @needs_files
+def test_market_rate_averages_published_after_month_end(macro):
+    """Monthly averages of daily market rates need the month's last daily print, which H.15
+    publishes the next business day (H.10 dollar: weekly)."""
+    for s in ["macro_short_rate", "macro_long_yield", "macro_term_spread", "macro_policy_rate",
+              "macro_policy_rate_chg_3m", "macro_policy_rate_chg_12m", "macro_usd_broad_yoy"]:
+        g = macro[macro["series"] == s]
+        assert len(g)
+        assert (g["available_date"] >= g["obs_date"] + pd.offsets.BDay(1)).all(), s
+    g = macro[macro["series"] == "macro_usd_broad_yoy"]
+    assert (g["available_date"] >= g["obs_date"] + pd.offsets.BDay(5)).all()
+
+
+@pytest.mark.realdata
+@needs_files
 def test_macro_coverage(macro):
     first = macro.groupby("series")["obs_date"].min()
     assert first["macro_cpi_level"] <= pd.Timestamp("1871-12-31")

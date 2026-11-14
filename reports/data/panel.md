@@ -12,13 +12,13 @@ Built by `python -m volmodel.data.assemble` (module `src/volmodel/data/assemble.
 | us_large | 1871-02-28 | 1926-07-01 | 1926-07 | 405 | 799 | 0 | 665 | D 1871-02..1926-06, B 1926-07..1993-01, A 1993-02..2026-10 |
 | us_small | 1926-07-31 | 1926-07-01 | 1926-07 | 317 | 887 | 0 | 0 | B 1926-07..2000-05, A 2000-06..2026-10 |
 | intl_dev | 1975-01-31 | 1986-01-02 | 1986-01 | 302 | 188 | 132 | 0 | C 1975-01..1985-12, B 1986-01..2001-08, A 2001-09..2026-10 |
-| em | 1989-07-31 | 1994-06-01 | 1994-06 | 389 | 0 | 59 | 0 | C 1989-07..1994-05, A 1994-06..2026-10 |
+| em | 1989-07-31 | 1994-06-01 | 1994-06 | 282 | 107 | 59 | 0 | C 1989-07..1994-05, B 1994-06..2003-04, A 2003-05..2026-10 |
 | ust_int | 1953-05-31 | 1962-01-03 | 1962-02 | 291 | 486 | 0 | 105 | D 1953-05..1962-01, B 1962-02..2002-07, A 2002-08..2026-10 |
 | ust_long | 1919-02-28 | 1962-01-03 | 1962-02 | 291 | 486 | 0 | 516 | D 1919-02..1962-01, B 1962-02..2002-07, A 2002-08..2026-10 |
 | tips | 1997-02-28 | 1997-01-30 | 1997-02 | 274 | 83 | 0 | 0 | B 1997-02..2003-12, A 2004-01..2026-10 |
-| ig_credit | 1919-02-28 | 1980-01-03 | 1980-02 | 561 | 0 | 649 | 83 | D 1919-02..1925-12, C 1926-01..1980-01, A 1980-02..2026-10 |
-| hy_credit | 1980-02-29 | 1985-01-02 | 1985-01 | 502 | 0 | 59 | 0 | C 1980-02..1984-12, A 1985-01..2026-10 |
-| reits | 1972-01-31 | 1986-11-17 | 1986-12 | 365 | 114 | 179 | 0 | C 1972-01..1986-11, B 1986-12..1996-05, A 1996-06..2026-10 |
+| ig_credit | 1919-02-28 | 1980-01-03 | 1980-02 | 291 | 270 | 649 | 83 | D 1919-02..1925-12, C 1926-01..1980-01, B 1980-02..2002-07, A 2002-08..2026-10 |
+| hy_credit | 1980-02-29 | 1985-01-02 | 1985-01 | 234 | 268 | 59 | 0 | C 1980-02..1984-12, B 1985-01..2007-04, A 2007-05..2026-10 |
+| reits | 1972-01-31 | 1986-11-17 | 1986-12 | 265 | 214 | 179 | 0 | C 1972-01..1986-11, B 1986-12..2004-09, A 2004-10..2026-10 |
 | gold | 1971-09-30 | 1971-09-01 | 1971-09 | 263 | 399 | 0 | 0 | B 1971-09..2004-11, A 2004-12..2026-10 |
 | commodities | 1926-07-31 | 1991-02-01 | 1991-02 | 0 | 429 | 775 | 0 | C 1926-07..1991-01, B 1991-02..2026-10 |
 
@@ -37,33 +37,33 @@ Built by `python -m volmodel.data.assemble` (module `src/volmodel/data/assemble.
 | intl_dev | D | 1986-01-02 | 2001-08-31 | B | aqr_mkt_global_ex_usa_plus_rf |
 | intl_dev | D | 2001-09-04 | 2026-11-13 | A | yahoo_EFA |
 | em | M | 1989-07-31 | 1994-05-31 | C | french_emerging_mkt_plus_rf |
-| em | D | 1994-06-01 | 2003-04-30 | A | yahoo_VEIEX |
+| em | D | 1994-06-01 | 2003-04-30 | B | yahoo_VEIEX |
 | em | D | 2003-05-01 | 2026-11-13 | A | yahoo_EEM |
 | ust_int | M | 1953-05-31 | 1962-01-31 | D | H.15 10y CMT monthly-average yield, par-bond ladder 7-10y |
 | ust_int | D | 1962-01-03 | 1971-08-16 | B | H.15 10y CMT par-bond ladder 7-10y (flat curve) |
 | ust_int | D | 1971-08-17 | 2002-07-30 | B | GSW fitted curve, par-bond ladder 7-10y |
-| ust_int | D | 2002-07-31 | 2026-11-13 | A | IEF adjclose (Yahoo) |
+| ust_int | D | 2002-07-31 | 2026-11-13 | A | IEF close + validated distributions (Yahoo; Nasdaq dividend record) |
 | ust_long | M | 1919-02-28 | 1941-10-31 | D | NBER m13033a long-term US bond yield (monthly avg), ladder 20-30y |
 | ust_long | M | 1941-11-30 | 1953-04-30 | D | NBER m13033b long-term US bond yield (monthly avg), ladder 20-30y |
 | ust_long | M | 1953-05-31 | 1962-01-31 | D | H.15 20y CMT monthly-average yield, par-bond ladder 20-30y |
 | ust_long | D | 1962-01-03 | 1977-02-15 | B | H.15 20y CMT par-bond ladder 20-30y (flat beyond 20y) |
 | ust_long | D | 1977-02-16 | 1985-11-25 | B | H.15 20y/30y CMT par-bond ladder 20-30y (interpolated) |
 | ust_long | D | 1985-11-26 | 2002-07-30 | B | GSW fitted curve, par-bond ladder 20-30y |
-| ust_long | D | 2002-07-31 | 2026-11-13 | A | TLT adjclose (Yahoo) |
+| ust_long | D | 2002-07-31 | 2026-11-13 | A | TLT close + validated distributions (Yahoo; Nasdaq dividend record) |
 | tips | D | 1997-01-30 | 2003-12-31 | B | yahoo:PRRIX NAV + distributions, month-end distributions spread as da… |
 | tips | D | 2004-01-02 | 2026-11-13 | A | yahoo:TIP close + dividends (iShares TIPS Bond ETF) |
 | ig_credit | M | 1919-02-28 | 1925-12-31 | D | moodys_aaa_baa_avg_parbond |
 | ig_credit | M | 1926-01-31 | 1980-01-31 | C | ibbotson_ltcorp_rf_blend |
-| ig_credit | D | 1980-01-03 | 1984-12-31 | A | blend_VWESX_FBNDX |
-| ig_credit | D | 1985-01-02 | 2002-07-30 | A | blend_VWESX_VFSTX |
+| ig_credit | D | 1980-01-03 | 1984-12-31 | B | blend_VWESX_FBNDX |
+| ig_credit | D | 1985-01-02 | 2002-07-30 | B | blend_VWESX_VFSTX |
 | ig_credit | D | 2002-07-31 | 2026-11-13 | A | yahoo_LQD |
 | hy_credit | M | 1980-02-29 | 1984-12-31 | C | yahoo_VWEHX_exdiv_monthly |
-| hy_credit | D | 1985-01-02 | 2007-04-11 | A | yahoo_VWEHX |
+| hy_credit | D | 1985-01-02 | 2007-04-11 | B | yahoo_VWEHX |
 | hy_credit | D | 2007-04-12 | 2026-11-13 | A | yahoo_HYG |
 | reits | M | 1972-01-31 | 1986-11-30 | C | nareit:FTSE Nareit All Equity REITs total return |
 | reits | D | 1986-11-17 | 1996-05-31 | B | yahoo:FRESX adjclose (Fidelity Real Estate Investment, active) |
-| reits | D | 1996-06-03 | 2004-09-30 | A | yahoo:VGSIX adjclose (Vanguard REIT Index Inv) |
-| reits | D | 2004-10-01 | 2026-11-13 | A | yahoo:VNQ adjclose (Vanguard Real Estate ETF) |
+| reits | D | 1996-06-03 | 2004-09-30 | B | yahoo:VGSIX adjclose (Vanguard REIT Index Inv) |
+| reits | D | 2004-10-01 | 2026-11-13 | A | yahoo:VNQ close + validated distributions (Vanguard Real Estate ETF) |
 | gold | D | 1971-09-01 | 1998-12-30 | B | bundesbank:BBEX3 Frankfurt gold fixing DEM/kg / Frankfurt USD fixing |
 | gold | D | 1998-12-31 | 2004-11-30 | B | ft:GC.1:CMX COMEX gold front-month close |
 | gold | D | 2004-12-01 | 2026-11-13 | A | ft:GLD close (no distributions; = total return) |
@@ -84,17 +84,17 @@ Off-calendar returns are compounded into the next calendar day; calendar days wi
 
 | asset | input_days | folded | folded_across_month | dropped | nan_days_in_span | examples_folded | examples_nan |
 |---|---|---|---|---|---|---|---|
-| us_large | 26370 | 0 | 0 | 0 | 0 |  |  |
+| us_large | 26369 | 0 | 0 | 0 | 1 |  | 2001-04-30 |
 | us_small | 26370 | 0 | 0 | 0 | 0 |  |  |
 | intl_dev | 10412 | 117 | 3 | 0 | 2 | 1986-02-17→1986-02-18, 1986-03-28→1986-03-31 | 1991-11-01, 1997-12-24 |
-| em | 8170 | 0 | 0 | 0 | 0 |  |  |
+| em | 8169 | 0 | 0 | 0 | 1 |  | 2001-07-16 |
 | ust_int | 16217 | 31 | 1 | 0 | 140 | 1968-06-12→1968-06-13, 1968-06-19→1968-06-20 | 1962-02-12, 1962-10-12, 1962-11-12 |
 | ust_long | 16217 | 31 | 1 | 0 | 140 | 1968-06-12→1968-06-13, 1968-06-19→1968-06-20 | 1962-02-12, 1962-10-12, 1962-11-12 |
-| tips | 7495 | 0 | 0 | 0 | 0 |  |  |
-| ig_credit | 11813 | 0 | 0 | 0 | 0 |  |  |
-| hy_credit | 10549 | 0 | 0 | 0 | 0 |  |  |
+| tips | 7494 | 0 | 0 | 0 | 1 |  | 2000-12-12 |
+| ig_credit | 11807 | 0 | 0 | 0 | 6 |  | 1982-10-06, 1983-11-21, 1983-11-28 |
+| hy_credit | 10548 | 0 | 0 | 0 | 1 |  | 1991-08-19 |
 | reits | 10074 | 0 | 0 | 0 | 1 |  | 1993-07-29 |
-| gold | 13830 | 147 | 1 | 0 | 235 | 1971-09-06→1971-09-07, 1971-11-25→1971-11-26 | 1971-11-17, 1971-12-20, 1972-04-03 |
+| gold | 13829 | 147 | 1 | 0 | 236 | 1971-09-06→1971-09-07, 1971-11-25→1971-11-26 | 1971-11-17, 1971-12-20, 1972-04-03 |
 | commodities | 9072 | 62 | 3 | 0 | 1 | 1991-02-18→1991-02-19, 1991-03-29→1991-04-01 | 2017-02-06 |
 
 ### Monthly = compounded daily
@@ -104,13 +104,13 @@ Off-calendar returns are compounded into the next calendar day; calendar days wi
 | us_large | 1204 | 1204 | 1.03e-15 | 1945-04 | 1.03e-15 | 0 | 2.78e-17 |
 | us_small | 1204 | 1204 | 1.33e-15 | 1950-12 | 1.33e-15 | 0 | 2.78e-17 |
 | intl_dev | 490 | 490 | 6.28e-03 | 1993-05 | 1.02e-15 | 6 | 6.28e-03 |
-| em | 389 | 389 | 7.91e-16 | 2013-09 | 7.91e-16 | 0 | 2.78e-17 |
+| em | 389 | 389 | 1.03e-15 | 2006-12 | 1.03e-15 | 0 | 2.78e-17 |
 | ust_int | 777 | 777 | 1.52e-03 | 1968-07 | 1.23e-15 | 2 | 1.52e-03 |
 | ust_long | 777 | 777 | 1.57e-03 | 1968-07 | 1.07e-15 | 2 | 1.57e-03 |
 | tips | 357 | 357 | 1.25e-16 | 2026-05 | 1.24e-16 | 0 | 6.94e-18 |
-| ig_credit | 561 | 561 | 4.16e-17 | 2020-03 | 4.16e-17 | 0 | 6.94e-18 |
-| hy_credit | 502 | 502 | 1.39e-17 | 1990-09 | 1.39e-17 | 0 | 1.39e-17 |
-| reits | 479 | 479 | 8.74e-16 | 2005-04 | 8.74e-16 | 0 | 1.39e-17 |
+| ig_credit | 561 | 561 | 1.39e-17 | 2003-09 | 1.39e-17 | 0 | 6.94e-18 |
+| hy_credit | 502 | 502 | 5.55e-17 | 2008-10 | 5.55e-17 | 0 | 1.04e-17 |
+| reits | 479 | 479 | 7.91e-16 | 2016-03 | 7.91e-16 | 0 | 1.39e-17 |
 | gold | 662 | 662 | 3.07e-03 | 1976-06 | 7.96e-16 | 2 | 3.07e-03 |
 | commodities | 429 | 429 | 1.07e-15 | 2003-01 | 1.07e-15 | 0 | 1.39e-17 |
 
@@ -135,7 +135,7 @@ Cash: compounded daily vs monthly max abs gap 2.86e-15.
 | excess_nan_from_cash_monthly | 0 |
 | pred_available_ge_obs | yes |
 | pred_dup_series_obs | 0 |
-| pred_n_rows | 348018 |
+| pred_n_rows | 345271 |
 | pred_n_series | 62 |
 
 Returns before documented start: none.
@@ -163,7 +163,7 @@ Every date matches a known stress episode. Several ETF days are one-day overshoo
 
 ## Predictors
 
-`predictors.parquet`: 348,018 rows, 62 series, long format (obs_date, available_date, series, value). `predictors_catalog.csv` lists every series. Standard units: rates, yields, spreads, breakevens, inflation/growth rates and implied vols in DECIMALS; durations in years; index levels and flags unchanged. `live` = an observation within 60 days (monthly series: 100 days) of the data end.
+`predictors.parquet`: 345,271 rows, 62 series, long format (obs_date, available_date, series, value). `predictors_catalog.csv` lists every series. Standard units: rates, yields, spreads, breakevens, inflation/growth rates and implied vols in DECIMALS; durations in years; index levels and flags unchanged. `live` = an observation within 60 days (monthly series: 100 days) of the data end.
 
 | group | series | live | start | end |
 |---|---|---|---|---|
@@ -228,12 +228,31 @@ Unit cross-checks (after conversion; small numbers confirm consistent units acro
 
 Collected from the track reports; each is something a model can get wrong silently.
 
+**Tiers.** A = daily price of an exchange-traded fund (market close); B = daily open-end mutual-fund NAV, index,
+or reconstruction; C = monthly index total return; D = monthly model-based reconstruction. Every splice from a
+fund NAV to an ETF (VWEHX -> HYG, the IG fund blends -> LQD, VEIEX -> EEM, VGSIX -> VNQ, PRRIX -> TIP) is
+therefore a B -> A tier change that models can see.
+
+**Holdout integrity.** No construction parameter that shapes pre-2015 history is fitted on 2015+ data: the
+`ig_credit` blend weights, Ibbotson/T-bill weight and tier-D maturity are calibrated on LQD 2002-08..2014-12
+(`credit.CALIBRATION_END`). The remaining selection rules were re-run on overlaps ending 2014-12 and give the
+same choice (checked for the 2026-11 rebuild): French Hi 30 / Qnt 2+3 still track SPY / IWM best (us_equity.md);
+VWEHX still tracks HYG best among the HY funds (monthly corr 0.87, TE 6.6% on 2007-04..2014-12, vs 0.82-0.85 and
+7.1-7.6% for FHIIX, PRHYX, SPHIX, AHITX); AQR vs Ken French dev-ex-US keeps the same trade-off vs MSCI EAFE (KF
+better monthly, AQR better daily); AQR-EW/BCOM vol ratio 0.89 on 1991-2014 vs 0.91 on 1991-2025; every Cboe/Yahoo
+implied-vol agreement check passes or fails identically on 2014-truncated overlaps. The VIX/VXO splice factor is
+estimated on 1990-94. Treasury ladders, fund-blend constituents and splice dates are definitional, not fitted.
+
 **Stale or smoothed prices (daily vol understated, positive autocorrelation).**
-- `hy_credit` 1985-01..2007-04 is the VWEHX mutual-fund NAV (matrix-priced): daily vol is about half of HYG's,
-  lag-1 autocorrelation 0.12-0.57; monthly-from-daily variance ratio 1.3-2.2. 1980-1984 is one NAV per month
-  sampled on ex-dividend dates (tier C), a few days off month-end.
-- `ig_credit` 1980-2002 is a daily constant-mix blend of open-end bond funds: mild staleness (AC1 0.08-0.15 in the
-  1980s-90s); daily correlation with LQD only 0.67 (bond 3pm vs ETF 4pm close).
+- `hy_credit` 1985-01..2007-04 is the VWEHX mutual-fund NAV (matrix-priced, tier B): daily vol is about half of
+  HYG's, lag-1 autocorrelation 0.12-0.57; monthly-from-daily variance ratio 1.3-2.2. Even at the 21-day target
+  horizon its vol is ~0.83x HYG's (0.80x in 2007-09, 0.93x at 63 days; segments.csv notes): do not pool this era's
+  vol LEVEL with HYG's. 1980-1984 is one NAV per month sampled on ex-dividend dates (tier C), a few days off
+  month-end.
+- `ig_credit` 1980-2002 is a daily constant-mix blend of open-end bond funds (tier B): mild staleness (AC1
+  0.08-0.15 in the 1980s-90s); daily correlation with LQD only 0.67 (bond 3pm vs ETF 4pm close).
+- Daily-accrual bond funds (VWEHX, VFSTX, FBNDX, VWESX from 1985) pay a month of income without an NAV drop; their
+  month-end distributions are spread over the accrual month (Yahoo's adjclose would book them on one day).
 - `reits` 1986-11..1996-05 is FRESX, an actively managed fund (tier B), and 1996-2004 VGSIX NAV: daily AC1 0.12-0.32
   until 2003, 1990s monthly variance about 2x what daily data imply; the reverse (ratio ~0.6-0.7) after VNQ (2004).
   The pre-1990s REIT market was tiny and illiquid: do not read 12-16% vol as today's normal.
@@ -253,8 +272,8 @@ Collected from the track reports; each is something a model can get wrong silent
 - `commodities`: equal-weight AQR futures basket (1926-1991, few agricultural contracts before the 1960s) -> BCOM
   weights (1991+): vol ratio AQR-EW/BCOM 0.75-0.97 on the overlap; treat pre-1970 as a different asset. BCOM
   1991-98 is a backfill. BCOM is not DBC: DBC has ~1.17x BCOM's vol.
-- `ig_credit` pre-1980: 0.81 x Ibbotson long-term corporate + 0.19 x T-bill (high-grade long-bond risk; gained in
-  2008), vol-matched to LQD on 2002-2026; LQD's own duration drifted from ~7 to ~8.5.
+- `ig_credit` pre-1980: 0.72 x Ibbotson long-term corporate + T-bill (high-grade long-bond risk; gained in
+  2008), vol-matched to LQD on 2002-08..2014-12; LQD's own duration drifted from ~7 to ~8.5.
 - `ust_long`: a 20-30y par ladder; TLT's effective duration differs (vol ratio 0.86-0.93 vs TLT in 2022-26).
 - `intl_dev` 1986-2001 includes Canada (EFA does not); 1975-85 is Ken French's EAFE-weighted index.
 - `reits`: Nareit All Equity (1972-86) -> FRESX (active) -> MSCI US REIT (VGSIX) -> MSCI US IMI RE 25/50 (VNQ).
@@ -270,12 +289,18 @@ Collected from the track reports; each is something a model can get wrong silent
 - `ust_long` daily: 1973-01-04 return dropped (H.15 20y re-basing): a genuine lost day, not a spanning gap.
 - `ust_*` daily: Lincoln's birthday/Columbus/Veterans days are NaN (bond market closed, NYSE open); 1968 Wednesdays
   (NYSE closed, bonds traded) are folded into Thursday.
-- `reits` 1993-07-29 FRESX bad print removed (next day spans two days).
+- Confirmed bad prints removed (the price is dropped, the next return spans the gap): `reits` FRESX 1993-07-29;
+  `em` VEIEX 2001-07-16; `ig_credit` FBNDX 1982-10-06, 1983-11-21, 1983-11-28, 1984-02-02, 1984-11-14,
+  1984-12-06; `hy_credit` VWEHX 1991-08-19; `tips` PRRIX 2000-12-12; `gold` Frankfurt 1996-12-06; `us_large` SPY
+  2001-04-30. Spurious/inflated Yahoo distributions corrected: IEF 2003-07-01, 08-01, 09-02, 10-01, 12-16 and LQD
+  2003-12-16 (ETF returns are close + validated distributions, not adjclose).
 - Cash 2026-10-01.. uses H.15 4-week bill (tier D); the last 3 days carry the last published yield.
 - Predictors: Moody's yields end 2025-12 (not live); daily Moody's spreads end 2016-10; `iv_vxo` ended 2021;
   VXHYG has no data 2021-09..2025-05, VXIEF/VXLQD 2022-11..2025-07; `iv_move` not built; the 2025-10 CPI and
   unemployment prints were never published (missing, not imputed); industrial production is latest-vintage
   (revised); unemployment SA factors revised. `gz_excess_bond_premium_m` is excluded (full-sample regression).
-- Treasury-curve predictors are dated available on the observation day although H.15 is published the next
-  business day; GSW TIPS yields carry a 10-business-day publication lag.
+- Predictor timing: H.15 CMT yields are available one business day after observation; everything derived from
+  the Fed's GSW fitted curves (Treasury ladder yields and durations, ETF duration estimates, TIPS real yields
+  and breakevens) ten business days after; monthly averages of daily market rates one business day after
+  month-end (H.10 dollar: five). `ust_cmt_yield_20y` starts 1973-01-04 (the series was re-based that day, +74bp).
 

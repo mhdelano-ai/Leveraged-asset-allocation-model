@@ -268,32 +268,33 @@ def test_known_dropped_days_stay_gaps(P):
     assert np.isnan(P.daily.loc["1993-07-29", "reits"])      # FRESX bad print
 
 
-# ============================================ confirmed defects (xfail)
-@pytest.mark.xfail(strict=True, reason="AUDIT A-1: Yahoo lists non-existent/inflated IEF and LQD distributions "
-                   "(IEF 2003-07-01, 08-01, 09-02, 10-01, 12-16; LQD 2003-12-16) that adjclose credits; price "
-                   "drops and Nasdaq dividend records contradict them. IEF 2003 = +5.3% in panel vs ~+2.2% actual.")
+# ============================================ confirmed defects (fixed; were strict xfails)
+# AUDIT A-1 (fixed): Yahoo lists non-existent/inflated IEF and LQD distributions (IEF 2003-07-01, 08-01, 09-02,
+# 10-01, 12-16; LQD 2003-12-16) that adjclose credits; ETF returns are now close + validated distributions.
 def test_ief_lqd_2003_distributions(P):
     assert P.daily.loc["2003-12-16", "ust_int"] < 0.005
     assert P.daily.loc["2003-12-16", "ig_credit"] < 0.006
     assert abs((1 + P.daily["ust_int"].loc["2003"]).prod() - 1 - 0.022) < 0.01
 
 
-@pytest.mark.xfail(strict=True, reason="AUDIT C-2: VEIEX NAV bad print 2001-07-16/17 (+5.6% then -5.9%; peer "
-                   "EM funds -0.6%, -0.8%).")
+# AUDIT C-2 (fixed): VEIEX NAV bad print 2001-07-16/17 (+5.6% then -5.9%; peer EM funds -0.6%, -0.8%).
+# The bad price is dropped, so 2001-07-16 is a gap (NaN) and the next return spans it.
 def test_em_veiex_2001_bad_print(P):
-    assert abs(P.daily.loc["2001-07-16", "em"]) < 0.03
+    assert abs(P.daily.loc["2001-07-16", "em"]) < 0.03 or np.isnan(P.daily.loc["2001-07-16", "em"])
+    assert abs(P.daily.loc["2001-07-17", "em"]) < 0.03
 
 
-@pytest.mark.xfail(strict=True, reason="AUDIT C-2: FBNDX (41% of ig_credit 1980-84) bad prints that reverse "
-                   "next day, e.g. 1983-11-28/29 +3.6%/-3.4% with VWESX and Treasuries flat.")
+# AUDIT C-2 (fixed): FBNDX (41% of ig_credit 1980-84) bad prints that reverse next day, e.g. 1983-11-28/29
+# +3.6%/-3.4% with VWESX and Treasuries flat. Dropped prices leave a NaN day; the next return spans it.
 def test_ig_credit_fbndx_bad_prints(P):
     for d in ["1983-11-28", "1984-02-02", "1984-11-14"]:
-        assert abs(P.daily.loc[d, "ig_credit"]) < 0.007
+        x = P.daily.loc[d, "ig_credit"]
+        assert np.isnan(x) or abs(x) < 0.007
+        assert abs(P.daily.loc[P.daily.index[P.daily.index > d][0], "ig_credit"]) < 0.007
 
 
-@pytest.mark.xfail(strict=True, reason="AUDIT C-1: daily-accrual bond funds (VWEHX, VFSTX, FBNDX, VWESX 1985+) "
-                   "do not drop NAV on the ex-date; adjclose books a month of income on one day. hy_credit "
-                   "1985-2007 1-day vol is overstated ~25%; the income should be accrued daily as for PRRIX.")
+# AUDIT C-1 (fixed): daily-accrual bond funds (VWEHX, VFSTX, FBNDX, VWESX 1985+) do not drop NAV on the ex-date;
+# adjclose booked a month of income on one day. The income is now accrued over the month as for PRRIX.
 def test_no_month_end_income_lumps_in_hy_credit(P):
     r = P.daily["hy_credit"].loc["1986":"2006"].dropna()
     month_last = r.groupby(r.index.to_period("M")).tail(1).index
@@ -303,10 +304,13 @@ def test_no_month_end_income_lumps_in_hy_credit(P):
 
 
 @pytest.mark.skipif(not (RAW / "credit" / "yahoo_VWESX.json").exists(), reason="raw credit cache missing")
-@pytest.mark.xfail(strict=True, reason="AUDIT G-1: ig_credit before 2002 is a blend whose weights were "
-                   "vol-matched to LQD on 2002-08..2026-10, i.e. on post-2014 holdout data. The weight from "
-                   "2002-08..2014-12 alone is 0.75, not 0.70 (and 0.73 vs 0.81 for the 1926-79 Ibbotson blend).")
 def test_ig_credit_history_independent_of_holdout(P):
+    """AUDIT G-1 (fixed): ig_credit before 2002 is a blend whose weights were vol-matched to LQD on
+    2002-08..2026-10, i.e. on post-2014 holdout data. The weight from 2002-08..2014-12 alone is 0.75, not 0.70.
+
+    The weight is recovered by regressing the panel on the two funds' raw adjclose returns. Since the C-1 fix the
+    panel accrues each fund's month-end income over the month while raw adjclose books it on the month's last
+    trading day, so those days measure the accrual treatment, not the blend weight, and are left out."""
     def adj(sym):
         res = json.loads((RAW / "credit" / f"yahoo_{sym}.json").read_text())["chart"]["result"][0]
         ts = (pd.to_datetime(res["timestamp"], unit="s", utc=True).tz_convert("America/New_York")
@@ -316,5 +320,6 @@ def test_ig_credit_history_independent_of_holdout(P):
     vw, vf = adj("VWESX"), adj("VFSTX")
     ig = P.daily["ig_credit"].loc["1990-01-02":"2002-07-30"]
     j = pd.concat([ig, vw, vf], axis=1, keys=["ig", "a", "b"], sort=True).dropna()
+    j = j.drop(j.groupby(j.index.to_period("M")).tail(1).index)     # month-end income days (see docstring)
     w = np.linalg.lstsq((j["a"] - j["b"]).to_numpy()[:, None], (j["ig"] - j["b"]).to_numpy(), rcond=None)[0][0]
     assert abs(w - 0.752) < 0.01      # the dev-only (<= 2014) vol-match weight

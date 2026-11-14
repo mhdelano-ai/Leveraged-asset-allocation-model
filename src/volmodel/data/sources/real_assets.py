@@ -404,6 +404,10 @@ OZ_PER_KG = 32.1507466
 # market. Returns start with the first full month after that, so every
 # monthly return is a complete month of free-market data.
 GOLD_START = pd.Timestamp("1971-09-01")
+# Confirmed bad prints in the Frankfurt USD gold series: the PRICE is dropped and the
+# next return spans the gap (never interpolated). 1996-12-06: +1.59% then -1.48%
+# while COMEX front-month gold moved +0.16% and -0.59% (independent audit, C-2).
+FRANKFURT_BAD_PRICES = ["1996-12-06"]
 
 
 def gold_frankfurt_usd() -> pd.Series:
@@ -432,10 +436,12 @@ def build_gold() -> tuple[pd.DataFrame, pd.DataFrame, list[Segment], dict]:
     segs: list[Segment] = []
     diag: dict = {}
     fra = gold_frankfurt_usd()
+    fra_bad = [str(d.date()) for d in pd.DatetimeIndex(FRANKFURT_BAD_PRICES).intersection(fra.index)]
+    fra = fra.drop(pd.DatetimeIndex(fra_bad))
     ifs = gold_ifs_monthend()
     gc, gc_bad = clean_spikes(read_ft("GC1"))
     gld, gld_bad = clean_spikes(read_ft("GLD"))
-    diag["_removed_prints"] = {"GC1": gc_bad, "GLD": gld_bad}
+    diag["_removed_prints"] = {"Frankfurt (confirmed vs COMEX)": fra_bad, "GC1": gc_bad, "GLD": gld_bad}
 
     gld_start = first_full_month_start(gld.index)       # GLD listed 2004-11-18 -> 2004-12-01
     fra_end = fra.index[-1]                               # 1998-12-30
@@ -452,7 +458,8 @@ def build_gold() -> tuple[pd.DataFrame, pd.DataFrame, list[Segment], dict]:
         Segment("gold", d1.index[0], d1.index[-1], "D",
                 "Bundesbank BBEX3 Frankfurt kilo-bar fixing (DEM/kg) / Frankfurt USD fixing (DEM per USD)", "B",
                 "starts after the 15 Aug 1971 closing of the gold window; both fixings ~13:00 CET, synchronous; "
-                "series ends 1998-12-30 (the next segment supplies the 31 Dec 1998 return)"),
+                "series ends 1998-12-30 (the next segment supplies the 31 Dec 1998 return); bad print "
+                f"{', '.join(fra_bad)} dropped (+1.6%/-1.5% reversal, COMEX +0.2%/-0.6%): the next return spans it"),
         Segment("gold", d2.index[0], d2.index[-1], "D", "markets.ft.com GC.1:CMX COMEX gold front-month (continuous) close", "B",
                 "futures price change as spot proxy; settles 13:30 ET (GLD closes 16:00 ET)"),
         Segment("gold", d3.index[0], d3.index[-1], "D", "markets.ft.com GLD close (SPDR Gold Shares; never distributes)", "A",

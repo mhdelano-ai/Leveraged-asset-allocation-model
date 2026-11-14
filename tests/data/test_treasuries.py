@@ -138,6 +138,48 @@ def test_predictor_file():
 
 
 @pytest.mark.realdata
+def test_predictor_publication_lags():
+    """H.15 CMT: next business day; anything priced off the GSW curve: 10 business days."""
+    p = pd.read_parquet(PREDICTOR_DIR / "treasury_curve.parquet")
+    lag = {s: g.set_index("obs_date")["available_date"] for s, g in p.groupby("series")}
+    for s in ["yield_2y", "yield_5y", "yield_7y", "yield_10y", "yield_20y", "yield_30y"]:
+        exp = lag[s].index + pd.offsets.BDay(T.H15_PUBLICATION_LAG_BDAYS)
+        assert (lag[s].values == exp.values).all(), s
+    for s in ["yield_ladder_ust_int", "yield_ladder_ust_long", "duration_ust_int_etf_est",
+              "duration_ust_long_etf_est"]:
+        exp = lag[s].index + pd.offsets.BDay(T.GSW_PUBLICATION_LAG_BDAYS)
+        assert (lag[s].values == exp.values).all(), s
+    # ladder durations: GSW lag inside the GSW era, H.15 lag outside
+    d = lag["duration_ust_int"]
+    assert d.loc["2010-06-01"] == pd.Timestamp("2010-06-01") + pd.offsets.BDay(10)
+    assert d.loc["1965-06-01"] == pd.Timestamp("1965-06-01") + pd.offsets.BDay(1)
+    assert T.GSW_PUBLICATION_LAG_BDAYS == 10 and T.H15_PUBLICATION_LAG_BDAYS >= 1
+
+
+@pytest.mark.realdata
+def test_yield_20y_predictor_starts_after_rebasing():
+    p = pd.read_parquet(PREDICTOR_DIR / "treasury_curve.parquet")
+    y = p[p.series == "yield_20y"].set_index("obs_date")["value"]
+    assert y.index[0] == pd.Timestamp("1973-01-04")     # pre-rebasing (flower-bond era) level not published
+
+
+@pytest.mark.realdata
+def test_ief_2003_distributions_corrected():
+    """AUDIT A-1: five inflated Yahoo IEF distributions in 2003 are corrected; TLT is untouched."""
+    if not (T.RAW_DIR / "y_IEF.json").exists():
+        pytest.skip("raw cache missing")
+    h15 = {k: T.load_h15(k) for k in T.H15_CODES if not k.endswith("_m")}
+    r, t = T.etf_total_return("IEF", h15)
+    changed = t[t["action"].str.startswith("replaced")]
+    assert [str(d.date()) for d in changed.index] == ["2003-07-01", "2003-08-01", "2003-09-02",
+                                                      "2003-10-01", "2003-12-16"]
+    assert (changed["used"] < 0.45).all()
+    assert abs((1 + r.loc["2003"]).prod() - 1 - 0.022) < 0.01
+    _, t2 = T.etf_total_return("TLT", h15)
+    assert not t2["action"].str.startswith("replaced").any()
+
+
+@pytest.mark.realdata
 def test_reconstruction_matches_etfs_on_overlap():
     """Re-runs the build from the raw cache (no network if cached)."""
     if not (T.RAW_DIR / "feds200628.csv").exists():

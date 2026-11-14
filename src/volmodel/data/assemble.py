@@ -968,12 +968,31 @@ def event_of(date: str) -> str | None:
 CAVEATS = """\
 Collected from the track reports; each is something a model can get wrong silently.
 
+**Tiers.** A = daily price of an exchange-traded fund (market close); B = daily open-end mutual-fund NAV, index,
+or reconstruction; C = monthly index total return; D = monthly model-based reconstruction. Every splice from a
+fund NAV to an ETF (VWEHX -> HYG, the IG fund blends -> LQD, VEIEX -> EEM, VGSIX -> VNQ, PRRIX -> TIP) is
+therefore a B -> A tier change that models can see.
+
+**Holdout integrity.** No construction parameter that shapes pre-2015 history is fitted on 2015+ data: the
+`ig_credit` blend weights, Ibbotson/T-bill weight and tier-D maturity are calibrated on LQD 2002-08..2014-12
+(`credit.CALIBRATION_END`). The remaining selection rules were re-run on overlaps ending 2014-12 and give the
+same choice (checked for the 2026-11 rebuild): French Hi 30 / Qnt 2+3 still track SPY / IWM best (us_equity.md);
+VWEHX still tracks HYG best among the HY funds (monthly corr 0.87, TE 6.6% on 2007-04..2014-12, vs 0.82-0.85 and
+7.1-7.6% for FHIIX, PRHYX, SPHIX, AHITX); AQR vs Ken French dev-ex-US keeps the same trade-off vs MSCI EAFE (KF
+better monthly, AQR better daily); AQR-EW/BCOM vol ratio 0.89 on 1991-2014 vs 0.91 on 1991-2025; every Cboe/Yahoo
+implied-vol agreement check passes or fails identically on 2014-truncated overlaps. The VIX/VXO splice factor is
+estimated on 1990-94. Treasury ladders, fund-blend constituents and splice dates are definitional, not fitted.
+
 **Stale or smoothed prices (daily vol understated, positive autocorrelation).**
-- `hy_credit` 1985-01..2007-04 is the VWEHX mutual-fund NAV (matrix-priced): daily vol is about half of HYG's,
-  lag-1 autocorrelation 0.12-0.57; monthly-from-daily variance ratio 1.3-2.2. 1980-1984 is one NAV per month
-  sampled on ex-dividend dates (tier C), a few days off month-end.
-- `ig_credit` 1980-2002 is a daily constant-mix blend of open-end bond funds: mild staleness (AC1 0.08-0.15 in the
-  1980s-90s); daily correlation with LQD only 0.67 (bond 3pm vs ETF 4pm close).
+- `hy_credit` 1985-01..2007-04 is the VWEHX mutual-fund NAV (matrix-priced, tier B): daily vol is about half of
+  HYG's, lag-1 autocorrelation 0.12-0.57; monthly-from-daily variance ratio 1.3-2.2. Even at the 21-day target
+  horizon its vol is ~0.83x HYG's (0.80x in 2007-09, 0.93x at 63 days; segments.csv notes): do not pool this era's
+  vol LEVEL with HYG's. 1980-1984 is one NAV per month sampled on ex-dividend dates (tier C), a few days off
+  month-end.
+- `ig_credit` 1980-2002 is a daily constant-mix blend of open-end bond funds (tier B): mild staleness (AC1
+  0.08-0.15 in the 1980s-90s); daily correlation with LQD only 0.67 (bond 3pm vs ETF 4pm close).
+- Daily-accrual bond funds (VWEHX, VFSTX, FBNDX, VWESX from 1985) pay a month of income without an NAV drop; their
+  month-end distributions are spread over the accrual month (Yahoo's adjclose would book them on one day).
 - `reits` 1986-11..1996-05 is FRESX, an actively managed fund (tier B), and 1996-2004 VGSIX NAV: daily AC1 0.12-0.32
   until 2003, 1990s monthly variance about 2x what daily data imply; the reverse (ratio ~0.6-0.7) after VNQ (2004).
   The pre-1990s REIT market was tiny and illiquid: do not read 12-16% vol as today's normal.
@@ -993,8 +1012,8 @@ Collected from the track reports; each is something a model can get wrong silent
 - `commodities`: equal-weight AQR futures basket (1926-1991, few agricultural contracts before the 1960s) -> BCOM
   weights (1991+): vol ratio AQR-EW/BCOM 0.75-0.97 on the overlap; treat pre-1970 as a different asset. BCOM
   1991-98 is a backfill. BCOM is not DBC: DBC has ~1.17x BCOM's vol.
-- `ig_credit` pre-1980: 0.81 x Ibbotson long-term corporate + 0.19 x T-bill (high-grade long-bond risk; gained in
-  2008), vol-matched to LQD on 2002-2026; LQD's own duration drifted from ~7 to ~8.5.
+- `ig_credit` pre-1980: {ig_wc} x Ibbotson long-term corporate + T-bill (high-grade long-bond risk; gained in
+  2008), vol-matched to LQD on 2002-08..2014-12; LQD's own duration drifted from ~7 to ~8.5.
 - `ust_long`: a 20-30y par ladder; TLT's effective duration differs (vol ratio 0.86-0.93 vs TLT in 2022-26).
 - `intl_dev` 1986-2001 includes Canada (EFA does not); 1975-85 is Ken French's EAFE-weighted index.
 - `reits`: Nareit All Equity (1972-86) -> FRESX (active) -> MSCI US REIT (VGSIX) -> MSCI US IMI RE 25/50 (VNQ).
@@ -1010,14 +1029,20 @@ Collected from the track reports; each is something a model can get wrong silent
 - `ust_long` daily: 1973-01-04 return dropped (H.15 20y re-basing): a genuine lost day, not a spanning gap.
 - `ust_*` daily: Lincoln's birthday/Columbus/Veterans days are NaN (bond market closed, NYSE open); 1968 Wednesdays
   (NYSE closed, bonds traded) are folded into Thursday.
-- `reits` 1993-07-29 FRESX bad print removed (next day spans two days).
+- Confirmed bad prints removed (the price is dropped, the next return spans the gap): `reits` FRESX 1993-07-29;
+  `em` VEIEX 2001-07-16; `ig_credit` FBNDX 1982-10-06, 1983-11-21, 1983-11-28, 1984-02-02, 1984-11-14,
+  1984-12-06; `hy_credit` VWEHX 1991-08-19; `tips` PRRIX 2000-12-12; `gold` Frankfurt 1996-12-06; `us_large` SPY
+  2001-04-30. Spurious/inflated Yahoo distributions corrected: IEF 2003-07-01, 08-01, 09-02, 10-01, 12-16 and LQD
+  2003-12-16 (ETF returns are close + validated distributions, not adjclose).
 - Cash 2026-10-01.. uses H.15 4-week bill (tier D); the last 3 days carry the last published yield.
 - Predictors: Moody's yields end 2025-12 (not live); daily Moody's spreads end 2016-10; `iv_vxo` ended 2021;
   VXHYG has no data 2021-09..2025-05, VXIEF/VXLQD 2022-11..2025-07; `iv_move` not built; the 2025-10 CPI and
   unemployment prints were never published (missing, not imputed); industrial production is latest-vintage
   (revised); unemployment SA factors revised. `gz_excess_bond_premium_m` is excluded (full-sample regression).
-- Treasury-curve predictors are dated available on the observation day although H.15 is published the next
-  business day; GSW TIPS yields carry a 10-business-day publication lag.
+- Predictor timing: H.15 CMT yields are available one business day after observation; everything derived from
+  the Fed's GSW fitted curves (Treasury ladder yields and durations, ETF duration estimates, TIPS real yields
+  and breakevens) ten business days after; monthly averages of daily market rates one business day after
+  month-end (H.10 dollar: five). `ust_cmt_yield_20y` starts 1973-01-04 (the series was re-based that day, +74bp).
 """
 
 
@@ -1133,7 +1158,8 @@ def write_panel_report(A: Assembled, seg: pd.DataFrame, catalog: pd.DataFrame, v
     L += [f"- {k}: {x:.4f}" for k, x in v["pred_unit_checks"].items()]
     if pred_issues:
         L += ["", "Predictor issues:"] + [f"- {s}" for s in pred_issues]
-    L += ["", "## Caveats for modelers", "", CAVEATS]
+    m = seg[(seg.asset == "ig_credit")]["notes"].str.extract(r"(\d\.\d\d) x Ibbotson")[0].dropna()
+    L += ["", "## Caveats for modelers", "", CAVEATS.replace("{ig_wc}", m.iloc[0] if len(m) else "w")]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(L) + "\n")
 

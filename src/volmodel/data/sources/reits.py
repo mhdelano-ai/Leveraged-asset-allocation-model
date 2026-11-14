@@ -14,12 +14,24 @@ monthly
 daily
   * 1986-11-17 .. 1996-05-31  Fidelity Real Estate Investment Portfolio (FRESX),
                          an actively managed REIT fund, Yahoo adjclose -> tier B.
-                         It is investable, but it is an active proxy for the
+                         It is an open-end fund NAV, and an active proxy for the
                          asset class (monthly tracking error ~3.9%/yr vs the
-                         Nareit index in this era, vs ~1.1% for VGSIX later),
-                         so it is NOT given tier A.
-  * 1996-06-03 .. 2004-09-30  Vanguard REIT Index Inv (VGSIX), Yahoo adjclose -> tier A
-  * 2004-10-01 .. today       Vanguard Real Estate ETF (VNQ), Yahoo adjclose -> tier A
+                         Nareit index in this era, vs ~1.1% for VGSIX later).
+  * 1996-06-03 .. 2004-09-30  Vanguard REIT Index Inv (VGSIX), Yahoo adjclose -> tier B
+                         (open-end fund NAV)
+  * 2004-10-01 .. today       Vanguard Real Estate ETF (VNQ), close + validated
+                         distributions -> tier A
+
+Tiers (project-wide): A = daily price of an exchange-traded fund (market
+close); B = daily open-end mutual-fund NAV, index, or reconstruction; C =
+monthly index total return; D = monthly model-based reconstruction. The
+VGSIX -> VNQ splice is therefore a tier change (B -> A).
+
+VNQ's total return is computed from its close plus Yahoo's distributions, each
+validated against the ex-date price move relative to other REIT ETFs
+(``distributions.validate_distributions``); Yahoo's adjclose is not trusted for
+it. Nothing in this track is fitted on post-2014 data: the fund choices rest on
+the 1986-2004 overlaps with the Nareit index.
 
 Every return is a SIMPLE TOTAL return (dividends reinvested) in decimals, not
 excess. Nothing is interpolated; the current, incomplete month is left out of
@@ -40,6 +52,7 @@ import pandas as pd
 import requests
 
 from ...paths import ASSET_DIR, RAW
+from . import distributions as dist
 
 ASSET = "reits"
 CACHE = RAW / "reits"
@@ -60,11 +73,11 @@ DIAG_SYMBOLS = ["CSRSX", "DFREX", "IYR", "ICF", "RWR"]
 NAREIT_SERIES = "All Equity REITs"   # excludes mortgage REITs
 NAREIT_DIAG = ["Equity REITs", "All REITs", "Mortgage REITs"]
 
-TIER = {"FRESX": "B", "VGSIX": "A", "VNQ": "A", "nareit": "C"}
+TIER = {"FRESX": "B", "VGSIX": "B", "VNQ": "A", "nareit": "C"}
 SOURCE = {
     "FRESX": "yahoo:FRESX adjclose (Fidelity Real Estate Investment, active)",
     "VGSIX": "yahoo:VGSIX adjclose (Vanguard REIT Index Inv)",
-    "VNQ": "yahoo:VNQ adjclose (Vanguard Real Estate ETF)",
+    "VNQ": "yahoo:VNQ close + validated distributions (Vanguard Real Estate ETF)",
     "nareit": "nareit:FTSE Nareit All Equity REITs total return",
 }
 # Bad prints in Yahoo adjclose: the PRICE on these dates is dropped (set to NaN),
@@ -84,10 +97,12 @@ NOTES = {
     "FRESX": ("Active fund used as daily proxy. Monthly vs Nareit 1986-12..1996-05: corr 0.948, "
               "vol ratio 0.985, TE 3.9%/yr; daily vs VGSIX 1996-06..2004-09: corr 0.971, "
               "vol ratio 0.981, TE 2.9%/yr."),
-    "VGSIX": ("Index fund (MSCI US REIT). Monthly vs Nareit 1996-06..2004-09: corr 0.997, vol ratio "
+    "VGSIX": ("Open-end index fund NAV (MSCI US REIT), tier B. Monthly vs Nareit 1996-06..2004-09: corr 0.997, vol ratio "
               "1.009, TE 1.1%/yr; daily vs VNQ 2004-10..2026-11: corr 0.994, vol ratio 1.022, "
               "TE 3.2%/yr (monthly corr 0.999, TE 0.75%/yr)."),
-    "VNQ": "Monthly vs Nareit 2004-10..2026-10: corr 0.998, vol ratio 1.014, TE 1.5%/yr.",
+    "VNQ": ("Monthly vs Nareit 2004-10..2026-10: corr 0.998, vol ratio 1.014, TE 1.5%/yr. Close + Yahoo "
+            "distributions, each validated by the ex-date price test against IYR/ICF/RWR total returns "
+            "(every distribution passed)."),
 }
 
 
@@ -203,7 +218,40 @@ def french_real_estate(refresh: bool = False) -> pd.Series:
 
 
 # --------------------------------------------------------------------- build
+# ETFs whose return is close + VALIDATED distributions (peers: other REIT ETFs' total returns)
+ETF_PEERS = {"VNQ": ["IYR", "ICF", "RWR"]}
+
+
+def yahoo_frame(sym: str, refresh: bool = False) -> pd.DataFrame:
+    """Daily close (split-adjusted) and listed distributions on their ex-date trading day."""
+    res = fetch_yahoo(sym, refresh)["chart"]["result"][0]
+    tz = res["meta"].get("exchangeTimezoneName", "America/New_York")
+    to_date = lambda t: pd.to_datetime(t, unit="s", utc=True).tz_convert(tz).tz_localize(None).normalize()  # noqa: E731
+    df = pd.DataFrame({"close": res["indicators"]["quote"][0]["close"]}, index=to_date(res["timestamp"]),
+                      dtype=float)
+    df = df[~df.index.duplicated(keep="last")].dropna()
+    df = df[df["close"] > 0].sort_index()
+    df.index.name = "date"
+    ev = res.get("events", {}).get("dividends", {})
+    div = pd.Series({to_date(int(v["date"])): float(v["amount"]) for v in ev.values()}, dtype=float)
+    div = div.groupby(level=0).sum() if len(div) else div
+    div, _ = dist.dedupe_repeats(div)
+    df["div"] = dist.align_dividends(div, df.index)
+    return df
+
+
+def etf_returns(sym: str, refresh: bool = False) -> tuple[pd.Series, pd.DataFrame]:
+    """ETF total return from close + validated distributions, and the validation table."""
+    df = yahoo_frame(sym, refresh)
+    peers = pd.DataFrame({p: yahoo_adjclose(p, refresh).pct_change() for p in ETF_PEERS[sym]})
+    div, table = dist.validate_distributions(df["close"], df["div"], peers)
+    df, _ = dist.drop_bad_prices(df.assign(div=div), BAD_PRICES.get(sym, []))
+    return dist.total_return(df["close"], df["div"]).iloc[1:].dropna().rename(sym), table
+
+
 def daily_returns(sym: str, refresh: bool = False) -> pd.Series:
+    if sym in ETF_PEERS:
+        return etf_returns(sym, refresh)[0]
     p = yahoo_adjclose(sym, refresh)
     p = p.drop(pd.DatetimeIndex(BAD_PRICES.get(sym, [])), errors="ignore")
     return p.pct_change().dropna().rename(sym)

@@ -7,19 +7,35 @@ Raw downloads are cached under ``data/raw/credit/``; ``--refresh`` re-downloads.
 
 Construction (numbers and justification in ``reports/data/credit.md``)
 ---------------------------------------------------------------------
+Tiers (project-wide): A = daily price of an exchange-traded fund (market
+close); B = daily open-end mutual-fund NAV, index, or reconstruction; C =
+monthly index total return; D = monthly model-based reconstruction.
+
 ig_credit
   * 1919-02 .. 1925-12  monthly, par bond (maturity calibrated to LQD vol) priced off
                         month-AVERAGE Moody's (Aaa+Baa)/2 yields (Fed H.15)    -> D
   * 1926-01 .. 1980-01  monthly, w x Ibbotson LT corporate TR + (1-w) x T-bill
                         (Welch-Goyal ``corpr``/``Rfree``; w = vol match to LQD) -> C
-  * 1980-01-03 .. 1984  daily, constant-mix VWESX + FBNDX (Yahoo adjclose)    -> A
-  * 1985-01-02 .. 2002-07-30  daily, constant-mix VWESX + VFSTX               -> A
-  * 2002-07-31 .. today daily, LQD                                            -> A
+  * 1980-01-03 .. 1984  daily, constant-mix VWESX + FBNDX (fund NAVs)         -> B
+  * 1985-01-02 .. 2002-07-30  daily, constant-mix VWESX + VFSTX (fund NAVs)   -> B
+  * 2002-07-31 .. today daily, LQD (ETF close + validated distributions)      -> A
 hy_credit
   * 1980-02 .. 1984-12  monthly, VWEHX NAV (Yahoo has one NAV per month, on the
                         ex-dividend date, before 1985)                        -> C
-  * 1985-01-02 .. 2007-04-11  daily, VWEHX (matrix-priced NAV: stale)         -> A
-  * 2007-04-12 .. today daily, HYG                                            -> A
+  * 1985-01-02 .. 2007-04-11  daily, VWEHX (matrix-priced NAV: stale)         -> B
+  * 2007-04-12 .. today daily, HYG (ETF close + validated distributions)      -> A
+
+Every calibration that shapes the pre-ETF history (blend weights, the
+Ibbotson/T-bill weight, the tier-D bond maturity) uses LQD data only up to
+``CALIBRATION_END`` (2014-12-31): data from 2015 on are the evaluation holdout
+and must not influence any series the models train on.
+
+Fund returns are built from the NAV plus distributions, not from Yahoo's
+adjclose: VWEHX, VFSTX, FBNDX and VWESX (from 1985) declare income daily and pay
+it monthly without an ex-date NAV drop, so each month-end distribution is spread
+over its accrual month (``distributions.accrual_total_return``). Confirmed bad
+NAV prints are dropped (the next return spans them). ETF distributions are
+validated (``distributions.validate_distributions``).
 
 Every return is a SIMPLE TOTAL return in decimals. Nothing is smoothed,
 unsmoothed or interpolated; staleness is measured and reported, not corrected.
@@ -36,9 +52,45 @@ import numpy as np
 import pandas as pd
 import requests
 
-from ...paths import ASSET_DIR, PREDICTOR_DIR, RAW, REPORTS
+from ...paths import ASSET_DIR, PREDICTOR_DIR, PROCESSED, RAW, REPORTS
+from . import distributions as dist
 
 CACHE = RAW / "credit"
+
+# Holdout integrity: the evaluation holdout starts 2015-01-01. Any parameter that is
+# FITTED (vol-matched blend weights, the Ibbotson/T-bill weight, the maturity of the
+# tier-D par bond) is calibrated on LQD data up to this date only, so that no
+# post-2014 observation shapes the pre-2015 history the models are trained on.
+CALIBRATION_END = "2014-12-31"
+
+# Funds that declare income daily and pay it monthly (NAV does not drop on the
+# month-end payment date), with the first date from which that holds. Before it,
+# their distributions are ex-date cash flows (VWESX dropped its NAV on the
+# ex-date in 1980-84; VWEHX/VFSTX have daily data only from 1985).
+ACCRUAL_FUNDS = {"VWEHX": "1985-01-01", "VFSTX": "1985-01-01", "FBNDX": "1980-01-01",
+                 "VWESX": "1985-01-01"}
+# Confirmed bad NAV prints: the PRICE on these dates is dropped, so the next return
+# spans two days (never interpolated). Evidence in reports/data/credit.md
+# ("Bad prints"): each is a one-day move of 1-3.6% that reverses the next day
+# while VWESX, the Treasury reconstructions and (for VWEHX) four HY peer funds
+# (FHIIX, PRHYX, AHITX, FAGIX) are flat.
+BAD_PRICES = {
+    "FBNDX": ["1982-10-06", "1983-11-21", "1983-11-28", "1984-02-02", "1984-11-14", "1984-12-06"],
+    "VWEHX": ["1991-08-19"],
+}
+# Misdated distributions: Yahoo books them one day after the NAV dropped. In Jan
+# 1987 VWEHX, VWESX and VFSTX all dropped on 01-29 (VFSTX's distribution is dated
+# 01-29) while Treasuries and HY peers were flat; VWEHX/VWESX list theirs on 01-30.
+# Re-dated distributions are ex-date cash flows on the corrected date.
+EXDATE_FIXES = {"VWEHX": {"1987-01-30": "1987-01-29"}, "VWESX": {"1987-01-30": "1987-01-29"}}
+# The era in which each fund enters ig_credit / hy_credit (for the report's effect table).
+FUND_ERAS = {"VWEHX": ("1985-01-02", "2007-04-11"), "VFSTX": ("1985-01-02", "2002-07-30"),
+             "FBNDX": ("1980-01-03", "1984-12-31"), "VWESX": ("1980-01-03", "2002-07-30")}
+# Peers for the ETF distribution test (H.15 CMT yield changes; total returns of
+# related funds; price returns of daily-accrual funds, whose NAV never drops).
+ETF_PEERS = {"LQD": {"cmt": ["RIFLGFCY05_N.B", "RIFLGFCY10_N.B", "RIFLGFCY30_N.B"],
+                     "nav": ["VFICX", "VWESX"], "tr": []},
+             "HYG": {"cmt": ["RIFLGFCY05_N.B"], "nav": ["VWEHX", "FHIIX"], "tr": ["JNK"]}}
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
       "Chrome/124.0 Safari/537.36")
 YAHOO_URL = "https://{host}.finance.yahoo.com/v8/finance/chart/{sym}"
@@ -112,13 +164,15 @@ def yahoo_frame(sym: str, refresh: bool = False) -> pd.DataFrame:
                        "adjclose": j["indicators"]["adjclose"][0]["adjclose"]},
                       index=pd.DatetimeIndex(idx, name="date"), dtype=float)
     df = df[~df.index.duplicated(keep="last")].dropna(subset=["close"])
-    div = pd.Series(0.0, index=df.index)
+    ev = {}
     for v in j.get("events", {}).get("dividends", {}).values():
         d = (pd.Timestamp(v["date"], unit="s", tz="UTC").tz_convert(tz)
              .tz_localize(None).normalize())
-        if d in div.index:
-            div[d] += v["amount"]
-    df["div"] = div
+        ev[d] = ev.get(d, 0.0) + float(v["amount"])
+    # exact repeats within a few days are vendor duplicates; an event dated on a
+    # non-trading day is booked on the next trading day (never dropped)
+    div, _ = dist.dedupe_repeats(pd.Series(ev, dtype=float).sort_index())
+    df["div"] = dist.align_dividends(div, df.index)
     return df
 
 
@@ -202,6 +256,42 @@ def yahoo_returns(sym: str, refresh: bool = False) -> pd.Series:
     return r
 
 
+def fund_returns(sym: str, refresh: bool = False) -> tuple[pd.Series, pd.DataFrame, list]:
+    """Daily total return of a daily-accrual bond fund from NAV + distributions.
+
+    Misdated distributions are re-dated (``EXDATE_FIXES``), confirmed bad prices are
+    dropped (``BAD_PRICES``), and month-end distributions from ``ACCRUAL_FUNDS[sym]``
+    on are spread over their accrual month. Returns (returns from ``DAILY_START``,
+    distribution classification table, dropped price dates)."""
+    df = yahoo_frame(sym, refresh)[["close", "div"]].copy()
+    for old, new in EXDATE_FIXES.get(sym, {}).items():
+        old, new = pd.Timestamp(old), pd.Timestamp(new)
+        if old in df.index and new in df.index and df.at[old, "div"] > 0:
+            df.at[new, "div"] += df.at[old, "div"]
+            df.at[old, "div"] = 0.0
+    df, dropped = dist.drop_bad_prices(df, BAD_PRICES.get(sym, []))
+    r, cls = dist.accrual_total_return(df, accrual_start=ACCRUAL_FUNDS.get(sym))
+    r = r.dropna()
+    if sym in DAILY_START:
+        r = r.loc[DAILY_START[sym]:]
+    return r.rename(sym), cls, dropped
+
+
+def etf_returns(sym: str, refresh: bool = False) -> tuple[pd.Series, pd.DataFrame]:
+    """ETF total return from close + VALIDATED distributions (see ``ETF_PEERS``)."""
+    df = yahoo_frame(sym, refresh)
+    spec = ETF_PEERS[sym]
+    h = h15_series(spec["cmt"], refresh)
+    peers = {k: h[k].diff() / 100.0 for k in spec["cmt"]}
+    for s in spec["nav"]:
+        peers[s] = yahoo_frame(s, refresh)["close"].pct_change()
+    for s in spec["tr"]:
+        peers[s] = yahoo_frame(s, refresh)["adjclose"].pct_change()
+    div, table = dist.validate_distributions(df["close"], df["div"], pd.DataFrame(peers))
+    r = dist.total_return(df["close"], div).iloc[1:].dropna()
+    return r.rename(sym), table
+
+
 def sparse_monthly(sym: str, refresh: bool = False) -> pd.Series:
     """Monthly returns from the pre-daily era (one NAV per month on the ex-div date).
 
@@ -242,6 +332,24 @@ def overlap_stats(a: pd.Series, b: pd.Series, freq: str = "M", start=None, end=N
 def fmt_stats(s: dict) -> str:
     return (f"{s['freq']} {s['start']}..{s['end']} n={s['n']}: corr={s['corr']:.3f} "
             f"vol {s['vol_a']:.3f}/{s['vol_b']:.3f} ratio={s['vol_ratio']:.2f} TE={s['te']:.3f}")
+
+
+def blend_returns(w: float, a: pd.Series, b: pd.Series) -> pd.Series:
+    """Daily constant-mix blend w*a + (1-w)*b, rebalanced on the days both funds have a
+    price. A day on which one fund has no price (e.g. a dropped bad print) is not a blend
+    day: each fund's returns are compounded onto the next common day, so the next blend
+    return spans the gap for BOTH funds (nothing is lost, nothing interpolated)."""
+    common = a.dropna().index.intersection(b.dropna().index)
+
+    def onto(r: pd.Series) -> pd.Series:
+        r = r.dropna()
+        r = r.loc[r.index >= common[0]]
+        pos = common.searchsorted(r.index, side="left")
+        keep = pos < len(common)
+        lr = np.log1p(r[keep])
+        return np.expm1(lr.groupby(common[pos[keep]]).sum())
+
+    return (w * onto(a) + (1 - w) * onto(b)).dropna()
 
 
 def vol_match_weight(a: pd.Series, b: pd.Series, target: pd.Series) -> float:
@@ -322,17 +430,19 @@ SRC = {
 TIER_D_MATURITIES = list(range(6, 31))
 
 
-def calibrate_recon_maturity(lqd_m: pd.Series, refresh: bool = False) -> tuple[int, pd.DataFrame]:
+def calibrate_recon_maturity(lqd_m: pd.Series, refresh: bool = False,
+                             end: str = CALIBRATION_END) -> tuple[int, pd.DataFrame]:
     """Pick the par-bond maturity whose returns from END-of-month Moody's yields
-    (daily H.15, 1986-2016) match LQD's monthly vol on 2002-08..2016-09. The tier-D
-    series then uses that maturity with month-AVERAGE yields (the only ones before
-    1986), so its residual vol damping is purely the averaging effect."""
+    (daily H.15, 1986-2016) match LQD's monthly vol on 2002-08..``end`` (the
+    calibration cutoff). The tier-D series then uses that maturity with
+    month-AVERAGE yields (the only ones before 1986), so its residual vol damping is
+    purely the averaging effect."""
     h = h15_series(["RIMLPAAAR_N.B", "RIMLPBAAR_N.B"], refresh)
     yd = ((h["RIMLPAAAR_N.B"] + h["RIMLPBAAR_N.B"]) / 200).dropna()
     yeom = yd.resample("ME").last()
     rows = []
     for n in TIER_D_MATURITIES:
-        s = overlap_stats(par_bond_returns(yeom, n), lqd_m, "M", "2002-08", "2016-09")
+        s = overlap_stats(par_bond_returns(yeom, n), lqd_m, "M", "2002-08", end)
         rows.append({"maturity": n, "vol_ratio_vs_LQD": s["vol_ratio"], "corr": s["corr"]})
     t = pd.DataFrame(rows).set_index("maturity")
     return int((t["vol_ratio_vs_LQD"] - 1).abs().idxmin()), t
@@ -340,29 +450,44 @@ def calibrate_recon_maturity(lqd_m: pd.Series, refresh: bool = False) -> tuple[i
 
 def build(refresh: bool = False, write: bool = True) -> dict:
     """Build both assets and the predictor file; return diagnostics for the report."""
-    rets = {s: yahoo_returns(s, refresh) for s in IG_SYMBOLS + HY_SYMBOLS}
+    rets = {s: yahoo_returns(s, refresh) for s in IG_SYMBOLS + HY_SYMBOLS}   # adjclose (diagnostics)
+    raw_adj = dict(rets)
+    fund_cls, dropped, div_tables = {}, {}, {}
+    for s in ACCRUAL_FUNDS:                     # funds used in the series: NAV + accrual-spread income
+        rets[s], fund_cls[s], dropped[s] = fund_returns(s, refresh)
+    for s in ETF_PEERS:                         # ETFs used in the series: close + validated distributions
+        rets[s], div_tables[s] = etf_returns(s, refresh)
     g = goyal_monthly(refresh)
     h = h15_series(["RIMLPAAAR_N.M", "RIMLPBAAR_N.M"], refresh)
-    diag: dict = {"rets": rets}
+    diag: dict = {"rets": rets, "raw_adj": raw_adj, "fund_cls": fund_cls, "dropped": dropped,
+                  "div_tables": div_tables}
     M = {s: resample_ret(r, "ME") for s, r in rets.items()}
     lqd, hyg = rets["LQD"], rets["HYG"]
     last_m = last_complete_month(lqd.index)
-    ov = (ETF_START["ig_credit"][:7], last_m)  # LQD overlap window (months)
+    # calibration window: LQD's first full month .. CALIBRATION_END (never the holdout)
+    cal = (ETF_START["ig_credit"][:7], CALIBRATION_END)
 
     # ---------------- ig_credit, daily: two fund blends, then LQD
-    w80 = vol_match_weight(M["VWESX"].loc[ov[0]:ov[1]], M["FBNDX"].loc[ov[0]:ov[1]], M["LQD"].loc[ov[0]:ov[1]])
-    w85 = vol_match_weight(M["VWESX"].loc[ov[0]:ov[1]], M["VFSTX"].loc[ov[0]:ov[1]], M["LQD"].loc[ov[0]:ov[1]])
-    ig80 = (w80 * rets["VWESX"] + (1 - w80) * rets["FBNDX"]).dropna()
-    ig85 = (w85 * rets["VWESX"] + (1 - w85) * rets["VFSTX"]).dropna()
-    ig_d = _splice([(ig80, SRC["ig80"], "A"), (ig85, SRC["ig85"], "A"),
+    w80 = vol_match_weight(M["VWESX"].loc[cal[0]:cal[1]], M["FBNDX"].loc[cal[0]:cal[1]], M["LQD"].loc[cal[0]:cal[1]])
+    w85 = vol_match_weight(M["VWESX"].loc[cal[0]:cal[1]], M["VFSTX"].loc[cal[0]:cal[1]], M["LQD"].loc[cal[0]:cal[1]])
+    ig80 = blend_returns(w80, rets["VWESX"], rets["FBNDX"])
+    ig85 = blend_returns(w85, rets["VWESX"], rets["VFSTX"])
+    ig_d = _splice([(ig80, SRC["ig80"], "B"), (ig85, SRC["ig85"], "B"),
                     (lqd.loc[ETF_START["ig_credit"]:], SRC["LQD"], "A")])
     ig_m = to_monthly(ig_d, MONTHLY_FROM_DAILY["ig_credit"], last_m)
 
     # ---------------- ig_credit, monthly: Ibbotson LT corp + T-bill blend (C), Moody's recon (D)
-    gg = g.loc[: "2025-12"]
-    wc = vol_match_weight(gg["corpr"].loc[ov[0]:], gg["Rfree"].loc[ov[0]:], M["LQD"].loc[ov[0]:"2025-12"])
+    wc = vol_match_weight(g["corpr"].loc[cal[0]:cal[1]], g["Rfree"].loc[cal[0]:cal[1]], M["LQD"].loc[cal[0]:cal[1]])
     corp = (wc * g["corpr"] + (1 - wc) * g["Rfree"]).dropna()
-    n_star, mat_table = calibrate_recon_maturity(M["LQD"], refresh)
+    n_star, mat_table = calibrate_recon_maturity(M["LQD"], refresh, CALIBRATION_END)
+    # what the full-sample (holdout-contaminated) calibration would have given, for the report only
+    full = (ETF_START["ig_credit"][:7], last_m)
+    diag["calib_full_sample"] = dict(
+        w80=vol_match_weight(M["VWESX"].loc[full[0]:full[1]], M["FBNDX"].loc[full[0]:full[1]], M["LQD"].loc[full[0]:full[1]]),
+        w85=vol_match_weight(M["VWESX"].loc[full[0]:full[1]], M["VFSTX"].loc[full[0]:full[1]], M["LQD"].loc[full[0]:full[1]]),
+        wc=vol_match_weight(g["corpr"].loc[full[0]:"2025-12"], g["Rfree"].loc[full[0]:"2025-12"],
+                            M["LQD"].loc[full[0]:"2025-12"]),
+        n_star=calibrate_recon_maturity(M["LQD"], refresh, "2016-09")[0])
     yavg = ((h["RIMLPAAAR_N.M"] + h["RIMLPBAAR_N.M"]) / 200).dropna()
     recon = par_bond_returns(yavg, n_star).dropna()
     first_daily_m = pd.Timestamp(MONTHLY_FROM_DAILY["ig_credit"]) + pd.offsets.MonthEnd(0)
@@ -374,7 +499,7 @@ def build(refresh: bool = False, write: bool = True) -> dict:
         ig_m])
 
     # ---------------- hy_credit: VWEHX (monthly sparse, then daily), then HYG
-    hy_d = _splice([(rets["VWEHX"], SRC["VWEHX"], "A"),
+    hy_d = _splice([(rets["VWEHX"], SRC["VWEHX"], "B"),
                     (hyg.loc[ETF_START["hy_credit"]:], SRC["HYG"], "A")])
     hy_m = to_monthly(hy_d, MONTHLY_FROM_DAILY["hy_credit"], last_m)
     sp = sparse_monthly("VWEHX", refresh).dropna()
@@ -402,6 +527,9 @@ def build(refresh: bool = False, write: bool = True) -> dict:
     diag["segments"] = segment_table(diag)
     if write:
         diag["segments"].to_csv(CACHE / "segments_credit.csv", index=False)
+        (PROCESSED / "segments").mkdir(parents=True, exist_ok=True)
+        diag["segments"].to_csv(PROCESSED / "segments" / "credit.csv", index=False)
+        pd.concat(div_tables, names=["etf", "date"]).to_csv(CACHE / "distribution_checks.csv")
     return diag
 
 
@@ -491,6 +619,22 @@ def splice_checks(diag: dict) -> dict[str, list[dict]]:
     return chk
 
 
+def horizon_vol_ratio(a: pd.Series, b: pd.Series, k: int, start=None, end=None) -> float:
+    """Ratio of annualized vols of overlapping k-day log-return sums (uncentered, as in
+    the 21-day target definition) of ``a`` and ``b`` on their common days."""
+    x = np.log1p(pd.concat([a, b], axis=1, keys=["a", "b"], sort=True).loc[start:end].dropna())
+    s = x.rolling(k).sum().dropna()
+    return float(np.sqrt((s["a"] ** 2).mean() / (s["b"] ** 2).mean()))
+
+
+def vwehx_hyg_horizon(diag: dict) -> dict:
+    v, h = diag["rets"]["VWEHX"], diag["rets"]["HYG"]
+    a0 = ETF_START["hy_credit"]
+    return {"r1": horizon_vol_ratio(v, h, 1, a0), "r21": horizon_vol_ratio(v, h, 21, a0),
+            "r21_0709": horizon_vol_ratio(v, h, 21, a0, "2009-12-31"), "r63": horizon_vol_ratio(v, h, 63, a0),
+            "r21_dev": horizon_vol_ratio(v, h, 21, a0, CALIBRATION_END)}
+
+
 def adjclose_check(symbols: list[str], refresh: bool = False) -> pd.DataFrame:
     """Do Yahoo adjclose returns equal (close + distribution) / previous close?"""
     rows = []
@@ -544,25 +688,46 @@ def segment_table(diag: dict) -> pd.DataFrame:
         return f"{s['freq']} {s['start']}..{s['end']}: corr {s['corr']:.2f}, vol ratio {s['vol_ratio']:.2f}, TE {s['te']:.3f}"
 
     w80, w85, wc = diag["w80"], diag["w85"], diag["wc"]
+    hz = diag["vwehx_hyg_horizon"] = vwehx_hyg_horizon(diag)
+    calw = f"vol match to LQD, monthly, {ETF_START['ig_credit'][:7]}..{CALIBRATION_END[:7]} only (holdout excluded)"
+    acc = ("fund NAV + distributions, month-end income spread over its accrual month (daily-accrual fund); "
+           "open-end NAVs: stale pricing, daily vol understated")
+
+    def div_note(sym):
+        ch = dist.changed_distributions(diag["div_tables"][sym])
+        if not len(ch):
+            return "every Yahoo distribution passed the ex-date price test"
+        return "Yahoo distributions corrected: " + "; ".join(
+            f"{d.date()} {r.amount:.3f} -> {r.used:.3f} (price test z {r.z:.1f})" for d, r in ch.iterrows())
+
+    def bad(sym):
+        return f"; bad NAV prints dropped: {', '.join(diag['dropped'][sym])}" if diag["dropped"].get(sym) else ""
     notes = {
-        SRC["ig80"]: (f"daily constant-mix {w80:.2f} VWESX + {1-w80:.2f} FBNDX (weight = vol match to LQD, monthly); "
+        SRC["ig80"]: (f"daily constant-mix {w80:.2f} VWESX + {1-w80:.2f} FBNDX (weight = {calw}); "
                       f"vs LQD {short('blend_VWESX_FBNDX vs LQD')}; vs VWESX/VFSTX blend {short('blend_VWESX_FBNDX vs blend_VWESX_VFSTX (1985-2002)')}; "
-                      "open-end NAVs: stale pricing, daily vol understated"),
-        SRC["ig85"]: (f"daily constant-mix {w85:.2f} VWESX + {1-w85:.2f} VFSTX (vol match to LQD, monthly); "
+                      f"{acc}{bad('FBNDX')}"),
+        SRC["ig85"]: (f"daily constant-mix {w85:.2f} VWESX + {1-w85:.2f} VFSTX (weight = {calw}); "
                       f"vs LQD {short('blend_VWESX_VFSTX vs LQD')}; daily {short('blend_VWESX_VFSTX vs LQD', 0)}; "
-                      "open-end NAVs: stale pricing, daily vol understated"),
-        SRC["LQD"]: "iShares iBoxx IG corporate ETF, adjclose (verified = close + distributions)",
+                      f"{acc}; VWESX 1987-01 distribution re-dated to its NAV drop (01-29)"),
+        SRC["LQD"]: f"iShares iBoxx IG corporate ETF, close + validated distributions; {div_note('LQD')}",
         SRC["corp"]: (f"{wc:.2f} x Ibbotson/SBBI long-term corporate TR + {1-wc:.2f} x T-bill (Welch-Goyal corpr, Rfree), "
-                      f"duration-shortened to LQD; vs LQD {short('ibbotson_ltcorp_rf_blend vs LQD')}; "
+                      f"duration-shortened to LQD (weight = {calw}); vs LQD {short('ibbotson_ltcorp_rf_blend vs LQD')}; "
                       f"vs fund blends {short('ibbotson_ltcorp_rf_blend vs fund blends (1980-2002)')}"),
-        SRC["recon"]: (f"{diag['n_star']}y constant-maturity par bond priced off month-AVERAGE (Aaa+Baa)/2 Moody's yields (H.15); "
+        SRC["recon"]: (f"{diag['n_star']}y constant-maturity par bond priced off month-AVERAGE (Aaa+Baa)/2 Moody's yields (H.15) "
+                       f"(maturity = vol match to LQD on {ETF_START['ig_credit'][:7]}..{CALIBRATION_END[:7]}); "
                        f"vs Ibbotson blend {short('moodys recon (month-avg yields) vs ibbotson blend (1926-1979)')}; "
                        f"vs LQD {short('moodys recon (month-avg yields) vs LQD')}; averaging damps vol and blurs timing"),
         SRC["VWEHX"]: (f"Vanguard High-Yield Corporate NAV; vs HYG {short('VWEHX vs HYG')}; daily {short('VWEHX vs HYG', 0)}; "
-                       "matrix-priced NAV: daily vol ~half of HYG, positive autocorrelation"),
+                       f"TARGET-HORIZON VOL LEVEL: 21-day-horizon vol ratio VWEHX/HYG {hz['r21']:.2f} on the 2007-04..2026 "
+                       f"overlap ({hz['r21_0709']:.2f} in 2007-09, {hz['r21_dev']:.2f} on 2007-04..2014), {hz['r63']:.2f} at "
+                       f"63 days, {hz['r1']:.2f} at 1 day (independent audit: 0.83 overall, 0.80 in 2007-09, 0.93 at 63 days): "
+                       "this era's vol level is ~15-20% below HYG's even at 21 days, so do not pool it with HYG's level "
+                       "(tier B vs A marks the break); "
+                       f"matrix-priced NAV, positive autocorrelation; {acc.split(';')[0]}; "
+                       f"1987-01 distribution re-dated to its NAV drop (01-29){bad('VWEHX')}"),
         SRC["VWEHX_m"]: ("Yahoo has one NAV per month before 1985 (ex-div date, ~25th-30th): returns span ex-date to ex-date; "
                          f"sampling effect measured 1985-2026: {short('VWEHX ex-div-date-sampled vs month-end (1985-2026)')}"),
-        SRC["HYG"]: "iShares iBoxx HY corporate ETF, adjclose (verified = close + distributions)",
+        SRC["HYG"]: f"iShares iBoxx HY corporate ETF, close + validated distributions; {div_note('HYG')}",
     }
     rows = []
     for asset, (d, m) in diag["out"].items():
@@ -635,6 +800,68 @@ def episode_table(diag: dict) -> pd.DataFrame:
 
 
 # -------------------------------------------------------------------- report
+def distribution_report(diag: dict) -> str:
+    """Markdown section: ETF distribution validation, fund accrual treatment, bad prints."""
+    L = ["## Distributions and bad prints", "",
+         "**ETF distributions (LQD, HYG).** Each Yahoo distribution is tested on its ex-date: the ETF's total "
+         "return (close + distribution) is compared with a regression on peers (H.15 CMT yield changes; price "
+         "returns of daily-accrual bond funds, whose NAV never drops; total returns of other ETFs) fitted on the "
+         "surrounding non-ex days. A paid distribution leaves a residual near 0; one the price never paid leaves "
+         "a residual near its own size. A distribution is replaced by the price-implied amount only when the "
+         "residual is clear (z > 3) AND its amount is anomalous for the fund (> 1.5x its neighbours), or the "
+         "residual alone is overwhelming (z > 8); rule and thresholds in "
+         "`volmodel.data.sources.distributions.validate_distributions`. Changed:", ""]
+    rows = []
+    for sym, t in diag["div_tables"].items():
+        for d, r in dist.changed_distributions(t).iterrows():
+            rows.append({"ETF": sym, "ex-date": str(d.date()), "Yahoo amount": r.amount, "used": r.used,
+                         "yield": r.yld, "price-test z": r.z, "x neighbours": t.at[d, "ratio"]})
+        L.append(f"* {sym}: {len(t)} distributions tested, "
+                 f"{ {k: int(v) for k, v in t['action'].value_counts().items()} }.")
+    L += ["", _md_table(pd.DataFrame(rows), "{:.4f}") if rows else "(none)", "",
+          "LQD 2003-12-16 (1.26% of the price) is not reflected in the price at all (LQD's price rose 0.23% "
+          "that day); the independent audit found the same with markets.ft.com closes.", "",
+          "**Daily-accrual funds (VWEHX, VFSTX, FBNDX; VWESX from 1985).** They declare income daily and pay it "
+          "on the last trading day of the month without an NAV drop, so Yahoo's adjclose books a month of income "
+          "on one day. Month-end distributions are spread over their month by calendar days "
+          "(`distributions.accrual_total_return`); a month-end distribution more than 2x the fund's regular "
+          "income is split (regular part accrued, excess = capital gain paid on the ex-date); distributions on "
+          "other days are ex-date cash flows (VWESX dropped its NAV on the ex-date before 1985). Monthly returns "
+          "are unchanged up to intra-month compounding.", ""]
+    rows = []
+    for sym, (a0, a1) in FUND_ERAS.items():
+        c = diag["fund_cls"][sym]
+        a = diag["rets"][sym].loc[a0:a1]
+        b = diag["raw_adj"][sym].loc[a0:a1]
+        mo = (np.expm1(np.log1p(a).resample("ME").sum()) - np.expm1(np.log1p(b).resample("ME").sum())).abs()
+        mo = mo.iloc[1:]                       # first month may be partial in one of them
+        cc = c.loc[a0:a1, "treated_as"].value_counts()
+        rows.append({"fund (era used)": f"{sym} {a0[:4]}-{a1[:4]}",
+                     "accrued": int(cc.get("daily_accrual", 0) + cc.get("accrual+ex_date_excess", 0)),
+                     "of which split": int(cc.get("accrual+ex_date_excess", 0)), "ex-date": int(cc.get("ex_date", 0)),
+                     "1-day vol adjclose": b.std() * np.sqrt(252), "1-day vol rebuilt": a.std() * np.sqrt(252),
+                     "months diff > 1e-4": int((mo > 1e-4).sum()), "max abs monthly diff": float(mo.max()),
+                     "worst month": str(mo.idxmax().date())})
+    L += [_md_table(pd.DataFrame(rows), "{:.4f}"), "",
+          "Monthly differences above rounding come only from the re-dated January-1987 distributions "
+          "(VWEHX, VWESX: moved within the month, so zero) and dropped bad prints (within their month, so zero); "
+          "any month listed above differs by intra-month compounding of the accrued income only.", "",
+          "**Bad NAV prints dropped** (the PRICE is removed, the next return spans the gap, nothing is "
+          "interpolated): " + "; ".join(f"{s} {', '.join(v)}" for s, v in diag["dropped"].items() if v) + ". "
+          "Each is a 1-3.6% one-day move that reverses the next day while VWESX and the Treasury reconstructions "
+          "(FBNDX) or the HY peer funds FHIIX, PRHYX, AHITX, FAGIX (VWEHX 1991-08-19: peers -0.4% to -0.5%, "
+          "VWEHX -1.3% then +1.0%) are flat.", "",
+          "**Re-dated distributions:** " + "; ".join(f"{s} {o} -> {n}" for s, m in EXDATE_FIXES.items()
+                                                    for o, n in m.items()) + ". In January 1987 the NAVs of "
+          "VWEHX, VWESX and VFSTX all dropped on 01-29 by about their distribution while Treasuries and HY peer "
+          "funds were flat; Yahoo dates VFSTX's distribution 01-29 but VWEHX's and VWESX's 01-30 (where adjclose "
+          "then showed a spurious -1.2%/+1.2% pair). The re-dated distributions are ex-date cash flows.", "",
+          "**Not changed:** FBNDX 1983-08-30 (-1.5%, listed by the audit) is a persistent level drop, not a "
+          "reversal once the 08-31 distribution is accrued: dropping the price would only move the drop to 08-31. "
+          "It may be an unlisted distribution; it is left as recorded.", ""]
+    return "\n".join(L)
+
+
 def averaging_damping(diag: dict, refresh: bool = False) -> dict:
     """Tier-D effect of month-AVERAGE yields: same par bond, average vs end-of-month
     Moody's yields, 1986-2016 (the only period with daily Moody's data)."""
@@ -718,6 +945,17 @@ def write_report(diag: dict) -> str:
         ll_rows.append({"fund_t vs etf_(t-k)": f"{fund} vs {etf}", "window": f"{a[:4]}-{b[:4]}",
                         **{f"k={k}": v for k, v in ll.items()}})
     llt = pd.DataFrame(ll_rows)
+    fs = diag["calib_full_sample"]
+    calib_tbl = pd.DataFrame([
+        {"parameter": "w80: VWESX share of the 1980-84 blend", "used (2002-08..2014-12)": w80,
+         "full sample to 2026 (not used)": fs["w80"]},
+        {"parameter": "w85: VWESX share of the 1985-2002 blend", "used (2002-08..2014-12)": w85,
+         "full sample to 2026 (not used)": fs["w85"]},
+        {"parameter": "wc: Ibbotson share of the 1926-79 blend", "used (2002-08..2014-12)": wc,
+         "full sample to 2026 (not used)": fs["wc"]},
+        {"parameter": "n_star: tier-D par-bond maturity (years)", "used (2002-08..2014-12)": float(n_star),
+         "full sample to 2026 (not used)": float(fs["n_star"])}])
+    dist_md = distribution_report(diag)
 
     text = f"""# Credit data: `ig_credit` (LQD-like) and `hy_credit` (HYG-like)
 
@@ -740,11 +978,13 @@ tier-C segment.
 
 ## Sources
 
-* **Yahoo chart API** (`query1.finance.yahoo.com/v8/finance/chart/<sym>`), `adjclose`.
-  For every symbol used, adjclose returns were checked against returns computed from
-  `close` plus Yahoo's dividend events (table below): the residual is at the level of
-  NAV rounding to the cent, so adjclose includes distributions (capital-gain
-  distributions are reported by Yahoo as dividends) back to the first date used.
+* **Yahoo chart API** (`query1.finance.yahoo.com/v8/finance/chart/<sym>`): `close` (split-
+  adjusted price or NAV) and dividend events. Returns are built from close + distributions,
+  NOT from `adjclose` (see "Distributions and bad prints" below): the ETFs' distributions are
+  validated against the ex-date price behaviour, and the daily-accrual funds' month-end
+  income is spread over its accrual month. The table below compares Yahoo's adjclose with
+  close + Yahoo dividend events (both before any correction); the residual is at the level of
+  NAV rounding, so adjclose merely reinvests Yahoo's dividend list (including its errors).
   Calendar-year returns agree with figures recalled from memory (VWEHX 1990 -5.9%,
   1991 +29.4%, 2008 -21.2%; VWESX 2008 +2.3%; LQD 2008 +2.4%, 2022 -17.9%; HYG 2008 -17.6%);
   these were NOT checked against fund documents here.
@@ -784,23 +1024,31 @@ tier-C segment.
 
 Construction logic:
 
+* **Holdout integrity.** Every fitted parameter of the pre-LQD history is calibrated on
+  LQD's first full month ({ETF_START['ig_credit'][:7]}) to `CALIBRATION_END` = {CALIBRATION_END} only;
+  the 2015+ holdout never enters. Full-sample values are shown for comparison only:
+
+{_md_table(calib_tbl, "{:.3f}")}
+
 * **ig_credit daily.** LQD from its first return. Before LQD, a daily constant-mix blend of
   the long-term IG fund VWESX with a shorter fund, because VWESX alone has ~1.3x LQD's
   vol (duration ~13-14y vs LQD ~8-9y; see "VWESX alone vs LQD" below). Weights are chosen
-  so the blend's monthly vol equals LQD's on the full LQD overlap: {w85:.2f} VWESX /
-  {1-w85:.2f} VFSTX (1985-2002, VFSTX keeps the blend all-corporate) and {w80:.2f} VWESX /
-  {1-w80:.2f} FBNDX for 1980-1984, when VFSTX has no daily data (FBNDX is a core bond fund
-  with Treasuries/MBS, so less credit content; the two blends correlate 0.99 on 1985-2002).
+  so the blend's monthly vol equals LQD's on {ETF_START['ig_credit'][:7]}..{CALIBRATION_END[:7]}:
+  {w85:.2f} VWESX / {1-w85:.2f} VFSTX (1985-2002, VFSTX keeps the blend all-corporate) and
+  {w80:.2f} VWESX / {1-w80:.2f} FBNDX for 1980-1984, when VFSTX has no daily data (FBNDX is a
+  core bond fund with Treasuries/MBS, so less credit content; the two blends correlate 0.99
+  on 1985-2002). Tier B: open-end fund NAVs (tier A is reserved for exchange-traded prices),
+  so the 2002-07 splice to LQD is a visible tier change.
 * **ig_credit monthly before 1980.** Tier C: {wc:.2f} x Ibbotson long-term corporate TR +
   {1-wc:.2f} x T-bill. Ibbotson's index is long duration (vol 1.24x LQD on the overlap);
   mixing with T-bills is the monthly analogue of the fund blend (weight again from a vol
-  match to LQD). It tracks the fund blends well in 1980-2002 (monthly corr 0.97) but has
-  ~14% more vol there. Before 1926, tier D: a {n_star}-year constant-maturity par bond
-  priced off month-AVERAGE (Aaa+Baa)/2 Moody's yields; the maturity is chosen so that
-  the same bond priced off END-of-month daily Moody's yields matches LQD's monthly vol
-  on 2002-08..2016-09 (table below). The Ibbotson series was preferred to the
-  reconstruction from 1926 because it is a real index return (corr 0.94 with VWESX on
-  1980-2025) while the yield reconstruction correlates only 0.41 with it on 1926-1979.
+  match to LQD on {ETF_START['ig_credit'][:7]}..{CALIBRATION_END[:7]}). Before 1926, tier D: a
+  {n_star}-year constant-maturity par bond priced off month-AVERAGE (Aaa+Baa)/2 Moody's
+  yields; the maturity is chosen so that the same bond priced off END-of-month daily
+  Moody's yields matches LQD's monthly vol on {ETF_START['ig_credit'][:7]}..{CALIBRATION_END[:7]}
+  (table below). The Ibbotson series was preferred to the reconstruction from 1926 because
+  it is a real index return (corr 0.94 with VWESX on 1980-2025) while the yield
+  reconstruction correlates only 0.41 with it on 1926-1979.
 * **hy_credit.** HYG from its first return; VWEHX daily 1985-01-02..2007-04-11 (best
   monthly tracking of HYG among long-lived HY funds: corr {vw[2]['corr']:.2f}, vol ratio
   {vw[2]['vol_ratio']:.2f}); VWEHX monthly (one NAV per month on the ex-dividend date) for
@@ -811,15 +1059,18 @@ Construction logic:
   An equal-weight composite of VWEHX/FHIIX/PRHYX was tried and did not track HYG better
   (monthly corr {comp['corr']:.2f}, vol ratio {comp['vol_ratio']:.2f}).
 
+{dist_md}
+
 ## Overlap diagnostics
 
-Log returns; vol annualized (x sqrt 252 / 52 / 12); TE = annualized std of the
+Overlap statistics are DIAGNOSTICS (they use the full overlap, holdout included, but
+nothing is fitted on them). Log returns; vol annualized (x sqrt 252 / 52 / 12); TE = annualized std of the
 difference. W = Friday-to-Friday weeks.
 
 {_md_table(ck)}
 
 Tier-D maturity calibration (par bond on END-of-month Moody's yields vs LQD, monthly
-2002-08..2016-09; correlation is ~0.82 for every maturity):
+{ETF_START['ig_credit'][:7]}..{CALIBRATION_END[:7]}; correlation is ~0.8 for every maturity):
 
 {_md_table(mt, "{:.2f}")}
 
@@ -917,12 +1168,16 @@ points), e.g. 0.94 = 94 bp. Monthly series use obs_date = month-end.
 
 ## Caveats
 
-* The fund-blend weights ({w85:.2f}/{w80:.2f}) and the Ibbotson/T-bill weight ({wc:.2f}) are
-  calibrated on 2002-2026 LQD data and applied backwards; durations of all these
-  portfolios drifted over time (LQD's own duration rose from ~7 to ~8.5+).
-* Before 2002 ig_credit is a blend of two open-end funds rebalanced daily (an
-  investable portfolio, hence tier A), but its daily covariance with equities is
-  affected by NAV staleness; IG fund staleness is mild (see table).
+* The fund-blend weights ({w85:.2f}/{w80:.2f}), the Ibbotson/T-bill weight ({wc:.2f}) and the
+  tier-D maturity ({n_star}y) are calibrated on LQD data up to {CALIBRATION_END} only and
+  applied backwards; durations of all these portfolios drifted over time (LQD's own
+  duration rose from ~7 to ~8.5+).
+* Before 2002 ig_credit is a blend of two open-end funds rebalanced daily (investable, but
+  priced at NAV, hence tier B); its daily covariance with equities is affected by NAV
+  staleness; IG fund staleness is mild (see table).
+* hy_credit 1985-2007 (VWEHX, tier B): at the 21-day target horizon its vol is
+  {diag['vwehx_hyg_horizon']['r21']:.2f}x HYG's on the overlap ({diag['vwehx_hyg_horizon']['r21_0709']:.2f}x in
+  2007-09; {diag['vwehx_hyg_horizon']['r63']:.2f}x at 63 days). Its vol LEVEL should not be pooled with HYG's.
 * VWEHX is a relatively high-quality HY fund (BB-heavy); its 1990 and 2008 drawdowns are
   milder than lower-quality funds (FHIIX 1990 -12.8%). HYG is also tilted to larger,
   liquid issuers.

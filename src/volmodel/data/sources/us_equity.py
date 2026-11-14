@@ -19,6 +19,16 @@ us_small
                         NYSE 20th-60th percentiles) -> tier B
   * 2000-05-30 .. today daily, iShares Russell 2000 ETF (IWM), close + dividends -> tier A
 
+Tiers (project-wide): A = daily price of an exchange-traded fund (market
+close); B = daily open-end mutual-fund NAV, index, or reconstruction; C =
+monthly index total return; D = monthly model-based reconstruction.
+
+ETF dividends are validated against the ex-date price move
+(``distributions.validate_distributions``); the confirmed bad SPY close of
+2001-04-30 is dropped (``BAD_PRICES``). The French portfolios are fixed
+choices; the report shows they are also the best-tracking candidates on
+overlaps that end in 2014 (no holdout data needed to select them).
+
 Yahoo histories of VFINX (1980-) and NAESX (Russell 2000 fund 1990-2003) were
 evaluated and rejected: misdated / stale NAVs and capital-gain distributions
 missing from the dividend events (see the report). They are used only as
@@ -41,6 +51,7 @@ import pandas as pd
 import requests
 
 from ...paths import ASSET_DIR, RAW
+from . import distributions as dist
 
 CACHE = RAW / "us_equity"
 UA = "Mozilla/5.0"  # a full Chrome UA string is rate-limited from this network
@@ -201,20 +212,46 @@ def yahoo_series(sym: str, refresh: bool = False) -> pd.DataFrame:
     div = d.get("events", {}).get("dividends", {})
     dv = pd.Series({pd.Timestamp(v["date"], unit="s", tz="UTC").tz_convert(tz).tz_localize(None).normalize():
                     v["amount"] for v in div.values()}, dtype=float)
-    df["div"] = dv.reindex(df.index).fillna(0.0) if len(dv) else 0.0
-    return df.dropna(subset=["adjclose"])
+    df = df.dropna(subset=["adjclose"])
+    dv, _ = dist.dedupe_repeats(dv.groupby(level=0).sum()) if len(dv) else (dv, [])
+    df["div"] = dist.align_dividends(dv, df.index)
+    return df
 
 
 def yahoo_returns(sym: str, refresh: bool = False) -> pd.Series:
     """Total return from close + cash dividend on the ex-date: (C_t + D_t) / C_{t-1} - 1.
 
     Yahoo's ``close`` is split-adjusted, not dividend-adjusted. ``adjclose`` is
-    checked against this (``adjclose_check``) rather than trusted.
+    checked against this (``adjclose_check``) rather than trusted. For the ETFs
+    used (``ETF_PEERS``) every dividend is validated against the ex-date price
+    move (``distributions.validate_distributions``), and confirmed bad closes
+    (``BAD_PRICES``) are dropped so the next return spans them.
     """
+    return yahoo_returns_checked(sym, refresh)[0]
+
+
+# Confirmed bad closes (price dropped, never interpolated). SPY 2001-04-30: Yahoo 126.66
+# (+0.70%) then +0.31% on 05-01; the S&P 500 index (Yahoo ^GSPC) moved -0.29% then
+# +1.36%, CRSP Hi-30 -0.08% then +1.41%; markets.ft.com's close (124.91, -0.69%) is
+# wrong the other way. All agree on the two-day move (+1.0-1.1%), so only that day's
+# price is bad.
+BAD_PRICES = {"SPY": ["2001-04-30"]}
+# Peers for the dividend test: CRSP market (French) and the other ETF's total return.
+ETF_PEERS = {"SPY": ["IWM"], "IWM": ["SPY"]}
+
+
+def yahoo_returns_checked(sym: str, refresh: bool = False) -> tuple[pd.Series, pd.DataFrame | None]:
     df = yahoo_series(sym, refresh)
+    table = None
+    if sym in ETF_PEERS:
+        peers = {p: yahoo_series(p, refresh)["adjclose"].pct_change() for p in ETF_PEERS[sym]}
+        peers["Mkt"] = french_daily(refresh)["Mkt"]
+        div, table = dist.validate_distributions(df["close"], df["div"], pd.DataFrame(peers))
+        df = df.assign(div=div)
+    df, _ = dist.drop_bad_prices(df, BAD_PRICES.get(sym, []))
     r = ((df["close"] + df["div"]) / df["close"].shift(1) - 1).iloc[1:]
     r.name = sym
-    return r
+    return r, table
 
 
 def adjclose_check(sym: str, refresh: bool = False) -> float:
@@ -477,6 +514,27 @@ def diagnostics(res: dict) -> dict:
     return dict(calib=calib, sub=sub, quality=quality, worst=worst)
 
 
+HOLDOUT_START = "2015-01-01"   # evaluation holdout: selections must not depend on it
+
+
+def holdout_check(res: dict) -> pd.DataFrame:
+    """Selection of the French portfolios re-done on overlaps that END before the
+    holdout: 3-day tracking error / vol ratio / correlation vs SPY (1993-2014) and
+    IWM (2000-2014) for the candidates. The chosen portfolios must still rank as
+    they do on the full overlap."""
+    fd, fund = res["french_daily"], res["fund"]
+    end = pd.Timestamp(HOLDOUT_START) - pd.Timedelta(days=1)
+    rows = []
+    for ref, cands in (("SPY", ["Mkt", "Hi 10", "Hi 20", LARGE_PORTFOLIO]),
+                       ("IWM", ["Qnt 2", "Qnt 3", "Lo 30", "4-Dec", SMALL_PORTFOLIO])):
+        for c in cands:
+            for lab, e in (("to 2014", end), ("full", fd.index[-1])):
+                st = overlap_stats(fd[c], fund[ref].loc[:e].loc[:fd.index[-1]], "D3")
+                rows.append({"ref / portfolio / overlap": f"{ref} {c} {lab}", "TE3d": st["te"],
+                             "volratio3d": st["vol_ratio"], "corr3d": st["corr"]})
+    return pd.DataFrame(rows).set_index("ref / portfolio / overlap")
+
+
 def vol_by_decade(res: dict) -> pd.DataFrame:
     rows = {}
     for asset in SPECS:
@@ -543,6 +601,8 @@ def write_report(res: dict, path: Path | None = None) -> Path:
         calib_large=_md(pct[[c for c in pct.columns if c.startswith("SPY")]], "{:.3f}"),
         calib_small=_md(pct[[c for c in pct.columns if c.startswith(("IWM", "NAESX"))]], "{:.3f}"),
         sub=_md(dg["sub"], "{:.3f}"),
+        holdout=_md(holdout_check(res), "{:.3f}"),
+        bad=", ".join(f"{s} {d}" for s, v in BAD_PRICES.items() for d in v),
         quality=_md(dg["quality"], "{:.3f}"),
         worst=_md(dg["worst"], "{:+.4f}"),
         splice=_md(splice_checks(res), "{:+.4f}"),
@@ -584,8 +644,12 @@ close.
   * Returns are total returns in percent, rounded to 2 decimals (1 bp).
 * **Yahoo chart API** (`query1.finance.yahoo.com/v8/finance/chart`, User-Agent `Mozilla/5.0`) for SPY and IWM. Each
   return is computed as (close_t + dividend_t) / close_(t-1) - 1, where close is split-adjusted and the dividend is
-  dated on its ex-date. Timestamps are converted to New York trading dates. Yahoo's `adjclose` was checked against
-  this calculation and was not used directly. The largest absolute daily difference for each fund is:
+  dated on its ex-date. Timestamps are converted to New York trading dates. Every dividend is validated against
+  the ex-date price move relative to the CRSP market and the other ETF (`distributions.validate_distributions`;
+  none rejected). Confirmed bad closes are dropped so the next return spans them: {bad} (Yahoo +0.70% then +0.31%;
+  the S&P 500 index moved -0.29% then +1.36% and CRSP Hi 30 -0.08% then +1.41%; markets.ft.com's close is wrong
+  the other way; all agree on the two-day move). Yahoo's `adjclose` was checked against this calculation and was
+  not used directly. The largest absolute daily difference for each fund is (SPY's is the dropped bad close):
 {adj}
 * **Shiller** `ie_data.xls`: monthly S&P Composite (Cowles Commission before 1926). Its price is the average of daily
   closes in the month, and its dividends are annualized (interpolated from annual data before 1926). The file runs to
@@ -651,6 +715,14 @@ non-overlapping 3-day returns, which are robust to differences in closing times.
 ### Sub-periods (3-day returns)
 
 {sub}
+
+### Holdout independence of the choice
+
+The evaluation holdout starts 2015-01. Re-doing the comparison on overlaps that end in 2014 (3-day returns)
+gives the same ranking: for SPY, Hi 20 and Hi 30 tie on tracking error and Hi 30's vol ratio is closer to 1;
+for IWM, Qnt 2+3 has the lowest tracking error. So the portfolio choice does not depend on post-2014 data.
+
+{holdout}
 
 ## Fund data quality and date alignment
 

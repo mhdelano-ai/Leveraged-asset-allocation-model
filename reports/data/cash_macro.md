@@ -44,18 +44,18 @@ Long format `obs_date, available_date, series, value`. `obs_date` is the month-e
 | `macro_infl_vol_36m` | trailing 36-month std of monthly log CPI change, annualized % | 1873-07 | 2026-10 | 1840 | M | derived from CPI | end of month M+1 (from 1947; BLS releases ~10th-15th of M+1); end of M+3 for 1871-1946 |
 | `macro_infl_yoy` | 12-month log change of CPI, % | 1872-01 | 2026-09 | 1856 | M | derived from CPI | end of month M+1 (from 1947; BLS releases ~10th-15th of M+1); end of M+3 for 1871-1946 |
 | `macro_ip_yoy` | 12-month log change in industrial production (SA), % | 1920-01 | 2026-09 | 1281 | M | Fed G.17 IP.B50001.S via DBnomics | end of M+1 (from 1960; G.17 ~15th-17th of M+1); end of M+2 before 1960 |
-| `macro_long_yield` | long yield, %: high-grade railroad bonds (to 1918), US long-term bonds (1919-1953-03), 10y CMT monthly avg (1953-04+) | 1871-01 | 2026-10 | 1870 | M | NBER m13019, m13033a/b; H.15 RIFLGFCY10_N.M | end of month M (monthly average of observed market rates) |
-| `macro_policy_rate` | NY Fed discount rate (1914-11..1954-06), effective fed funds monthly avg (1954-07+), % | 1914-11 | 2026-10 | 1344 | M | NBER m13009; H.15 RIFSPFF_N.M | end of month M (monthly average of observed market rates) |
-| `macro_policy_rate_chg_12m` | 12-month change in policy rate, pp (within source) | 1915-11 | 2026-10 | 1320 | M | derived | end of month M (monthly average of observed market rates) |
-| `macro_policy_rate_chg_3m` | 3-month change in policy rate, pp (computed within each source) | 1915-02 | 2026-10 | 1338 | M | derived | end of month M (monthly average of observed market rates) |
+| `macro_long_yield` | long yield, %: high-grade railroad bonds (to 1918), US long-term bonds (1919-1953-03), 10y CMT monthly avg (1953-04+) | 1871-01 | 2026-10 | 1870 | M | NBER m13019, m13033a/b; H.15 RIFLGFCY10_N.M | end of month M + 1 business day (monthly average of daily market rates; H.15 publishes a day's rates the next business day) |
+| `macro_policy_rate` | NY Fed discount rate (1914-11..1954-06), effective fed funds monthly avg (1954-07+), % | 1914-11 | 2026-10 | 1344 | M | NBER m13009; H.15 RIFSPFF_N.M | end of month M + 1 business day (monthly average of daily market rates; H.15 publishes a day's rates the next business day) |
+| `macro_policy_rate_chg_12m` | 12-month change in policy rate, pp (within source) | 1915-11 | 2026-10 | 1320 | M | derived | end of month M + 1 business day (monthly average of daily market rates; H.15 publishes a day's rates the next business day) |
+| `macro_policy_rate_chg_3m` | 3-month change in policy rate, pp (computed within each source) | 1915-02 | 2026-10 | 1338 | M | derived | end of month M + 1 business day (monthly average of daily market rates; H.15 publishes a day's rates the next business day) |
 | `macro_real_short_rate` | short rate minus trailing YoY inflation, pp | 1872-01 | 2026-09 | 1856 | M | derived | end of month M+1 (from 1947; BLS releases ~10th-15th of M+1); end of M+3 for 1871-1946 |
 | `macro_sahm_gap` | 3m avg unemployment minus its min over prior 12 months, pp | 1949-03 | 2026-10 | 931 | M | derived | end of M+1 (from 1960; Employment Situation ~first Friday of M+1); end of M+2 before 1960; Sept-2025 report -> 2025-11-20 |
 | `macro_sahm_recession` | 1 if sahm_gap >= 0.5 else 0 (real-time-safe recession flag) | 1949-03 | 2026-10 | 931 | M | derived | end of M+1 (from 1960; Employment Situation ~first Friday of M+1); end of M+2 before 1960; Sept-2025 report -> 2025-11-20 |
-| `macro_short_rate` | short rate, % p.a.: CP minus spread (to 1919), 3-6m Treasury (1920-33), 3m T-bill secondary-market monthly avg (1934+) | 1871-01 | 2026-10 | 1870 | M | NBER m13002, m13029a/b; H.15 RIFSGFSM03_N.M | end of month M (monthly average of observed market rates) |
-| `macro_term_spread` | long yield minus short rate, pp | 1871-01 | 2026-10 | 1870 | M | derived | end of month M (monthly average of observed market rates) |
+| `macro_short_rate` | short rate, % p.a.: CP minus spread (to 1919), 3-6m Treasury (1920-33), 3m T-bill secondary-market monthly avg (1934+) | 1871-01 | 2026-10 | 1870 | M | NBER m13002, m13029a/b; H.15 RIFSGFSM03_N.M | end of month M + 1 business day (monthly average of daily market rates; H.15 publishes a day's rates the next business day) |
+| `macro_term_spread` | long yield minus short rate, pp | 1871-01 | 2026-10 | 1870 | M | derived | end of month M + 1 business day (monthly average of daily market rates; H.15 publishes a day's rates the next business day) |
 | `macro_unrate` | civilian unemployment rate, SA, % | 1948-01 | 2026-10 | 945 | M | BLS LNS14000000 (DBnomics + BLS API v1) | end of M+1 (from 1960; Employment Situation ~first Friday of M+1); end of M+2 before 1960; Sept-2025 report -> 2025-11-20 |
 | `macro_unrate_chg_12m` | 12-month change in unemployment rate, pp | 1949-01 | 2026-09 | 932 | M | derived | end of M+1 (from 1960; Employment Situation ~first Friday of M+1); end of M+2 before 1960; Sept-2025 report -> 2025-11-20 |
-| `macro_usd_broad_yoy` | 12-month log change of nominal broad dollar index, %: goods-only broad (to 2006), broad (2007+) | 1974-01 | 2026-10 | 634 | M | Fed H.10 V0.JRXWTFB_N.M, JRXWTFB_N.M via DBnomics | end of month M (monthly average of observed market rates) |
+| `macro_usd_broad_yoy` | 12-month log change of nominal broad dollar index, %: goods-only broad (to 2006), broad (2007+) | 1974-01 | 2026-10 | 634 | M | Fed H.10 V0.JRXWTFB_N.M, JRXWTFB_N.M via DBnomics | end of month M + 5 business days (H.10 dollar index is released weekly, on Mondays, for the previous week) |
 
 Diagnostics:
 
@@ -80,8 +80,10 @@ Diagnostics:
   the latest vintage is available here (ALFRED is not reachable). Use with caution.
 - **Recession indicator**: NBER dates are deliberately not used. `macro_sahm_recession` is built
   from published unemployment and is available when its latest input is.
-- Market-rate series (short rate, long yield, policy rate, dollar) are monthly averages of market
-  observations and are dated available at the month-end. Long-yield splices across sources change
+- Market-rate series (short rate, long yield, policy rate, dollar) are monthly averages of daily market
+  observations. The last day's H.15 rate is published the next business day, so they are dated available
+  one business day after month-end; the broad dollar (H.10, released weekly on Mondays) five business days
+  after month-end. Long-yield splices across sources change
   the level (railroad bonds yield more than governments): see diagnostics above.
 - The long-yield splice in 1941-10 (m13033a -> m13033b, different bond baskets) shifts the level
   by about 0.5 pp (overlap corr is low because both are nearly flat under the 1940s peg).

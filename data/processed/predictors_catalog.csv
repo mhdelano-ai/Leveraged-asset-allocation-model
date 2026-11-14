@@ -50,13 +50,13 @@ tips_breakeven_5y,tips,decimal,D,1999-01-04,2026-11-06,True,GSW 5y zero-coupon b
 tips_real_yield_10y,tips,decimal,D,1999-01-04,2026-11-06,True,GSW TIPS 10y zero-coupon real yield (cont. comp.). Original name `real_yield_10y` in predictors/tips_real_yields.parquet; converted from percent (x0.01)
 tips_real_yield_5y,tips,decimal,D,1999-01-04,2026-11-06,True,GSW TIPS 5y zero-coupon real yield (cont. comp.). Original name `real_yield_5y` in predictors/tips_real_yields.parquet; converted from percent (x0.01)
 ust_cmt_yield_10y,treasury,decimal,D,1962-01-02,2026-11-09,True,H.15 10y CMT par yield. Original name `yield_10y` in predictors/treasury_curve.parquet
-ust_cmt_yield_20y,treasury,decimal,D,1962-01-02,2026-11-09,True,H.15 20y CMT par yield; gap 1987-01..1993-09. Original name `yield_20y` in predictors/treasury_curve.parquet
+ust_cmt_yield_20y,treasury,decimal,D,1973-01-04,2026-11-09,True,H.15 20y CMT par yield; gap 1987-01..1993-09. Original name `yield_20y` in predictors/treasury_curve.parquet
 ust_cmt_yield_2y,treasury,decimal,D,1976-06-01,2026-11-09,True,H.15 2y constant-maturity par yield. Original name `yield_2y` in predictors/treasury_curve.parquet
 ust_cmt_yield_30y,treasury,decimal,D,1977-02-15,2026-11-09,True,H.15 30y CMT par yield. Original name `yield_30y` in predictors/treasury_curve.parquet
 ust_cmt_yield_5y,treasury,decimal,D,1962-01-02,2026-11-09,True,H.15 5y CMT par yield. Original name `yield_5y` in predictors/treasury_curve.parquet
 ust_cmt_yield_7y,treasury,decimal,D,1969-07-01,2026-11-09,True,H.15 7y CMT par yield. Original name `yield_7y` in predictors/treasury_curve.parquet
-ust_etf_duration_est_int,treasury,years,D,2003-08-07,2026-11-06,True,IEF duration estimated by rolling 252-day regression (past data only). Original name `duration_ust_int_etf_est` in predictors/treasury_curve.parquet
-ust_etf_duration_est_long,treasury,years,D,2003-08-07,2026-11-06,True,TLT duration estimated by rolling 252-day regression (past data only). Original name `duration_ust_long_etf_est` in predictors/treasury_curve.parquet
+ust_etf_duration_est_int,treasury,years,D,2003-08-08,2026-11-06,True,IEF duration estimated by rolling 252-day regression (past data only). Original name `duration_ust_int_etf_est` in predictors/treasury_curve.parquet
+ust_etf_duration_est_long,treasury,years,D,2003-08-08,2026-11-06,True,TLT duration estimated by rolling 252-day regression (past data only). Original name `duration_ust_long_etf_est` in predictors/treasury_curve.parquet
 ust_ladder_duration_int,treasury,years,D,1962-01-02,2026-11-09,True,modified duration of the 7-10y par ladder. Original name `duration_ust_int` in predictors/treasury_curve.parquet
 ust_ladder_duration_long,treasury,years,D,1962-01-02,2026-11-09,True,modified duration of the 20-30y par ladder; understates TLT's by ~2y after 2020. Original name `duration_ust_long` in predictors/treasury_curve.parquet
 ust_ladder_yield_int,treasury,decimal,D,1971-08-16,2026-11-06,True,mean GSW par yield of the 7-10y ladder (ust_int construction). Original name `yield_ladder_ust_int` in predictors/treasury_curve.parquet

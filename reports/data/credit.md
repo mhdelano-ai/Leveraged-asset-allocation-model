@@ -19,11 +19,13 @@ tier-C segment.
 
 ## Sources
 
-* **Yahoo chart API** (`query1.finance.yahoo.com/v8/finance/chart/<sym>`), `adjclose`.
-  For every symbol used, adjclose returns were checked against returns computed from
-  `close` plus Yahoo's dividend events (table below): the residual is at the level of
-  NAV rounding to the cent, so adjclose includes distributions (capital-gain
-  distributions are reported by Yahoo as dividends) back to the first date used.
+* **Yahoo chart API** (`query1.finance.yahoo.com/v8/finance/chart/<sym>`): `close` (split-
+  adjusted price or NAV) and dividend events. Returns are built from close + distributions,
+  NOT from `adjclose` (see "Distributions and bad prints" below): the ETFs' distributions are
+  validated against the ex-date price behaviour, and the daily-accrual funds' month-end
+  income is spread over its accrual month. The table below compares Yahoo's adjclose with
+  close + Yahoo dividend events (both before any correction); the residual is at the level of
+  NAV rounding, so adjclose merely reinvests Yahoo's dividend list (including its errors).
   Calendar-year returns agree with figures recalled from memory (VWEHX 1990 -5.9%,
   1991 +29.4%, 2008 -21.2%; VWESX 2008 +2.3%; LQD 2008 +2.4%, 2022 -17.9%; HYG 2008 -17.6%);
   these were NOT checked against fund documents here.
@@ -68,34 +70,47 @@ tier-C segment.
 
 | asset | start | end | freq | source | tier | notes |
 |---|---|---|---|---|---|---|
-| ig_credit | 1919-02-28 | 1925-12-31 | M | moodys_aaa_baa_avg_parbond | D | 14y constant-maturity par bond priced off month-AVERAGE (Aaa+Baa)/2 Moody's yields (H.15); vs Ibbotson blend M 1926-01-31..1979-12-31: corr 0.41, vol ratio 1.05, TE 0.046; vs LQD M 2002-08-31..2016-09-30: corr 0.57, vol ratio 0.84, TE 0.065; averaging damps vol and blurs timing |
-| ig_credit | 1926-01-31 | 1980-01-31 | M | ibbotson_ltcorp_rf_blend | C | 0.81 x Ibbotson/SBBI long-term corporate TR + 0.19 x T-bill (Welch-Goyal corpr, Rfree), duration-shortened to LQD; vs LQD M 2002-08-31..2025-12-31: corr 0.88, vol ratio 1.00, TE 0.039; vs fund blends M 1980-02-29..2002-07-31: corr 0.97, vol ratio 1.14, TE 0.020 |
-| ig_credit | 1980-01-03 | 1984-12-31 | D | blend_VWESX_FBNDX | A | daily constant-mix 0.59 VWESX + 0.41 FBNDX (weight = vol match to LQD, monthly); vs LQD M 2002-07-31..2026-10-31: corr 0.92, vol ratio 1.00, TE 0.031; vs VWESX/VFSTX blend M 1985-01-31..2002-07-31: corr 0.99, vol ratio 1.09, TE 0.008; open-end NAVs: stale pricing, daily vol understated |
-| ig_credit | 1985-01-02 | 2002-07-30 | D | blend_VWESX_VFSTX | A | daily constant-mix 0.70 VWESX + 0.30 VFSTX (vol match to LQD, monthly); vs LQD M 2002-07-31..2026-10-31: corr 0.92, vol ratio 1.00, TE 0.030; daily D 2002-07-31..2026-10-30: corr 0.67, vol ratio 0.95, TE 0.066; open-end NAVs: stale pricing, daily vol understated |
-| ig_credit | 2002-07-31 | 2026-11-13 | D | yahoo_LQD | A | iShares iBoxx IG corporate ETF, adjclose (verified = close + distributions) |
+| ig_credit | 1919-02-28 | 1925-12-31 | M | moodys_aaa_baa_avg_parbond | D | 15y constant-maturity par bond priced off month-AVERAGE (Aaa+Baa)/2 Moody's yields (H.15) (maturity = vol match to LQD on 2002-07..2014-12); vs Ibbotson blend M 1926-01-31..1979-12-31: corr 0.40, vol ratio 1.22, TE 0.045; vs LQD M 2002-08-31..2016-09-30: corr 0.57, vol ratio 0.88, TE 0.066; averaging damps vol and blurs timing |
+| ig_credit | 1926-01-31 | 1980-01-31 | M | ibbotson_ltcorp_rf_blend | C | 0.72 x Ibbotson/SBBI long-term corporate TR + 0.28 x T-bill (Welch-Goyal corpr, Rfree), duration-shortened to LQD (weight = vol match to LQD, monthly, 2002-07..2014-12 only (holdout excluded)); vs LQD M 2002-08-31..2025-12-31: corr 0.88, vol ratio 0.90, TE 0.038; vs fund blends M 1980-02-29..2002-07-31: corr 0.97, vol ratio 1.01, TE 0.018 |
+| ig_credit | 1980-01-03 | 1984-12-31 | D | blend_VWESX_FBNDX | B | daily constant-mix 0.68 VWESX + 0.32 FBNDX (weight = vol match to LQD, monthly, 2002-07..2014-12 only (holdout excluded)); vs LQD M 2002-07-31..2026-10-31: corr 0.92, vol ratio 1.07, TE 0.033; vs VWESX/VFSTX blend M 1985-01-31..2002-07-31: corr 1.00, vol ratio 1.08, TE 0.006; fund NAV + distributions, month-end income spread over its accrual month (daily-accrual fund); open-end NAVs: stale pricing, daily vol understated; bad NAV prints dropped: 1982-10-06, 1983-11-21, 1983-11-28, 1984-02-02, 1984-11-14, 1984-12-06 |
+| ig_credit | 1985-01-02 | 2002-07-30 | D | blend_VWESX_VFSTX | B | daily constant-mix 0.75 VWESX + 0.25 VFSTX (weight = vol match to LQD, monthly, 2002-07..2014-12 only (holdout excluded)); vs LQD M 2002-07-31..2026-10-31: corr 0.92, vol ratio 1.06, TE 0.032; daily D 2002-07-31..2026-10-30: corr 0.68, vol ratio 0.99, TE 0.066; fund NAV + distributions, month-end income spread over its accrual month (daily-accrual fund); open-end NAVs: stale pricing, daily vol understated; VWESX 1987-01 distribution re-dated to its NAV drop (01-29) |
+| ig_credit | 2002-07-31 | 2026-11-13 | D | yahoo_LQD | A | iShares iBoxx IG corporate ETF, close + validated distributions; Yahoo distributions corrected: 2003-12-16 1.385 -> 0.003 (price test z 6.4) |
 | hy_credit | 1980-02-29 | 1984-12-31 | M | yahoo_VWEHX_exdiv_monthly | C | Yahoo has one NAV per month before 1985 (ex-div date, ~25th-30th): returns span ex-date to ex-date; sampling effect measured 1985-2026: M 1985-02-28..2026-10-31: corr 1.00, vol ratio 1.00, TE 0.006 |
-| hy_credit | 1985-01-02 | 2007-04-11 | D | yahoo_VWEHX | A | Vanguard High-Yield Corporate NAV; vs HYG M 2007-04-30..2026-10-31: corr 0.91, vol ratio 0.82, TE 0.044; daily D 2007-04-12..2026-10-30: corr 0.53, vol ratio 0.48, TE 0.092; matrix-priced NAV: daily vol ~half of HYG, positive autocorrelation |
-| hy_credit | 2007-04-12 | 2026-11-13 | D | yahoo_HYG | A | iShares iBoxx HY corporate ETF, adjclose (verified = close + distributions) |
+| hy_credit | 1985-01-02 | 2007-04-11 | D | yahoo_VWEHX | B | Vanguard High-Yield Corporate NAV; vs HYG M 2007-04-30..2026-10-31: corr 0.91, vol ratio 0.82, TE 0.043; daily D 2007-04-12..2026-10-30: corr 0.56, vol ratio 0.45, TE 0.090; TARGET-HORIZON VOL LEVEL: 21-day-horizon vol ratio VWEHX/HYG 0.83 on the 2007-04..2026 overlap (0.80 in 2007-09, 0.79 on 2007-04..2014), 0.93 at 63 days, 0.45 at 1 day (independent audit: 0.83 overall, 0.80 in 2007-09, 0.93 at 63 days): this era's vol level is ~15-20% below HYG's even at 21 days, so do not pool it with HYG's level (tier B vs A marks the break); matrix-priced NAV, positive autocorrelation; fund NAV + distributions, month-end income spread over its accrual month (daily-accrual fund); 1987-01 distribution re-dated to its NAV drop (01-29); bad NAV prints dropped: 1991-08-19 |
+| hy_credit | 2007-04-12 | 2026-11-13 | D | yahoo_HYG | A | iShares iBoxx HY corporate ETF, close + validated distributions; every Yahoo distribution passed the ex-date price test |
 
 Construction logic:
+
+* **Holdout integrity.** Every fitted parameter of the pre-LQD history is calibrated on
+  LQD's first full month (2002-07) to `CALIBRATION_END` = 2014-12-31 only;
+  the 2015+ holdout never enters. Full-sample values are shown for comparison only:
+
+| parameter | used (2002-08..2014-12) | full sample to 2026 (not used) |
+|---|---|---|
+| w80: VWESX share of the 1980-84 blend | 0.679 | 0.585 |
+| w85: VWESX share of the 1985-2002 blend | 0.748 | 0.694 |
+| wc: Ibbotson share of the 1926-79 blend | 0.725 | 0.804 |
+| n_star: tier-D par-bond maturity (years) | 15.000 | 14.000 |
 
 * **ig_credit daily.** LQD from its first return. Before LQD, a daily constant-mix blend of
   the long-term IG fund VWESX with a shorter fund, because VWESX alone has ~1.3x LQD's
   vol (duration ~13-14y vs LQD ~8-9y; see "VWESX alone vs LQD" below). Weights are chosen
-  so the blend's monthly vol equals LQD's on the full LQD overlap: 0.70 VWESX /
-  0.30 VFSTX (1985-2002, VFSTX keeps the blend all-corporate) and 0.59 VWESX /
-  0.41 FBNDX for 1980-1984, when VFSTX has no daily data (FBNDX is a core bond fund
-  with Treasuries/MBS, so less credit content; the two blends correlate 0.99 on 1985-2002).
-* **ig_credit monthly before 1980.** Tier C: 0.81 x Ibbotson long-term corporate TR +
-  0.19 x T-bill. Ibbotson's index is long duration (vol 1.24x LQD on the overlap);
+  so the blend's monthly vol equals LQD's on 2002-07..2014-12:
+  0.75 VWESX / 0.25 VFSTX (1985-2002, VFSTX keeps the blend all-corporate) and
+  0.68 VWESX / 0.32 FBNDX for 1980-1984, when VFSTX has no daily data (FBNDX is a
+  core bond fund with Treasuries/MBS, so less credit content; the two blends correlate 0.99
+  on 1985-2002). Tier B: open-end fund NAVs (tier A is reserved for exchange-traded prices),
+  so the 2002-07 splice to LQD is a visible tier change.
+* **ig_credit monthly before 1980.** Tier C: 0.72 x Ibbotson long-term corporate TR +
+  0.28 x T-bill. Ibbotson's index is long duration (vol 1.24x LQD on the overlap);
   mixing with T-bills is the monthly analogue of the fund blend (weight again from a vol
-  match to LQD). It tracks the fund blends well in 1980-2002 (monthly corr 0.97) but has
-  ~14% more vol there. Before 1926, tier D: a 14-year constant-maturity par bond
-  priced off month-AVERAGE (Aaa+Baa)/2 Moody's yields; the maturity is chosen so that
-  the same bond priced off END-of-month daily Moody's yields matches LQD's monthly vol
-  on 2002-08..2016-09 (table below). The Ibbotson series was preferred to the
-  reconstruction from 1926 because it is a real index return (corr 0.94 with VWESX on
-  1980-2025) while the yield reconstruction correlates only 0.41 with it on 1926-1979.
+  match to LQD on 2002-07..2014-12). Before 1926, tier D: a
+  15-year constant-maturity par bond priced off month-AVERAGE (Aaa+Baa)/2 Moody's
+  yields; the maturity is chosen so that the same bond priced off END-of-month daily
+  Moody's yields matches LQD's monthly vol on 2002-07..2014-12
+  (table below). The Ibbotson series was preferred to the reconstruction from 1926 because
+  it is a real index return (corr 0.94 with VWESX on 1980-2025) while the yield
+  reconstruction correlates only 0.41 with it on 1926-1979.
 * **hy_credit.** HYG from its first return; VWEHX daily 1985-01-02..2007-04-11 (best
   monthly tracking of HYG among long-lived HY funds: corr 0.91, vol ratio
   0.82); VWEHX monthly (one NAV per month on the ex-dividend date) for
@@ -106,73 +121,105 @@ Construction logic:
   An equal-weight composite of VWEHX/FHIIX/PRHYX was tried and did not track HYG better
   (monthly corr 0.89, vol ratio 0.84).
 
+## Distributions and bad prints
+
+**ETF distributions (LQD, HYG).** Each Yahoo distribution is tested on its ex-date: the ETF's total return (close + distribution) is compared with a regression on peers (H.15 CMT yield changes; price returns of daily-accrual bond funds, whose NAV never drops; total returns of other ETFs) fitted on the surrounding non-ex days. A paid distribution leaves a residual near 0; one the price never paid leaves a residual near its own size. A distribution is replaced by the price-implied amount only when the residual is clear (z > 3) AND its amount is anomalous for the fund (> 1.5x its neighbours), or the residual alone is overwhelming (z > 8); rule and thresholds in `volmodel.data.sources.distributions.validate_distributions`. Changed:
+
+* LQD: 291 distributions tested, {'kept': 290, 'replaced:price_implied': 1}.
+* HYG: 234 distributions tested, {'kept': 234}.
+
+| ETF | ex-date | Yahoo amount | used | yield | price-test z | x neighbours |
+|---|---|---|---|---|---|---|
+| LQD | 2003-12-16 | 1.3850 | 0.0026 | 0.0126 | 6.3692 | 3.1585 |
+
+LQD 2003-12-16 (1.26% of the price) is not reflected in the price at all (LQD's price rose 0.23% that day); the independent audit found the same with markets.ft.com closes.
+
+**Daily-accrual funds (VWEHX, VFSTX, FBNDX; VWESX from 1985).** They declare income daily and pay it on the last trading day of the month without an NAV drop, so Yahoo's adjclose books a month of income on one day. Month-end distributions are spread over their month by calendar days (`distributions.accrual_total_return`); a month-end distribution more than 2x the fund's regular income is split (regular part accrued, excess = capital gain paid on the ex-date); distributions on other days are ex-date cash flows (VWESX dropped its NAV on the ex-date before 1985). Monthly returns are unchanged up to intra-month compounding.
+
+| fund (era used) | accrued | of which split | ex-date | 1-day vol adjclose | 1-day vol rebuilt | months diff > 1e-4 | max abs monthly diff | worst month |
+|---|---|---|---|---|---|---|---|---|
+| VWEHX 1985-2007 | 253 | 0 | 11 | 0.0413 | 0.0317 | 38 | 0.0022 | 2007-04-30 |
+| VFSTX 1985-2002 | 208 | 2 | 2 | 0.0299 | 0.0211 | 2 | 0.0044 | 2002-07-31 |
+| FBNDX 1980-1984 | 60 | 0 | 0 | 0.0941 | 0.0797 | 33 | 0.0004 | 1980-10-31 |
+| VWESX 1980-2002 | 199 | 9 | 72 | 0.0698 | 0.0664 | 30 | 0.0053 | 2002-07-31 |
+
+Monthly differences above rounding come only from the re-dated January-1987 distributions (VWEHX, VWESX: moved within the month, so zero) and dropped bad prints (within their month, so zero); any month listed above differs by intra-month compounding of the accrued income only.
+
+**Bad NAV prints dropped** (the PRICE is removed, the next return spans the gap, nothing is interpolated): VWEHX 1991-08-19; FBNDX 1982-10-06, 1983-11-21, 1983-11-28, 1984-02-02, 1984-11-14, 1984-12-06. Each is a 1-3.6% one-day move that reverses the next day while VWESX and the Treasury reconstructions (FBNDX) or the HY peer funds FHIIX, PRHYX, AHITX, FAGIX (VWEHX 1991-08-19: peers -0.4% to -0.5%, VWEHX -1.3% then +1.0%) are flat.
+
+**Re-dated distributions:** VWEHX 1987-01-30 -> 1987-01-29; VWESX 1987-01-30 -> 1987-01-29. In January 1987 the NAVs of VWEHX, VWESX and VFSTX all dropped on 01-29 by about their distribution while Treasuries and HY peer funds were flat; Yahoo dates VFSTX's distribution 01-29 but VWEHX's and VWESX's 01-30 (where adjclose then showed a spurious -1.2%/+1.2% pair). The re-dated distributions are ex-date cash flows.
+
+**Not changed:** FBNDX 1983-08-30 (-1.5%, listed by the audit) is a persistent level drop, not a reversal once the 08-31 distribution is accrued: dropping the price would only move the drop to 08-31. It may be an unlisted distribution; it is left as recorded.
+
+
 ## Overlap diagnostics
 
-Log returns; vol annualized (x sqrt 252 / 52 / 12); TE = annualized std of the
+Overlap statistics are DIAGNOSTICS (they use the full overlap, holdout included, but
+nothing is fitted on them). Log returns; vol annualized (x sqrt 252 / 52 / 12); TE = annualized std of the
 difference. W = Friday-to-Friday weeks.
 
 | comparison (a vs b) | freq | window | n | corr | vol a | vol b | vol ratio a/b | TE (ann.) |
 |---|---|---|---|---|---|---|---|---|
-| blend_VWESX_FBNDX vs LQD | D | 2002-07-31..2026-10-30 | 6103 | 0.687 | 0.079 | 0.083 | 0.954 | 0.064 |
-| blend_VWESX_FBNDX vs LQD | W | 2002-08-02..2026-10-30 | 1266 | 0.854 | 0.080 | 0.084 | 0.951 | 0.045 |
-| blend_VWESX_FBNDX vs LQD | M | 2002-07-31..2026-10-31 | 292 | 0.920 | 0.078 | 0.078 | 0.999 | 0.031 |
-| blend_VWESX_VFSTX vs LQD | D | 2002-07-31..2026-10-30 | 6103 | 0.674 | 0.079 | 0.083 | 0.951 | 0.066 |
-| blend_VWESX_VFSTX vs LQD | W | 2002-08-02..2026-10-30 | 1266 | 0.851 | 0.080 | 0.084 | 0.950 | 0.045 |
-| blend_VWESX_VFSTX vs LQD | M | 2002-07-31..2026-10-31 | 292 | 0.925 | 0.078 | 0.078 | 0.999 | 0.030 |
-| VWESX alone vs LQD | D | 2002-07-31..2026-10-30 | 6103 | 0.672 | 0.107 | 0.083 | 1.281 | 0.080 |
-| VWESX alone vs LQD | W | 2002-08-02..2026-10-30 | 1266 | 0.843 | 0.107 | 0.084 | 1.272 | 0.058 |
-| VWESX alone vs LQD | M | 2002-07-31..2026-10-31 | 292 | 0.913 | 0.105 | 0.078 | 1.332 | 0.046 |
-| blend_VWESX_FBNDX vs blend_VWESX_VFSTX (1985-2002) | D | 1985-01-02..2002-07-30 | 4436 | 0.990 | 0.058 | 0.055 | 1.055 | 0.009 |
-| blend_VWESX_FBNDX vs blend_VWESX_VFSTX (1985-2002) | W | 1985-01-04..2002-08-02 | 918 | 0.994 | 0.063 | 0.059 | 1.058 | 0.008 |
-| blend_VWESX_FBNDX vs blend_VWESX_VFSTX (1985-2002) | M | 1985-01-31..2002-07-31 | 211 | 0.994 | 0.056 | 0.051 | 1.091 | 0.008 |
-| ibbotson_ltcorp_rf_blend vs LQD | M | 2002-08-31..2025-12-31 | 281 | 0.879 | 0.079 | 0.079 | 1.000 | 0.039 |
-| ibbotson_ltcorp_rf_blend vs fund blends (1980-2002) | M | 1980-02-29..2002-07-31 | 270 | 0.968 | 0.075 | 0.066 | 1.138 | 0.020 |
-| ibbotson corpr (unblended) vs LQD | M | 2002-08-31..2025-12-31 | 281 | 0.879 | 0.098 | 0.079 | 1.241 | 0.047 |
-| ibbotson corpr (unblended) vs VWESX | M | 1980-02-29..2025-12-31 | 551 | 0.936 | 0.096 | 0.092 | 1.048 | 0.034 |
-| moodys recon (month-avg yields) vs ibbotson blend (1926-1979) | M | 1926-01-31..1979-12-31 | 648 | 0.406 | 0.043 | 0.041 | 1.052 | 0.046 |
-| moodys recon (month-avg yields) vs LQD | M | 2002-08-31..2016-09-30 | 170 | 0.565 | 0.063 | 0.075 | 0.844 | 0.065 |
-| moodys recon (month-avg yields) vs fund blends (1980-2002) | M | 1980-02-29..2002-07-31 | 270 | 0.651 | 0.065 | 0.066 | 0.979 | 0.055 |
-| VWEHX vs HYG | D | 2007-04-12..2026-10-30 | 4921 | 0.527 | 0.052 | 0.108 | 0.485 | 0.092 |
-| VWEHX vs HYG | W | 2007-04-13..2026-10-30 | 1021 | 0.835 | 0.075 | 0.112 | 0.664 | 0.065 |
-| VWEHX vs HYG | M | 2007-04-30..2026-10-31 | 235 | 0.906 | 0.083 | 0.101 | 0.817 | 0.044 |
-| JNK vs HYG | D | 2007-12-05..2026-10-30 | 4756 | 0.828 | 0.114 | 0.108 | 1.050 | 0.065 |
+| blend_VWESX_FBNDX vs LQD | D | 2002-07-31..2026-10-30 | 6103 | 0.688 | 0.084 | 0.083 | 1.006 | 0.066 |
+| blend_VWESX_FBNDX vs LQD | W | 2002-08-02..2026-10-30 | 1266 | 0.860 | 0.085 | 0.084 | 1.005 | 0.045 |
+| blend_VWESX_FBNDX vs LQD | M | 2002-07-31..2026-10-31 | 292 | 0.920 | 0.084 | 0.078 | 1.075 | 0.033 |
+| blend_VWESX_VFSTX vs LQD | D | 2002-07-31..2026-10-30 | 6103 | 0.678 | 0.082 | 0.083 | 0.988 | 0.066 |
+| blend_VWESX_VFSTX vs LQD | W | 2002-08-02..2026-10-30 | 1266 | 0.858 | 0.083 | 0.084 | 0.989 | 0.045 |
+| blend_VWESX_VFSTX vs LQD | M | 2002-07-31..2026-10-31 | 292 | 0.923 | 0.083 | 0.078 | 1.059 | 0.032 |
+| VWESX alone vs LQD | D | 2002-07-31..2026-10-30 | 6103 | 0.675 | 0.105 | 0.083 | 1.262 | 0.078 |
+| VWESX alone vs LQD | W | 2002-08-02..2026-10-30 | 1266 | 0.849 | 0.106 | 0.084 | 1.256 | 0.056 |
+| VWESX alone vs LQD | M | 2002-07-31..2026-10-31 | 292 | 0.914 | 0.105 | 0.078 | 1.336 | 0.046 |
+| blend_VWESX_FBNDX vs blend_VWESX_VFSTX (1985-2002) | D | 1985-01-02..2002-07-30 | 4436 | 0.993 | 0.056 | 0.053 | 1.057 | 0.007 |
+| blend_VWESX_FBNDX vs blend_VWESX_VFSTX (1985-2002) | W | 1985-01-04..2002-08-02 | 918 | 0.996 | 0.060 | 0.056 | 1.060 | 0.006 |
+| blend_VWESX_FBNDX vs blend_VWESX_VFSTX (1985-2002) | M | 1985-01-31..2002-07-31 | 211 | 0.996 | 0.058 | 0.054 | 1.080 | 0.006 |
+| ibbotson_ltcorp_rf_blend vs LQD | M | 2002-08-31..2025-12-31 | 281 | 0.880 | 0.071 | 0.079 | 0.902 | 0.038 |
+| ibbotson_ltcorp_rf_blend vs fund blends (1980-2002) | M | 1980-02-29..2002-07-31 | 270 | 0.966 | 0.068 | 0.068 | 1.006 | 0.018 |
+| ibbotson corpr (unblended) vs LQD | M | 2002-08-31..2025-12-31 | 281 | 0.880 | 0.098 | 0.079 | 1.243 | 0.047 |
+| ibbotson corpr (unblended) vs VWESX | M | 1980-02-29..2025-12-31 | 551 | 0.936 | 0.096 | 0.092 | 1.046 | 0.034 |
+| moodys recon (month-avg yields) vs ibbotson blend (1926-1979) | M | 1926-01-31..1979-12-31 | 648 | 0.404 | 0.045 | 0.037 | 1.217 | 0.045 |
+| moodys recon (month-avg yields) vs LQD | M | 2002-08-31..2016-09-30 | 170 | 0.566 | 0.066 | 0.075 | 0.884 | 0.066 |
+| moodys recon (month-avg yields) vs fund blends (1980-2002) | M | 1980-02-29..2002-07-31 | 270 | 0.652 | 0.067 | 0.068 | 0.986 | 0.056 |
+| VWEHX vs HYG | D | 2007-04-12..2026-10-30 | 4921 | 0.557 | 0.049 | 0.108 | 0.452 | 0.090 |
+| VWEHX vs HYG | W | 2007-04-13..2026-10-30 | 1021 | 0.857 | 0.072 | 0.112 | 0.639 | 0.063 |
+| VWEHX vs HYG | M | 2007-04-30..2026-10-31 | 235 | 0.907 | 0.083 | 0.101 | 0.819 | 0.043 |
+| JNK vs HYG | D | 2007-12-05..2026-10-30 | 4756 | 0.828 | 0.114 | 0.108 | 1.051 | 0.065 |
 | JNK vs HYG | W | 2007-12-07..2026-10-30 | 987 | 0.946 | 0.127 | 0.113 | 1.125 | 0.042 |
 | JNK vs HYG | M | 2007-12-31..2026-10-31 | 227 | 0.968 | 0.112 | 0.101 | 1.112 | 0.029 |
-| FHIIX vs HYG | D | 2007-04-12..2026-10-30 | 4921 | 0.594 | 0.053 | 0.108 | 0.488 | 0.087 |
+| FHIIX vs HYG | D | 2007-04-12..2026-10-30 | 4921 | 0.595 | 0.053 | 0.108 | 0.489 | 0.087 |
 | FHIIX vs HYG | W | 2007-04-13..2026-10-30 | 1021 | 0.862 | 0.076 | 0.112 | 0.675 | 0.061 |
 | FHIIX vs HYG | M | 2007-04-30..2026-10-31 | 235 | 0.876 | 0.086 | 0.101 | 0.855 | 0.049 |
 | PRHYX vs HYG | D | 2007-04-12..2026-10-30 | 4921 | 0.533 | 0.053 | 0.108 | 0.496 | 0.091 |
-| PRHYX vs HYG | W | 2007-04-13..2026-10-30 | 1021 | 0.820 | 0.077 | 0.112 | 0.682 | 0.066 |
-| PRHYX vs HYG | M | 2007-04-30..2026-10-31 | 235 | 0.866 | 0.087 | 0.101 | 0.860 | 0.051 |
+| PRHYX vs HYG | W | 2007-04-13..2026-10-30 | 1021 | 0.820 | 0.077 | 0.112 | 0.683 | 0.066 |
+| PRHYX vs HYG | M | 2007-04-30..2026-10-31 | 235 | 0.866 | 0.087 | 0.101 | 0.860 | 0.050 |
 | SPHIX vs HYG | D | 2007-04-12..2026-10-30 | 4921 | 0.610 | 0.058 | 0.108 | 0.541 | 0.086 |
 | SPHIX vs HYG | W | 2007-04-13..2026-10-30 | 1021 | 0.856 | 0.082 | 0.112 | 0.733 | 0.060 |
-| SPHIX vs HYG | M | 2007-04-30..2026-10-31 | 235 | 0.881 | 0.090 | 0.101 | 0.888 | 0.048 |
-| AHITX vs HYG | D | 2007-04-12..2026-10-30 | 4921 | 0.604 | 0.056 | 0.108 | 0.519 | 0.086 |
+| SPHIX vs HYG | M | 2007-04-30..2026-10-31 | 235 | 0.882 | 0.090 | 0.101 | 0.888 | 0.048 |
+| AHITX vs HYG | D | 2007-04-12..2026-10-30 | 4921 | 0.605 | 0.056 | 0.108 | 0.519 | 0.086 |
 | AHITX vs HYG | W | 2007-04-13..2026-10-30 | 1021 | 0.836 | 0.078 | 0.112 | 0.696 | 0.064 |
 | AHITX vs HYG | M | 2007-04-30..2026-10-31 | 235 | 0.880 | 0.088 | 0.101 | 0.875 | 0.048 |
-| equal-weight VWEHX/FHIIX/PRHYX vs HYG | D | 2007-04-12..2026-10-30 | 4921 | 0.578 | 0.050 | 0.108 | 0.467 | 0.089 |
-| equal-weight VWEHX/FHIIX/PRHYX vs HYG | W | 2007-04-13..2026-10-30 | 1021 | 0.851 | 0.075 | 0.112 | 0.665 | 0.063 |
-| equal-weight VWEHX/FHIIX/PRHYX vs HYG | M | 2007-04-30..2026-10-31 | 235 | 0.889 | 0.085 | 0.101 | 0.837 | 0.047 |
+| equal-weight VWEHX/FHIIX/PRHYX vs HYG | D | 2007-04-12..2026-10-30 | 4921 | 0.590 | 0.049 | 0.108 | 0.456 | 0.088 |
+| equal-weight VWEHX/FHIIX/PRHYX vs HYG | W | 2007-04-13..2026-10-30 | 1021 | 0.857 | 0.074 | 0.112 | 0.657 | 0.062 |
+| equal-weight VWEHX/FHIIX/PRHYX vs HYG | M | 2007-04-30..2026-10-31 | 235 | 0.889 | 0.085 | 0.101 | 0.838 | 0.046 |
 | VWEHX ex-div-date-sampled vs month-end (1985-2026) | M | 1985-02-28..2026-10-31 | 497 | 0.996 | 0.070 | 0.070 | 1.004 | 0.006 |
 
 Tier-D maturity calibration (par bond on END-of-month Moody's yields vs LQD, monthly
-2002-08..2016-09; correlation is ~0.82 for every maturity):
+2002-07..2014-12; correlation is ~0.8 for every maturity):
 
 | maturity | vol_ratio_vs_LQD | corr |
 |---|---|---|
-| 8.00 | 0.66 | 0.82 |
-| 10.00 | 0.78 | 0.82 |
-| 12.00 | 0.89 | 0.82 |
-| 13.00 | 0.94 | 0.82 |
-| 14.00 | 0.99 | 0.82 |
-| 15.00 | 1.04 | 0.82 |
-| 16.00 | 1.08 | 0.82 |
-| 20.00 | 1.23 | 0.82 |
-| 25.00 | 1.37 | 0.81 |
-| 30.00 | 1.48 | 0.81 |
+| 8.00 | 0.66 | 0.81 |
+| 10.00 | 0.78 | 0.81 |
+| 12.00 | 0.88 | 0.81 |
+| 13.00 | 0.93 | 0.81 |
+| 14.00 | 0.98 | 0.81 |
+| 15.00 | 1.02 | 0.81 |
+| 16.00 | 1.06 | 0.81 |
+| 20.00 | 1.20 | 0.81 |
+| 25.00 | 1.34 | 0.81 |
+| 30.00 | 1.44 | 0.81 |
 
-**Averaging damping (tier D).** Same 14y par bond, month-average vs end-of-month
-yields, 1986-2016: vol ratio 0.86, corr 0.71. So the tier-D
+**Averaging damping (tier D).** Same 15y par bond, month-average vs end-of-month
+yields, 1986-2016: vol ratio 0.86, corr 0.70. So the tier-D
 segment's variance is understated by roughly 26% and its
 timing is blurred (it also correlates only 0.57
 with LQD month by month). Treat 1919-1925 as level information, not as a vol measurement.
@@ -187,57 +234,57 @@ gives negative autocorrelation and ratios < 1.
 
 | source | era | n | zero_frac | ac1 | ac2 | ac3 | ac4 | ac5 | vol_d | vol_w | vol_m | w_over_d | m_over_d |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| LQD | 2000-2007 | 1175 | 0.020 | -0.034 | 0.006 | -0.008 | 0.016 | 0.051 | 0.059 | 0.056 | 0.062 | 0.958 | 1.067 |
-| LQD | 2007-2009 | 695 | 0.010 | -0.121 | -0.140 | 0.026 | 0.016 | 0.026 | 0.142 | 0.113 | 0.126 | 0.794 | 0.886 |
+| LQD | 2000-2007 | 1175 | 0.020 | -0.034 | 0.000 | -0.012 | 0.016 | 0.059 | 0.058 | 0.055 | 0.062 | 0.953 | 1.064 |
+| LQD | 2007-2009 | 695 | 0.010 | -0.121 | -0.140 | 0.027 | 0.016 | 0.026 | 0.142 | 0.113 | 0.126 | 0.794 | 0.886 |
 | LQD | 2010-2019 | 2516 | 0.013 | -0.025 | 0.008 | 0.040 | 0.005 | -0.046 | 0.052 | 0.053 | 0.052 | 1.023 | 1.007 |
 | LQD | 2020-2026 | 1727 | 0.006 | 0.116 | -0.014 | -0.021 | -0.101 | 0.031 | 0.101 | 0.117 | 0.094 | 1.166 | 0.938 |
-| IG blend VWESX/FBNDX | 1980-1989 | 2527 | 0.104 | 0.149 | 0.089 | 0.048 | 0.040 | 0.025 | 0.065 | 0.074 | 0.085 | 1.137 | 1.315 |
-| IG blend VWESX/FBNDX | 1990-1999 | 2528 | 0.108 | 0.092 | 0.037 | -0.047 | -0.072 | -0.057 | 0.058 | 0.062 | 0.055 | 1.069 | 0.941 |
-| IG blend VWESX/FBNDX | 2000-2007 | 1820 | 0.056 | 0.028 | -0.063 | -0.029 | 0.010 | 0.026 | 0.065 | 0.064 | 0.062 | 0.993 | 0.961 |
-| IG blend VWESX/FBNDX | 2007-2009 | 695 | 0.027 | -0.020 | -0.083 | 0.023 | -0.056 | 0.008 | 0.094 | 0.088 | 0.097 | 0.939 | 1.032 |
-| IG blend VWESX/FBNDX | 2010-2019 | 2516 | 0.040 | -0.075 | 0.008 | -0.037 | 0.020 | -0.083 | 0.070 | 0.066 | 0.057 | 0.942 | 0.822 |
-| IG blend VWESX/FBNDX | 2020-2026 | 1727 | 0.032 | 0.088 | -0.007 | 0.022 | 0.024 | 0.005 | 0.094 | 0.103 | 0.100 | 1.102 | 1.068 |
-| IG blend VWESX/VFSTX | 1980-1989 | 1263 | 0.136 | 0.106 | 0.033 | 0.001 | 0.013 | -0.005 | 0.050 | 0.053 | 0.054 | 1.066 | 1.081 |
-| IG blend VWESX/VFSTX | 1990-1999 | 2528 | 0.102 | 0.084 | 0.035 | -0.047 | -0.076 | -0.057 | 0.056 | 0.060 | 0.051 | 1.068 | 0.916 |
-| IG blend VWESX/VFSTX | 2000-2007 | 1820 | 0.057 | 0.024 | -0.060 | -0.025 | 0.011 | 0.029 | 0.065 | 0.064 | 0.062 | 0.987 | 0.956 |
-| IG blend VWESX/VFSTX | 2007-2009 | 695 | 0.030 | -0.027 | -0.083 | 0.018 | -0.031 | -0.007 | 0.096 | 0.091 | 0.102 | 0.943 | 1.057 |
-| IG blend VWESX/VFSTX | 2010-2019 | 2516 | 0.044 | -0.077 | 0.009 | -0.044 | 0.020 | -0.085 | 0.071 | 0.067 | 0.058 | 0.936 | 0.812 |
-| IG blend VWESX/VFSTX | 2020-2026 | 1727 | 0.034 | 0.103 | 0.004 | 0.029 | 0.024 | 0.006 | 0.091 | 0.102 | 0.098 | 1.121 | 1.080 |
-| VWESX | 1980-1989 | 2527 | 0.206 | 0.132 | 0.090 | 0.031 | 0.070 | 0.040 | 0.065 | 0.075 | 0.087 | 1.143 | 1.329 |
-| VWESX | 1990-1999 | 2528 | 0.153 | 0.084 | 0.034 | -0.050 | -0.079 | -0.051 | 0.070 | 0.075 | 0.065 | 1.063 | 0.930 |
-| VWESX | 2000-2007 | 1820 | 0.090 | 0.024 | -0.061 | -0.021 | 0.012 | 0.028 | 0.085 | 0.084 | 0.082 | 0.989 | 0.968 |
-| VWESX | 2007-2009 | 695 | 0.066 | -0.027 | -0.087 | 0.015 | -0.030 | -0.011 | 0.128 | 0.120 | 0.135 | 0.937 | 1.052 |
-| VWESX | 2010-2019 | 2516 | 0.065 | -0.077 | 0.008 | -0.047 | 0.016 | -0.086 | 0.098 | 0.091 | 0.079 | 0.931 | 0.806 |
-| VWESX | 2020-2026 | 1727 | 0.068 | 0.097 | 0.001 | 0.024 | 0.020 | 0.007 | 0.121 | 0.135 | 0.129 | 1.113 | 1.063 |
-| VFSTX | 1980-1989 | 1263 | 0.379 | 0.006 | 0.011 | -0.031 | -0.024 | -0.058 | 0.034 | 0.032 | 0.028 | 0.955 | 0.821 |
-| VFSTX | 1990-1999 | 2528 | 0.351 | 0.034 | 0.004 | -0.026 | -0.046 | -0.077 | 0.028 | 0.029 | 0.021 | 1.029 | 0.757 |
-| VFSTX | 2000-2007 | 1820 | 0.388 | 0.009 | -0.030 | -0.036 | -0.007 | 0.012 | 0.024 | 0.023 | 0.019 | 0.961 | 0.788 |
-| VFSTX | 2007-2009 | 695 | 0.250 | 0.004 | 0.032 | 0.065 | -0.039 | 0.055 | 0.033 | 0.035 | 0.043 | 1.071 | 1.318 |
-| VFSTX | 2010-2019 | 2516 | 0.460 | -0.084 | 0.021 | -0.002 | 0.050 | -0.048 | 0.015 | 0.015 | 0.014 | 0.979 | 0.893 |
-| VFSTX | 2020-2026 | 1727 | 0.327 | 0.111 | 0.045 | 0.038 | 0.042 | -0.024 | 0.029 | 0.033 | 0.033 | 1.139 | 1.149 |
-| FBNDX | 1980-1989 | 2527 | 0.250 | 0.038 | 0.050 | 0.057 | -0.022 | 0.013 | 0.077 | 0.079 | 0.086 | 1.029 | 1.118 |
-| FBNDX | 1990-1999 | 2528 | 0.275 | 0.063 | 0.041 | -0.037 | -0.045 | -0.064 | 0.045 | 0.047 | 0.042 | 1.050 | 0.940 |
-| FBNDX | 2000-2007 | 1820 | 0.250 | 0.023 | -0.062 | -0.046 | -0.004 | 0.008 | 0.040 | 0.039 | 0.036 | 0.990 | 0.908 |
-| FBNDX | 2007-2009 | 695 | 0.173 | 0.026 | -0.009 | 0.051 | -0.127 | 0.048 | 0.054 | 0.054 | 0.056 | 0.990 | 1.022 |
-| FBNDX | 2010-2019 | 2516 | 0.264 | -0.068 | 0.009 | 0.009 | 0.032 | -0.067 | 0.033 | 0.032 | 0.029 | 0.980 | 0.885 |
-| FBNDX | 2020-2026 | 1727 | 0.150 | 0.048 | -0.026 | 0.014 | 0.027 | -0.003 | 0.057 | 0.061 | 0.061 | 1.059 | 1.057 |
+| IG blend VWESX/FBNDX | 1980-1989 | 2521 | 0.000 | 0.177 | 0.103 | 0.060 | 0.069 | 0.038 | 0.061 | 0.071 | 0.086 | 1.171 | 1.403 |
+| IG blend VWESX/FBNDX | 1990-1999 | 2528 | 0.000 | 0.105 | 0.029 | -0.052 | -0.083 | -0.031 | 0.056 | 0.060 | 0.057 | 1.057 | 1.017 |
+| IG blend VWESX/FBNDX | 2000-2007 | 1820 | 0.000 | 0.034 | -0.061 | -0.012 | 0.016 | 0.021 | 0.066 | 0.067 | 0.067 | 1.016 | 1.013 |
+| IG blend VWESX/FBNDX | 2007-2009 | 695 | 0.000 | -0.037 | -0.082 | 0.030 | -0.048 | 0.019 | 0.099 | 0.093 | 0.105 | 0.938 | 1.060 |
+| IG blend VWESX/FBNDX | 2010-2019 | 2516 | 0.000 | -0.076 | 0.008 | -0.032 | 0.014 | -0.083 | 0.074 | 0.069 | 0.062 | 0.935 | 0.835 |
+| IG blend VWESX/FBNDX | 2020-2026 | 1727 | 0.000 | 0.088 | -0.005 | 0.023 | 0.021 | 0.008 | 0.099 | 0.109 | 0.106 | 1.102 | 1.078 |
+| IG blend VWESX/VFSTX | 1980-1989 | 1263 | 0.003 | 0.128 | 0.034 | 0.029 | 0.026 | 0.019 | 0.045 | 0.049 | 0.056 | 1.090 | 1.234 |
+| IG blend VWESX/VFSTX | 1990-1999 | 2528 | 0.000 | 0.098 | 0.029 | -0.052 | -0.085 | -0.032 | 0.054 | 0.057 | 0.054 | 1.057 | 1.002 |
+| IG blend VWESX/VFSTX | 2000-2007 | 1820 | 0.000 | 0.032 | -0.061 | -0.008 | 0.016 | 0.023 | 0.064 | 0.065 | 0.065 | 1.012 | 1.013 |
+| IG blend VWESX/VFSTX | 2007-2009 | 695 | 0.000 | -0.043 | -0.080 | 0.027 | -0.029 | 0.007 | 0.099 | 0.094 | 0.107 | 0.941 | 1.079 |
+| IG blend VWESX/VFSTX | 2010-2019 | 2516 | 0.000 | -0.077 | 0.009 | -0.036 | 0.015 | -0.084 | 0.074 | 0.069 | 0.061 | 0.931 | 0.828 |
+| IG blend VWESX/VFSTX | 2020-2026 | 1727 | 0.000 | 0.099 | 0.003 | 0.029 | 0.021 | 0.009 | 0.095 | 0.106 | 0.103 | 1.117 | 1.090 |
+| VWESX | 1980-1989 | 2527 | 0.112 | 0.140 | 0.094 | 0.041 | 0.076 | 0.048 | 0.063 | 0.073 | 0.087 | 1.154 | 1.381 |
+| VWESX | 1990-1999 | 2528 | 0.000 | 0.094 | 0.027 | -0.053 | -0.085 | -0.031 | 0.066 | 0.070 | 0.066 | 1.051 | 0.991 |
+| VWESX | 2000-2007 | 1820 | 0.000 | 0.031 | -0.061 | -0.007 | 0.015 | 0.021 | 0.082 | 0.082 | 0.082 | 1.011 | 1.010 |
+| VWESX | 2007-2009 | 695 | 0.000 | -0.040 | -0.084 | 0.022 | -0.027 | 0.001 | 0.126 | 0.118 | 0.135 | 0.937 | 1.071 |
+| VWESX | 2010-2019 | 2516 | 0.000 | -0.077 | 0.008 | -0.039 | 0.012 | -0.085 | 0.096 | 0.089 | 0.079 | 0.928 | 0.820 |
+| VWESX | 2020-2026 | 1727 | 0.002 | 0.095 | 0.001 | 0.025 | 0.018 | 0.009 | 0.120 | 0.133 | 0.129 | 1.111 | 1.073 |
+| VFSTX | 1980-1989 | 1263 | 0.017 | 0.043 | 0.049 | 0.004 | 0.040 | 0.003 | 0.023 | 0.024 | 0.028 | 1.018 | 1.195 |
+| VFSTX | 1990-1999 | 2528 | 0.000 | 0.080 | 0.030 | -0.029 | -0.050 | -0.033 | 0.020 | 0.021 | 0.021 | 1.076 | 1.068 |
+| VFSTX | 2000-2007 | 1820 | 0.000 | 0.022 | -0.036 | -0.004 | 0.031 | 0.032 | 0.018 | 0.018 | 0.019 | 1.014 | 1.041 |
+| VFSTX | 2007-2009 | 695 | 0.000 | -0.026 | 0.055 | 0.085 | -0.047 | 0.122 | 0.030 | 0.033 | 0.043 | 1.081 | 1.439 |
+| VFSTX | 2010-2019 | 2516 | 0.000 | -0.095 | 0.027 | 0.014 | 0.056 | -0.025 | 0.013 | 0.013 | 0.014 | 0.971 | 1.033 |
+| VFSTX | 2020-2026 | 1727 | 0.001 | 0.121 | 0.042 | 0.045 | 0.047 | -0.005 | 0.027 | 0.030 | 0.033 | 1.145 | 1.241 |
+| FBNDX | 1980-1989 | 2521 | 0.000 | 0.150 | 0.085 | 0.072 | 0.049 | 0.019 | 0.065 | 0.074 | 0.086 | 1.136 | 1.329 |
+| FBNDX | 1990-1999 | 2528 | 0.000 | 0.085 | 0.037 | -0.043 | -0.056 | -0.026 | 0.039 | 0.041 | 0.042 | 1.038 | 1.071 |
+| FBNDX | 2000-2007 | 1820 | 0.000 | 0.019 | -0.055 | -0.031 | 0.012 | 0.005 | 0.036 | 0.037 | 0.036 | 1.019 | 0.989 |
+| FBNDX | 2007-2009 | 695 | 0.000 | 0.010 | -0.012 | 0.070 | -0.136 | 0.089 | 0.052 | 0.052 | 0.056 | 0.994 | 1.074 |
+| FBNDX | 2010-2019 | 2516 | 0.000 | -0.078 | 0.007 | 0.024 | 0.027 | -0.059 | 0.032 | 0.031 | 0.029 | 0.972 | 0.926 |
+| FBNDX | 2020-2026 | 1727 | 0.001 | 0.041 | -0.028 | 0.014 | 0.027 | 0.003 | 0.056 | 0.059 | 0.061 | 1.051 | 1.078 |
 | VFICX | 1990-1999 | 1558 | 0.160 | 0.068 | 0.035 | -0.064 | -0.094 | -0.088 | 0.053 | 0.056 | 0.047 | 1.055 | 0.877 |
 | VFICX | 2000-2007 | 1820 | 0.165 | 0.012 | -0.052 | -0.048 | 0.027 | 0.010 | 0.048 | 0.047 | 0.044 | 0.968 | 0.907 |
 | VFICX | 2007-2009 | 695 | 0.098 | -0.011 | -0.032 | 0.032 | -0.049 | 0.038 | 0.068 | 0.069 | 0.079 | 1.013 | 1.162 |
 | VFICX | 2010-2019 | 2516 | 0.194 | -0.058 | 0.012 | -0.003 | 0.065 | -0.067 | 0.038 | 0.037 | 0.035 | 0.989 | 0.925 |
 | VFICX | 2020-2026 | 1727 | 0.127 | 0.090 | 0.011 | 0.029 | 0.032 | -0.015 | 0.060 | 0.066 | 0.070 | 1.095 | 1.170 |
-| HYG | 2007-2009 | 688 | 0.015 | -0.003 | -0.053 | -0.076 | 0.055 | 0.029 | 0.205 | 0.202 | 0.199 | 0.982 | 0.970 |
+| HYG | 2007-2009 | 688 | 0.015 | -0.003 | -0.053 | -0.076 | 0.055 | 0.029 | 0.205 | 0.202 | 0.199 | 0.982 | 0.971 |
 | HYG | 2010-2019 | 2516 | 0.018 | 0.018 | 0.072 | -0.105 | 0.050 | -0.081 | 0.073 | 0.074 | 0.067 | 1.021 | 0.924 |
-| HYG | 2020-2026 | 1727 | 0.012 | -0.005 | 0.101 | 0.011 | -0.119 | 0.050 | 0.093 | 0.109 | 0.084 | 1.162 | 0.901 |
+| HYG | 2020-2026 | 1727 | 0.012 | -0.005 | 0.101 | 0.011 | -0.119 | 0.051 | 0.093 | 0.109 | 0.084 | 1.162 | 0.902 |
 | JNK | 2007-2009 | 523 | 0.027 | -0.050 | -0.077 | 0.021 | 0.031 | 0.006 | 0.252 | 0.283 | 0.259 | 1.126 | 1.030 |
 | JNK | 2010-2019 | 2516 | 0.039 | 0.006 | 0.069 | -0.072 | 0.079 | -0.073 | 0.073 | 0.074 | 0.071 | 1.007 | 0.964 |
 | JNK | 2020-2026 | 1727 | 0.013 | 0.003 | 0.115 | 0.027 | -0.118 | 0.063 | 0.094 | 0.110 | 0.089 | 1.171 | 0.951 |
-| VWEHX | 1980-1989 | 1263 | 0.403 | 0.116 | 0.069 | 0.078 | 0.063 | 0.066 | 0.042 | 0.046 | 0.055 | 1.101 | 1.324 |
-| VWEHX | 1990-1999 | 2528 | 0.426 | 0.143 | 0.112 | 0.092 | 0.055 | 0.039 | 0.041 | 0.048 | 0.057 | 1.192 | 1.416 |
-| VWEHX | 2000-2007 | 1820 | 0.454 | 0.176 | 0.156 | 0.083 | 0.158 | -0.002 | 0.042 | 0.055 | 0.055 | 1.316 | 1.316 |
-| VWEHX | 2007-2009 | 695 | 0.304 | 0.570 | 0.391 | 0.325 | 0.325 | 0.248 | 0.071 | 0.122 | 0.158 | 1.713 | 2.223 |
-| VWEHX | 2010-2019 | 2516 | 0.432 | 0.249 | 0.154 | 0.079 | 0.019 | -0.010 | 0.039 | 0.049 | 0.051 | 1.236 | 1.303 |
-| VWEHX | 2020-2026 | 1727 | 0.382 | 0.304 | 0.218 | 0.133 | 0.009 | 0.004 | 0.059 | 0.080 | 0.076 | 1.358 | 1.287 |
+| VWEHX | 1980-1989 | 1263 | 0.052 | 0.221 | 0.178 | 0.177 | 0.144 | 0.167 | 0.030 | 0.038 | 0.055 | 1.274 | 1.832 |
+| VWEHX | 1990-1999 | 2527 | 0.000 | 0.308 | 0.243 | 0.202 | 0.143 | 0.120 | 0.030 | 0.042 | 0.058 | 1.404 | 1.926 |
+| VWEHX | 2000-2007 | 1820 | 0.014 | 0.251 | 0.243 | 0.141 | 0.188 | -0.013 | 0.035 | 0.050 | 0.056 | 1.430 | 1.581 |
+| VWEHX | 2007-2009 | 695 | 0.000 | 0.634 | 0.420 | 0.370 | 0.381 | 0.310 | 0.066 | 0.118 | 0.158 | 1.774 | 2.382 |
+| VWEHX | 2010-2019 | 2516 | 0.006 | 0.306 | 0.202 | 0.116 | 0.028 | -0.017 | 0.035 | 0.045 | 0.051 | 1.281 | 1.468 |
+| VWEHX | 2020-2026 | 1727 | 0.003 | 0.320 | 0.232 | 0.135 | 0.006 | 0.005 | 0.057 | 0.078 | 0.076 | 1.383 | 1.346 |
 | FHIIX | 1980-1989 | 1262 | 0.228 | 0.152 | 0.072 | 0.116 | 0.111 | 0.044 | 0.036 | 0.042 | 0.061 | 1.176 | 1.682 |
 | FHIIX | 1990-1999 | 2528 | 0.251 | 0.490 | 0.401 | 0.312 | 0.280 | 0.262 | 0.035 | 0.056 | 0.084 | 1.603 | 2.409 |
 | FHIIX | 2000-2007 | 1820 | 0.308 | 0.445 | 0.307 | 0.265 | 0.187 | 0.173 | 0.037 | 0.058 | 0.075 | 1.567 | 2.027 |
@@ -265,10 +312,10 @@ gives negative autocorrelation and ratios < 1.
 What this shows:
 
 * **High-yield fund NAVs are heavily smoothed.** VWEHX lag-1 autocorrelation is
-  0.12-0.30 in normal eras and 0.57 in 2007-09, with
+  0.12-0.30 in normal eras and 0.63 in 2007-09, with
   monthly-from-daily vol ratios of 1.3-1.4 (2.2 in 2007-09). On the HYG overlap,
-  VWEHX daily vol is 0.48x HYG's, weekly 0.66x, monthly 0.82x; daily
-  correlation is only 0.53. Other HY funds are similar or worse (FHIIX lag-1 AC ~0.5 in
+  VWEHX daily vol is 0.45x HYG's, weekly 0.64x, monthly 0.82x; daily
+  correlation is only 0.56. Other HY funds are similar or worse (FHIIX lag-1 AC ~0.5 in
   the 1990s-2000s). VWEHX was chosen because it is among the least smoothed and tracks
   HYG best at the monthly horizon. ~40% of VWEHX daily returns are exactly zero: NAVs are
   quoted to the cent on a ~$5-10 price, so one tick is 10-20 bp.
@@ -286,11 +333,11 @@ What this shows:
 
 | fund_t vs etf_(t-k) | window | k=-1 | k=0 | k=1 | k=2 | k=3 |
 |---|---|---|---|---|---|---|
-| VWEHX vs HYG | 2007-2026 | 0.073 | 0.523 | 0.388 | 0.210 | 0.116 |
-| VWEHX vs HYG | 2010-2026 | 0.056 | 0.625 | 0.366 | 0.227 | 0.125 |
+| VWEHX vs HYG | 2007-2026 | 0.077 | 0.553 | 0.414 | 0.216 | 0.119 |
+| VWEHX vs HYG | 2010-2026 | 0.058 | 0.670 | 0.383 | 0.238 | 0.128 |
 | FHIIX vs HYG | 2010-2026 | 0.057 | 0.701 | 0.376 | 0.210 | 0.128 |
-| IG blend VWESX/VFSTX vs LQD | 2002-2026 | 0.041 | 0.673 | 0.084 | 0.029 | 0.043 |
-| VWESX vs LQD | 2002-2026 | 0.038 | 0.671 | 0.079 | 0.028 | 0.040 |
+| IG blend VWESX/VFSTX vs LQD | 2002-2026 | 0.042 | 0.677 | 0.083 | 0.030 | 0.042 |
+| VWESX vs LQD | 2002-2026 | 0.039 | 0.674 | 0.079 | 0.028 | 0.040 |
 
   VWEHX picks up a large share of HYG's move one and two days later, the signature
   of matrix pricing; the IG blend's lagged loadings are much smaller. The modest
@@ -310,20 +357,20 @@ What this shows:
 
 | asset | decade | vol_daily | vol_monthly | n_months | tiers |
 |---|---|---|---|---|---|
-| ig_credit | 1920s |  | 0.024 | 120 | CD |
-| ig_credit | 1930s |  | 0.040 | 120 | C |
-| ig_credit | 1940s |  | 0.014 | 120 | C |
-| ig_credit | 1950s |  | 0.035 | 120 | C |
-| ig_credit | 1960s |  | 0.038 | 120 | C |
-| ig_credit | 1970s |  | 0.065 | 120 | C |
-| ig_credit | 1980s | 0.062 | 0.084 | 120 | AC |
-| ig_credit | 1990s | 0.056 | 0.051 | 120 | A |
-| ig_credit | 2000s | 0.091 | 0.082 | 120 | A |
+| ig_credit | 1920s |  | 0.025 | 120 | CD |
+| ig_credit | 1930s |  | 0.036 | 120 | C |
+| ig_credit | 1940s |  | 0.013 | 120 | C |
+| ig_credit | 1950s |  | 0.031 | 120 | C |
+| ig_credit | 1960s |  | 0.035 | 120 | C |
+| ig_credit | 1970s |  | 0.059 | 120 | C |
+| ig_credit | 1980s | 0.059 | 0.084 | 120 | BC |
+| ig_credit | 1990s | 0.054 | 0.054 | 120 | B |
+| ig_credit | 2000s | 0.090 | 0.082 | 120 | AB |
 | ig_credit | 2010s | 0.052 | 0.052 | 120 | A |
 | ig_credit | 2020s | 0.101 | 0.095 | 82 | A |
-| hy_credit | 1980s | 0.042 | 0.081 | 119 | AC |
-| hy_credit | 1990s | 0.041 | 0.057 | 120 | A |
-| hy_credit | 2000s | 0.113 | 0.114 | 120 | A |
+| hy_credit | 1980s | 0.030 | 0.081 | 119 | BC |
+| hy_credit | 1990s | 0.030 | 0.058 | 120 | B |
+| hy_credit | 2000s | 0.111 | 0.114 | 120 | AB |
 | hy_credit | 2010s | 0.073 | 0.067 | 120 | A |
 | hy_credit | 2020s | 0.093 | 0.085 | 82 | A |
 
@@ -331,15 +378,15 @@ What this shows:
 
 | episode | ig_credit | LQD | ibbotson_ltcorp | hy_credit | HYG |
 |---|---|---|---|---|---|
-| Oct 1987 crash | 3.1 |  | 5.1 | -3.5 |  |
-| 1990 HY bust (calendar year) | 7.2 |  | 6.8 | -5.9 |  |
-| 1991 HY rebound | 18.6 |  | 19.9 | 29.4 |  |
-| 1994 bond rout | -3.7 |  | -5.8 | -1.6 |  |
-| LTCM / Russia (Aug-Oct 1998) | 1.9 |  | 3.1 | -3.9 |  |
-| WorldCom / 2002 (May-Jul) | 0.8 |  | 2.8 | -6.8 |  |
+| Oct 1987 crash | 3.2 |  | 5.1 | -3.5 |  |
+| 1990 HY bust (calendar year) | 7.0 |  | 6.8 | -6.0 |  |
+| 1991 HY rebound | 19.0 |  | 19.9 | 29.4 |  |
+| 1994 bond rout | -4.0 |  | -5.8 | -1.7 |  |
+| LTCM / Russia (Aug-Oct 1998) | 1.8 |  | 3.1 | -3.9 |  |
+| WorldCom / 2002 (May-Jul) | 1.4 |  | 2.8 | -6.8 |  |
 | Lehman (Sep-Nov 2008) | -9.5 | -9.5 | -2.5 | -26.5 | -26.5 |
 | 2008 calendar year | 2.4 | 2.4 | 8.8 | -17.6 | -17.6 |
-| 2009 calendar year | 8.4 | 8.4 | 3.0 | 28.5 | 28.5 |
+| 2009 calendar year | 8.5 | 8.5 | 3.0 | 28.6 | 28.6 |
 | Mar 2020 | -6.3 | -6.3 | -3.5 | -10.0 | -10.0 |
 | 2022 calendar year | -17.9 | -17.9 | -15.8 | -11.0 | -11.0 |
 
@@ -384,12 +431,16 @@ points), e.g. 0.94 = 94 bp. Monthly series use obs_date = month-end.
 
 ## Caveats
 
-* The fund-blend weights (0.70/0.59) and the Ibbotson/T-bill weight (0.81) are
-  calibrated on 2002-2026 LQD data and applied backwards; durations of all these
-  portfolios drifted over time (LQD's own duration rose from ~7 to ~8.5+).
-* Before 2002 ig_credit is a blend of two open-end funds rebalanced daily (an
-  investable portfolio, hence tier A), but its daily covariance with equities is
-  affected by NAV staleness; IG fund staleness is mild (see table).
+* The fund-blend weights (0.75/0.68), the Ibbotson/T-bill weight (0.72) and the
+  tier-D maturity (15y) are calibrated on LQD data up to 2014-12-31 only and
+  applied backwards; durations of all these portfolios drifted over time (LQD's own
+  duration rose from ~7 to ~8.5+).
+* Before 2002 ig_credit is a blend of two open-end funds rebalanced daily (investable, but
+  priced at NAV, hence tier B); its daily covariance with equities is affected by NAV
+  staleness; IG fund staleness is mild (see table).
+* hy_credit 1985-2007 (VWEHX, tier B): at the 21-day target horizon its vol is
+  0.83x HYG's on the overlap (0.80x in
+  2007-09; 0.93x at 63 days). Its vol LEVEL should not be pooled with HYG's.
 * VWEHX is a relatively high-quality HY fund (BB-heavy); its 1990 and 2008 drawdowns are
   milder than lower-quality funds (FHIIX 1990 -12.8%). HYG is also tilted to larger,
   liquid issuers.

@@ -18,14 +18,23 @@ The monthly file stops at the last *complete* month (October 2026); November
 |---|---|---|---|---|---|
 | M | 1972-01 | 1986-11 | FTSE Nareit **All Equity REITs** total return (Nareit monthly index spreadsheet) | C | only REIT index this far back; mortgage REITs excluded |
 | D | 1986-11-17 | 1996-05-31 | Fidelity Real Estate Investment Portfolio (FRESX), Yahoo `adjclose` | **B** | oldest daily REIT total return available; actively managed, so tiered B (see below) |
-| D | 1996-06-03 | 2004-09-30 | Vanguard REIT Index Inv (VGSIX), Yahoo `adjclose` | A | index fund (MSCI US REIT Index) |
-| D | 2004-10-01 | 2026-11-13 | Vanguard Real Estate ETF (VNQ), Yahoo `adjclose` | A | the target asset |
+| D | 1996-06-03 | 2004-09-30 | Vanguard REIT Index Inv (VGSIX), Yahoo `adjclose` | B | index fund (MSCI US REIT Index); open-end fund NAV, so tier B |
+| D | 2004-10-01 | 2026-11-13 | Vanguard Real Estate ETF (VNQ), Yahoo close + validated distributions | A | the target asset; every Yahoo distribution passed the ex-date price test against IYR/ICF/RWR |
 
 From 1986-12 on, the monthly file is the compounded daily series (the
 contract requires monthly == compounded daily where daily exists). November
 1986 is a partial daily month, so the Nareit value is used for it.
 
-**FRESX is tier B, not A.** It is an investable daily fund, but it is an
+**Tiers.** Project-wide, tier A is reserved for the daily price of an
+exchange-traded fund (market close); open-end mutual-fund NAVs, indices and
+reconstructions are tier B. VGSIX (an index fund, but priced at NAV) is
+therefore tier B, and the VGSIX -> VNQ splice in 2004-10 is a visible tier
+change (B -> A). VNQ's total return is its close plus Yahoo's distributions,
+each tested on its ex-date against the total returns of IYR, ICF and RWR
+(`volmodel.data.sources.distributions.validate_distributions`); none was
+rejected.
+
+**FRESX is tier B** on two counts: it is an open-end NAV, and an
 *active* manager's REIT portfolio. In the era where we use it, it tracks the
 Nareit index much less closely than the index fund does later: monthly
 tracking error is 3.9%/yr, against 1.1% for VGSIX. Its vol ratio is close to 1

@@ -5,14 +5,14 @@ Built by `python -m volmodel.data.sources.intl_equity` on 2026-11-14. USD, unhed
 ## Result
 
 * **intl_dev** — daily 1986-01-02 .. 2026-11-13 (10412 obs); monthly 1975-01-31 .. 2026-10-31 (622 months; daily era compounded; current incomplete month excluded).
-* **em** — daily 1994-06-01 .. 2026-11-13 (8170 obs); monthly 1989-07-31 .. 2026-10-31 (448 months; daily era compounded; current incomplete month excluded).
+* **em** — daily 1994-06-01 .. 2026-11-13 (8169 obs); monthly 1989-07-31 .. 2026-10-31 (448 months; daily era compounded; current incomplete month excluded).
 
 ## Sources
 
 Used:
 * **Ken French data library** — `F-F_International_Indices.zip` (`Ind_all.Dat`: EAFE-country-weighted, value-weighted within country, USD, with dividends, monthly 1975-01..2025-12; MSCI raw data 1975-2006, Bloomberg after) and `Emerging_5_Factors_CSV.zip` (EM Mkt-RF + RF, monthly 1989-07..).
 * **AQR** `Betting-Against-Beta-Equity-Factors-Daily.xlsx` — sheet MKT column `Global Ex USA` (excess return) + sheet RF. Daily from 1984, but until 1985-10 it is Canada only and until 1985-12 Canada + Australia; Europe and Japan enter 1986-01, so it is used from 1986-01. Runs to 2026-08.
-* **Yahoo chart API** adjclose for EFA, VEIEX, EEM (adjclose verified against close + dividend events: max daily discrepancy 6 bp, on one day; no duplicated dividends; splits handled).
+* **Yahoo chart API**: EFA and EEM as close + distributions, every distribution validated against the ex-date price move relative to peer funds (`distributions.validate_distributions`: EFA 47 tested, 0 changed; EEM 47 tested, 0 changed); VEIEX adjclose (open-end fund NAV, tier B), bad print(s) dropped: ['2001-07-16'].
 
 Diagnostics only (not in the files):
 * **MSCI** public graph endpoint `app2.msci.com/.../getLevelDataForGraph` — works, but refuses start dates before 1997-01-01 and serves gross/net TOTAL return levels only from 2000-12-29 (price index from 1997-01). EAFE 990300 and EM 891800 GRTR daily and month-end, to 2026-11-13. Used as the reference index for every overlap test. MSCI EAFE from 1970 / EM from 1988 is NOT reachable here.
@@ -26,10 +26,10 @@ Diagnostics only (not in the files):
 |---|---|---|---|---|---|---|
 | intl_dev | 1975-01-31 | 1985-12-31 | M | C | french_intl_indices_eafe_weighted | Ken French F-F_International_Indices.zip, Ind_all.Dat, first block (value-weight dollar returns, all firms), Mkt column. Countries at EAFE weights; MSCI raw data 1975-2006, Bloomberg after. Excludes Canada. |
 | intl_dev | 1986-01-02 | 2001-08-31 | D | B | aqr_mkt_global_ex_usa_plus_rf | AQR Betting-Against-Beta daily workbook, MKT sheet 'Global Ex USA' (excess) + RF sheet. Cap-weighted developed ex-US incl. Canada (EFA excludes Canada). Index convention: foreign closes. Weekdays with |r|<0.001% (all closed) dropped. Overlap vs KF EAFE-wt monthly 1986-2025: corr=0.991, vol_ratio=1.007, te=0.023. |
-| intl_dev | 2001-09-04 | 2026-11-13 | D | A | yahoo_EFA | iShares MSCI EAFE ETF, Yahoo adjclose (checked = close + dividends). US-close prices. Overlap vs AQR GxUS: monthly corr=0.976, vol_ratio=1.028, te=0.036; daily corr_1d=0.689, corr_3d=0.886, vol_ratio_1d=1.331, vol_ratio_3d=1.141 (async closes). |
+| intl_dev | 2001-09-04 | 2026-11-13 | D | A | yahoo_EFA | iShares MSCI EAFE ETF, Yahoo close + distributions, each validated by the ex-date price test against VEA/VTMGX/S&P 500 (all passed). US-close prices. Overlap vs AQR GxUS: monthly corr=0.976, vol_ratio=1.028, te=0.036; daily corr_1d=0.689, corr_3d=0.886, vol_ratio_1d=1.330, vol_ratio_3d=1.141 (async closes). |
 | em | 1989-07-31 | 1994-05-31 | M | C | french_emerging_mkt_plus_rf | Ken French Emerging_5_Factors_CSV.zip, Mkt-RF + RF (RF = US 1m T-bill), Bloomberg-based value-weighted EM market. |
-| em | 1994-06-01 | 2003-04-30 | D | A | yahoo_VEIEX | Vanguard Emerging Markets Stock Index Inv (tracked MSCI Select EM Free in this era), Yahoo adjclose. Open-end NAV: foreign closes, with growing fair-value pricing after 2001. Overlap vs KF EM monthly 1994-06..2000: corr=0.954, vol_ratio=1.120, te=0.080; full overlap corr=0.973, vol_ratio=1.042, te=0.051. |
-| em | 2003-05-01 | 2026-11-13 | D | A | yahoo_EEM | iShares MSCI Emerging Markets ETF, Yahoo adjclose (checked = close + dividends). US-close prices. Overlap vs VEIEX: monthly corr=0.979, vol_ratio=1.044, te=0.043; daily corr_1d=0.937, corr_3d=0.960, vol_ratio_1d=1.293, vol_ratio_3d=1.157. |
+| em | 1994-06-01 | 2003-04-30 | D | B | yahoo_VEIEX | Vanguard Emerging Markets Stock Index Inv (tracked MSCI Select EM Free in this era), Yahoo adjclose. Open-end NAV (tier B): foreign closes, with growing fair-value pricing after 2001. Bad NAV print 2001-07-16 (+5.6% then -5.9%, EM peers flat) dropped: the 07-17 return spans it. Overlap vs KF EM monthly 1994-06..2000: corr=0.954, vol_ratio=1.120, te=0.080; full overlap corr=0.973, vol_ratio=1.042, te=0.051. |
+| em | 2003-05-01 | 2026-11-13 | D | A | yahoo_EEM | iShares MSCI Emerging Markets ETF, Yahoo close + distributions, each validated by the ex-date price test against VWO/IEMG/S&P 500 (all passed). US-close prices. Overlap vs VEIEX: monthly corr=0.979, vol_ratio=1.044, te=0.043; daily corr_1d=0.937, corr_3d=0.960, vol_ratio_1d=1.293, vol_ratio_3d=1.157. |
 
 Splices are on calendar-month boundaries, so every month in the monthly files is single-source and monthly == compounded daily exactly. Price conventions by segment:
 
@@ -51,15 +51,15 @@ Monthly log returns on the full overlap of the two sources (`vol_ratio` = new / 
 | intl_dev: KF EAFE-wt (C) -> AQR GxUS (B), monthly | 1986-02-28 | 2025-12-31 | 479 | 0.991 | 0.169 | 0.170 | 1.007 | 0.023 | -0.005 |
 | intl_dev: KF EAFE-wt -> AQR, monthly, 1986-1995 only | 1986-02-28 | 1995-12-31 | 119 | 0.986 | 0.189 | 0.196 | 1.036 | 0.033 | -0.011 |
 | intl_dev: AQR GxUS (B) -> EFA (A), monthly | 2001-09-30 | 2026-07-31 | 299 | 0.976 | 0.164 | 0.168 | 1.028 | 0.036 | -0.008 |
-| em: KF EM (C) -> VEIEX (A), monthly | 1994-06-30 | 2026-09-30 | 388 | 0.973 | 0.209 | 0.218 | 1.042 | 0.051 | -0.007 |
+| em: KF EM (C) -> VEIEX (B), monthly | 1994-06-30 | 2026-09-30 | 388 | 0.973 | 0.209 | 0.218 | 1.042 | 0.051 | -0.007 |
 | em: KF EM -> VEIEX, monthly, 1994-06..2000 | 1994-06-30 | 2000-12-31 | 79 | 0.954 | 0.233 | 0.261 | 1.120 | 0.080 | 0.024 |
-| em: VEIEX (A) -> EEM (A), monthly | 2003-05-31 | 2026-10-31 | 282 | 0.979 | 0.201 | 0.209 | 1.044 | 0.043 | 0.001 |
+| em: VEIEX (B) -> EEM (A), monthly | 2003-05-31 | 2026-10-31 | 282 | 0.979 | 0.201 | 0.209 | 1.044 | 0.043 | 0.001 |
 
 Daily log returns on the overlap. `corr_3d`/`vol_ratio_3d` use overlapping 3-day sums (the ARCHITECTURE correlation convention):
 
 | index | start | end | n | corr_1d | corr_3d | vol_ref_1d | vol_new_1d | vol_ratio_1d | vol_ratio_3d | te_3d |
 |---|---|---|---|---|---|---|---|---|---|---|
-| intl_dev: AQR GxUS -> EFA (2001-09..) | 2001-09-04 | 2026-08-31 | 6278 | 0.689 | 0.886 | 0.156 | 0.208 | 1.331 | 1.141 | 0.090 |
+| intl_dev: AQR GxUS -> EFA (2001-09..) | 2001-09-04 | 2026-08-31 | 6278 | 0.689 | 0.886 | 0.156 | 0.208 | 1.330 | 1.141 | 0.090 |
 | intl_dev: AQR GxUS -> EFA, 2001-09..2003-12 | 2001-09-04 | 2003-12-31 | 583 | 0.772 | 0.901 | 0.150 | 0.209 | 1.397 | 1.271 | 0.093 |
 | em: VEIEX -> EEM (2003-05..) | 2003-05-01 | 2026-11-13 | 5924 | 0.937 | 0.960 | 0.209 | 0.271 | 1.293 | 1.157 | 0.073 |
 | em: VEIEX -> EEM, 2003-05..2005-12 | 2003-05-01 | 2005-12-30 | 674 | 0.785 | 0.900 | 0.147 | 0.192 | 1.308 | 1.174 | 0.087 |
@@ -90,15 +90,15 @@ Daily (same reference; MSCI weekday holidays with zero change removed):
 |---|---|---|---|---|---|---|---|---|---|---|
 | intl_dev AQR GxUS | 2001-01-02 | 2026-08-31 | 6680 | 0.983 | 0.988 | 0.170 | 0.155 | 0.913 | 0.938 | 0.029 |
 | intl_dev KF Dev ex US | 2001-01-02 | 2026-09-30 | 6708 | 0.950 | 0.983 | 0.170 | 0.156 | 0.919 | 0.943 | 0.034 |
-| intl_dev EFA | 2001-09-04 | 2026-11-13 | 6337 | 0.687 | 0.891 | 0.171 | 0.207 | 1.216 | 1.070 | 0.088 |
+| intl_dev EFA | 2001-09-04 | 2026-11-13 | 6337 | 0.687 | 0.891 | 0.171 | 0.207 | 1.215 | 1.070 | 0.088 |
 | intl_dev VTMGX | 2001-01-02 | 2026-11-13 | 6506 | 0.749 | 0.918 | 0.170 | 0.194 | 1.139 | 1.040 | 0.075 |
-| em VEIEX | 2001-01-02 | 2026-11-13 | 6506 | 0.773 | 0.922 | 0.186 | 0.209 | 1.126 | 1.037 | 0.083 |
+| em VEIEX | 2001-01-02 | 2026-11-13 | 6505 | 0.776 | 0.923 | 0.186 | 0.208 | 1.123 | 1.036 | 0.083 |
 | em EEM | 2003-05-01 | 2026-11-13 | 5924 | 0.628 | 0.857 | 0.188 | 0.271 | 1.442 | 1.186 | 0.127 |
 | em VWO | 2005-04-01 | 2026-11-13 | 5441 | 0.636 | 0.858 | 0.191 | 0.260 | 1.359 | 1.118 | 0.122 |
 
 ### Rejected candidates
 
-Old actively managed international funds would extend DAILY history to 1980, but they are poor index proxies: monthly correlation with the EAFE-weighted index is 0.54-0.93 before 1986 and tracking error 6-10 %/yr (an index fund on the same data shows 1.5-3 %). They were not used; 1975-1985 is monthly tier C instead. TEDMX (Templeton Developing Markets, active, 1991) likewise. VTMGX (EAFE index fund from 1999-08) would add two years of tier A before EFA, but at the cost of a third price convention (partially fair-valued NAV); not used.
+Old actively managed international funds would extend DAILY history to 1980, but they are poor index proxies: monthly correlation with the EAFE-weighted index is 0.54-0.93 before 1986 and tracking error 6-10 %/yr (an index fund on the same data shows 1.5-3 %). They were not used; 1975-1985 is monthly tier C instead. TEDMX (Templeton Developing Markets, active, 1991) likewise. VTMGX (EAFE index fund from 1999-08) would add two years of fund-NAV data (tier B) before EFA, at the cost of a third price convention (partially fair-valued NAV); not used.
 
 | index | start | end | n | corr | vol_ref | vol_new | vol_ratio | te | mean_diff_ann |
 |---|---|---|---|---|---|---|---|---|---|
@@ -132,13 +132,13 @@ Correlation with the US market (^GSPC, US close) on the same day (`corr_us_1d`),
 | intl_dev MSCI EAFE GR index 2001-09..2026-08 | 2001-09-04 | 2026-08-31 | 0.495 | 0.733 | 0.390 | 0.104 | 0.171 | 0.182 | 0.166 | 0.946 |
 | intl_dev EFA [segment] 2001-09..2026-08 | 2001-09-04 | 2026-08-31 | 0.869 | 0.865 | -0.094 | -0.099 | 0.208 | 0.194 | 0.168 | 0.655 |
 | intl_dev VTMGX fund NAV 2001-09..2026-08 | 2001-09-04 | 2026-08-31 | 0.840 | 0.854 | -0.032 | -0.053 | 0.194 | 0.188 | 0.170 | 0.768 |
-| em VEIEX [segment] 1994-06..2003-04 | 1994-06-01 | 2003-04-30 | 0.447 | 0.572 | 0.337 | 0.218 | 0.191 | 0.218 | 0.256 | 1.800 |
+| em VEIEX [segment] 1994-06..2003-04 | 1994-06-01 | 2003-04-30 | 0.455 | 0.572 | 0.337 | 0.233 | 0.189 | 0.217 | 0.256 | 1.836 |
 | em VEIEX (not used) 2003-05..2026-10 | 2003-05-01 | 2026-10-30 | 0.782 | 0.770 | -0.031 | 0.017 | 0.209 | 0.214 | 0.202 | 0.929 |
 | em MSCI EM GR index 2003-05..2026-10 | 2003-05-01 | 2026-10-30 | 0.430 | 0.652 | 0.378 | 0.161 | 0.188 | 0.208 | 0.207 | 1.224 |
 | em EEM [segment] 2003-05..2026-10 | 2003-05-01 | 2026-10-30 | 0.814 | 0.793 | -0.148 | -0.110 | 0.270 | 0.247 | 0.210 | 0.602 |
 
 What this shows:
-* **Index / foreign-close data** (AQR, MSCI, VEIEX before ~2001) react to the US day one day late: lag-1 US correlation 0.38 (AQR 1986-2001), 0.39 (MSCI EAFE 2001+), 0.38 (MSCI EM). Same-day correlation with the US is badly understated (EAFE 0.50 vs 0.73 with 3-day sums). Daily returns are positively autocorrelated (staggered closes and stale prices), so the 1-day vol UNDERSTATES monthly vol: variance ratio 1.55 for the AQR segment 1986-2001, 1.80 for the VEIEX segment 1994-2003.
+* **Index / foreign-close data** (AQR, MSCI, VEIEX before ~2001) react to the US day one day late: lag-1 US correlation 0.38 (AQR 1986-2001), 0.39 (MSCI EAFE 2001+), 0.38 (MSCI EM). Same-day correlation with the US is badly understated (EAFE 0.50 vs 0.73 with 3-day sums). Daily returns are positively autocorrelated (staggered closes and stale prices), so the 1-day vol UNDERSTATES monthly vol: variance ratio 1.55 for the AQR segment 1986-2001, 1.84 for the VEIEX segment 1994-2003.
 * **US-listed ETFs** (EFA, EEM) price at the US close: same-day US correlation is high (0.87, 0.81) and 3-day correlation barely changes it. But they OVERREACT to the US day and partially revert the next day (lag-1 US correlation -0.09 / -0.15, own autocorrelation -0.10 / -0.11), so 1-day vol OVERSTATES monthly vol: EFA 0.208 vs 0.168 monthly (variance ratio 0.66); EEM 0.270 vs 0.210 (ratio 0.60). On the same dates the MSCI index has 1-day vol 0.171 (EAFE) and 0.188 (EM): EFA's daily vol is 1.22x the index's and EEM's 1.44x, while MONTHLY vols agree within 2 %.
 * **Open-end fund NAVs** (VTMGX, VEIEX) sit in between and drift over time: Vanguard's fair-value pricing moved them from foreign-close behaviour (lag-1 US corr ≈ 0.3-0.45 in the 1990s) to near-US-close behaviour by 2007 (see year table).
 * **Consequence for the model.** The daily-RV level of `intl_dev` and `em` has a structural break at the ETF splice (2001-09 and 2003-05) that is NOT a change in risk: the monthly-to-daily variance ratio drops from ~1.5-1.8 (index/NAV era) to ~0.6-0.65 (ETF era). Models trained on daily RV across the splice, and the RV→annual bridge, should treat `source`/`tier` (or the splice date) as a regime, or use the 3-day / monthly measures. 3-day overlapping sums remove most of the correlation bias for index data (EAFE–US 0.50 → 0.73) but not all of it, and do not fully remove the ETF vol excess (EFA 3-day vol still 1.07x the index).
@@ -163,7 +163,7 @@ Same-day (`sync`) and lagged (`lagUS`) correlation with ^GSPC by calendar year:
 | 1998 | 0.41 | 0.30 |  |  |  |  | 0.57 | 0.31 |  |  |  |  |
 | 1999 | 0.21 | 0.43 |  |  |  |  | 0.35 | 0.41 |  |  |  |  |
 | 2000 | 0.33 | 0.49 |  |  |  |  | 0.47 | 0.48 |  |  |  |  |
-| 2001 | 0.50 | 0.40 | 0.48 | 0.37 | 0.84 | 0.21 | 0.55 | 0.25 | 0.46 | 0.44 |  |  |
+| 2001 | 0.50 | 0.40 | 0.48 | 0.37 | 0.84 | 0.21 | 0.61 | 0.25 | 0.46 | 0.44 |  |  |
 | 2002 | 0.49 | 0.46 | 0.50 | 0.44 | 0.82 | 0.06 | 0.47 | 0.27 | 0.29 | 0.46 |  |  |
 | 2003 | 0.46 | 0.35 | 0.49 | 0.32 | 0.78 | 0.00 | 0.37 | 0.36 | 0.28 | 0.42 | 0.66 | 0.09 |
 | 2004 | 0.37 | 0.32 | 0.38 | 0.31 | 0.79 | -0.08 | 0.36 | 0.32 | 0.35 | 0.37 | 0.68 | 0.07 |
@@ -199,7 +199,7 @@ Uncentered, log returns: `monthly` from the monthly file (√12), `daily_1d` fro
 | 1970 | 0.158 |  |  |  |  |  |
 | 1980 | 0.180 | 0.155 | 0.164 | 0.228 |  |  |
 | 1990 | 0.176 | 0.141 | 0.154 | 0.239 | 0.182 | 0.216 |
-| 2000 | 0.187 | 0.234 | 0.215 | 0.257 | 0.326 | 0.295 |
+| 2000 | 0.187 | 0.234 | 0.215 | 0.257 | 0.325 | 0.295 |
 | 2010 | 0.148 | 0.178 | 0.172 | 0.183 | 0.211 | 0.207 |
 | 2020 | 0.166 | 0.192 | 0.184 | 0.185 | 0.227 | 0.208 |
 
@@ -211,7 +211,7 @@ Uncentered, log returns: `monthly` from the monthly file (√12), `daily_1d` fro
 | 1990-01..09 | -0.041 | -0.312 |
 | 1997-07..1998-08 | -0.533 | -0.098 |
 | 1998-08 | -0.261 | -0.125 |
-| 2008-09..2009-02 | -0.462 | -0.448 |
+| 2008-09..2009-02 | -0.462 | -0.447 |
 | 2008-10 | -0.256 | -0.208 |
 | 2020-03 | -0.158 | -0.141 |
 | 2022 | -0.206 | -0.144 |

@@ -69,9 +69,10 @@ def test_monthly_equals_compounded_daily(daily, monthly):
 @pytest.mark.realdata
 def test_tiers_and_segments(daily, monthly):
     seg = R.segments(daily, monthly)
-    assert list(seg["tier"]) == ["C", "B", "A", "A"]
-    assert set(daily.loc[:"1996-05-31", "tier"]) == {"B"}
-    assert set(daily.loc["1996-06-03":, "tier"]) == {"A"}
+    # tier A = exchange-traded fund close only; the open-end funds (FRESX, VGSIX) are tier B
+    assert list(seg["tier"]) == ["C", "B", "B", "A"]
+    assert set(daily.loc[:"2004-09-30", "tier"]) == {"B"}
+    assert set(daily.loc["2004-10-01":, "tier"]) == {"A"}
     # segments abut: each starts after the previous ends
     d = seg[seg["freq"] == "D"]
     assert (d["start"].iloc[1:].values > d["end"].iloc[:-1].values).all()
