@@ -194,7 +194,12 @@ def _gsw(url: str, name: str) -> pd.DataFrame:
     lines = text.splitlines()
     start = next(i for i, l in enumerate(lines) if l.startswith("Date,"))
     df = pd.read_csv(io.StringIO("\n".join(lines[start:])), index_col=0, parse_dates=True, na_values=["NA", ""])
-    return df[df["BETA0"].notna()].sort_index()
+    # The Fed publishes fitted parameters on a few market holidays (2008-03-21,
+    # Good Friday) with every yield blank. Such a row is not a trading day:
+    # keeping it prices one return off holiday parameters and drops the next.
+    params = [c for c in df.columns if c.startswith(("BETA", "TAU"))]
+    traded = df.drop(columns=params).notna().any(axis=1)
+    return df[df["BETA0"].notna() & traded].sort_index()
 
 
 def gsw_nominal() -> pd.DataFrame:

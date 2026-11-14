@@ -31,8 +31,8 @@ commodities,etf,final,GSG,2006-08-31,2026-10-31,243,0.872563,0.05215,0.01214,0.0
 us_eq,daily_vs_monthly,monthly_panel,daily_compounded: French F-F_Research_Data_Factors_daily (Mkt-RF + RF) -> yfinance VTI,1926-08-31,2026-10-31,1203,0.999938,0.115347,0.114512,0.000835,0.183232,0.18331,0.999575,0.002048,0.088994,0.088649
 dev_eq,daily_vs_monthly,monthly_panel,daily_compounded: French Developed_ex_US_3_Factors_Daily (Mkt-RF + RF) -> MSCI daily GRTR 991000,1990-08-31,2026-10-31,435,0.999983,0.071264,0.071141,0.000123,0.163898,0.163907,0.999945,0.000951,0.050161,0.050352
 em_eq,daily_vs_monthly,monthly_panel,daily_compounded: MSCI daily GRTR 891800,2001-02-28,2026-10-31,309,1.0,0.104423,0.104423,0.0,0.206643,0.206643,1.0,0.0,0.11413,0.11413
-ust_int,daily_vs_monthly,monthly_panel,daily_compounded: Fed GSW nominal curve,1961-07-31,2026-10-31,784,0.999515,0.059037,0.059398,-0.000361,0.051044,0.051447,0.992177,0.001646,0.130284,0.127726
-ust_long,daily_vs_monthly,monthly_panel,daily_compounded: Fed GSW nominal curve -> Fed GSW nominal curve,1971-12-31,2026-10-31,659,0.9996,0.071654,0.072098,-0.000444,0.111905,0.112426,0.995367,0.003217,0.074045,0.073545
+ust_int,daily_vs_monthly,monthly_panel,daily_compounded: Fed GSW nominal curve,1961-07-31,2026-10-31,784,0.999969,0.059037,0.059206,-0.000168,0.051044,0.051406,0.992958,0.000541,0.130284,0.129304
+ust_long,daily_vs_monthly,monthly_panel,daily_compounded: Fed GSW nominal curve -> Fed GSW nominal curve,1971-12-31,2026-10-31,659,0.999943,0.071654,0.071699,-4.5e-05,0.111905,0.112374,0.995827,0.00129,0.074045,0.074659
 tips,daily_vs_monthly,monthly_panel,daily_compounded: Fed GSW TIPS curve + CPIAUCNS,1999-02-28,2026-10-31,333,0.999971,0.047856,0.048062,-0.000205,0.056042,0.05618,0.997552,0.000448,-0.006108,-0.008122
 ig_credit,daily_vs_monthly,monthly_panel,daily_compounded: yfinance VWESX,1980-02-29,2026-10-31,561,1.0,0.076679,0.076679,0.0,0.092199,0.092199,1.0,0.0,0.057592,0.057592
 hy_credit,daily_vs_monthly,monthly_panel,daily_compounded: yfinance VWEHX,1985-03-31,2026-10-31,500,1.0,0.070571,0.070571,0.0,0.069091,0.069091,1.0,0.0,0.160866,0.160866
