@@ -3,13 +3,13 @@ import pandas as pd
 import pytest
 from dataclasses import replace
 
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.eval.targets import compute_targets
-from volmodel.models import get_model, list_models
-from volmodel.models.ml import SPECS
-from volmodel.models.ml.features import CORE_FEATURES, FeatureState, realized_targets
-from volmodel.models.ml.learners import blocked_folds
-from volmodel.models.ml.model import MLVol, training_date
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.eval.targets import compute_targets
+from assetforecast.models import get_model, list_models
+from assetforecast.models.ml import SPECS
+from assetforecast.models.ml.features import CORE_FEATURES, FeatureState, realized_targets
+from assetforecast.models.ml.learners import blocked_folds
+from assetforecast.models.ml.model import MLVol, training_date
 
 NAMES = sorted(SPECS)
 EARLY, MIDDLE, LATE = "1979-12-31", "1996-06-30", "2010-12-31"

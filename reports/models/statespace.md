@@ -1,9 +1,9 @@
 # statespace: latent log-volatility models with explicit measurement noise
 
-Package `src/volmodel/models/statespace/` (`data.py` observations, `kalman.py`
+Package `src/assetforecast/models/statespace/` (`data.py` observations, `kalman.py`
 filters, `grid.py` exact filter, `models.py` models, `__init__.py`
 registrations). Tests `tests/models/test_statespace.py`. All numbers below are
-development runs with `VOLMODEL_MAX_DATE=2014-12-31` (targets to 2013-12),
+development runs with `ASSETFORECAST_MAX_DATE=2014-12-31` (targets to 2013-12),
 every month-end origin, stored in `results/dev/forecasts/vol/statespace_*`.
 
 ## Idea
@@ -346,5 +346,5 @@ the property tests; one test runs a converged fit.
   mis-levelled by a few percent.
 * The 2c monthly-only model is not identified; its fast component sits at a
   bound or absorbs noise. It is kept as the planned comparison.
-* Reproduce: `python -m volmodel.eval.run forecast --kind vol --model statespace_2c_daily`, then
-  `python -m volmodel.eval.run score --kind vol --models statespace_2c_daily ref_blend ref_last12m ref_last60m ref_longrun --eras 1945-12-31 1979-12-31 1999-12-31`.
+* Reproduce: `python -m assetforecast.eval.run forecast --kind vol --model statespace_2c_daily`, then
+  `python -m assetforecast.eval.run score --kind vol --models statespace_2c_daily ref_blend ref_last12m ref_last60m ref_longrun --eras 1945-12-31 1979-12-31 1999-12-31`.

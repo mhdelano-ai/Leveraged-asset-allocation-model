@@ -1,8 +1,8 @@
 # Macro family: volatility conditioned on macro state and implied volatility
 
-Package `src/volmodel/models/macro/` (`features.py`, `model.py`, `__init__.py`), tests
+Package `src/assetforecast/models/macro/` (`features.py`, `model.py`, `__init__.py`), tests
 `tests/models/test_macro.py`. Every number here is from the development sample
-(`VOLMODEL_MAX_DATE=2014-12-31`): origins 1922-01 to 2013-12 with observed targets, every month-end.
+(`ASSETFORECAST_MAX_DATE=2014-12-31`): origins 1922-01 to 2013-12 with observed targets, every month-end.
 
 **Question.** Beyond the asset's own return history, do observable state variables predict the
 LEVEL of next-year volatility?

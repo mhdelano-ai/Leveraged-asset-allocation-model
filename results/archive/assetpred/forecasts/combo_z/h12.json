@@ -1,0 +1,27 @@
+{
+ "fingerprint": {
+  "model": "combo_z",
+  "horizon": 12,
+  "class": "ZScoreMean",
+  "params": {
+   "calibrate": true,
+   "feature_set": "all",
+   "learners": [
+    "combo"
+   ]
+  },
+  "data": "bf5526544f8567df",
+  "settings": {
+   "oos_start": "1990-01-31",
+   "refit_every": 12,
+   "min_history": 60,
+   "end": null
+  },
+  "code": "b360bc0ac6e689e4"
+ },
+ "rows": 4403,
+ "seconds": 7.04,
+ "first_origin": "1990-01-31",
+ "last_origin": "2026-10-31",
+ "written": "2026-11-14T18:42:25+00:00"
+}

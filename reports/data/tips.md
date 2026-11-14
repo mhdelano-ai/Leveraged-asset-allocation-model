@@ -1,6 +1,6 @@
 # tips — broad US TIPS total return (TIP-like)
 
-Built by `python -m volmodel.data.sources.tips` on 2026-11-14.
+Built by `python -m assetforecast.data.sources.tips` on 2026-11-14.
 
 ## Result
 

@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.panel import PREDICTOR_COLUMNS, Panel
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.eval.targets import (compute_targets, get_targets, load_targets, observed_through,
+from assetforecast.data.panel import PREDICTOR_COLUMNS, Panel
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.eval.targets import (compute_targets, get_targets, load_targets, observed_through,
                                    panel_fingerprint)
 
 

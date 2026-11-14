@@ -1,0 +1,126 @@
+{
+ "model": "combo_cov_main",
+ "bridge": "vr_market",
+ "returns": "log returns in excess of T-bills",
+ "cov_21d": "stored forecast: annualized covariance of overlapping 21-trading-day returns",
+ "cov_annual": "get_bridge('vr_market').cov_annual(cov_21d, panel.asof(origin)): covariance of the 12-month return",
+ "bridge_reestimation": "once a year, from the view at the last December month-end <= origin (bridge_anchor), per eligible asset set",
+ "tail_s2": {
+  "tail_s2_origin": "vol_uncertainty(panel.asof(origin)); forecast.py's tail_model.s2",
+  "tail_s2_anchor": "vol_uncertainty(panel.asof(bridge_anchor)); score_final.stage_bridge's s2"
+ },
+ "panel": {
+  "drop_tiers": "",
+  "tiers_dropped": [],
+  "note": "full panel, no quality tiers dropped; ASSETFORECAST_DROP_TIERS was unset at build",
+  "env_ASSETFORECAST_DROP_TIERS": null,
+  "max_date": null,
+  "asset_months_by_tier": {
+   "A": 3215,
+   "B": 4616,
+   "C": 1853,
+   "D": 1369
+  },
+  "monthly_start": "1871-02-28",
+  "monthly_end": "2026-10-31",
+  "daily_end": "2026-11-13",
+  "fingerprint": "54e55012b93c2956"
+ },
+ "source": {
+  "results_dir": "/home/user/Leveraged-asset-allocation-model/results/full",
+  "forecast_file": "results/full/forecasts/cov/combo_cov_main.parquet",
+  "forecast_sha256_16": "8416ce05ce3006c8",
+  "forecast_run_at": "2026-11-14T20:17:49"
+ },
+ "code": {
+  "git_head": "77eea16427fa8547b405a8b9b948bfc7a1fc9868",
+  "covhistory_sha256_16": "543100aa8a783ec4",
+  "bridge_sha256_16": "e32676ef957cc10a",
+  "panel_sha256_16": "33de81bb6d33c7bf"
+ },
+ "build_seconds": 25.6,
+ "n_origins": 1258,
+ "first_origin": "1922-01-31",
+ "last_origin": "2026-10-31",
+ "n_rows": 92891,
+ "assets_per_origin": {
+  "3": 89,
+  "5": 322,
+  "6": 220,
+  "7": 4,
+  "8": 36,
+  "9": 61,
+  "10": 113,
+  "11": 91,
+  "12": 322
+ },
+ "first_origin_by_asset": {
+  "commodities": "1929-06-30",
+  "em": "1992-06-30",
+  "gold": "1974-08-31",
+  "hy_credit": "1983-01-31",
+  "ig_credit": "1922-01-31",
+  "intl_dev": "1977-12-31",
+  "reits": "1974-12-31",
+  "tips": "2000-01-31",
+  "us_large": "1922-01-31",
+  "us_small": "1929-06-30",
+  "ust_int": "1956-04-30",
+  "ust_long": "1922-01-31"
+ },
+ "files": {
+  "history": "cov_history.parquet",
+  "origins": "cov_history_origins.csv"
+ },
+ "checks": {
+  "cov_21d": {
+   "max_rel_asymmetry": 0.0,
+   "min_eig_over_mean_diag": 0.0024242579212275877,
+   "worst_origin": "1965-06-30",
+   "n_not_pd": 0
+  },
+  "cov_annual": {
+   "max_rel_asymmetry": 0.0,
+   "min_eig_over_mean_diag": 0.0023060225646687423,
+   "worst_origin": "1963-03-31",
+   "n_not_pd": 0
+  },
+  "n_origins": 1258,
+  "all_pd": true,
+  "truncation": {
+   "origins": [
+    "1922-01-31",
+    "1936-12-31",
+    "1951-12-31",
+    "1966-11-30",
+    "1981-11-30",
+    "1996-10-31",
+    "2011-10-31",
+    "2026-10-31"
+   ],
+   "max_abs_diff": 0.0
+  },
+  "latest_forecast": {
+   "history_last_origin": "2026-10-31",
+   "published_origin": "2026-10-31",
+   "cov_annual": {
+    "same_labels": true,
+    "max_abs_diff": 4.827841362797791e-09
+   },
+   "cov_21d": {
+    "same_labels": true,
+    "max_abs_diff": 4.928458697574245e-09
+   }
+  },
+  "dashboard_vol": {
+   "n_cells": 10057,
+   "only_history": 0,
+   "only_dashboard": 0,
+   "n_primary_missing": 0,
+   "max_abs_diff_after_rounding": 0.0,
+   "n_cells_differ_after_rounding": 0,
+   "max_abs_diff_unrounded": 4.999597123700461e-05
+  }
+ },
+ "written": "2026-11-14T20:20:49"
+}

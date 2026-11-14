@@ -3,7 +3,7 @@ import sys, warnings
 import numpy as np
 import pandas as pd
 from multiprocessing import Pool
-from volmodel.eval import inference as inf
+from assetforecast.eval import inference as inf
 
 warnings.simplefilter("ignore")
 H = 12

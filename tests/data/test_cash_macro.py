@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.paths import ASSET_DIR, PREDICTOR_DIR
+from assetforecast.paths import ASSET_DIR, PREDICTOR_DIR
 
 CASH_D = ASSET_DIR / "cash_daily.parquet"
 CASH_M = ASSET_DIR / "cash_monthly.parquet"
@@ -122,7 +122,7 @@ def test_macro_coverage(macro):
 # --------------------------------------------------------------------------- network
 @pytest.mark.network
 def test_download_french_rf():
-    from volmodel.data.sources.cash_macro import french_rf
+    from assetforecast.data.sources.cash_macro import french_rf
 
     m, d = french_rf(refresh=True)
     assert m.index[0] == pd.Timestamp("1926-07-31") and d.index[0] == pd.Timestamp("1926-07-01")
@@ -131,7 +131,7 @@ def test_download_french_rf():
 
 @pytest.mark.network
 def test_download_h15_bill():
-    from volmodel.data.sources.cash_macro import dbnomics
+    from assetforecast.data.sources.cash_macro import dbnomics
 
     s = dbnomics("FED/H15/RIFSGFSW04_N.B", refresh=True)
     assert s.dropna().index[-1] > pd.Timestamp.today() - pd.Timedelta(days=30)
@@ -139,7 +139,7 @@ def test_download_h15_bill():
 
 @pytest.mark.network
 def test_download_nber_cp():
-    from volmodel.data.sources.cash_macro import nber
+    from assetforecast.data.sources.cash_macro import nber
 
     s = nber("m13002", refresh=True)
     assert s.index[0] <= pd.Timestamp("1871-01-31") and s.loc["1871":"1919"].notna().all()

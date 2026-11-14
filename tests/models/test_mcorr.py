@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.models import get_model, list_models
-from volmodel.models.mcorr import McorrDCC, McorrStatic
-from volmodel.models.mcorr import core, dcc
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.models import get_model, list_models
+from assetforecast.models.mcorr import McorrDCC, McorrStatic
+from assetforecast.models.mcorr import core, dcc
 
 MODELS = ["mcorr_pairwise", "mcorr_stambaugh", "mcorr_block", "mcorr_shrink_block", "mcorr_nls",
           "mcorr_fa3", "mcorr_factor2", "mcorr_dcc"]

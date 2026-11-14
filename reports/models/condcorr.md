@@ -1,7 +1,7 @@
 # condcorr — correlations conditioned on economic state
 
-Package `src/volmodel/models/condcorr/`, tests `tests/models/test_condcorr.py`.
-All numbers below are from the development sample (`VOLMODEL_MAX_DATE=2014-12-31`,
+Package `src/assetforecast/models/condcorr/`, tests `tests/models/test_condcorr.py`.
+All numbers below are from the development sample (`ASSETFORECAST_MAX_DATE=2014-12-31`,
 targets to origin 2013-12); nothing after 2014 was loaded.
 
 ## The question
@@ -29,7 +29,7 @@ a block.
 ### Common structure
 
 * **Base matrix** `C0` = `ref_corr_last120m` (imported read-only from
-  `volmodel.models.ref`). Chosen a priori because it is the "long run plus
+  `assetforecast.models.ref`). Chosen a priori because it is the "long run plus
   recent" estimate the brief asks us to start from; it is also the best of the
   three references on every subset.
 * **Anchor pairs.** Stock–bond models move `(us_large, ust_int)` and
@@ -75,7 +75,7 @@ Target for training origin `s`, pair `p`:
 0.98), `ρ̂` = realized correlation from the view with exactly the target's
 estimator (overlapping 21-day sums when both assets pass the daily coverage
 rules, else the uncentered correlation of the 12 monthly returns; verified
-identical to `volmodel.eval.targets` to 1e-16), `ref_p(s)` = the base's pair
+identical to `assetforecast.eval.targets` to 1e-16), `ref_p(s)` = the base's pair
 value (half last-120m, half all-history monthly correlation). The model
 predicts the baseline's error, so all coefficients measure incremental value:
 
@@ -163,7 +163,7 @@ sb_state +0.10, sb_macro +0.13, msw −0.04, msw_infl −0.05.
 ### Covariance (`ref_blend` vols × each corr model, i.e. `Composite`), `qlike_rel`
 
 Built as `diag(v) C diag(v)` from the stored `ref_blend` vol and corr
-forecasts (identical to `Composite`), scored with `volmodel.eval.losses.cov_losses`.
+forecasts (identical to `Composite`), scored with `assetforecast.eval.losses.cov_losses`.
 
 | model | daily (1015) | stock_bond (625) | full12 (168, 2000–) |
 |---|---|---|---|
@@ -187,7 +187,7 @@ years that realized near zero; QLIKE punishes an over-confident high
 correlation in a two-asset matrix hard. (`ref_corr_longrun`'s huge values come
 from near-singular forecasts in a few windows; not our concern.)
 
-### Portfolios (`volmodel.eval.portfolio.score_portfolios`, same composites, common origins)
+### Portfolios (`assetforecast.eval.portfolio.score_portfolios`, same composites, common origins)
 
 | | p6040 qlike | p6040 var_ratio | p_balanced qlike | gmv_long real_var | erc_vt |vol−10%| |
 |---|---|---|---|---|---|

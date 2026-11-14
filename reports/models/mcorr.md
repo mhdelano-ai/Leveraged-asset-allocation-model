@@ -1,9 +1,9 @@
 # mcorr — unconditional-structure estimators of the correlation matrix
 
-Family package `src/volmodel/models/mcorr/` (`core.py` estimators, `dcc.py`
+Family package `src/assetforecast/models/mcorr/` (`core.py` estimators, `dcc.py`
 corrected DCC, `__init__.py` models and registry), tests
 `tests/models/test_mcorr.py`. Eight `corr` models are registered. All
-results below are development results (`VOLMODEL_MAX_DATE=2014-12-31`,
+results below are development results (`ASSETFORECAST_MAX_DATE=2014-12-31`,
 origins 1922-01 .. 2014-12, scored origins 1929-06 .. 2013-12); nothing
 after 2014 was looked at.
 
@@ -61,7 +61,7 @@ attached by regression on everything already in. PD by construction.
 
 **`mcorr_block`** — block equicorrelation of `mcorr_stambaugh`: every
 off-diagonal entry replaced by the mean of its block-pair cell, blocks from
-`volmodel.universe` groups (equity 4, rates 3, credit 2, real 3). This equals
+`assetforecast.universe` groups (equity 4, rates 3, credit 2, real 3). This equals
 the average of the matrix over all within-block relabelings, hence PD. Ten
 numbers instead of 66.
 
@@ -137,7 +137,7 @@ Correlation loss: `mse` of the forecast correlation against the realized
 origin (only `us_large`–`us_small` before 1962). Covariance: each
 correlation forecast is paired with the stored `ref_blend` vols,
 `H = diag(v) C diag(v)` — identical to `Composite(ref_blend, corr)` — and
-scored by `qlike_rel` and by `volmodel.eval.portfolio.score_portfolios`
+scored by `qlike_rel` and by `assetforecast.eval.portfolio.score_portfolios`
 (minimum-variance realized variance, Engle-Colacito; and risk-prediction
 QLIKE of the 20 random long-only portfolios per origin). Only correlations
 differ between the `cb_*` composites. Common origins only (1015 for the full

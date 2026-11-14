@@ -1,8 +1,8 @@
 # ML family: pooled machine-learning vol forecasts (`ml_*`)
 
-Code: `src/volmodel/models/ml/` (`features.py`, `learners.py`, `model.py`, `__init__.py`).
+Code: `src/assetforecast/models/ml/` (`features.py`, `learners.py`, `model.py`, `__init__.py`).
 Tests: `tests/models/test_ml.py`. All numbers below are from the development
-panel (`VOLMODEL_MAX_DATE=2014-12-31`), every month-end origin, scored on targets
+panel (`ASSETFORECAST_MAX_DATE=2014-12-31`), every month-end origin, scored on targets
 through 2013-12 origins. Nothing after 2014 was loaded.
 
 ## Bottom line
@@ -50,7 +50,7 @@ through 2013-12 origins. Nothing after 2014 was loaded.
 
 For origin `s` and asset `a`, the target is the realized 12-month variance
 `V_{a,s}` computed **from the view** with exactly the estimator and coverage
-rules of `volmodel.eval.targets` (overlapping 21-day sums, `n_rows/21`
+rules of `assetforecast.eval.targets` (overlapping 21-day sums, `n_rows/21`
 annualization, daily coverage ≥ 90% of trading days and ≥ 10 returns in each
 month; otherwise the monthly proxy `12·mean r_m²`). `realized_targets` is
 tested to reproduce `compute_targets` exactly (relative difference 0).
@@ -152,8 +152,8 @@ boundary is not binding in a harmful direction.
 
 ## Results
 
-Scoring: `python -m volmodel.eval.run score --kind vol --models ml_... ref_...`
-plus `volmodel.eval.inference` (`skill_score` Fieller-EWC 90% intervals,
+Scoring: `python -m assetforecast.eval.run score --kind vol --models ml_... ref_...`
+plus `assetforecast.eval.inference` (`skill_score` Fieller-EWC 90% intervals,
 `dm_test` EWC, `panel_dm_test` Driscoll–Kraay on per-asset losses). All on
 origins common to the models compared.
 
@@ -397,9 +397,9 @@ the 10-minute budget.
 ## Reproduce
 
 ```
-export VOLMODEL_MAX_DATE=2014-12-31 OMP_NUM_THREADS=1
-python -m volmodel.eval.run forecast --kind vol --model ml_glm ml_gbm_mono ml_gbm ml_rf ml_glm_macro ml_gbm_mono_macro ml_avg --jobs 2
-python -m volmodel.eval.run score --kind vol --models ml_glm ml_avg ml_gbm_mono ml_gbm ml_rf ml_glm_macro ml_gbm_mono_macro ref_blend ref_last12m ref_last60m ref_longrun --eras 1945-12-31 1979-12-31 1999-12-31
-python -m volmodel.eval.run score --kind vol --subset all --models ...
+export ASSETFORECAST_MAX_DATE=2014-12-31 OMP_NUM_THREADS=1
+python -m assetforecast.eval.run forecast --kind vol --model ml_glm ml_gbm_mono ml_gbm ml_rf ml_glm_macro ml_gbm_mono_macro ml_avg --jobs 2
+python -m assetforecast.eval.run score --kind vol --models ml_glm ml_avg ml_gbm_mono ml_gbm ml_rf ml_glm_macro ml_gbm_mono_macro ref_blend ref_last12m ref_last60m ref_longrun --eras 1945-12-31 1979-12-31 1999-12-31
+python -m assetforecast.eval.run score --kind vol --subset all --models ...
 python -m pytest tests/models/test_ml.py
 ```

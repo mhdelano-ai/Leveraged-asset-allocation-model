@@ -1,0 +1,111 @@
+id,source,family,horizon,period,rule,rule_label,model,label,role,d_cer,ci_lo,ci_hi,d_cer_p,d_cer_q,d_sharpe
+original~mean~1~holdout~mv~combo_z,original,mean,1,holdout,mv,Mean-variance,combo_z,Forecast combination,frozen,-0.94,-2.25,0.36,0.16,0.262,-0.06
+original~mean~1~holdout~mv~ens_z,original,mean,1,holdout,mv,Mean-variance,ens_z,Ensemble,frozen,-2.8,-6.19,0.58,0.106,0.213,-0.2
+original~mean~1~holdout~mv~gbm_z,original,mean,1,holdout,mv,Mean-variance,gbm_z,Gradient boosting,frozen,-2.06,-4.44,0.31,0.09,0.213,-0.14
+original~mean~1~holdout~mv~gbm_z.price,original,mean,1,holdout,mv,Mean-variance,gbm_z.price,"Boosting, price predictors only",frozen,-1.84,-4.22,0.54,0.132,0.237,-0.13
+original~mean~1~holdout~mv~rf_z,original,mean,1,holdout,mv,Mean-variance,rf_z,Random forest,frozen,-3.42,-6.47,-0.36,0.03,0.146,-0.25
+original~mean~1~holdout~mv~ridge_z,original,mean,1,holdout,mv,Mean-variance,ridge_z,Ridge regression,frozen,-3.61,-7.16,-0.05,0.049,0.146,-0.26
+original~mean~1~holdout~mv_vt~combo_z,original,mean,1,holdout,mv_vt,Mean-variance at 10% vol,combo_z,Forecast combination,frozen,-0.33,-1.33,0.67,0.518,0.718,-0.03
+original~mean~1~holdout~mv_vt~ens_z,original,mean,1,holdout,mv_vt,Mean-variance at 10% vol,ens_z,Ensemble,frozen,-2.29,-4.41,-0.17,0.036,0.146,-0.2
+original~mean~1~holdout~mv_vt~gbm_z,original,mean,1,holdout,mv_vt,Mean-variance at 10% vol,gbm_z,Gradient boosting,frozen,-1.35,-2.64,-0.07,0.041,0.146,-0.12
+original~mean~1~holdout~mv_vt~gbm_z.price,original,mean,1,holdout,mv_vt,Mean-variance at 10% vol,gbm_z.price,"Boosting, price predictors only",frozen,-1.44,-3.18,0.3,0.107,0.213,-0.14
+original~mean~1~holdout~mv_vt~rf_z,original,mean,1,holdout,mv_vt,Mean-variance at 10% vol,rf_z,Random forest,frozen,-2.43,-4.32,-0.54,0.013,0.143,-0.21
+original~mean~1~holdout~mv_vt~ridge_z,original,mean,1,holdout,mv_vt,Mean-variance at 10% vol,ridge_z,Ridge regression,frozen,-2.87,-5.17,-0.56,0.016,0.143,-0.25
+original~mean~1~holdout~timing~combo_z,original,mean,1,holdout,timing,Per-asset timing,combo_z,Forecast combination,frozen,0.06,-0.15,0.27,0.564,0.725,0.01
+original~mean~1~holdout~timing~ens_z,original,mean,1,holdout,timing,Per-asset timing,ens_z,Ensemble,frozen,-0.04,-1.17,1.09,0.943,0.943,0.01
+original~mean~1~holdout~timing~gbm_z,original,mean,1,holdout,timing,Per-asset timing,gbm_z,Gradient boosting,frozen,0.03,-0.69,0.76,0.93,0.943,0.01
+original~mean~1~holdout~timing~gbm_z.price,original,mean,1,holdout,timing,Per-asset timing,gbm_z.price,"Boosting, price predictors only",frozen,-0.35,-1.08,0.38,0.345,0.517,-0.05
+original~mean~1~holdout~timing~rf_z,original,mean,1,holdout,timing,Per-asset timing,rf_z,Random forest,frozen,-0.15,-1.14,0.84,0.772,0.869,-0.01
+original~mean~1~holdout~timing~ridge_z,original,mean,1,holdout,timing,Per-asset timing,ridge_z,Ridge regression,frozen,-0.18,-1.27,0.91,0.746,0.869,-0.02
+original~mean~3~holdout~mv~combo_z,original,mean,3,holdout,mv,Mean-variance,combo_z,Forecast combination,frozen,-0.18,-1.16,0.8,0.721,0.819,-0.01
+original~mean~3~holdout~mv~ens_z,original,mean,3,holdout,mv,Mean-variance,ens_z,Ensemble,frozen,-0.65,-1.52,0.23,0.15,0.541,-0.05
+original~mean~3~holdout~mv~gbm_z,original,mean,3,holdout,mv,Mean-variance,gbm_z,Gradient boosting,frozen,-0.14,-0.95,0.66,0.728,0.819,-0.01
+original~mean~3~holdout~mv~gbm_z.price,original,mean,3,holdout,mv,Mean-variance,gbm_z.price,"Boosting, price predictors only",frozen,0.08,-0.63,0.79,0.831,0.873,0.01
+original~mean~3~holdout~mv~rf_z,original,mean,3,holdout,mv,Mean-variance,rf_z,Random forest,frozen,-0.33,-1.13,0.48,0.43,0.761,-0.02
+original~mean~3~holdout~mv~ridge_z,original,mean,3,holdout,mv,Mean-variance,ridge_z,Ridge regression,frozen,-1.03,-1.97,-0.1,0.032,0.496,-0.08
+original~mean~3~holdout~mv_vt~combo_z,original,mean,3,holdout,mv_vt,Mean-variance at 10% vol,combo_z,Forecast combination,frozen,0.22,-0.45,0.89,0.516,0.761,0.02
+original~mean~3~holdout~mv_vt~ens_z,original,mean,3,holdout,mv_vt,Mean-variance at 10% vol,ens_z,Ensemble,frozen,-0.12,-0.48,0.23,0.49,0.761,-0.01
+original~mean~3~holdout~mv_vt~gbm_z,original,mean,3,holdout,mv_vt,Mean-variance at 10% vol,gbm_z,Gradient boosting,frozen,0.1,-0.28,0.48,0.617,0.793,0.01
+original~mean~3~holdout~mv_vt~gbm_z.price,original,mean,3,holdout,mv_vt,Mean-variance at 10% vol,gbm_z.price,"Boosting, price predictors only",frozen,0.19,-0.18,0.57,0.317,0.681,0.02
+original~mean~3~holdout~mv_vt~rf_z,original,mean,3,holdout,mv_vt,Mean-variance at 10% vol,rf_z,Random forest,frozen,0.03,-0.32,0.37,0.873,0.873,0.0
+original~mean~3~holdout~mv_vt~ridge_z,original,mean,3,holdout,mv_vt,Mean-variance at 10% vol,ridge_z,Ridge regression,frozen,-0.43,-0.87,0.01,0.055,0.496,-0.04
+original~mean~3~holdout~timing~combo_z,original,mean,3,holdout,timing,Per-asset timing,combo_z,Forecast combination,frozen,0.05,-0.11,0.2,0.55,0.761,0.01
+original~mean~3~holdout~timing~ens_z,original,mean,3,holdout,timing,Per-asset timing,ens_z,Ensemble,frozen,-0.17,-0.39,0.04,0.12,0.541,-0.02
+original~mean~3~holdout~timing~gbm_z,original,mean,3,holdout,timing,Per-asset timing,gbm_z,Gradient boosting,frozen,-0.08,-0.21,0.05,0.236,0.607,-0.01
+original~mean~3~holdout~timing~gbm_z.price,original,mean,3,holdout,timing,Per-asset timing,gbm_z.price,"Boosting, price predictors only",frozen,-0.07,-0.17,0.04,0.21,0.607,-0.01
+original~mean~3~holdout~timing~rf_z,original,mean,3,holdout,timing,Per-asset timing,rf_z,Random forest,frozen,-0.1,-0.32,0.11,0.34,0.681,-0.01
+original~mean~3~holdout~timing~ridge_z,original,mean,3,holdout,timing,Per-asset timing,ridge_z,Ridge regression,frozen,-0.19,-0.44,0.06,0.132,0.541,-0.03
+original~mean~12~holdout~mv~combo_z,original,mean,12,holdout,mv,Mean-variance,combo_z,Forecast combination,frozen,-0.49,-1.26,0.27,0.207,0.266,-0.04
+original~mean~12~holdout~mv~ens_z,original,mean,12,holdout,mv,Mean-variance,ens_z,Ensemble,frozen,-1.27,-2.45,-0.09,0.037,0.165,-0.09
+original~mean~12~holdout~mv~gbm_z,original,mean,12,holdout,mv,Mean-variance,gbm_z,Gradient boosting,frozen,-0.53,-1.2,0.15,0.132,0.231,-0.04
+original~mean~12~holdout~mv~gbm_z.price,original,mean,12,holdout,mv,Mean-variance,gbm_z.price,"Boosting, price predictors only",frozen,-0.38,-0.97,0.21,0.206,0.266,-0.03
+original~mean~12~holdout~mv~rf_z,original,mean,12,holdout,mv,Mean-variance,rf_z,Random forest,frozen,-0.53,-1.26,0.19,0.15,0.231,-0.04
+original~mean~12~holdout~mv~ridge_z,original,mean,12,holdout,mv,Mean-variance,ridge_z,Ridge regression,frozen,-1.95,-3.87,-0.03,0.049,0.176,-0.14
+original~mean~12~holdout~mv_vt~combo_z,original,mean,12,holdout,mv_vt,Mean-variance at 10% vol,combo_z,Forecast combination,frozen,-0.16,-0.59,0.27,0.476,0.536,-0.02
+original~mean~12~holdout~mv_vt~ens_z,original,mean,12,holdout,mv_vt,Mean-variance at 10% vol,ens_z,Ensemble,frozen,-0.63,-1.17,-0.09,0.023,0.165,-0.06
+original~mean~12~holdout~mv_vt~gbm_z,original,mean,12,holdout,mv_vt,Mean-variance at 10% vol,gbm_z,Gradient boosting,frozen,-0.29,-0.63,0.05,0.095,0.231,-0.03
+original~mean~12~holdout~mv_vt~gbm_z.price,original,mean,12,holdout,mv_vt,Mean-variance at 10% vol,gbm_z.price,"Boosting, price predictors only",frozen,-0.26,-0.61,0.09,0.148,0.231,-0.02
+original~mean~12~holdout~mv_vt~rf_z,original,mean,12,holdout,mv_vt,Mean-variance at 10% vol,rf_z,Random forest,frozen,-0.28,-0.65,0.09,0.144,0.231,-0.03
+original~mean~12~holdout~mv_vt~ridge_z,original,mean,12,holdout,mv_vt,Mean-variance at 10% vol,ridge_z,Ridge regression,frozen,-1.18,-2.09,-0.28,0.012,0.165,-0.11
+original~mean~12~holdout~timing~combo_z,original,mean,12,holdout,timing,Per-asset timing,combo_z,Forecast combination,frozen,0.09,-0.08,0.27,0.301,0.361,0.02
+original~mean~12~holdout~timing~ens_z,original,mean,12,holdout,timing,Per-asset timing,ens_z,Ensemble,frozen,-0.16,-0.3,-0.01,0.035,0.165,-0.02
+original~mean~12~holdout~timing~gbm_z,original,mean,12,holdout,timing,Per-asset timing,gbm_z,Gradient boosting,frozen,-0.05,-0.12,0.01,0.121,0.231,-0.01
+original~mean~12~holdout~timing~gbm_z.price,original,mean,12,holdout,timing,Per-asset timing,gbm_z.price,"Boosting, price predictors only",frozen,-0.01,-0.07,0.04,0.628,0.664,-0.0
+original~mean~12~holdout~timing~rf_z,original,mean,12,holdout,timing,Per-asset timing,rf_z,Random forest,frozen,-0.05,-0.12,0.02,0.154,0.231,-0.01
+original~mean~12~holdout~timing~ridge_z,original,mean,12,holdout,timing,Per-asset timing,ridge_z,Ridge regression,frozen,-0.06,-0.43,0.32,0.757,0.757,0.01
+replication~mean~12~holdout~mv~combo_z,replication,mean,12,holdout,mv,Mean-variance,combo_z,Forecast combination,frozen,0.39,-0.19,0.96,0.193,0.268,0.03
+replication~mean~12~holdout~mv~combo_z.nohind,replication,mean,12,holdout,mv,Mean-variance,combo_z.nohind,Combination without hindsight features,robustness,0.34,-0.2,0.88,0.222,,0.03
+replication~mean~12~holdout~mv~ens_z,replication,mean,12,holdout,mv,Mean-variance,ens_z,Ensemble,frozen,-0.62,-1.28,0.04,0.067,0.173,-0.06
+replication~mean~12~holdout~mv~gbm_z,replication,mean,12,holdout,mv,Mean-variance,gbm_z,Gradient boosting,frozen,-0.69,-1.04,-0.34,<0.001,0.003,-0.07
+replication~mean~12~holdout~mv~gbm_z.nohind,replication,mean,12,holdout,mv,Mean-variance,gbm_z.nohind,Boosting without hindsight features,robustness,-0.55,-0.87,-0.24,0.001,,-0.06
+replication~mean~12~holdout~mv~gbm_z.price,replication,mean,12,holdout,mv,Mean-variance,gbm_z.price,"Boosting, price predictors only",frozen,0.39,-0.19,0.97,0.188,0.268,0.04
+replication~mean~12~holdout~mv~rf_z,replication,mean,12,holdout,mv,Mean-variance,rf_z,Random forest,frozen,-0.34,-0.67,-0.0,0.052,0.155,-0.03
+replication~mean~12~holdout~mv~ridge_z,replication,mean,12,holdout,mv,Mean-variance,ridge_z,Ridge regression,frozen,-0.19,-2.09,1.7,0.842,0.842,-0.04
+replication~mean~12~holdout~mv_vt~combo_z,replication,mean,12,holdout,mv_vt,Mean-variance at 10% vol,combo_z,Forecast combination,frozen,0.33,-0.32,0.99,0.32,0.408,0.03
+replication~mean~12~holdout~mv_vt~combo_z.nohind,replication,mean,12,holdout,mv_vt,Mean-variance at 10% vol,combo_z.nohind,Combination without hindsight features,robustness,0.24,-0.35,0.83,0.425,,0.02
+replication~mean~12~holdout~mv_vt~ens_z,replication,mean,12,holdout,mv_vt,Mean-variance at 10% vol,ens_z,Ensemble,frozen,-0.61,-1.19,-0.03,0.042,0.149,-0.06
+replication~mean~12~holdout~mv_vt~gbm_z,replication,mean,12,holdout,mv_vt,Mean-variance at 10% vol,gbm_z,Gradient boosting,frozen,-0.4,-0.75,-0.04,0.031,0.138,-0.04
+replication~mean~12~holdout~mv_vt~gbm_z.nohind,replication,mean,12,holdout,mv_vt,Mean-variance at 10% vol,gbm_z.nohind,Boosting without hindsight features,robustness,-0.34,-0.61,-0.06,0.019,,-0.03
+replication~mean~12~holdout~mv_vt~gbm_z.price,replication,mean,12,holdout,mv_vt,Mean-variance at 10% vol,gbm_z.price,"Boosting, price predictors only",frozen,0.3,-0.09,0.7,0.135,0.259,0.03
+replication~mean~12~holdout~mv_vt~rf_z,replication,mean,12,holdout,mv_vt,Mean-variance at 10% vol,rf_z,Random forest,frozen,-0.22,-0.52,0.07,0.144,0.259,-0.02
+replication~mean~12~holdout~mv_vt~ridge_z,replication,mean,12,holdout,mv_vt,Mean-variance at 10% vol,ridge_z,Ridge regression,frozen,-0.81,-1.82,0.19,0.115,0.259,-0.08
+replication~mean~12~holdout~timing~combo_z,replication,mean,12,holdout,timing,Per-asset timing,combo_z,Forecast combination,frozen,0.15,-0.06,0.36,0.159,0.26,0.04
+replication~mean~12~holdout~timing~combo_z.nohind,replication,mean,12,holdout,timing,Per-asset timing,combo_z.nohind,Combination without hindsight features,robustness,0.16,-0.03,0.35,0.11,,0.04
+replication~mean~12~holdout~timing~ens_z,replication,mean,12,holdout,timing,Per-asset timing,ens_z,Ensemble,frozen,-0.12,-0.37,0.13,0.34,0.408,-0.01
+replication~mean~12~holdout~timing~gbm_z,replication,mean,12,holdout,timing,Per-asset timing,gbm_z,Gradient boosting,frozen,-0.27,-0.47,-0.07,0.011,0.063,-0.05
+replication~mean~12~holdout~timing~gbm_z.nohind,replication,mean,12,holdout,timing,Per-asset timing,gbm_z.nohind,Boosting without hindsight features,robustness,-0.24,-0.44,-0.04,0.019,,-0.05
+replication~mean~12~holdout~timing~gbm_z.price,replication,mean,12,holdout,timing,Per-asset timing,gbm_z.price,"Boosting, price predictors only",frozen,0.03,-0.06,0.12,0.513,0.543,0.01
+replication~mean~12~holdout~timing~rf_z,replication,mean,12,holdout,timing,Per-asset timing,rf_z,Random forest,frozen,-0.2,-0.33,-0.06,0.004,0.04,-0.04
+replication~mean~12~holdout~timing~ridge_z,replication,mean,12,holdout,timing,Per-asset timing,ridge_z,Ridge regression,frozen,0.28,-0.39,0.95,0.413,0.464,0.1
+replication~mean~12~holdout_ap~mv~combo_z,replication,mean,12,holdout_ap,mv,Mean-variance,combo_z,Forecast combination,frozen,0.48,-0.16,1.11,0.142,0.244,0.04
+replication~mean~12~holdout_ap~mv~combo_z.nohind,replication,mean,12,holdout_ap,mv,Mean-variance,combo_z.nohind,Combination without hindsight features,robustness,0.43,-0.16,1.02,0.16,,0.03
+replication~mean~12~holdout_ap~mv~ens_z,replication,mean,12,holdout_ap,mv,Mean-variance,ens_z,Ensemble,frozen,-0.73,-1.43,-0.04,0.041,0.102,-0.07
+replication~mean~12~holdout_ap~mv~gbm_z,replication,mean,12,holdout_ap,mv,Mean-variance,gbm_z,Gradient boosting,frozen,-0.74,-1.09,-0.39,<0.001,0.001,-0.07
+replication~mean~12~holdout_ap~mv~gbm_z.nohind,replication,mean,12,holdout_ap,mv,Mean-variance,gbm_z.nohind,Boosting without hindsight features,robustness,-0.58,-0.91,-0.25,0.001,,-0.06
+replication~mean~12~holdout_ap~mv~gbm_z.price,replication,mean,12,holdout_ap,mv,Mean-variance,gbm_z.price,"Boosting, price predictors only",frozen,0.36,-0.28,1.0,0.278,0.355,0.03
+replication~mean~12~holdout_ap~mv~rf_z,replication,mean,12,holdout_ap,mv,Mean-variance,rf_z,Random forest,frozen,-0.47,-0.78,-0.15,0.004,0.024,-0.04
+replication~mean~12~holdout_ap~mv~ridge_z,replication,mean,12,holdout_ap,mv,Mean-variance,ridge_z,Ridge regression,frozen,-0.15,-2.23,1.94,0.89,0.89,-0.03
+replication~mean~12~holdout_ap~mv_vt~combo_z,replication,mean,12,holdout_ap,mv_vt,Mean-variance at 10% vol,combo_z,Forecast combination,frozen,0.4,-0.31,1.11,0.27,0.355,0.04
+replication~mean~12~holdout_ap~mv_vt~combo_z.nohind,replication,mean,12,holdout_ap,mv_vt,Mean-variance at 10% vol,combo_z.nohind,Combination without hindsight features,robustness,0.3,-0.34,0.94,0.363,,0.03
+replication~mean~12~holdout_ap~mv_vt~ens_z,replication,mean,12,holdout_ap,mv_vt,Mean-variance at 10% vol,ens_z,Ensemble,frozen,-0.7,-1.3,-0.1,0.025,0.088,-0.06
+replication~mean~12~holdout_ap~mv_vt~gbm_z,replication,mean,12,holdout_ap,mv_vt,Mean-variance at 10% vol,gbm_z,Gradient boosting,frozen,-0.4,-0.79,-0.01,0.045,0.102,-0.04
+replication~mean~12~holdout_ap~mv_vt~gbm_z.nohind,replication,mean,12,holdout_ap,mv_vt,Mean-variance at 10% vol,gbm_z.nohind,Boosting without hindsight features,robustness,-0.33,-0.63,-0.02,0.037,,-0.03
+replication~mean~12~holdout_ap~mv_vt~gbm_z.price,replication,mean,12,holdout_ap,mv_vt,Mean-variance at 10% vol,gbm_z.price,"Boosting, price predictors only",frozen,0.29,-0.14,0.73,0.191,0.286,0.03
+replication~mean~12~holdout_ap~mv_vt~rf_z,replication,mean,12,holdout_ap,mv_vt,Mean-variance at 10% vol,rf_z,Random forest,frozen,-0.31,-0.59,-0.03,0.035,0.102,-0.03
+replication~mean~12~holdout_ap~mv_vt~ridge_z,replication,mean,12,holdout_ap,mv_vt,Mean-variance at 10% vol,ridge_z,Ridge regression,frozen,-0.93,-2.01,0.14,0.092,0.184,-0.09
+replication~mean~12~holdout_ap~timing~combo_z,replication,mean,12,holdout_ap,timing,Per-asset timing,combo_z,Forecast combination,frozen,0.17,-0.06,0.4,0.149,0.244,0.04
+replication~mean~12~holdout_ap~timing~combo_z.nohind,replication,mean,12,holdout_ap,timing,Per-asset timing,combo_z.nohind,Combination without hindsight features,robustness,0.18,-0.03,0.39,0.102,,0.04
+replication~mean~12~holdout_ap~timing~ens_z,replication,mean,12,holdout_ap,timing,Per-asset timing,ens_z,Ensemble,frozen,-0.14,-0.4,0.12,0.296,0.355,-0.01
+replication~mean~12~holdout_ap~timing~gbm_z,replication,mean,12,holdout_ap,timing,Per-asset timing,gbm_z,Gradient boosting,frozen,-0.3,-0.51,-0.09,0.005,0.024,-0.06
+replication~mean~12~holdout_ap~timing~gbm_z.nohind,replication,mean,12,holdout_ap,timing,Per-asset timing,gbm_z.nohind,Boosting without hindsight features,robustness,-0.27,-0.48,-0.07,0.01,,-0.05
+replication~mean~12~holdout_ap~timing~gbm_z.price,replication,mean,12,holdout_ap,timing,Per-asset timing,gbm_z.price,"Boosting, price predictors only",frozen,0.02,-0.08,0.12,0.699,0.74,0.01
+replication~mean~12~holdout_ap~timing~rf_z,replication,mean,12,holdout_ap,timing,Per-asset timing,rf_z,Random forest,frozen,-0.25,-0.38,-0.11,<0.001,0.004,-0.05
+replication~mean~12~holdout_ap~timing~ridge_z,replication,mean,12,holdout_ap,timing,Per-asset timing,ridge_z,Ridge regression,frozen,0.34,-0.4,1.08,0.371,0.418,0.13
+replication~risk~12~holdout~mv~af_primary,replication,risk,12,holdout,mv,Mean-variance,af_primary,Package covariance vs static sample,frozen,-0.97,-2.86,0.91,0.314,,-0.08
+replication~risk~12~holdout~mv_vt~af_primary,replication,risk,12,holdout,mv_vt,Mean-variance at 10% vol,af_primary,Package covariance vs static sample,frozen,-1.08,-2.18,0.02,0.057,,-0.1
+replication~risk~12~holdout~timing~af_primary,replication,risk,12,holdout,timing,Per-asset timing,af_primary,Package covariance vs static sample,frozen,0.12,-0.25,0.49,0.525,,0.03
+replication~risk~12~holdout~vt_rp~af_primary,replication,risk,12,holdout,vt_rp,Inverse-vol at 10% vol,af_primary,Package covariance vs static sample,frozen,0.48,-0.49,1.46,0.336,,0.04
+replication~risk~12~holdout_ap~mv~af_primary,replication,risk,12,holdout_ap,mv,Mean-variance,af_primary,Package covariance vs static sample,frozen,-1.0,-3.08,1.08,0.349,,-0.08
+replication~risk~12~holdout_ap~mv_vt~af_primary,replication,risk,12,holdout_ap,mv_vt,Mean-variance at 10% vol,af_primary,Package covariance vs static sample,frozen,-1.09,-2.31,0.13,0.084,,-0.1
+replication~risk~12~holdout_ap~timing~af_primary,replication,risk,12,holdout_ap,timing,Per-asset timing,af_primary,Package covariance vs static sample,frozen,0.18,-0.21,0.57,0.364,,0.04
+replication~risk~12~holdout_ap~vt_rp~af_primary,replication,risk,12,holdout_ap,vt_rp,Inverse-vol at 10% vol,af_primary,Package covariance vs static sample,frozen,0.63,-0.39,1.65,0.229,,0.06

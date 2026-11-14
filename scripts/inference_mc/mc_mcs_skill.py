@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from multiprocessing import Pool
 from simdgp import simulate_losses
-from volmodel.eval import inference as inf
+from assetforecast.eval import inference as inf
 
 warnings.simplefilter("ignore")
 SCEN = {"base": dict(phi=0.95, rho_e=0.9), "persistent": dict(phi=0.98, rho_e=0.97)}

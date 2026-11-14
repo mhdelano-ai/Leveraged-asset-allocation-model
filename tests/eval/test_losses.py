@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.eval.harness import load_forecasts_long, run_model
-from volmodel.eval.losses import (DEFAULT_SUBSETS, _qlike_frob, compute_losses, corr_losses, cov_losses,
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.eval.harness import load_forecasts_long, run_model
+from assetforecast.eval.losses import (DEFAULT_SUBSETS, _qlike_frob, compute_losses, corr_losses, cov_losses,
                                   loss_matrix, robustness_note, scoreboard, vol_losses)
-from volmodel.eval.targets import Targets, compute_targets
-from volmodel.models.base import CorrForecaster, CovForecaster, VolForecaster
+from assetforecast.eval.targets import Targets, compute_targets
+from assetforecast.models.base import CorrForecaster, CovForecaster, VolForecaster
 
 
 @pytest.fixture(scope="module")

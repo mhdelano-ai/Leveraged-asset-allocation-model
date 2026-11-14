@@ -4,12 +4,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.panel import PREDICTOR_COLUMNS
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.eval.targets import realized_kday_cov
-from volmodel.models import get_model, list_models
-from volmodel.models.macro.features import ReturnFeatures, asof_monthly, credit_spread, _series_tables
-from volmodel.models.macro.model import CACHE_KEY, GROUPS, gamma_glm
+from assetforecast.data.panel import PREDICTOR_COLUMNS
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.eval.targets import realized_kday_cov
+from assetforecast.models import get_model, list_models
+from assetforecast.models.macro.features import ReturnFeatures, asof_monthly, credit_spread, _series_tables
+from assetforecast.models.macro.model import CACHE_KEY, GROUPS, gamma_glm
 
 MACRO_MODELS = ["macro_base", "macro_state", "macro_state_ip", "macro_implied", "macro_full",
                 "macro_base_h", "macro_full_h"]
@@ -224,7 +224,7 @@ def test_gamma_glm_recovers_coefficients():
 
 
 def test_groups_cover_universe():
-    from volmodel.universe import ASSET_IDS
+    from assetforecast.universe import ASSET_IDS
     assert sorted(a for g in GROUPS.values() for a in g) == sorted(ASSET_IDS)
 
 

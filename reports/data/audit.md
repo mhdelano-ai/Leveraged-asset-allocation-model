@@ -1,7 +1,7 @@
 # Independent data audit of the assembled panel
 
 Auditor: an independent agent with no stake in the data. Scope: everything `load_panel()` returns over the
-full history (no `VOLMODEL_MAX_DATE`): 12 asset return histories, cash, tiers, 62 predictors, and the
+full history (no `ASSETFORECAST_MAX_DATE`): 12 asset return histories, cash, tiers, 62 predictors, and the
 `Panel.asof` contract. Regression tests: `tests/data/test_audit.py` (68 pass; 6 strict `xfail`s that encode
 the confirmed defects and will flip to passing when they are fixed). Scratch scripts and downloaded
 cross-check data are in the scratch directory under `audit/` (`cmp_indep.py`, `div_scan.py`, `badprint_scan.py`,

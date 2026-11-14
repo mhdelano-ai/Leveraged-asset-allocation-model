@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.models import get_model, list_models
-from volmodel.models.garch import core, prep
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.models import get_model, list_models
+from assetforecast.models.garch import core, prep
 
 NAMES = ["garch_d_garch11", "garch_d_gjr", "garch_d_cgarch", "garch_d_midas", "garch_d_rm2006",
          "garch_w_cgarch", "garch_m_garch11", "garch_m_cgarch"]

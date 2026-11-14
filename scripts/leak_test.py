@@ -9,7 +9,7 @@ For each model and each test origin t:
 If A == B the forecast at t cannot depend on anything after t.
 
 Usage: python scripts/leak_test.py [--kinds vol corr cov] [--models ...] [--jobs 4]
-Respects VOLMODEL_MAX_DATE (the "full" panel is then the development panel).
+Respects ASSETFORECAST_MAX_DATE (the "full" panel is then the development panel).
 """
 import argparse
 import sys
@@ -25,8 +25,8 @@ ORIGINS = ["1951-03-31", "1975-06-30", "1987-10-31", "1999-12-31", "2008-09-30",
 
 def check(kind, name, origins):
     warnings.simplefilter("ignore")
-    from volmodel.data.panel import load_panel
-    from volmodel.models import get_model
+    from assetforecast.data.panel import load_panel
+    from assetforecast.models import get_model
     fn = {"vol": "forecast_vol", "corr": "forecast_corr", "cov": "forecast_cov"}[kind]
     out, t0 = [], time.time()
     try:
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     ap.add_argument("--tol", type=float, default=1e-8)
     ap.add_argument("--out", default=None)
     a = ap.parse_args()
-    from volmodel.models import list_models
+    from assetforecast.models import list_models
     todo = [(k, n) for k in a.kinds for n in list_models(k) if not a.models or n in a.models]
     rows = []
     with ProcessPoolExecutor(a.jobs) as ex:

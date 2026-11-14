@@ -1,0 +1,15 @@
+asset,segment_start,segment_end,source,description
+us_eq,1926-07-01,2026-09-30,French F-F_Research_Data_Factors_daily (Mkt-RF + RF),CRSP VW US market
+us_eq,2026-10-01,2026-10-30,yfinance VTI,"Vanguard Total Stock Market ETF, after the French file ends"
+dev_eq,1990-07-02,2000-12-29,French Developed_ex_US_3_Factors_Daily (Mkt-RF + RF),FF developed ex-US market
+dev_eq,2001-01-01,2026-10-30,MSCI daily GRTR 991000,MSCI World ex USA gross (local close; non-synchronous with US)
+em_eq,2001-01-01,2026-10-30,MSCI daily GRTR 891800,MSCI EM gross (local close; non-synchronous with US)
+ust_int,1961-06-15,2026-10-30,Fed GSW nominal curve,5y par bond repriced daily
+ust_long,1971-11-16,1981-07-02,Fed GSW nominal curve,15y par bond repriced daily (before 1981-07)
+ust_long,1981-07-06,2026-10-30,Fed GSW nominal curve,20y par bond repriced daily
+tips,1999-01-05,2026-10-30,Fed GSW TIPS curve + CPIAUCNS,"7y real par TIPS repriced daily, with index-ratio accrual"
+ig_credit,1980-01-03,2026-10-30,yfinance VWESX,Vanguard Long-Term IG fund NAV total return
+hy_credit,1985-02-01,2026-10-30,yfinance VWEHX,Vanguard HY Corporate fund NAV total return
+reits,2004-09-30,2026-10-30,yfinance VNQ,Vanguard Real Estate ETF (MSCI US IMI Real Estate 25/50; not the Nareit index)
+gold,2004-11-19,2026-10-30,yfinance GLD,SPDR Gold Shares
+commodities,2006-10-31,2026-10-30,yfinance DJP,iPath BCOM TR ETN (not the AQR equal-weight index used monthly)

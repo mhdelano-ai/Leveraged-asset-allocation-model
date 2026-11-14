@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.panel import PREDICTOR_COLUMNS
-from volmodel.data.sources import implied as m
+from assetforecast.data.panel import PREDICTOR_COLUMNS
+from assetforecast.data.sources import implied as m
 
 
 # ----------------------------------------------------------------- offline unit

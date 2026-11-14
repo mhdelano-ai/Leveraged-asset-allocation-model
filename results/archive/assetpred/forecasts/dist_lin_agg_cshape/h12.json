@@ -1,0 +1,30 @@
+{
+ "fingerprint": {
+  "model": "dist_lin_agg_cshape",
+  "horizon": 12,
+  "class": "Composite",
+  "params": {
+   "location": "HistMeanLocation({})",
+   "components": [
+    "CondShapeGBM({'cv_splits': 3, 'refit_every': 12, 'scale': 'agg_linear', 'trees': (0, 50, 100, 200)})"
+   ],
+   "weights": [
+    1.0
+   ],
+   "src": "700a4ce1abd96f82"
+  },
+  "data": "bf5526544f8567df",
+  "settings": {
+   "oos_start": "1990-01-31",
+   "refit_every": 12,
+   "min_history": 60,
+   "end": null
+  },
+  "code": "53ac1f3a1e2f66a5"
+ },
+ "rows": 4403,
+ "seconds": 70.33,
+ "first_origin": "1990-01-31",
+ "last_origin": "2026-10-31",
+ "written": "2026-11-14T18:46:28+00:00"
+}

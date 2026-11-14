@@ -20,8 +20,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.panel import load_panel
-from volmodel.paths import PROCESSED, RAW
+from assetforecast.data.panel import load_panel
+from assetforecast.paths import PROCESSED, RAW
 
 pytestmark = [
     pytest.mark.realdata,
@@ -214,7 +214,7 @@ def test_no_partial_final_month(P):
 
 
 def test_folding_preserves_compounded_returns(P):
-    from volmodel.paths import ASSET_DIR
+    from assetforecast.paths import ASSET_DIR
     for a in P.daily.columns:
         t = pd.read_parquet(ASSET_DIR / f"{a}_daily.parquet")["ret"].dropna()
         p = P.daily[a].dropna()

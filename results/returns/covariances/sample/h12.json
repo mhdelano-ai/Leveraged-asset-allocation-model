@@ -1,0 +1,24 @@
+{
+ "model": "sample",
+ "horizon": 12,
+ "rows": 57495,
+ "first_origin": "1990-01-31",
+ "last_origin": "2025-10-31",
+ "min_history": 60,
+ "mean_adjust": true,
+ "assets": [
+  "us_large",
+  "us_small",
+  "intl_dev",
+  "em",
+  "ust_int",
+  "ust_long",
+  "tips",
+  "ig_credit",
+  "hy_credit",
+  "reits",
+  "gold",
+  "commodities"
+ ],
+ "source": "assetforecast.returns.evaluation.static_cov.sample_cov_history"
+}

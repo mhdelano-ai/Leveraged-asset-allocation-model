@@ -1,8 +1,8 @@
 # Regime-switching and structural-break volatility models (`regime`)
 
-Family package `src/volmodel/models/regime/` (kind `vol`, 8 models), tests
+Family package `src/assetforecast/models/regime/` (kind `vol`, 8 models), tests
 `tests/models/test_regime.py`. All results below are development results
-(`VOLMODEL_MAX_DATE=2014-12-31`, every month-end origin, stored in
+(`ASSETFORECAST_MAX_DATE=2014-12-31`, every month-end origin, stored in
 `results/dev/forecasts/vol/regime_*.parquet`); nothing after 2014 was looked at.
 
 ## Summary
@@ -235,7 +235,7 @@ By asset:
 | ref_longrun | 0.662 | 0.588 | 0.298 | 0.305 | 0.646 | 1.171 | 0.584 | 0.712 | 0.927 | 0.837 | 0.499 | 0.362 |
 
 Skill against the best reference on this subset (`ref_last12m`); Fieller-EWC
-90% interval and two-sided DM (EWC) p-value from `volmodel.eval.inference`:
+90% interval and two-sided DM (EWC) p-value from `assetforecast.eval.inference`:
 
 | model | skill % | 90% CI | DM p |
 |---|---|---|---|

@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.sources import reits as R
-from volmodel.paths import ASSET_DIR
+from assetforecast.data.sources import reits as R
+from assetforecast.paths import ASSET_DIR
 
 DAILY = ASSET_DIR / "reits_daily.parquet"
 MONTHLY = ASSET_DIR / "reits_monthly.parquet"

@@ -1,9 +1,9 @@
 """Does the month-average (tier D) history help or hurt the leading models?
 
 Step 1 (run once; writes to results/dev_noD):
-  VOLMODEL_MAX_DATE=2014-12-31 VOLMODEL_DROP_TIERS=D VOLMODEL_RESULTS=$PWD/results/dev_noD \
-    python -m volmodel.eval.run forecast --kind vol --model <models> --jobs 3
-Step 2: VOLMODEL_MAX_DATE=2014-12-31 python scripts/tierD_sensitivity.py
+  ASSETFORECAST_MAX_DATE=2014-12-31 ASSETFORECAST_DROP_TIERS=D ASSETFORECAST_RESULTS=$PWD/results/dev_noD \
+    python -m assetforecast.eval.run forecast --kind vol --model <models> --jobs 3
+Step 2: ASSETFORECAST_MAX_DATE=2014-12-31 python scripts/tierD_sensitivity.py
 Compares QLIKE on identical asset-dates (daily-based targets only), by era.
 """
 import pathlib
@@ -11,10 +11,10 @@ import warnings
 
 import pandas as pd
 
-from volmodel.data.panel import load_panel
-from volmodel.eval import harness as H
-from volmodel.eval import losses as L
-from volmodel.eval.targets import get_targets
+from assetforecast.data.panel import load_panel
+from assetforecast.eval import harness as H
+from assetforecast.eval import losses as L
+from assetforecast.eval.targets import get_targets
 
 warnings.simplefilter("ignore")
 R = pathlib.Path(__file__).resolve().parents[1] / "results"

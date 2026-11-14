@@ -1,9 +1,9 @@
-# Structural family (`src/volmodel/models/structural/`)
+# Structural family (`src/assetforecast/models/structural/`)
 
 Forecasts built from the economic structure of an asset class: slow,
 **observable exposures** (duration, spread level) times **factor volatilities**
 (yield vol, relative spread vol) that are estimated from long histories.
-All results are development runs on data to 2014 (`VOLMODEL_MAX_DATE=2014-12-31`),
+All results are development runs on data to 2014 (`ASSETFORECAST_MAX_DATE=2014-12-31`),
 monthly origins, scored on the 21-day-horizon target; the holdout after 2014 has
 not been touched.
 
@@ -627,7 +627,7 @@ daily CMT series (structural path). The tests check:
   * TLT's duration ratio above 1.
 * **No change was needed in shared code.** One observation: `models._load_all`
   imports every family, so one family's broken in-progress package once made
-  `python -m volmodel.eval.run forecast` fail for everyone
+  `python -m assetforecast.eval.run forecast` fail for everyone
   (`ImportError ... condcorr.embed`). The family's runs used the harness
   directly in the meantime. Isolating import errors per family in `_load_all`
   would make the CLI robust.

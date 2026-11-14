@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.sources import credit
-from volmodel.paths import ASSET_DIR, PREDICTOR_DIR
+from assetforecast.data.sources import credit
+from assetforecast.paths import ASSET_DIR, PREDICTOR_DIR
 
 ASSETS = ["ig_credit", "hy_credit"]
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Final evaluation of every stored model: development period and holdout, kept apart.
 
-    export OMP_NUM_THREADS=1 VOLMODEL_RESULTS=$PWD/results/full      # no VOLMODEL_MAX_DATE
+    export OMP_NUM_THREADS=1 ASSETFORECAST_RESULTS=$PWD/results/full      # no ASSETFORECAST_MAX_DATE
     python scripts/score_final.py [--out results/final] [--dev-results results/dev]
 
-Reads the stored forecasts and cached targets in ``$VOLMODEL_RESULTS`` (the
+Reads the stored forecasts and cached targets in ``$ASSETFORECAST_RESULTS`` (the
 full-history re-run) and writes small tidy CSV/JSON files to ``--out``. Nothing
 is chosen here: the roles below were fixed in ``reports/SELECTION.md`` before
 any post-2013 origin was scored.
@@ -21,7 +21,7 @@ where every model in the table has a forecast and a target. Pooled losses are
 the per-origin mean over those cells, then the mean over origins (each origin
 counts once). ``n_origins`` / ``n_cells`` in every output say how many.
 
-Inference: ``volmodel.eval.inference`` defaults (DM with the EWC long-run
+Inference: ``assetforecast.eval.inference`` defaults (DM with the EWC long-run
 variance and t(B) reference; Fieller-EWC 90% skill intervals; Goetze-Kuensch
 MCS). On the holdout (142 overlapping origins, about 12 independent years) B
 is clipped at its floor of 4, so intervals are wide by construction.
@@ -187,7 +187,7 @@ def hac_mean_ci(x: pd.Series, level: float = LEVEL) -> tuple[float, float, float
     Returns (mean, lo, hi, n_eff); NaN interval below 6 observations.
     """
     from scipy import stats
-    from volmodel.eval.inference import long_run_variance
+    from assetforecast.eval.inference import long_run_variance
     x = x.dropna()
     m = float(x.mean()) if len(x) else np.nan
     if len(x) < 6:
@@ -204,7 +204,7 @@ def compare(la: pd.Series, lb: pd.Series, skill: bool = True, level: float = LEV
     Skill is the % reduction of a's mean loss relative to b (positive = a better).
     """
     from scipy import stats
-    from volmodel.eval.inference import dm_test, skill_score
+    from assetforecast.eval.inference import dm_test, skill_score
     out = {"mean_diff": np.nan, "diff_lo": np.nan, "diff_hi": np.nan, "dm_p": np.nan,
            "skill_pct": np.nan, "skill_lo": np.nan, "skill_hi": np.nan, "n_eff": np.nan, "df": np.nan}
     d = pd.concat({"a": la, "b": lb}, axis=1).dropna()
@@ -269,7 +269,7 @@ def log_ratio_summary(lr) -> dict:
 def kday_var(X, k: int = 21) -> np.ndarray:
     """Independent re-implementation of the target: (n_rows / k) * mean of squared
     overlapping k-row sums (missing = 0), uncentered; for a T x N array, returns N
-    variances and the cross-product matrix. Written without volmodel.eval code."""
+    variances and the cross-product matrix. Written without assetforecast.eval code."""
     X = np.nan_to_num(np.asarray(X, float))
     T = X.shape[0]
     c = np.vstack([np.zeros((1, X.shape[1])), np.cumsum(X, axis=0)])
@@ -323,10 +323,10 @@ class Ctx:
     """Everything loaded once."""
 
     def __init__(self, results: Path, out: Path, dev_results: Path | None):
-        from volmodel.data.panel import load_panel
-        from volmodel.eval.targets import load_targets, panel_fingerprint
-        if os.environ.get("VOLMODEL_MAX_DATE"):
-            raise SystemExit("unset VOLMODEL_MAX_DATE: the final evaluation scores the full history")
+        from assetforecast.data.panel import load_panel
+        from assetforecast.eval.targets import load_targets, panel_fingerprint
+        if os.environ.get("ASSETFORECAST_MAX_DATE"):
+            raise SystemExit("unset ASSETFORECAST_MAX_DATE: the final evaluation scores the full history")
         self.results, self.out, self.dev_results = results, out, dev_results
         self.panel = load_panel()
         self.targets = load_targets(results)
@@ -335,7 +335,7 @@ class Ctx:
         if not self.fingerprint_ok:
             raise SystemExit(f"cached targets in {results}/targets do not match the panel "
                              f"({self.targets.meta.get('fingerprint')} vs {fp}); rebuild them first")
-        from volmodel.eval.harness import stored_models
+        from assetforecast.eval.harness import stored_models
         self.models = {k: stored_models(k, results) for k in ("vol", "corr", "cov")}
         self.tables: dict[str, pd.DataFrame] = {}
         self.summary: dict = {"results_dir": str(results), "targets_observed_through":
@@ -356,7 +356,7 @@ class Ctx:
 
 # ------------------------------------------------------------- coverage
 def stage_coverage(ctx: Ctx):
-    from volmodel.eval.harness import load_forecasts_long, origins_for
+    from assetforecast.eval.harness import load_forecasts_long, origins_for
     panel = ctx.panel
     origins = pd.DatetimeIndex(origins_for(panel))
     cnt = panel.monthly.notna().cumsum()
@@ -400,7 +400,7 @@ def stage_coverage(ctx: Ctx):
 
 # ------------------------------------------------------- vol leaderboard
 def vol_cube(asset_frame: pd.DataFrame, models: list[str]):
-    from volmodel.universe import ASSET_IDS
+    from assetforecast.universe import ASSET_IDS
     o, items, models, Q = to_cube(asset_frame, "qlike", "asset", models=models, items=list(ASSET_IDS))
     R = to_cube(asset_frame.assign(rf=(asset_frame["vol_r"] / asset_frame["vol_f"]) ** 2), "rf", "asset",
                 models=models, items=items, origins=o)[3]
@@ -411,7 +411,7 @@ def vol_cube(asset_frame: pd.DataFrame, models: list[str]):
 
 
 def vol_subset_cells(cells, PX, items, subset):
-    from volmodel.eval.losses import DEFAULT_SUBSETS
+    from assetforecast.eval.losses import DEFAULT_SUBSETS
     if subset == "all":
         return cells
     if subset == "daily":
@@ -459,7 +459,7 @@ def leaderboard(L: pd.DataFrame, extra: dict[str, pd.DataFrame], cnt: pd.Series,
 
 
 def stage_vol(ctx: Ctx):
-    from volmodel.eval.losses import DEFAULT_SUBSETS, compute_losses
+    from assetforecast.eval.losses import DEFAULT_SUBSETS, compute_losses
     models = ctx.models["vol"]
     _log(f"vol losses for {len(models)} models")
     lv = compute_losses("vol", models, ctx.targets, results_dir=ctx.results)
@@ -509,7 +509,7 @@ def stage_vol(ctx: Ctx):
 
 # ------------------------------------------------------ corr leaderboard
 def corr_cube(pair_frame: pd.DataFrame, models: list[str]):
-    from volmodel.universe import ASSET_IDS
+    from assetforecast.universe import ASSET_IDS
     pairs = [pair_label(a, b) for i, a in enumerate(ASSET_IDS) for b in ASSET_IDS[i + 1:]]
     lab = lambda d: d["asset_i"] + "~" + d["asset_j"]
     o, items, models, SE = to_cube(pair_frame, "se", lab, models=models, items=pairs)
@@ -518,7 +518,7 @@ def corr_cube(pair_frame: pd.DataFrame, models: list[str]):
 
 
 def corr_subset_cells(cells, items, subset):
-    from volmodel.eval.losses import DEFAULT_SUBSETS
+    from assetforecast.eval.losses import DEFAULT_SUBSETS
     if subset == "daily":
         return cells
     mem = set(DEFAULT_SUBSETS[subset])
@@ -526,7 +526,7 @@ def corr_subset_cells(cells, items, subset):
 
 
 def stage_corr(ctx: Ctx):
-    from volmodel.eval.losses import DEFAULT_SUBSETS, compute_losses
+    from assetforecast.eval.losses import DEFAULT_SUBSETS, compute_losses
     models = ctx.models["corr"]
     _log(f"corr losses for {len(models)} models")
     lc = compute_losses("corr", models, ctx.targets, results_dir=ctx.results)
@@ -548,7 +548,7 @@ def stage_corr(ctx: Ctx):
 
 # ------------------------------------------------------- cov leaderboard
 def stage_cov(ctx: Ctx):
-    from volmodel.eval.losses import compute_losses
+    from assetforecast.eval.losses import compute_losses
     models = ctx.models["cov"]
     _log(f"cov losses for {len(models)} models")
     lc = compute_losses("cov", models, ctx.targets, results_dir=ctx.results)
@@ -583,8 +583,8 @@ def stage_cov(ctx: Ctx):
 
 # ---------------------------------------------------------- head to head
 def stage_h2h(ctx: Ctx):
-    from volmodel.eval.inference import model_confidence_set
-    from volmodel.eval.losses import DEFAULT_SUBSETS, compute_losses
+    from assetforecast.eval.inference import model_confidence_set
+    from assetforecast.eval.losses import DEFAULT_SUBSETS, compute_losses
     cands = list(CANDIDATES.values())
     vmods = [f"cov:{m}" for m in cands] + H2H_VOL_EXTRA
     lv = compute_losses("vol", vmods, ctx.targets, results_dir=ctx.results)
@@ -721,7 +721,7 @@ PORT_ERAS = {"dev": (None, str(DEV_END.date())), "holdout": (str(HOLDOUT_START.d
 
 
 def stage_portfolio(ctx: Ctx):
-    from volmodel.eval.portfolio import RealizedCache, load_cov_forecasts, score_portfolios, summarize
+    from assetforecast.eval.portfolio import RealizedCache, load_cov_forecasts, score_portfolios, summarize
     cands = list(CANDIDATES.values())
     fc = load_cov_forecasts(cands, root=ctx.results / "forecasts" / "cov")
     fc = {m: {o: H for o, H in d.items() if o <= HOLDOUT_END} for m, d in fc.items()}
@@ -785,9 +785,9 @@ def stage_portfolio(ctx: Ctx):
 # ------------------------------------------------------------------ bridge
 def stage_bridge(ctx: Ctx):
     from scipy.stats import norm
-    from volmodel.bridge import ScaleMixture, _anchor, get_bridge, vol_uncertainty
-    from volmodel.eval.portfolio import POLICIES, annual_z_scores, calibration_summary, load_cov_forecasts
-    from volmodel.universe import ASSET_IDS
+    from assetforecast.bridge import ScaleMixture, _anchor, get_bridge, vol_uncertainty
+    from assetforecast.eval.portfolio import POLICIES, annual_z_scores, calibration_summary, load_cov_forecasts
+    from assetforecast.universe import ASSET_IDS
     prim = CANDIDATES["primary"]
     fc = load_cov_forecasts([prim], root=ctx.results / "forecasts" / "cov")[prim]
     fc = {o: H for o, H in fc.items() if o <= HOLDOUT_END}
@@ -912,7 +912,7 @@ def stage_episodes(ctx: Ctx):
 
 # ------------------------------------------------------------- dashboard
 def stage_dashboard(ctx: Ctx):
-    from volmodel.eval.harness import load_forecasts_long
+    from assetforecast.eval.harness import load_forecasts_long
     T = ctx.targets
     vols = {}
     for role, m in CANDIDATES.items():
@@ -1009,9 +1009,9 @@ def stage_accuracy(ctx: Ctx):
 
 # --------------------------------------------------------- data correction
 def stage_correction(ctx: Ctx):
-    from volmodel.eval.harness import load_forecasts_long, stored_models
-    from volmodel.eval.losses import compute_losses
-    from volmodel.eval.targets import load_targets
+    from assetforecast.eval.harness import load_forecasts_long, stored_models
+    from assetforecast.eval.losses import compute_losses
+    from assetforecast.eval.targets import load_targets
     dev = ctx.dev_results
     if dev is None or not (dev / "targets" / "meta.json").exists():
         _log("no pre-fix dev results; skipping the data-correction comparison")
@@ -1165,7 +1165,7 @@ def stage_verify(ctx: Ctx):
         rows.append({"check": "target_corr us_large~ust_int", "origin": o.date(), "asset": "pair", "n_rows": n_rows,
                      "independent": mine, "stored": float(t["corr"].iloc[0]) if len(t) else np.nan})
     # covariance loss of the primary on the complete daily set
-    from volmodel.universe import ASSET_IDS
+    from assetforecast.universe import ASSET_IDS
     for os_ in ["1990-06-30", "2016-06-30"]:
         o = pd.Timestamp(os_)
         assets = list(ASSET_IDS)
@@ -1309,7 +1309,7 @@ def stage_expectations(ctx: Ctx):
 # ================================================================== main
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--results", default=os.environ.get("VOLMODEL_RESULTS", str(ROOT / "results" / "full")))
+    ap.add_argument("--results", default=os.environ.get("ASSETFORECAST_RESULTS", str(ROOT / "results" / "full")))
     ap.add_argument("--out", default=str(ROOT / "results" / "final"))
     ap.add_argument("--dev-results", default=str(ROOT / "results" / "dev"),
                     help="pre-correction development results (forecasts + targets); '' to skip")

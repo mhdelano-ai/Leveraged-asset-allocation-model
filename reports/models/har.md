@@ -1,8 +1,8 @@
 # HAR family: direct multi-horizon regressions for the 12-month variance
 
-Code: `src/volmodel/models/har/` (`features.py` regressors, `model.py` estimation,
+Code: `src/assetforecast/models/har/` (`features.py` regressors, `model.py` estimation,
 `__init__.py` registry). Tests: `tests/models/test_har.py`. All numbers below are
-from the development panel (`VOLMODEL_MAX_DATE=2014-12-31`, results in `results/dev/`),
+from the development panel (`ASSETFORECAST_MAX_DATE=2014-12-31`, results in `results/dev/`),
 every month-end origin, scored on targets observed by 2014-12.
 
 ## Summary
@@ -109,7 +109,7 @@ coefficients are comparable across assets and pooling is meaningful.
 * Training rows are every (month-end s, asset) with:
   - at least 36 months of monthly history at s (the harness's eligibility rule), and
   - a realized target that is fully observed in that view (s + 12 months ≤ e).
-* The targets are computed by `volmodel.eval.targets.compute_targets` on the truncated
+* The targets are computed by `assetforecast.eval.targets.compute_targets` on the truncated
   view. This is the scored estimator itself (daily-based or monthly proxy), derived
   from the view and never from cached files.
 * The daily set is fitted on rows where it is available. The monthly set is fitted on

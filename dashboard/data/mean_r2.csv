@@ -1,0 +1,41 @@
+id,source,horizon,period,model,label,role,r2,cw_p,dm_p,r2_detectable
+original~1~holdout~ridge_z,original,1,holdout,ridge_z,Ridge regression,frozen,-0.29,0.514,0.692,1.9
+original~1~holdout~combo_z,original,1,holdout,combo_z,Forecast combination,frozen,0.09,0.23,0.265,1.9
+original~1~holdout~gbm_z,original,1,holdout,gbm_z,Gradient boosting,frozen,0.1,0.286,0.404,1.9
+original~1~holdout~rf_z,original,1,holdout,rf_z,Random forest,frozen,0.06,0.279,0.45,1.9
+original~1~holdout~ens_z,original,1,holdout,ens_z,Ensemble,frozen,-0.01,0.333,0.507,1.9
+original~1~holdout~gbm_z.price,original,1,holdout,gbm_z.price,"Boosting, price predictors only",frozen,-0.61,0.863,0.941,1.9
+original~1~holdout~gbm_z.nohind,original,1,holdout,gbm_z.nohind,Boosting without hindsight features,robustness,0.33,0.168,0.254,1.9
+original~1~holdout~combo_z.nohind,original,1,holdout,combo_z.nohind,Combination without hindsight features,robustness,0.09,0.218,0.255,1.9
+original~3~holdout~ridge_z,original,3,holdout,ridge_z,Ridge regression,frozen,-0.33,0.749,0.856,5.5
+original~3~holdout~combo_z,original,3,holdout,combo_z,Forecast combination,frozen,0.41,0.065,0.08,5.5
+original~3~holdout~gbm_z,original,3,holdout,gbm_z,Gradient boosting,frozen,-0.07,0.595,0.628,5.5
+original~3~holdout~rf_z,original,3,holdout,rf_z,Random forest,frozen,-0.01,0.428,0.518,5.5
+original~3~holdout~ens_z,original,3,holdout,ens_z,Ensemble,frozen,-0.24,0.7,0.789,5.5
+original~3~holdout~gbm_z.price,original,3,holdout,gbm_z.price,"Boosting, price predictors only",frozen,-0.07,0.618,0.655,5.5
+original~3~holdout~gbm_z.nohind,original,3,holdout,gbm_z.nohind,Boosting without hindsight features,robustness,0.04,0.386,0.421,5.5
+original~3~holdout~combo_z.nohind,original,3,holdout,combo_z.nohind,Combination without hindsight features,robustness,0.43,0.06,0.073,5.5
+original~12~holdout~ridge_z,original,12,holdout,ridge_z,Ridge regression,frozen,-0.39,0.476,0.565,20.0
+original~12~holdout~combo_z,original,12,holdout,combo_z,Forecast combination,frozen,2.21,0.05,0.056,20.0
+original~12~holdout~gbm_z,original,12,holdout,gbm_z,Gradient boosting,frozen,-0.12,0.54,0.584,20.0
+original~12~holdout~rf_z,original,12,holdout,rf_z,Random forest,frozen,0.03,0.439,0.478,20.0
+original~12~holdout~ens_z,original,12,holdout,ens_z,Ensemble,frozen,-1.06,0.808,0.842,20.0
+original~12~holdout~gbm_z.price,original,12,holdout,gbm_z.price,"Boosting, price predictors only",frozen,0.32,0.16,0.191,20.0
+original~12~holdout~gbm_z.nohind,original,12,holdout,gbm_z.nohind,Boosting without hindsight features,robustness,-0.04,0.487,0.531,20.0
+original~12~holdout~combo_z.nohind,original,12,holdout,combo_z.nohind,Combination without hindsight features,robustness,2.23,0.05,0.056,20.0
+replication~12~holdout~ridge_z,replication,12,holdout,ridge_z,Ridge regression,frozen,3.34,0.114,0.164,18.6
+replication~12~holdout~combo_z,replication,12,holdout,combo_z,Forecast combination,frozen,2.34,0.029,0.03,18.6
+replication~12~holdout~gbm_z,replication,12,holdout,gbm_z,Gradient boosting,frozen,-3.77,0.946,0.955,18.6
+replication~12~holdout~rf_z,replication,12,holdout,rf_z,Random forest,frozen,-1.35,0.881,0.922,18.6
+replication~12~holdout~ens_z,replication,12,holdout,ens_z,Ensemble,frozen,-0.83,0.656,0.753,18.6
+replication~12~holdout~gbm_z.price,replication,12,holdout,gbm_z.price,"Boosting, price predictors only",frozen,0.98,0.017,0.024,18.6
+replication~12~holdout~gbm_z.nohind,replication,12,holdout,gbm_z.nohind,Boosting without hindsight features,robustness,-3.23,0.915,0.929,18.6
+replication~12~holdout~combo_z.nohind,replication,12,holdout,combo_z.nohind,Combination without hindsight features,robustness,2.36,0.028,0.03,18.6
+replication~12~holdout_ap~ridge_z,replication,12,holdout_ap,ridge_z,Ridge regression,frozen,3.23,0.139,0.193,20.0
+replication~12~holdout_ap~combo_z,replication,12,holdout_ap,combo_z,Forecast combination,frozen,2.53,0.028,0.029,20.0
+replication~12~holdout_ap~gbm_z,replication,12,holdout_ap,gbm_z,Gradient boosting,frozen,-4.03,0.945,0.954,20.0
+replication~12~holdout_ap~rf_z,replication,12,holdout_ap,rf_z,Random forest,frozen,-1.91,0.993,0.997,20.0
+replication~12~holdout_ap~ens_z,replication,12,holdout_ap,ens_z,Ensemble,frozen,-1.18,0.749,0.828,20.0
+replication~12~holdout_ap~gbm_z.price,replication,12,holdout_ap,gbm_z.price,"Boosting, price predictors only",frozen,0.81,0.036,0.049,20.0
+replication~12~holdout_ap~gbm_z.nohind,replication,12,holdout_ap,gbm_z.nohind,Boosting without hindsight features,robustness,-3.48,0.916,0.929,20.0
+replication~12~holdout_ap~combo_z.nohind,replication,12,holdout_ap,combo_z.nohind,Combination without hindsight features,robustness,2.54,0.028,0.029,20.0

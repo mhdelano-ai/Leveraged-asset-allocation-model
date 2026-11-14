@@ -1,6 +1,6 @@
 # intl_equity — international developed (`intl_dev`) and emerging (`em`) equity
 
-Built by `python -m volmodel.data.sources.intl_equity` on 2026-11-14. USD, unhedged, SIMPLE TOTAL returns in decimals (not excess; cash is another track).
+Built by `python -m assetforecast.data.sources.intl_equity` on 2026-11-14. USD, unhedged, SIMPLE TOTAL returns in decimals (not excess; cash is another track).
 
 ## Result
 

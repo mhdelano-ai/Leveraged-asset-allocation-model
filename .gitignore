@@ -1,12 +1,33 @@
 __pycache__/
-*.egg-info/
-.pytest_cache/
-data/raw/
 *.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
 .ipynb_checkpoints/
+.venv/
+.claude/worktrees/
+
+# download cache of the data loaders, and the downloader's lock file
+data/raw/
+data/processed/raw_manifest.lock
+
+# covariance harness store (every model, every origin; about 30 minutes to
+# rebuild with scripts/run_all.sh) and every development run (ASSETFORECAST_MAX_DATE)
+results/full/
+results/dev/
+results/dev_noD/
 results/synthetic/
 results/targets/
-results/dev/
-.claude/worktrees/
-results/dev_noD/
-results/full/
+
+# return-side strategy test: per-month returns and weights regenerate in under a minute
+results/returns/strategy/returns.parquet
+results/returns/strategy/weights.parquet
+
+# archived results of the assetpred project (see results/archive/assetpred):
+# its development-period outputs were exploratory; only the trial logs are kept
+results/archive/assetpred/dev/*
+!results/archive/assetpred/dev/trials_*.csv
+results/archive/assetpred/strategy/returns.parquet
+results/archive/assetpred/strategy/weights.parquet
+results/archive/assetpred/scores/frozen.csv

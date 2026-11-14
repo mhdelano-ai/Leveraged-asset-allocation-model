@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.sources import real_assets as ra
-from volmodel.paths import ASSET_DIR
+from assetforecast.data.sources import real_assets as ra
+from assetforecast.paths import ASSET_DIR
 
 ASSETS = ["gold", "commodities"]
 

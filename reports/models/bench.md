@@ -1,9 +1,9 @@
 # bench — the strong simple benchmarks
 
-Package `src/volmodel/models/bench/` (`core.py` building blocks, `vol.py`,
+Package `src/assetforecast/models/bench/` (`core.py` building blocks, `vol.py`,
 `corr.py`, `analysis.py` regenerates every table below), tests
 `tests/models/test_bench.py`. All numbers: development panel
-(`VOLMODEL_MAX_DATE=2014-12-31`), every month-end origin, targets = 21-day
+(`ASSETFORECAST_MAX_DATE=2014-12-31`), every month-end origin, targets = 21-day
 realized covariance (version 3). Nothing after 2014 was looked at.
 
 ## Answers first
@@ -95,7 +95,7 @@ training rows → `mr_fixed`. Estimated `b`: 0 in the 1880s (one asset),
 |---|---|
 | `bench_corr_m_hl36` / `_hl120` | pairwise uncentered EW_h of monthly co-moments `r_i r_j` / sqrt(`r_i^2` `r_j^2`) sums |
 | `bench_corr_d_hl36` / `_hl120` | the same with 21-day-sum co-moments `D_m mean(s_i s_j)/21` in months where BOTH assets have ≥ 10 common valid sums, monthly co-moments otherwise |
-| `bench_corr_shrink_block` | `δ F + (1−δ) R`, `R` = `bench_corr_d_hl36` before repair, `F` = block target (mean of `R` within each group pair: equity / rates / credit / real from `volmodel.universe`), `δ` estimated |
+| `bench_corr_shrink_block` | `δ F + (1−δ) R`, `R` = `bench_corr_d_hl36` before repair, `F` = block target (mean of `R` within each group pair: equity / rates / credit / real from `assetforecast.universe`), `δ` estimated |
 | `bench_corr_blend` | `0.5 EW_12 + 0.5 EW_∞` of the 21-day-sum co-moments |
 
 Each pair's variances in the denominator are measured on exactly the months
@@ -149,7 +149,7 @@ a finite forecast; a cross-sectional median guard exists but never fired at thos
   "tried and dropped" for the unrestricted version. 120 training rows minimum,
   36 months history: round numbers matching eligibility.
 * Correlation base half-life 36 months for shrinkage: the middle of the grid.
-* Block target by `volmodel.universe` group: the a-priori economic structure
+* Block target by `assetforecast.universe` group: the a-priori economic structure
   (stock–bond correlations are nothing like stock–stock ones, so a single
   constant target is the wrong prior; it was scored and is worse).
 
@@ -461,7 +461,7 @@ agents loaded the four cores. Mean model time per origin: vol `m_*` 1.1 ms,
 limit. No state is cached between calls (every forecast is recomputed from the
 view), so cold and warm calls agree exactly; `mr_est` refits a 2-parameter OLS
 on ~9,000 rows per call but its fit only changes once a year (training cut at
-the last December-end). `python -m volmodel.models.bench.analysis` (diagnostic
+the last December-end). `python -m assetforecast.models.bench.analysis` (diagnostic
 runs + tables) took about 20 minutes under load.
 
 ## Tests
@@ -515,11 +515,11 @@ reset its scale at every splice, not only at tier changes.
 ## Reproduce
 
 ```
-export VOLMODEL_MAX_DATE=2014-12-31 OMP_NUM_THREADS=1
-python -m volmodel.eval.run forecast --kind vol --model bench_vol_m_hl12 bench_vol_m_hl36 bench_vol_m_hl120 \
+export ASSETFORECAST_MAX_DATE=2014-12-31 OMP_NUM_THREADS=1
+python -m assetforecast.eval.run forecast --kind vol --model bench_vol_m_hl12 bench_vol_m_hl36 bench_vol_m_hl120 \
     bench_vol_d_hl12 bench_vol_d_hl36 bench_vol_d1r_hl12 bench_vol_mr_fixed bench_vol_mr_est --jobs 2
-python -m volmodel.eval.run forecast --kind corr --model bench_corr_m_hl36 bench_corr_m_hl120 \
+python -m assetforecast.eval.run forecast --kind corr --model bench_corr_m_hl36 bench_corr_m_hl120 \
     bench_corr_d_hl36 bench_corr_d_hl120 bench_corr_shrink_block bench_corr_blend --jobs 2
-python -m volmodel.models.bench.analysis --diag-dir <scratch>/bench_diag --out <scratch>/tables.md
+python -m assetforecast.models.bench.analysis --diag-dir <scratch>/bench_diag --out <scratch>/tables.md
 pytest tests/models/test_bench.py
 ```

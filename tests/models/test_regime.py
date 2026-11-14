@@ -4,12 +4,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.models import get_model, list_models
-from volmodel.models.regime.breaks import BOCPDState, bocpd_update, icss_kappa2, run_length_map
-from volmodel.models.regime.hmm import (expected_path, fit_common_ms_t, fit_ms_t, forward_backward,
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.models import get_model, list_models
+from assetforecast.models.regime.breaks import BOCPDState, bocpd_update, icss_kappa2, run_length_map
+from assetforecast.models.regime.hmm import (expected_path, fit_common_ms_t, fit_ms_t, forward_backward,
                                         stationary)
-from volmodel.models.regime.models import estimation_date
+from assetforecast.models.regime.models import estimation_date
 
 MODELS = ["regime_ms2", "regime_ms3", "regime_ms2_weekly", "regime_common3",
           "regime_bocpd", "regime_bocpd_eb", "regime_bocpd_weekly", "regime_break_blend"]

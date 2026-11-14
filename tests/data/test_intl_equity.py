@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.sources import intl_equity as IE
-from volmodel.paths import ASSET_DIR
+from assetforecast.data.sources import intl_equity as IE
+from assetforecast.paths import ASSET_DIR
 
 ASSETS = ["intl_dev", "em"]
 

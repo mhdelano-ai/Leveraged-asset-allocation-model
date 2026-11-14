@@ -1,6 +1,6 @@
 # Treasuries: `ust_int` (IEF-like) and `ust_long` (TLT-like)
 
-Built by `python -m volmodel.data.sources.treasuries`. Raw downloads are cached in
+Built by `python -m assetforecast.data.sources.treasuries`. Raw downloads are cached in
 `data/raw/treasuries/`, where the run also writes `segments_treasuries.csv` (this
 track's rows for `segments.csv`) and `diagnostics.json`, the source of every
 number below. All returns are **simple total returns** (coupon carry, roll-down
@@ -92,7 +92,7 @@ Each distribution is checked on its ex-date: the ETF's total return is compared 
 regression on daily CMT yield changes fitted on surrounding non-ex days (a paid distribution
 leaves a residual near zero, one never paid a residual of its own size), and against
 Nasdaq's dividend record where it exists
-(`volmodel.data.sources.distributions.validate_distributions`; every check is in
+(`assetforecast.data.sources.distributions.validate_distributions`; every check is in
 `data/raw/treasuries/distribution_checks.csv`). Five IEF distributions of 2003 were inflated
 in Yahoo's record and are corrected: 2003-07-01 0.663 -> 0.304 (price-implied), 2003-08-01
 0.717 -> 0.416 (price-implied), 2003-09-02 0.764 -> 0.276 (Nasdaq), 2003-10-01 0.731 ->

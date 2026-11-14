@@ -1,0 +1,13 @@
+asset,name,group,mean_12m,se_12m,ci90_lo,ci90_hi,n_months,first_month,mean_12m_arith
+us_large,US large-cap equity,equity,0.06453,0.0203,0.02986,0.0992,1204,1926-07,0.08018
+us_small,US small-cap equity,equity,0.07651,0.02564,0.03271,0.12032,1204,1926-07,0.10486
+intl_dev,International developed equity,equity,0.04729,0.02648,0.0001,0.09449,622,1975-01,0.06336
+em,Emerging-market equity,equity,0.0526,0.03068,-0.00363,0.10883,448,1989-07,0.08263
+ust_int,Intermediate Treasuries (~7y),rates,0.01534,0.01043,-0.00287,0.03354,777,1962-02,0.01848
+ust_long,Long Treasuries (~20y+),rates,0.01456,0.01569,-0.01283,0.04196,777,1962-02,0.02398
+tips,TIPS (broad),rates,0.02313,0.01402,-0.00343,0.04969,357,1997-02,0.02508
+ig_credit,Investment-grade corporates,credit,0.01706,0.00681,0.00542,0.0287,1204,1926-07,0.02073
+hy_credit,High-yield corporates,credit,0.03246,0.01104,0.01263,0.0523,561,1980-02,0.03507
+reits,US REITs,real,0.05881,0.02068,0.02219,0.09543,658,1972-01,0.07827
+gold,Gold,real,0.03794,0.0316,-0.01802,0.09391,662,1971-09,0.0702
+commodities,Broad commodities (futures TR),real,0.03191,0.02032,-0.00281,0.06663,1204,1926-07,0.05191
