@@ -1,8 +1,11 @@
 """Forecaster interfaces and the model registry.
 
 Every model answers one question, asked at a month-end ``t`` with a Panel
-view truncated at ``t``: what will the annualized covariance of DAILY LOG
-EXCESS returns be over the next 12 calendar months?
+view truncated at ``t``: what will the annualized covariance of overlapping
+21-TRADING-DAY LOG EXCESS returns be over the next 12 calendar months? (See
+ARCHITECTURE.md for why the horizon is 21 days and not one: 1-day volatility
+depends on how a source is priced. Daily returns are fine as inputs but a
+1-day vol is not a forecast of this target.)
 
 Three interfaces, so that volatility and correlation ideas can be developed
 and scored separately and then paired:
@@ -44,7 +47,7 @@ class VolForecaster(ABC):
 
     @abstractmethod
     def forecast_vol(self, view: Panel, assets: list[str]) -> pd.Series:
-        """Annualized vol of daily log excess returns over the next 12 months."""
+        """Annualized vol of 21-day log excess returns over the next 12 months."""
 
 
 class CorrForecaster(ABC):
@@ -60,7 +63,7 @@ class CovForecaster(ABC):
 
     @abstractmethod
     def forecast_cov(self, view: Panel, assets: list[str]) -> pd.DataFrame:
-        """Annualized covariance of daily log excess returns over the next 12 months."""
+        """Annualized covariance of 21-day log excess returns over the next 12 months."""
 
     # so a native covariance model can also be scored as a vol or corr model
     def forecast_vol(self, view: Panel, assets: list[str]) -> pd.Series:

@@ -12,23 +12,36 @@ Returns are **excess over cash** (T-bills), in **logs**: `r = log(1+R) − log(1
 Two targets, both for the window `(t, t + 12 calendar months]` where `t` is a
 month-end origin:
 
-1. **RV covariance** (`cov_rv`) — the annualized covariance of *daily* log
-   excess returns realized in the window. This is what models forecast and
-   what is scored most heavily, because it is measured precisely.
-   - Variances: sum of squared daily log excess returns × 252 / n (uncentered).
-   - Correlations: from overlapping **3-day** log excess returns, to remove the
-     bias from asynchronous closes (international and EM equities trade mostly
-     outside US hours). Covariance = D·C·D.
-   - Where an asset has no daily data, the window's variance is 12 × mean of
-     squared monthly log excess returns: a noisy but unbiased proxy. QLIKE and
-     MSE rank forecasts consistently under noisy unbiased proxies (Patton 2011).
+1. **Monthly-horizon covariance** (`cov_rv`) — the annualized covariance of
+   **overlapping 21-trading-day** log excess returns realized in the window.
+   This is what models forecast and what is scored most heavily.
+   - Realized matrix: Σ = (252/21) × mean over the window of s·sᵀ, where s is
+     the vector of 21-day log excess return sums ending on each day (all 21
+     days inside the window), uncentered. One estimator gives variances and
+     correlations together and is positive semi-definite by construction.
+   - Where an asset has no daily data in the window, its variance is
+     12 × mean of squared calendar-month log excess returns — the **same
+     quantity** measured less precisely, not a different one. QLIKE and MSE
+     rank forecasts consistently under noisy unbiased proxies (Patton 2011).
+   - Why not daily returns: measured 1-day volatility depends on how a source
+     is priced, not only on risk. Smoothed fund NAVs (high yield, REITs, early
+     Treasury quotes) understate it by up to 30%; US-listed ETFs of foreign or
+     illiquid assets overstate it by up to 20%; and the two conventions meet at
+     splice dates, creating artificial jumps. At a 21-day horizon the sources
+     agree. See `reports/data/horizon_evidence.md`.
+   - The price is a noisier target (about 16% standard error on a realized
+     vol, versus about 5% from daily returns), which costs statistical power
+     but not validity.
+   - Models may use daily returns as INPUTS — they carry the most timely
+     information — but must map them to this target, and must not assume a
+     1-day vol equals a 21-day vol for any asset or era.
 2. **Annual-return covariance** (`cov_annual`) — the covariance of the
    12-month log excess return itself. It differs from (1) when returns are
-   serially correlated. It is obtained from `cov_rv` by the **bridge**
-   (`volmodel.bridge`), which estimates variance ratios with uncertainty.
-   There are few independent 12-month observations, so this is validated by
-   calibration (are standardized 12-month returns unit-variance?) rather than
-   by horse race.
+   serially correlated beyond a month. It is obtained from `cov_rv` by the
+   **bridge** (`volmodel.bridge`), which estimates variance ratios with
+   uncertainty. There are few independent 12-month observations, so this is
+   validated by calibration (are standardized 12-month returns unit-variance?)
+   rather than by horse race.
 
 Annualization: 252 trading days; 12 months.
 
@@ -52,9 +65,14 @@ Files in `data/processed/` (committed; `data/raw/` is a gitignored download cach
 | `assets/<id>_daily.parquet` | index `date`; columns `ret` (simple total return), `source`, `tier` |
 | `assets/<id>_monthly.parquet` | index month-end `date`; same columns; full history incl. the daily era (compounded daily) |
 | `assets/cash_daily.parquet`, `assets/cash_monthly.parquet` | T-bill simple return, column `ret`, plus `source`, `tier` |
-| `predictors/<group>.parquet` | long: `obs_date, available_date, series, value` |
+| `predictors/<group>.parquet` | per-track predictor files, long: `obs_date, available_date, series, value` (native units) |
+| `predictors.parquet`, `predictors_catalog.csv` | assembled predictors in standard units (rates, yields, spreads and vols in decimals), and their catalog: series, group, unit, start, end, live, notes. This is what `load_panel()` reads |
 | `panel_daily.parquet`, `panel_monthly.parquet`, `cash_daily.parquet` (col `cash`), `cash_monthly.parquet`, `tiers_monthly.parquet` | assembled wide panel |
 | `segments.csv` | asset, start, end, freq, source, tier, notes — the provenance of every spliced segment |
+
+The panel's daily calendar is the US equity trading calendar (the dates of the
+cash series). A return dated off that calendar is compounded into the next
+calendar day; a calendar day on which an asset did not trade is NaN.
 
 Quality tiers: **A** daily investable fund/ETF total return · **B** daily index
 or reconstructed total return · **C** monthly index total return · **D**
