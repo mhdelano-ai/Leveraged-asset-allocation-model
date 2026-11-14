@@ -148,7 +148,7 @@ class Panel:
         return [a for a in self.daily.columns if n[a] >= min_days]
 
 
-def load_panel(max_date=None) -> Panel:
+def load_panel(max_date=None, drop_tiers=None) -> Panel:
     """Load the assembled real-data panel from data/processed.
 
     ``max_date`` (or the environment variable ``VOLMODEL_MAX_DATE``) cuts the
@@ -156,8 +156,15 @@ def load_panel(max_date=None) -> Panel:
     predictors, and therefore no targets beyond it. Model development runs
     with ``VOLMODEL_MAX_DATE=2014-12-31`` so that the years after it remain a
     holdout nobody has tuned against.
+
+    ``drop_tiers`` (or ``VOLMODEL_DROP_TIERS``), e.g. ``"D"``, removes the
+    asset-months of those data-quality tiers, as if that history did not
+    exist. Tier D is built from month-average prices or yields, which damps
+    measured volatility by about 15% and adds spurious autocorrelation.
     """
     max_date = max_date or os.environ.get("VOLMODEL_MAX_DATE") or None
+    if drop_tiers is None:
+        drop_tiers = os.environ.get("VOLMODEL_DROP_TIERS", "")
     daily = pd.read_parquet(PROCESSED / "panel_daily.parquet")
     monthly = pd.read_parquet(PROCESSED / "panel_monthly.parquet")
     cash_d = pd.read_parquet(PROCESSED / "cash_daily.parquet")["cash"]
@@ -171,6 +178,13 @@ def load_panel(max_date=None) -> Panel:
     else:
         pred = pd.DataFrame(columns=PREDICTOR_COLUMNS)
     cols = [a for a in ASSET_IDS if a in daily.columns or a in monthly.columns]
+    if drop_tiers:
+        bad = tiers.isin(list(drop_tiers))
+        monthly, tiers = monthly.mask(bad), tiers.mask(bad)
+        keep = monthly.notna().any(axis=1)
+        first = keep.idxmax() if keep.any() else monthly.index[0]
+        monthly, tiers = monthly.loc[first:], tiers.loc[first:]
+        cash_m = cash_m.loc[first:]
     if max_date is not None:
         t = pd.Timestamp(max_date)
         daily, monthly, tiers = daily.loc[:t], monthly.loc[:t], tiers.loc[:t]
