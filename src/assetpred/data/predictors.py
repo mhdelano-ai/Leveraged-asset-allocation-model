@@ -367,7 +367,7 @@ SPECS: list[Spec] = [
          "Oct 2003 - Oct 2019; definition changed in 2012 (ETF options removed)."),
     Spec("umich_sentiment", SE, None, f"{FRED} UMCSENT", 1, "lagged_revised", _umcsent,
          "University of Michigan consumer sentiment index; lagged 1 month. Quarterly before 1978 (latest "
-         "reading carried for up to two months)."),
+         "reading carried for up to three months)."),
     Spec("bw_sentiment", SE, None, "Wurgler, Investor_Sentiment_Data (SENT^)", 1, "lagged_revised", _bw("SENT^ "),
          "Baker-Wurgler investor sentiment index, orthogonalised to macro conditions; lagged 1 month; ends "
          "2018-12. [HINDSIGHT] First principal component of the components, estimated over the full sample, "

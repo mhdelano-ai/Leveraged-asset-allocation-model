@@ -14,7 +14,10 @@ Conventions
 * Target for horizon h at origin t: ``y[t] = xr[t+1] + ... + xr[t+h]`` (NaN if
   any term is missing). The forecast is made at the close of month t.
 * ``predictors``: wide, index=date, one raw series per column, already lagged to
-  availability. ``predictor_meta``: one row per column.
+  availability. Series may end before the panel does (NaN tails as well as
+  heads). ``predictor_meta``: one row per column; ``hindsight`` marks series
+  estimated over the full sample, which embed future information even when
+  lagged and are dropped in the robustness check.
 * ``features``: long, MultiIndex (date, asset), float columns. Global features
   repeat across assets. ``feature_meta``: one row per column.
 * Forecasts: long, columns FORECAST_COLUMNS. ``date`` is the origin t. ``mean``
@@ -34,9 +37,9 @@ ASSET_RETURNS = config.PROCESSED / "asset_returns.parquet"
 CASH = config.PROCESSED / "cash.parquet"
 ASSET_META = config.PROCESSED / "asset_meta.csv"        # asset, segment_start, segment_end, source, description
 PREDICTORS = config.PROCESSED / "predictors.parquet"
-PREDICTOR_META = config.PROCESSED / "predictor_meta.csv"  # name, family, scope, asset, source, lag_months, first_date, description
+PREDICTOR_META = config.PROCESSED / "predictor_meta.csv"  # name, family, scope, asset, source, lag_months, realtime, hindsight, first_date, last_date, description
 FEATURES = config.PROCESSED / "features.parquet"
-FEATURE_META = config.PROCESSED / "feature_meta.csv"    # name, family, scope, first_date, description
+FEATURE_META = config.PROCESSED / "feature_meta.csv"    # name, family, scope, hindsight, first_date, description
 
 QUANTILE_COLUMNS = [f"q{int(round(q * 100)):02d}" for q in config.QUANTILES]
 FORECAST_COLUMNS = ["model", "horizon", "date", "asset", "mean", "sd", *QUANTILE_COLUMNS]
