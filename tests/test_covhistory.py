@@ -168,8 +168,6 @@ def test_published_origin_reproduced():
     A = ch._matrices(hist, "cov_annual")[o]
     pub = pd.read_csv(d / "cov_annual.csv", index_col=0)
     assert np.abs(A.to_numpy() - pub.to_numpy()).max() < 5e-8
-    assert np.isclose(orig["tail_s2_origin"].iat[0],
-                      json.loads((d / "forecast.json").read_text())["tail_model"]["s2"], atol=5e-5)
 
 
 @pytest.mark.realdata

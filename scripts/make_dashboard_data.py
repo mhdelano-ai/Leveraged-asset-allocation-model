@@ -6,6 +6,12 @@ Inputs: forecasts/latest/ (python -m assetforecast.forecast) and results/final/
 (scripts/score_final.py). Volatilities are written in percent with one
 decimal so that the page shows exactly what the files hold. The page itself
 is dashboard/index.html; it is stored in the dashboard, not served from here.
+
+The scale-mixture downside quantiles (q05/q01 "before the mean") are no longer
+published in forecasts/latest/; the quantiles now come with the mean, in
+distribution_assets.csv and distribution_portfolios.csv. This script no longer
+writes q05/q01, and the page's columns that read them are left for the
+dashboard rebuild (``python -m assetforecast.dashboard``), which replaces it.
 """
 from pathlib import Path
 
@@ -34,8 +40,7 @@ def main():
     pd.DataFrame({
         "asset": v.asset, "name": v.name, "group": v.group, "vol12": pc(v.vol_12m_return),
         "vol21": pc(v.vol_21d_horizon), "last12": pc(v.realized_last_12m), "longrun": pc(v.realized_long_run),
-        "p10": pc(v.family_p10), "p90": pc(v.family_p90), "q05": pc(v.q05_12m_ex_mean),
-        "q01": pc(v.q01_12m_ex_mean), "since": v.history_starts,
+        "p10": pc(v.family_p10), "p90": pc(v.family_p90), "since": v.history_starts,
         "miss_lo": v.asset.map(acc.two_thirds_lo_pct).round(0).astype(int),
         "miss_hi": v.asset.map(acc.two_thirds_hi_pct).round(0).astype(int),
     }).to_csv(OUT / "forecast_assets.csv", index=False)
@@ -50,8 +55,7 @@ def main():
     label = {"p6040": "60/40 (US large cap / intermediate Treasuries)", "p_balanced": "Balanced 12-asset mix",
              "p_equity": "Global equity mix"}
     pd.DataFrame({"portfolio": p.portfolio, "label": p.portfolio.map(label), "vol12": pc(p.vol_12m_return),
-                  "vol21": pc(p.vol_21d_horizon), "q05": pc(p.q05_12m_ex_mean),
-                  "q01": pc(p.q01_12m_ex_mean)}).to_csv(OUT / "forecast_portfolios.csv", index=False)
+                  "vol21": pc(p.vol_21d_horizon)}).to_csv(OUT / "forecast_portfolios.csv", index=False)
 
     d = pd.read_csv(F / "dashboard_vol.csv")
     h = quarterly(d[d.origin >= "1926-06"])
