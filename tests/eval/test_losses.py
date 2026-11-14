@@ -12,7 +12,7 @@ from volmodel.models.base import CorrForecaster, CovForecaster, VolForecaster
 
 @pytest.fixture(scope="module")
 def setup(tmp_path_factory):
-    p = make_synthetic_panel(seed=7, start="1990-01-01", end="2003-12-31", monthly_only_years=3)
+    p = make_synthetic_panel(seed=7, start="1988-01-01", end="2003-12-31", monthly_only_years=6)
     T = compute_targets(p)
     rd = tmp_path_factory.mktemp("res")
     return p, T, rd
