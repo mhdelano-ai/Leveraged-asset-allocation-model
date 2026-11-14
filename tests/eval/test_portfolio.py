@@ -1,13 +1,13 @@
-"""Tests for volmodel.eval.portfolio (fast, seeded)."""
+"""Tests for assetforecast.eval.portfolio (fast, seeded)."""
 import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.panel import PREDICTOR_COLUMNS, Panel
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.eval import portfolio as pf
-from volmodel.eval.targets import compute_targets
-from volmodel.universe import ASSET_IDS
+from assetforecast.data.panel import PREDICTOR_COLUMNS, Panel
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.eval import portfolio as pf
+from assetforecast.eval.targets import compute_targets
+from assetforecast.universe import ASSET_IDS
 
 VOLS = np.array([0.16, 0.21, 0.17, 0.23, 0.06, 0.12, 0.06, 0.07, 0.09, 0.20, 0.16, 0.18])
 

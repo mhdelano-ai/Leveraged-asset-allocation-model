@@ -1,4 +1,4 @@
-# volmodel: one-year covariance forecasts for a 12-asset universe
+# assetforecast: one-year covariance forecasts for a 12-asset universe
 
 This repository forecasts, at each month-end, the covariance matrix of twelve asset classes over the next 12 months. The forecasts are long-run planning inputs for a leveraged asset-allocation model.
 
@@ -40,7 +40,7 @@ This repository forecasts, at each month-end, the covariance matrix of twelve as
 | `reports/final_evaluation.md` | the full evaluation |
 | `reports/models/`, `reports/data/` | one report per model family and per data source; the data audit |
 | `dashboard/` | the page and data files behind the published dashboard |
-| `src/volmodel/` | `data/` (loaders, panel), `models/<family>/`, `eval/` (targets, losses, tests), `bridge/`, `forecast.py` |
+| `src/assetforecast/` | `data/` (loaders, panel), `models/<family>/`, `eval/` (targets, losses, tests), `bridge/`, `forecast.py` |
 | `scripts/` | `run_all.sh`, `score_final.py`, `make_report_figures.py`, `make_dashboard_data.py`, `leak_test.py` |
 | `ARCHITECTURE.md`, `MODELING_PROTOCOL.md` | definitions and the rules the work followed |
 
@@ -49,12 +49,12 @@ This repository forecasts, at each month-end, the covariance matrix of twelve as
 ```
 pip install -e ".[dev]"
 # optional data rebuild (needs internet, no API keys):
-for t in cash_macro us_equity intl_equity treasuries tips credit reits real_assets implied; do python -m volmodel.data.sources.$t; done
-python -m volmodel.data.assemble
+for t in cash_macro us_equity intl_equity treasuries tips credit reits real_assets implied; do python -m assetforecast.data.sources.$t; done
+python -m assetforecast.data.assemble
 scripts/run_all.sh 4                                         # every model, full history -> results/full/ (about 30 min on 4 cores)
-export OMP_NUM_THREADS=1 VOLMODEL_RESULTS=$PWD/results/full
+export OMP_NUM_THREADS=1 ASSETFORECAST_RESULTS=$PWD/results/full
 python scripts/score_final.py                                # -> results/final/ (about 2.5 min)
-python -m volmodel.forecast                                  # -> forecasts/<date>/ and forecasts/latest/
+python -m assetforecast.forecast                                  # -> forecasts/<date>/ and forecasts/latest/
 python scripts/make_report_figures.py                        # -> reports/figures/
 python -m pytest -m "not network"                            # the test suite
 ```

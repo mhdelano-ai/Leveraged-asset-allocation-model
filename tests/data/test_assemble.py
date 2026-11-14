@@ -1,15 +1,15 @@
-"""Tests for the panel assembler (``volmodel.data.assemble``).
+"""Tests for the panel assembler (``assetforecast.data.assemble``).
 
 Offline unit tests use synthetic frames; ``realdata`` tests read the assembled files in
-data/processed (run ``python -m volmodel.data.assemble`` first).
+data/processed (run ``python -m assetforecast.data.assemble`` first).
 """
 import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data import assemble as am
-from volmodel.paths import ASSET_DIR, PROCESSED
-from volmodel.universe import ASSET_IDS
+from assetforecast.data import assemble as am
+from assetforecast.paths import ASSET_DIR, PROCESSED
+from assetforecast.universe import ASSET_IDS
 
 
 # ---------------------------------------------------------------- unit tests
@@ -78,7 +78,7 @@ need = pytest.mark.skipif(not (PROCESSED / "panel_daily.parquet").exists(), reas
 
 @pytest.fixture(scope="module")
 def panel():
-    from volmodel.data.panel import load_panel
+    from assetforecast.data.panel import load_panel
     return load_panel()
 
 

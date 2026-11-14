@@ -15,7 +15,7 @@ scoring script existed.
 | Reference | `pair_cov_ref` | `ref_blend` | `ref_corr_last120m` |
 
 Bridge to the covariance of 12-month returns: `vr_market`. Tails: the
-lognormal scale mixture in `volmodel.bridge`, with its dispersion estimated
+lognormal scale mixture in `assetforecast.bridge`, with its dispersion estimated
 walk-forward.
 
 ## Why

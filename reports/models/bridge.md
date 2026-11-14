@@ -1,8 +1,8 @@
 # The bridge: from `cov_rv` to `cov_annual`
 
-Code: `src/volmodel/bridge/__init__.py` (estimators, bridges, predictive distribution),
-`src/volmodel/bridge/validate.py` (every table below; `python -m volmodel.bridge.validate`),
-tests `tests/test_bridge.py`. All numbers: `VOLMODEL_MAX_DATE=2014-12-31`, full monthly run
+Code: `src/assetforecast/bridge/__init__.py` (estimators, bridges, predictive distribution),
+`src/assetforecast/bridge/validate.py` (every table below; `python -m assetforecast.bridge.validate`),
+tests `tests/test_bridge.py`. All numbers: `ASSETFORECAST_MAX_DATE=2014-12-31`, full monthly run
 (1,116 origins 1922-2014), estimation walk-forward from the view only.
 
 ## 1. What the bridge does
@@ -16,7 +16,7 @@ lag-k cross-correlations `G_k`:
 `VR_i = 1 + D_ii` is the variance ratio (12-month variance / 12 x monthly variance).
 
 ```python
-from volmodel.bridge import get_bridge, vol_uncertainty, predictive_quantiles
+from assetforecast.bridge import get_bridge, vol_uncertainty, predictive_quantiles
 A  = get_bridge("vr_market").cov_annual(cov_rv, view)     # DataFrame, same assets, PD
 s2 = vol_uncertainty(view)["s2"]                          # tail parameter (section 5)
 q  = predictive_quantiles(A, weights, s2)                  # 5% / 1% quantiles of R - mu

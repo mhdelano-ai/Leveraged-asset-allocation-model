@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.eval.harness import (ForecastError, forecast_path, load_forecasts, load_forecasts_long,
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.eval.harness import (ForecastError, forecast_path, load_forecasts, load_forecasts_long,
                                    origins_for, run_model, run_models, validate_forecast)
-from volmodel.eval.targets import compute_targets, observed_through
-from volmodel.models import base
-from volmodel.models.base import CorrForecaster, CovForecaster, VolForecaster
+from assetforecast.eval.targets import compute_targets, observed_through
+from assetforecast.models import base
+from assetforecast.models.base import CorrForecaster, CovForecaster, VolForecaster
 
 
 @pytest.fixture(scope="module")

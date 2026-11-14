@@ -4,11 +4,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.models import get_model, list_models
-from volmodel.models.har import SPECS
-from volmodel.models.har.features import har_features
-from volmodel.models.har.model import HarVol, fit_one
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.models import get_model, list_models
+from assetforecast.models.har import SPECS
+from assetforecast.models.har.features import har_features
+from assetforecast.models.har.model import HarVol, fit_one
 
 NAMES = sorted(SPECS)
 EARLY, MIDDLE, LATE = "1979-12-31", "1992-06-30", "2010-12-31"

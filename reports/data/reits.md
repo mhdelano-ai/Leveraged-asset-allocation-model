@@ -1,6 +1,6 @@
 # `reits` — US equity REITs (VNQ-like)
 
-Built by `python -m volmodel.data.sources.reits` (raw cache in `data/raw/reits/`,
+Built by `python -m assetforecast.data.sources.reits` (raw cache in `data/raw/reits/`,
 `--refresh` re-downloads). All returns are **simple total returns including
 dividends**, in decimals, not excess. Data as of 2026-11-14.
 
@@ -31,7 +31,7 @@ reconstructions are tier B. VGSIX (an index fund, but priced at NAV) is
 therefore tier B, and the VGSIX -> VNQ splice in 2004-10 is a visible tier
 change (B -> A). VNQ's total return is its close plus Yahoo's distributions,
 each tested on its ex-date against the total returns of IYR, ICF and RWR
-(`volmodel.data.sources.distributions.validate_distributions`); none was
+(`assetforecast.data.sources.distributions.validate_distributions`); none was
 rejected.
 
 **FRESX is tier B** on two counts: it is an open-end NAV, and an
@@ -142,7 +142,7 @@ The variance ratio column uses only months covered by the daily data. Rolling
   because daily NAVs were stale. Since 2004 the reverse holds (ratio ~0.6–0.7):
   daily returns overshoot and then reverse, especially in 2008–09. Any model
   trained on daily RV across the whole span should account for this regime
-  shift, for example with era-specific variance ratios in `volmodel.bridge` or
+  shift, for example with era-specific variance ratios in `assetforecast.bridge` or
   by down-weighting pre-2004 daily data. A model that takes level from the
   1972–2003 data will forecast too little REIT vol for the modern era.
 

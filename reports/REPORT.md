@@ -204,7 +204,7 @@ Internally the model is `combo_cov_main`. Its volatility part is `combo_vol_hier
 **How little a backtest can tell apart.**
 
 - Each 12-month score overlaps the next by eleven months, so 600 monthly scores hold only about 50 independent years.
-- The textbook test for comparing forecasts would declare differences that are not there about twice as often as it claims. The project replaced it with tests whose error rates were checked by simulation (`src/volmodel/eval/inference.py`).
+- The textbook test for comparing forecasts would declare differences that are not there about twice as often as it claims. The project replaced it with tests whose error rates were checked by simulation (`src/assetforecast/eval/inference.py`).
 - The price of honest tests is low power. With about 40 years of data, a true 22% improvement is detected only about a fifth of the time at the 5% level.
 - A horse race among many models will mostly fail to separate models that differ by less than 15–20%.
 - On the twelve-year holdout, a true 20% difference would be detected well under half the time.
@@ -388,19 +388,19 @@ pip install -e ".[dev]"
 
 # 1. Rebuild the data (optional: data/processed is committed). Needs internet; no API keys.
 for t in cash_macro us_equity intl_equity treasuries tips credit reits real_assets implied; do
-  python -m volmodel.data.sources.$t
+  python -m assetforecast.data.sources.$t
 done
-python -m volmodel.data.assemble
+python -m assetforecast.data.assemble
 
 # 2. Run every model over every month-end of the full history (writes results/full/).
 scripts/run_all.sh 4                     # argument = parallel jobs
 
 # 3. Score development and holdout (about 2.5 minutes; writes results/final/).
-export OMP_NUM_THREADS=1 VOLMODEL_RESULTS=$PWD/results/full
+export OMP_NUM_THREADS=1 ASSETFORECAST_RESULTS=$PWD/results/full
 python scripts/score_final.py
 
 # 4. Produce the forecast for the latest month-end (writes forecasts/<date>/ and forecasts/latest/).
-python -m volmodel.forecast              # reads $VOLMODEL_RESULTS
+python -m assetforecast.forecast              # reads $ASSETFORECAST_RESULTS
 
 # 5. Redraw this report's figures and the dashboard's data files.
 python scripts/make_report_figures.py

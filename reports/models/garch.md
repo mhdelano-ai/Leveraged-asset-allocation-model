@@ -1,8 +1,8 @@
 # GARCH family (`garch_*`, kind `vol`)
 
-Package `src/volmodel/models/garch/` (`core.py` numerics, `prep.py` inputs on
+Package `src/assetforecast/models/garch/` (`core.py` numerics, `prep.py` inputs on
 the 21-day scale, `models.py` forecasters), tests `tests/models/test_garch.py`.
-All numbers below are development results (`VOLMODEL_MAX_DATE=2014-12-31`,
+All numbers below are development results (`ASSETFORECAST_MAX_DATE=2014-12-31`,
 origins to 2013-12 with observed targets, `results/dev/`). Nothing after 2014
 was looked at.
 

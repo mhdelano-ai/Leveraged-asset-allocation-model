@@ -1,6 +1,6 @@
 import numpy as np, warnings
 from multiprocessing import Pool
-from volmodel.eval import inference as inf
+from assetforecast.eval import inference as inf
 warnings.simplefilter("ignore")
 def sim(T, rng, phi, h=12, sd_x=0.7, burn=200):
     N=burn+T+h; sh=sd_x*np.sqrt(1-phi**2); z=rng.standard_normal(N); x=np.empty(N); x[0]=0

@@ -8,7 +8,7 @@ scored once against the targets. The four covariance candidates and their roles 
 Reproduce (about 2.5 minutes on one core):
 
 ```
-export OMP_NUM_THREADS=1 VOLMODEL_RESULTS=$PWD/results/full      # no VOLMODEL_MAX_DATE
+export OMP_NUM_THREADS=1 ASSETFORECAST_RESULTS=$PWD/results/full      # no ASSETFORECAST_MAX_DATE
 python scripts/score_final.py                                     # writes results/final/
 ```
 
@@ -19,7 +19,7 @@ are reported separately everywhere. Within every table, models are compared on i
 origin × asset or origin × pair cells where every model in that table has a forecast and a target), and
 the table states how many.
 
-**Inference** uses the `volmodel.eval.inference` defaults:
+**Inference** uses the `assetforecast.eval.inference` defaults:
 - Diebold-Mariano tests with the EWC variance and a t(B) reference;
 - Fieller 90% skill intervals;
 - the Götze-Künsch Model Confidence Set.
@@ -117,7 +117,7 @@ It does not call `targets` or `losses`. Results (`verification.csv`):
 - Each model has all 142 holdout origins, and every one is scorable.
 
 **Look-ahead.**
-- `scripts/leak_test.py`'s `check()` was re-run without `VOLMODEL_MAX_DATE`, with holdout-era origins
+- `scripts/leak_test.py`'s `check()` was re-run without `ASSETFORECAST_MAX_DATE`, with holdout-era origins
   added through a scratch wrapper (the script has no CLI option for origins). The origins were 1951-03,
   2008-09, 2013-12, 2016-06, 2020-02, 2022-06 and 2025-10.
 - Models covered: the four candidates; their components `combo_vol_hier_trim`, `combo_vol_cal_m_hl12`,

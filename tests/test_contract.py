@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.universe import ASSET_IDS
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.universe import ASSET_IDS
 
 
 def test_synthetic_panel_shapes():

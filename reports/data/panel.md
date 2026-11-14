@@ -1,6 +1,6 @@
 # Assembled panel
 
-Built by `python -m volmodel.data.assemble` (module `src/volmodel/data/assemble.py`). Read with `volmodel.data.panel.load_panel()`. All returns SIMPLE total returns in decimals; excess/log transforms are done by `Panel`.
+Built by `python -m assetforecast.data.assemble` (module `src/assetforecast/data/assemble.py`). Read with `assetforecast.data.panel.load_panel()`. All returns SIMPLE total returns in decimals; excess/log transforms are done by `Panel`.
 
 * Daily panel: 1926-07-01 .. 2026-11-13, 26,370 US equity trading days (the cash calendar), 12 assets.
 * Monthly panel: 1871-02-28 .. 2026-10-31, 1,869 month-ends. Last month = last month whose final trading day is in the daily data (data end 2026-11-13, so the partial current month is excluded).

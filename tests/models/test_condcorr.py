@@ -2,15 +2,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.panel import PREDICTOR_COLUMNS, Panel
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.eval.targets import compute_targets
-from volmodel.models import get_model, list_models
-from volmodel.models.condcorr.data import predictors_at, realized_corr_series
-from volmodel.models.condcorr.embed import embed_anchor_targets
-from volmodel.models.condcorr.markov import fit_ms
-from volmodel.models.condcorr.regression import fit_ridge
-from volmodel.models.ref import nearest_corr
+from assetforecast.data.panel import PREDICTOR_COLUMNS, Panel
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.eval.targets import compute_targets
+from assetforecast.models import get_model, list_models
+from assetforecast.models.condcorr.data import predictors_at, realized_corr_series
+from assetforecast.models.condcorr.embed import embed_anchor_targets
+from assetforecast.models.condcorr.markov import fit_ms
+from assetforecast.models.condcorr.regression import fit_ridge
+from assetforecast.models.ref import nearest_corr
 
 NAMES = ["condcorr_sb_base", "condcorr_sb_state", "condcorr_sb_macro", "condcorr_msw",
          "condcorr_msw_infl", "condcorr_stress"]

@@ -1,6 +1,6 @@
 # Implied-volatility predictors (`implied` track)
 
-Built by `python -m volmodel.data.sources.implied` -> `data/processed/predictors/implied.parquet` (long: `obs_date, available_date, series, value`; end-of-day closes, so `available_date = obs_date`). Newest close in the file: **2026-11-13**. A series is *live* if its last close is within 10 calendar days of that.
+Built by `python -m assetforecast.data.sources.implied` -> `data/processed/predictors/implied.parquet` (long: `obs_date, available_date, series, value`; end-of-day closes, so `available_date = obs_date`). Newest close in the file: **2026-11-13**. A series is *live* if its last close is within 10 calendar days of that.
 
 Units: all vol indices are **annualized vol in decimals** (VIX 20 -> 0.20). Exceptions: `iv_move` is a **yield (bp) vol in decimals** (MOVE 100 -> 0.0100; x modified duration ~ price vol); `iv_skew_index` is the **SKEW level** (not a vol); `*_term_slope` are ratios minus one; `iv_vvix` is the vol of VIX.
 

@@ -2,7 +2,7 @@
 
     python scripts/make_dashboard_data.py        # writes dashboard/data/*.csv
 
-Inputs: forecasts/latest/ (python -m volmodel.forecast) and results/final/
+Inputs: forecasts/latest/ (python -m assetforecast.forecast) and results/final/
 (scripts/score_final.py). Volatilities are written in percent with one
 decimal so that the page shows exactly what the files hold. The page itself
 is dashboard/index.html; it is stored in the dashboard, not served from here.

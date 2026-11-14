@@ -3,7 +3,7 @@ import sys, warnings, json
 import numpy as np
 from multiprocessing import Pool
 from simdgp import simulate_losses
-from volmodel.eval import inference as inf
+from assetforecast.eval import inference as inf
 
 warnings.simplefilter("ignore")
 H = 12

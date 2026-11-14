@@ -1,12 +1,12 @@
-"""Tests for the shared distribution / bad-print tools (volmodel.data.sources.distributions)
+"""Tests for the shared distribution / bad-print tools (assetforecast.data.sources.distributions)
 and their use in the tracks (credit blends, accrual funds, calibration cutoff)."""
 import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.sources import credit as C
-from volmodel.data.sources import distributions as D
-from volmodel.paths import ASSET_DIR, RAW
+from assetforecast.data.sources import credit as C
+from assetforecast.data.sources import distributions as D
+from assetforecast.paths import ASSET_DIR, RAW
 
 
 def _market(n=1500, seed=0):

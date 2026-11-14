@@ -1,15 +1,15 @@
-"""Tests of volmodel.bridge: fast, synthetic, seeded."""
+"""Tests of assetforecast.bridge: fast, synthetic, seeded."""
 import numpy as np
 import pandas as pd
 import pytest
 from scipy.stats import norm
 
-from volmodel.bridge import (BRIDGES, NON_MARKET, Q, ScaleMixture, estimate_long_run, floor_relative,
+from assetforecast.bridge import (BRIDGES, NON_MARKET, Q, ScaleMixture, estimate_long_run, floor_relative,
                              get_bridge, market_mask, predictive_quantiles, standardized_returns,
                              variance_ratio, vol_uncertainty)
-from volmodel.data.panel import PREDICTOR_COLUMNS, Panel
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.universe import ASSET_IDS
+from assetforecast.data.panel import PREDICTOR_COLUMNS, Panel
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.universe import ASSET_IDS
 
 
 # ------------------------------------------------------------------ helpers
@@ -333,8 +333,8 @@ def test_vol_uncertainty_recovers_dispersion():
 @pytest.mark.realdata
 def test_real_panel_estimates_are_sane():
     import os
-    os.environ.setdefault("VOLMODEL_MAX_DATE", "2014-12-31")
-    from volmodel.data.panel import load_panel
+    os.environ.setdefault("ASSETFORECAST_MAX_DATE", "2014-12-31")
+    from assetforecast.data.panel import load_panel
     p = load_panel()
     est = estimate_long_run(p, era="market", cross=True)
     assert est.vr.between(0.5, 2.5).all() and np.isfinite(est.vr_se[est.n >= 24]).all()

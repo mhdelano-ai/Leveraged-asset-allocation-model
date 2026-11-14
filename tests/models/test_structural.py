@@ -1,4 +1,4 @@
-"""Tests for the structural family (src/volmodel/models/structural)."""
+"""Tests for the structural family (src/assetforecast/models/structural)."""
 from __future__ import annotations
 
 from dataclasses import replace
@@ -7,13 +7,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import volmodel.models.base as base
-import volmodel.models.structural  # noqa: F401  (registers the family)
-from volmodel.data.panel import PREDICTOR_COLUMNS, Panel
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.models.structural import core
-from volmodel.models.structural.factor import StructuralFactorCov
-from volmodel.models.structural.vol import StructuralState, StructuralVol, ref_blend_var
+import assetforecast.models.base as base
+import assetforecast.models.structural  # noqa: F401  (registers the family)
+from assetforecast.data.panel import PREDICTOR_COLUMNS, Panel
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.models.structural import core
+from assetforecast.models.structural.factor import StructuralFactorCov
+from assetforecast.models.structural.vol import StructuralState, StructuralVol, ref_blend_var
 
 VOL_MODELS = ["structural_normal", "structural_lognormal", "structural_sqrt", "structural_cev"]
 COV_MODELS = ["structural_factor_lognormal", "structural_factor_normal", "structural_factor_global"]

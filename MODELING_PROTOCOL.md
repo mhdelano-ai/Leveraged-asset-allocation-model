@@ -8,14 +8,14 @@ developed and judged so that the final comparison means something.
 
 1. `ARCHITECTURE.md` — the target (21-day-horizon covariance over the next 12
    months), the Panel, storage formats.
-2. `src/volmodel/models/base.py` — the three interfaces and the rules every
+2. `src/assetforecast/models/base.py` — the three interfaces and the rules every
    model must obey.
 3. `reports/data/panel.md` and `reports/data/horizon_evidence.md` — what is in
    the panel and why 1-day volatility cannot be trusted.
-4. `src/volmodel/models/ref/__init__.py` — the reference benchmarks, and the
+4. `src/assetforecast/models/ref/__init__.py` — the reference benchmarks, and the
    pattern for a family package.
-5. The module docstrings of `src/volmodel/eval/targets.py`, `losses.py`,
-   `inference.py` and the CLI `python -m volmodel.eval.run --help`.
+5. The module docstrings of `src/assetforecast/eval/targets.py`, `losses.py`,
+   `inference.py` and the CLI `python -m assetforecast.eval.run --help`.
 
 ## What the data forces on every model
 
@@ -50,7 +50,7 @@ developed and judged so that the final comparison means something.
 ## Development rules (binding)
 
 1. **Holdout.** Run every command with
-   `export VOLMODEL_MAX_DATE=2014-12-31 OMP_NUM_THREADS=1`. The panel then
+   `export ASSETFORECAST_MAX_DATE=2014-12-31 OMP_NUM_THREADS=1`. The panel then
    ends in 2014 and results go to `results/dev/`. Everything after 2014 is a
    holdout that is scored once, at the end, by the orchestrator. Do not load
    the panel without that variable and do not read post-2014 values from
@@ -66,13 +66,13 @@ developed and judged so that the final comparison means something.
 3. **No look-ahead.** Only the view. A model that trains on realized targets
    may use origin `s` only if `s + 12 months <= view.asof_date`. Derive
    training targets from the view itself (the same estimator as
-   `volmodel.eval.targets.realized_kday_cov`, or monthly squared returns),
+   `assetforecast.eval.targets.realized_kday_cov`, or monthly squared returns),
    never from the cached target files.
 4. **Cost.** Four cores are shared by about a dozen agents. Use `--jobs` ≤ 2
    and `--step 6` while developing; re-estimate parameters at most once a
    year inside the model and update state monthly. A full monthly run (about
    1,100 origins to 2014) must finish in under 10 minutes on one core.
-5. **Ownership.** You own `src/volmodel/models/<family>/`,
+5. **Ownership.** You own `src/assetforecast/models/<family>/`,
    `tests/models/test_<family>.py` and `reports/models/<family>.md`. Touch
    nothing else and run no git write commands. Keep scratch files in your own
    subfolder of the scratch directory.
@@ -80,15 +80,15 @@ developed and judged so that the final comparison means something.
 ## Running and scoring
 
 ```
-export VOLMODEL_MAX_DATE=2014-12-31 OMP_NUM_THREADS=1
-python -m volmodel.eval.run forecast --kind vol --model my_model --step 6     # quick
-python -m volmodel.eval.run forecast --kind vol --model my_model              # every month-end
-python -m volmodel.eval.run score --kind vol --models my_model ref_blend ref_last12m ref_last60m ref_longrun
+export ASSETFORECAST_MAX_DATE=2014-12-31 OMP_NUM_THREADS=1
+python -m assetforecast.eval.run forecast --kind vol --model my_model --step 6     # quick
+python -m assetforecast.eval.run forecast --kind vol --model my_model              # every month-end
+python -m assetforecast.eval.run score --kind vol --models my_model ref_blend ref_last12m ref_last60m ref_longrun
 ```
 
 The reference models are already stored in `results/dev/` for every origin.
-For significance use `volmodel.eval.inference` (`dm_test`, `skill_score`,
-`pairwise_dm`, `panel_dm_test`) on `volmodel.eval.losses.loss_matrix(...)`;
+For significance use `assetforecast.eval.inference` (`dm_test`, `skill_score`,
+`pairwise_dm`, `panel_dm_test`) on `assetforecast.eval.losses.loss_matrix(...)`;
 the defaults are sized for overlapping 12-month losses. Expect few
 significant differences: a true 20% improvement in mean loss is detected
 about half the time with 90 years of data.

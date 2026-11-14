@@ -3,11 +3,11 @@ import pandas as pd
 import pytest
 from dataclasses import replace
 
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.models.statespace import grid as G
-from volmodel.models.statespace import models as M
-from volmodel.models.statespace.data import KAPPA, build_obs
-from volmodel.models.statespace.kalman import kf_multi, kf_univ
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.models.statespace import grid as G
+from assetforecast.models.statespace import models as M
+from assetforecast.models.statespace.data import KAPPA, build_obs
+from assetforecast.models.statespace.kalman import kf_multi, kf_univ
 
 NAMES = ["statespace_ar1_asset", "statespace_ar1", "statespace_ar1_grid", "statespace_2c",
          "statespace_ar1_daily", "statespace_2c_daily", "statespace_factor", "statespace_factor_daily"]
@@ -17,7 +17,7 @@ ORIGINS = ["1980-12-31", "1995-06-30", "2014-12-31"]   # early: monthly data onl
 def _make(name):
     # built directly (not through the registry) so a broken sibling package
     # cannot fail these tests; test_registered checks the registry separately
-    from volmodel.models import statespace as S  # noqa: F401  (registers)
+    from assetforecast.models import statespace as S  # noqa: F401  (registers)
     reg = {
         "statespace_ar1_asset": lambda: M.StateSpaceVol(M.Spec(1, False, False)),
         "statespace_ar1": lambda: M.StateSpaceVol(M.Spec(1, False, True)),
@@ -48,8 +48,8 @@ def panel():
 
 
 def test_registered():
-    from volmodel.models.base import _REGISTRY
-    import volmodel.models.statespace  # noqa: F401
+    from assetforecast.models.base import _REGISTRY
+    import assetforecast.models.statespace  # noqa: F401
     assert set(NAMES) <= set(_REGISTRY["vol"])
     assert len([n for n in _REGISTRY["vol"] if n.startswith("statespace")]) <= 8
 
@@ -169,7 +169,7 @@ def test_grid_filter_recovers_level():
 def test_pooled_fit_recovers_persistence(panel):
     """On the synthetic panel (log-vol AR(1) daily phi = 0.995, i.e. ~0.9 a
     month) a converged pooled fit should find a persistent state."""
-    import volmodel.models.statespace.models as MM
+    import assetforecast.models.statespace.models as MM
     MM.MAXITER = 100
     fit = MM.fit_univ(MM.Spec(1, True, True), panel.asof("2014-12-31"))
     th = dict(zip(fit["names"], fit["theta"][0]))

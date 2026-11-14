@@ -1,7 +1,7 @@
 import numpy as np, warnings
 from multiprocessing import Pool
 from simdgp import simulate_losses
-from volmodel.eval import inference as inf
+from assetforecast.eval import inference as inf
 warnings.simplefilter("ignore")
 SC={"base":dict(),"persistent":dict(phi=0.98,rho_e=0.97)}
 TRUE={"base":14.05,"persistent":18.02}

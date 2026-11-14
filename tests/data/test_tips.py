@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.sources import tips as T
-from volmodel.paths import ASSET_DIR, PREDICTOR_DIR
+from assetforecast.data.sources import tips as T
+from assetforecast.paths import ASSET_DIR, PREDICTOR_DIR
 
 DAILY = ASSET_DIR / "tips_daily.parquet"
 MONTHLY = ASSET_DIR / "tips_monthly.parquet"

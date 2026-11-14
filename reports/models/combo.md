@@ -1,17 +1,17 @@
 # combo — forecast combination and level calibration
 
-Package `src/volmodel/models/combo/` (`store.py` reads stored component
+Package `src/assetforecast/models/combo/` (`store.py` reads stored component
 forecasts, `train.py` builds walk-forward training data from the view, `vol.py`,
 `corr.py`, `analysis.py` regenerates every table below), tests
-`tests/models/test_combo.py`. Development panel (`VOLMODEL_MAX_DATE=2014-12-31`),
+`tests/models/test_combo.py`. Development panel (`ASSETFORECAST_MAX_DATE=2014-12-31`),
 every month-end origin, targets version 3 (21-day realized covariance). Nothing
 after 2014 was looked at.
 
 Reproduce everything (once the components are stored), about 5 minutes on one core:
 
 ```
-export VOLMODEL_MAX_DATE=2014-12-31 OMP_NUM_THREADS=1
-python -m volmodel.models.combo.analysis --forecast --out combo_tables.md
+export ASSETFORECAST_MAX_DATE=2014-12-31 OMP_NUM_THREADS=1
+python -m assetforecast.models.combo.analysis --forecast --out combo_tables.md
 ```
 
 `--forecast` re-runs all 16 registered combos from scratch (`force=True`;
@@ -152,7 +152,7 @@ long-only minimum variance. That is still a 40% under-prediction, and 2.3 in
   version (path, mtime, size). It keeps the forecasts as dense arrays on the
   origin grid: variance for vol, the full matrix for corr; `"cov:<name>"` gives
   the correlations of a stored covariance model.
-- `<results>` is `volmodel.paths.RESULTS`, read at call time, unless the
+- `<results>` is `assetforecast.paths.RESULTS`, read at call time, unless the
   instance has `results_dir` set.
 - Nothing is substituted. A missing file, origin or asset raises
   `MissingComponentError` naming the component and the origin, at forecast
@@ -726,7 +726,7 @@ Times are seconds, total / model:
   combo's vols.
 - **Registration** stays within budget (8 vol / 4 corr / 4 cov). Default
   member lists exclude every combo and `ref_corr_zero`.
-- **`realdata`** (runs when `results/dev` and `VOLMODEL_MAX_DATE` are present):
+- **`realdata`** (runs when `results/dev` and `ASSETFORECAST_MAX_DATE` are present):
   every registered combo at 1930, 1990 and 2014 against the stored dev
   forecasts.
 
@@ -737,8 +737,8 @@ Times are seconds, total / model:
   family last, as `analysis --forecast` does. A missing component fails loudly;
   a stale one cannot be detected.
 - **The CLI `--synthetic` flag.** The model is not told which results
-  directory the harness is writing to: it reads `volmodel.paths.RESULTS`, or
-  `results_dir` if set on the instance. `python -m volmodel.eval.run forecast
+  directory the harness is writing to: it reads `assetforecast.paths.RESULTS`, or
+  `results_dir` if set on the instance. `python -m assetforecast.eval.run forecast
   --synthetic` would therefore read the components from `results/dev`, not
   `results/dev/synthetic`. The tests set `results_dir` explicitly. See shared
   code below.

@@ -8,15 +8,15 @@ import pandas as pd
 import pytest
 from dataclasses import replace
 
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.eval.harness import run_model
-from volmodel.eval.targets import compute_targets, window_end
-from volmodel.models import list_models
-from volmodel.models.base import Composite, CorrForecaster, VolForecaster
-from volmodel.models.combo import (CORR_MODELS, COV_PAIRS, VOL_MODELS, CorrCombo, MissingComponentError,
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.eval.harness import run_model
+from assetforecast.eval.targets import compute_targets, window_end
+from assetforecast.models import list_models
+from assetforecast.models.base import Composite, CorrForecaster, VolForecaster
+from assetforecast.models.combo import (CORR_MODELS, COV_PAIRS, VOL_MODELS, CorrCombo, MissingComponentError,
                                    VolCombo, block_average, estimation_date, training_data)
-from volmodel.models.combo import store as combo_store
-from volmodel.models.ref import nearest_corr, pairwise_corr, window_var
+from assetforecast.models.combo import store as combo_store
+from assetforecast.models.ref import nearest_corr, pairwise_corr, window_var
 
 ORIGINS = ["1979-12-31", "1996-06-30", "2012-12-31"]   # early one: monthly-only assets
 T0 = pd.Timestamp("2004-12-31")                        # the "oracle" turns perfect here
@@ -175,7 +175,7 @@ def test_training_cells_are_walk_forward_and_match_project_target(panel):
     tr = training_data(panel.asof("2004-05-31"), E)
     assert len(tr.origins) and max(window_end(o) for o in tr.origins) <= E
     T = compute_targets(panel).vol_wide("var")
-    from volmodel.universe import ASSET_IDS
+    from assetforecast.universe import ASSET_IDS
     ref = T.reindex(index=tr.origins, columns=ASSET_IDS).to_numpy()
     assert tr.cells.sum() > 1000 and np.isfinite(ref[tr.cells]).all()
     assert np.array_equal(tr.realized[tr.cells], ref[tr.cells])        # the project's own estimator
@@ -318,12 +318,12 @@ def test_composite_cov(panel, store):
 def test_registered_on_dev_results():
     """Registered combos at three origins against the stored dev forecasts (skipped if absent)."""
     import os
-    from volmodel.models import get_model
-    from volmodel.paths import ROOT
+    from assetforecast.models import get_model
+    from assetforecast.paths import ROOT
     rd = ROOT / "results" / "dev" / "forecasts" / "vol" / "statespace_2c_daily.parquet"
-    if not rd.exists() or not os.environ.get("VOLMODEL_MAX_DATE"):
-        pytest.skip("needs results/dev and VOLMODEL_MAX_DATE")
-    from volmodel.data.panel import load_panel
+    if not rd.exists() or not os.environ.get("ASSETFORECAST_MAX_DATE"):
+        pytest.skip("needs results/dev and ASSETFORECAST_MAX_DATE")
+    from assetforecast.data.panel import load_panel
     p = load_panel()
     for kind, names in (("vol", VOL_MODELS), ("corr", CORR_MODELS), ("cov", COV_PAIRS)):
         for n in names:

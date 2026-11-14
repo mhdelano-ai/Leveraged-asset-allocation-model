@@ -1,4 +1,4 @@
-# volmodel — architecture and conventions
+# assetforecast — architecture and conventions
 
 The goal: at any month-end, forecast the **covariance matrix of 12 asset
 classes over the next 12 months**, for use as long-run planning inputs. Many
@@ -38,7 +38,7 @@ month-end origin:
 2. **Annual-return covariance** (`cov_annual`) — the covariance of the
    12-month log excess return itself. It differs from (1) when returns are
    serially correlated beyond a month. It is obtained from `cov_rv` by the
-   **bridge** (`volmodel.bridge`), which estimates variance ratios with
+   **bridge** (`assetforecast.bridge`), which estimates variance ratios with
    uncertainty. There are few independent 12-month observations, so this is
    validated by calibration (are standardized 12-month returns unit-variance?)
    rather than by horse race.
@@ -47,13 +47,13 @@ Annualization: 252 trading days; 12 months.
 
 ## Universe
 
-`volmodel.universe.ASSETS` — 12 ids used as column names everywhere:
+`assetforecast.universe.ASSETS` — 12 ids used as column names everywhere:
 `us_large, us_small, intl_dev, em, ust_int, ust_long, tips, ig_credit,
 hy_credit, reits, gold, commodities`.
 
 ## Data
 
-Everything flows through `volmodel.data.panel.Panel` (see its docstring).
+Everything flows through `assetforecast.data.panel.Panel` (see its docstring).
 `load_panel()` reads the real panel; `make_synthetic_panel()` returns one with
 identical conventions for tests. `Panel.asof(t)` is the only way models see
 data, and it removes everything dated or *published* after `t`.
@@ -81,12 +81,12 @@ reconstruction (bond returns from yields, month-average prices, …). Every
 NAV-to-ETF splice is therefore a B→A tier change. Parameters fitted on overlaps
 (blend weights, splice factors, selection rules) may use only data up to
 2014-12-31, the start of the holdout. ETF total returns are built from close
-plus validated distributions (`volmodel.data.sources.distributions`), not from
+plus validated distributions (`assetforecast.data.sources.distributions`), not from
 Yahoo's adjusted close, which lists some distributions that were never paid.
 
 Rules for data code:
-- Loaders live in `src/volmodel/data/sources/<track>.py`, are plain Python
-  HTTP (reproducible by `python -m volmodel.data.sources.<track>`), cache raw
+- Loaders live in `src/assetforecast/data/sources/<track>.py`, are plain Python
+  HTTP (reproducible by `python -m assetforecast.data.sources.<track>`), cache raw
   downloads under `data/raw/<track>/`, and never need an API key.
 - Total returns include distributions. Prefer the longest *credible* history;
   splice the highest-tier source available in each era and record every
@@ -108,8 +108,8 @@ Rules for data code:
 
 ## Models
 
-Interfaces and rules are in `volmodel/models/base.py` (read the module
-docstring). Each model family is a subpackage `volmodel/models/<family>/`
+Interfaces and rules are in `assetforecast/models/base.py` (read the module
+docstring). Each model family is a subpackage `assetforecast/models/<family>/`
 whose `__init__` registers its models with `@register(kind, name)`; the
 registry imports all subpackages automatically.
 
@@ -121,7 +121,7 @@ registry imports all subpackages automatically.
 
 ## Evaluation
 
-`volmodel.eval` owns targets, the walk-forward harness, losses, significance
+`assetforecast.eval` owns targets, the walk-forward harness, losses, significance
 tests and portfolio tests. Forecasts are stored one file per model so that
 anyone can add a model without touching anyone else's results:
 

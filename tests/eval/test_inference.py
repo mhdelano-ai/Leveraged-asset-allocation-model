@@ -1,4 +1,4 @@
-"""Tests for volmodel.eval.inference.
+"""Tests for assetforecast.eval.inference.
 
 Fast tests (seconds, seeded) check mechanics and give coarse Monte Carlo
 sanity bounds. ``slow`` tests reproduce the size / coverage results quoted in
@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.eval import inference as inf
+from assetforecast.eval import inference as inf
 
 H = 12
 

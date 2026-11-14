@@ -3,7 +3,7 @@ import sys, warnings
 import numpy as np
 from multiprocessing import Pool
 from simdgp import simulate_losses
-from volmodel.eval import inference as inf
+from assetforecast.eval import inference as inf
 import mc_dm
 warnings.simplefilter("ignore")
 mc_dm.VARIANTS = {

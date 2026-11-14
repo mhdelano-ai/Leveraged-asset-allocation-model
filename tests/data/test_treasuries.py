@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.sources import treasuries as T
-from volmodel.paths import ASSET_DIR, PREDICTOR_DIR
+from assetforecast.data.sources import treasuries as T
+from assetforecast.paths import ASSET_DIR, PREDICTOR_DIR
 
 
 # ------------------------------------------------------------- bond math

@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.paths import ASSET_DIR
-from volmodel.data.sources import us_equity as ue
+from assetforecast.paths import ASSET_DIR
+from assetforecast.data.sources import us_equity as ue
 
 ASSETS = ["us_large", "us_small"]
 

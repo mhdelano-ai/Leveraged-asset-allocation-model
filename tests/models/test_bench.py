@@ -3,10 +3,10 @@ import pandas as pd
 import pytest
 from dataclasses import replace
 
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.eval.targets import realized_kday_cov
-from volmodel.models import get_model, list_models
-from volmodel.models.bench import (CORR_MODELS, VOL_MODELS, Moments, block_target, ew_corr, ew_mean,
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.eval.targets import realized_kday_cov
+from assetforecast.models import get_model, list_models
+from assetforecast.models.bench import (CORR_MODELS, VOL_MODELS, Moments, block_target, ew_corr, ew_mean,
                                    ew_series, mr_weight, shrink_intensity)
 
 ORIGINS = ["1979-12-31", "1990-06-30", "2010-12-31"]   # early one: monthly-only assets

@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volmodel.data.synthetic import make_synthetic_panel
-from volmodel.models import get_model, list_models
-from volmodel.models.ref import nearest_corr, pairwise_corr
+from assetforecast.data.synthetic import make_synthetic_panel
+from assetforecast.models import get_model, list_models
+from assetforecast.models.ref import nearest_corr, pairwise_corr
 
 
 @pytest.fixture(scope="module")
