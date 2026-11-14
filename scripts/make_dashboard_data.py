@@ -64,11 +64,6 @@ def main():
     pd.DataFrame({"origin": k.origin, "pair": k.pair, "realized": k.realized.round(2), "forecast": k.primary.round(2),
                   "reference": k.reference.round(2)}).to_csv(OUT / "history_corr.csv", index=False)
 
-    q = pd.read_csv(F / "dashboard_portfolio.csv")
-    q = quarterly(q[q.portfolio == "p6040"])
-    pd.DataFrame({"origin": q.origin, "realized": pc(q.realized), "forecast": pc(q.primary),
-                  "reference": pc(q.reference)}).to_csv(OUT / "history_6040.csv", index=False)
-
     hh = pd.read_csv(F / "h2h_vol.csv")
     hh = hh[(hh.subset == "daily") & (hh.era == "all") & hh.period.isin(["dev", "holdout"])]
     roles = {"primary": "Selected: family average", "runner_up": "Simple runner-up",
