@@ -10,16 +10,16 @@ Construction (justified in ``reports/data/us_equity.md``)
 us_large
   * 1871-01 .. 1926-06  monthly, Shiller S&P Composite (Cowles) total return
                         from month-AVERAGE prices plus dividends/12 -> tier D
-  * 1926-07 .. VFINX-1  daily, Ken French CRSP value-weighted market
-                        (Mkt-RF + RF), total return -> tier B
+  * 1926-07 .. VFINX-1  daily, Ken French CRSP value-weighted top-30% size
+                        portfolio ("Hi 30", NYSE breakpoints), total return -> tier B
   * VFINX start .. SPY-1 daily, Vanguard 500 Index Inv (VFINX) adjclose -> tier A
   * 1993-01-29 .. today daily, SPDR S&P 500 ETF (SPY) adjclose -> tier A
 us_small
-  * 1926-07 .. NAESX-index-era-1  daily, Ken French size portfolio chosen by
+  * 1926-07 .. 1989-12  daily, Ken French size portfolio chosen by
                         calibration against IWM (see ``SMALL_PORTFOLIO``) -> tier B
-  * 1989-12 .. 2000-05-25  daily, Vanguard Small-Cap Index Inv (NAESX), which
+  * 1990-01-02 .. 2000-05-26  daily, Vanguard Small-Cap Index Inv (NAESX), which
                         tracked the Russell 2000 in that era -> tier A
-  * 2000-05-26 .. today daily, iShares Russell 2000 ETF (IWM) adjclose -> tier A
+  * 2000-05-30 .. today daily, iShares Russell 2000 ETF (IWM) adjclose -> tier A
 
 Every return is a SIMPLE TOTAL return in decimals. Nothing is interpolated.
 """
@@ -40,8 +40,7 @@ import requests
 from ...paths import ASSET_DIR, RAW
 
 CACHE = RAW / "us_equity"
-UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
-      "Chrome/124.0 Safari/537.36")
+UA = "Mozilla/5.0"  # a full Chrome UA string is rate-limited from this network
 
 FRENCH_BASE = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/"
 FRENCH_FILES = {
@@ -59,14 +58,12 @@ LARGE_FUNDS = [("VFINX", None), ("SPY", "1993-02-01")]
 # NAESX became a Russell 2000 index fund on 1989-12-?? (Naess & Thomas Special
 # Fund before that): use it only from 1990-01-02.
 SMALL_FUNDS = [("NAESX", "1990-01-02"), ("IWM", "2000-05-30")]
-# Extra Yahoo series used only for diagnostics.
-DIAG_SYMBOLS = ["^SP500TR", "^GSPC", "^RUT"]
 
-# French size portfolio used for us_small before the fund era. Chosen by the
-# calibration in ``calibrate()`` (lowest tracking error vs IWM / NAESX with
-# vol ratio close to 1); see the report.
+# French size portfolios used before the fund era, chosen by the calibration in
+# ``diagnostics()`` (tracking error, correlation and vol ratio vs SPY and vs
+# IWM / NAESX on the overlap); see the report.
 SMALL_PORTFOLIO = "Qnt 2"
-LARGE_PORTFOLIO = "Mkt"
+LARGE_PORTFOLIO = "Hi 30"
 
 
 # --------------------------------------------------------------------- fetch
@@ -435,7 +432,8 @@ def diagnostics(res: dict) -> dict:
     calib = pd.DataFrame(rows).set_index("portfolio")
     # date alignment: correlation of French with fund at leads/lags
     lag = {}
-    for name, a, b in (("Mkt vs SPY", fd["Mkt"], spy), ("Mkt vs VFINX", fd["Mkt"], fund["VFINX"]),
+    LP = LARGE_PORTFOLIO
+    for name, a, b in ((f"{LP} vs SPY", fd[LP], spy), (f"{LP} vs VFINX", fd[LP], fund["VFINX"]),
                        (f"{SMALL_PORTFOLIO} vs IWM", fd[SMALL_PORTFOLIO], iwm),
                        (f"{SMALL_PORTFOLIO} vs NAESX", fd[SMALL_PORTFOLIO], fund["NAESX"])):
         lag[name] = {k: pd.concat([a, b.shift(k)], axis=1).dropna().corr().iloc[0, 1] for k in (-1, 0, 1)}
@@ -444,7 +442,7 @@ def diagnostics(res: dict) -> dict:
     lag.index.name = "pair"
     # outliers: fund-day returns far from French same-day
     outl = []
-    for sym, port in (("VFINX", "Mkt"), ("SPY", "Mkt"), ("NAESX", SMALL_PORTFOLIO), ("IWM", SMALL_PORTFOLIO)):
+    for sym, port in (("VFINX", LARGE_PORTFOLIO), ("SPY", LARGE_PORTFOLIO), ("NAESX", SMALL_PORTFOLIO), ("IWM", SMALL_PORTFOLIO)):
         d = pd.concat([fund[sym], fd[port]], axis=1, keys=["f", "fr"]).dropna()
         diff = d["f"] - d["fr"]
         z = (diff - diff.median()) / (1.4826 * (diff - diff.median()).abs().median())
@@ -502,7 +500,7 @@ def write_report(res: dict, path: Path | None = None) -> Path:
         small_d0=S[0].index[0].date(), small_d1=S[0].index[-1].date(),
         small_m0=S[1].index[0].date(), small_m1=S[1].index[-1].date(),
         french_end=res["french_daily"].index[-1].date(),
-        small_port=SMALL_PORTFOLIO,
+        small_port=SMALL_PORTFOLIO, large_port=LARGE_PORTFOLIO,
         segments="\n".join(seg_md),
         calib_large=_md(pct[[c for c in pct.columns if c.startswith("SPY")]], "{:.3f}"),
         calib_small=_md(pct[[c for c in pct.columns if c.startswith(("IWM", "NAESX"))]], "{:.3f}"),
@@ -548,11 +546,12 @@ French data ends {french_end}; the fund/ETF segments carry the series to the lat
 
 ## Construction and why
 
-**us_large (SPY-like).** The French CRSP value-weighted market is used for 1926-07 onward, until VFINX begins.
-On the overlap it is nearly indistinguishable from SPY for volatility purposes (see calibration: correlation ~0.99,
-vol ratio ~1.0); the large-cap size portfolios (Hi 10, Hi 20, Hi 30) are not closer to SPY on tracking error,
-and Mkt is the canonical, best-documented series. VFINX (an S&P 500 index fund, investable) is then used until
-SPY starts trading, then SPY. Before July 1926 only monthly data exists: Shiller's series is used as **tier D**
+**us_large (SPY-like).** The French value-weighted **`{large_port}`** size portfolio (stocks above the NYSE 70th
+percentile of market cap) is used from 1926-07 until VFINX begins. On the SPY overlap it beats the whole CRSP
+market (Mkt-RF + RF) on every sub-period: lower tracking error (3-day TE 2.3% vs 3.0% over 1993-2026; 0.7% vs 1.5%
+in 2010-19) and a vol ratio closer to 1 since 2010 (1.00-1.02 vs 1.04 for Mkt, whose small-cap tail adds
+volatility the S&P 500 does not have). VFINX (an S&P 500 index fund, investable) is then used until SPY starts
+trading, then SPY. Before July 1926 only monthly data exists: Shiller's series is used as **tier D**
 because month-average prices damp measured volatility (see below).
 
 **us_small (IWM-like).** IWM tracks the Russell 2000 (ranks ~1001-3000 by cap, value weighted). Every French

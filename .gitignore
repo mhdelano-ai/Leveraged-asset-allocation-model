@@ -5,3 +5,4 @@ data/raw/
 *.pyc
 .ipynb_checkpoints/
 results/synthetic/
+results/targets/

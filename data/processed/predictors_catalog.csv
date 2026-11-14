@@ -1,0 +1,62 @@
+series,group,unit,freq,start,end,live,notes
+credit_gz_spread_m,credit,decimal,M,1973-01-31,2026-10-31,True,"Gilchrist-Zakrajsek credit spread (plain average of bond spreads), monthly. The companion excess bond premium (gz_excess_bond_premium_m) is EXCLUDED: it is the residual of a full-sample regression (look-ahead). Original name `gz_credit_spread_m` in predictors/credit_spreads.parquet; converted from percent (x0.01)"
+credit_moodys_aaa_yield_m,credit,decimal,M,1919-01-31,2025-12-31,False,"Moody's seasoned Aaa yield, monthly avg; ends 2025-12. Original name `moodys_aaa_yield_m` in predictors/credit_spreads.parquet; converted from percent (x0.01)"
+credit_moodys_baa_aaa_spread_d,credit,decimal,D,1986-01-02,2016-10-07,False,"Baa minus Aaa, daily H.15 1986-2016 (dead). Original name `moodys_baa_minus_aaa_d` in predictors/credit_spreads.parquet; converted from percent (x0.01)"
+credit_moodys_baa_aaa_spread_m,credit,decimal,M,1919-01-31,2025-12-31,False,"Baa minus Aaa, monthly avg; ends 2025-12. Original name `moodys_baa_minus_aaa_m` in predictors/credit_spreads.parquet; converted from percent (x0.01)"
+credit_moodys_baa_ust10y_spread_d,credit,decimal,D,1986-01-02,2016-10-07,False,"Baa minus 10y CMT, daily 1986-2016 (dead). Original name `moodys_baa_minus_ust10y_d` in predictors/credit_spreads.parquet; converted from percent (x0.01)"
+credit_moodys_baa_ust10y_spread_m,credit,decimal,M,1953-04-30,2025-12-31,False,"Baa minus 10y CMT, monthly avg; ends 2025-12. Original name `moodys_baa_minus_ust10y_m` in predictors/credit_spreads.parquet; converted from percent (x0.01)"
+credit_moodys_baa_yield_m,credit,decimal,M,1919-01-31,2025-12-31,False,"Moody's seasoned Baa yield, monthly avg; ends 2025-12. Original name `moodys_baa_yield_m` in predictors/credit_spreads.parquet; converted from percent (x0.01)"
+iv_gvz,implied,decimal vol,D,2009-09-18,2026-11-13,True,Cboe gold ETF (GLD) vol (GVZ). From predictors/implied.parquet
+iv_ovx,implied,decimal vol,D,2009-09-18,2026-11-13,True,Cboe crude oil ETF (USO) vol (OVX). USO options; peaked at 3.25 on 2020-04-21 (negative WTI front month). From predictors/implied.parquet
+iv_rvx,implied,decimal vol,D,2009-09-16,2026-11-13,True,Cboe Russell 2000 vol (RVX). From predictors/implied.parquet
+iv_skew_index,implied,index level (not a vol),D,1990-01-02,2026-11-13,True,Cboe S&P 500 SKEW index. 100 - 10 x risk-neutral skewness of 30-day SPX returns. From predictors/implied.parquet
+iv_vix,implied,decimal vol,D,1990-01-02,2026-11-13,True,"Cboe S&P 500 30-day vol (VIX). Sep-2003 redefinition (SPX full strip, model-free) back-calculated to 1990; the pre-2003 'old VIX' is VXO. From predictors/implied.parquet"
+iv_vix1y,implied,decimal vol,D,2007-01-03,2026-11-13,True,Cboe S&P 500 1-year vol (VIX1Y). Close-only (O=H=L=C) until ~2018-04: early history is retrospectively calculated. From predictors/implied.parquet
+iv_vix1y_term_slope,implied,ratio - 1,D,2007-01-03,2026-11-13,True,VIX1Y / VIX - 1 (same-day closes). From predictors/implied.parquet
+iv_vix3m,implied,decimal vol,D,2009-09-18,2026-11-13,True,"Cboe S&P 500 3-month vol (VIX3M, formerly VXV). Renamed VXV -> VIX3M in 2017; same index. From predictors/implied.parquet"
+iv_vix6m,implied,decimal vol,D,2008-01-02,2026-11-13,True,"Cboe S&P 500 6-month vol (VIX6M, formerly VXMT). Renamed VXMT -> VIX6M in 2017; close-only (O=H=L=C) until ~2013-12, consistent with retrospective calculation. From predictors/implied.parquet"
+iv_vix9d,implied,decimal vol,D,2011-01-04,2026-11-13,True,Cboe S&P 500 9-day vol (VIX9D). From predictors/implied.parquet
+iv_vix_term_slope,implied,ratio - 1,D,2009-09-18,2026-11-13,True,VIX3M / VIX - 1 (same-day closes). From predictors/implied.parquet
+iv_vix_vxo_spliced,implied,decimal vol,D,1986-01-02,2026-11-13,True,"VIX from 1990-01-02; before that VXO x k, k = exp(mean log(VIX/VXO)) over 1990-1994. From predictors/implied.parquet"
+iv_vvix,implied,decimal vol (of VIX),D,2006-06-01,2026-11-13,True,"Cboe VIX of VIX (VVIX). 2006-03..05 dropped: 3-8 prints a month, levels 16-92 vs ~90 after (start-up noise). From predictors/implied.parquet"
+iv_vxd,implied,decimal vol,D,2009-09-18,2026-11-13,True,Cboe DJIA vol (VXD). From predictors/implied.parquet
+iv_vxeem,implied,decimal vol,D,2011-03-16,2026-11-13,True,Cboe EEM ETF vol (VXEEM). From predictors/implied.parquet
+iv_vxefa,implied,decimal vol,D,2008-01-02,2026-11-13,True,Cboe EFA ETF vol (VXEFA). Close-only until ~2013-07 (retrospective). From predictors/implied.parquet
+iv_vxhyg,implied,decimal vol,D,2015-04-22,2026-11-13,True,"Cboe HY corporate ETF (HYG) vol (VXHYG). Noisy; one garbage print (-19,738,470 on 2017-10-30) removed; no data 2021-09-24..2025-05-14. From predictors/implied.parquet"
+iv_vxief,implied,decimal vol,D,2015-04-22,2026-11-13,True,"Cboe 7-10yr Treasury ETF (IEF) vol (VXIEF). Thin: long stale runs (e.g. one value carried 2020-07..2020-12, dropped); no data 2022-11-08..2025-07-13. From predictors/implied.parquet"
+iv_vxlqd,implied,decimal vol,D,2020-11-27,2026-11-13,True,Cboe IG corporate ETF (LQD) vol (VXLQD). Starts 2020-11; no data 2022-11-08..2025-07-13. From predictors/implied.parquet
+iv_vxn,implied,decimal vol,D,2009-09-14,2026-11-13,True,Cboe Nasdaq-100 vol (VXN). From predictors/implied.parquet
+iv_vxo,implied,decimal vol,D,1986-01-02,2021-01-07,False,"Cboe S&P 100 30-day ATM vol (VXO, the pre-2003 'old VIX'). Old methodology: OEX at-the-money, TRADING-day convention (inflates level vs calendar-day VIX). Discontinued by Cboe in 2021. From predictors/implied.parquet"
+iv_vxtlt,implied,decimal vol,D,2004-01-02,2026-11-13,True,Cboe 20+yr Treasury ETF (TLT) vol (VXTLT). From predictors/implied.parquet
+macro_cpi_level,macro,index level (1982-84=100),M,1871-01-31,2026-10-31,True,CPI-U NSA; pre-1913 wholesale-based reconstruction. From predictors/macro.parquet
+macro_infl_vol_36m,macro,decimal (annualized),M,1873-07-31,2026-10-31,True,trailing 36m std of monthly log CPI change. From predictors/macro.parquet; converted from percent (x0.01)
+macro_infl_yoy,macro,decimal (log change),M,1872-01-31,2026-09-30,True,12-month log change of CPI. From predictors/macro.parquet; converted from percent (x0.01)
+macro_ip_yoy,macro,decimal (log change),M,1920-01-31,2026-09-30,True,"12-month log change of industrial production (latest vintage, revised). From predictors/macro.parquet; converted from percent (x0.01)"
+macro_long_yield,macro,decimal,M,1871-01-31,2026-10-31,True,"long yield, monthly avg (railroad bonds to 1918, US long bonds to 1953-03, 10y CMT after). From predictors/macro.parquet; converted from percent (x0.01)"
+macro_policy_rate,macro,decimal,M,1914-11-30,2026-10-31,True,"NY Fed discount rate to 1954-06, effective fed funds monthly avg after. From predictors/macro.parquet; converted from percent (x0.01)"
+macro_policy_rate_chg_12m,macro,decimal (change),M,1915-11-30,2026-10-31,True,12-month change in policy rate. From predictors/macro.parquet; converted from percent (x0.01)
+macro_policy_rate_chg_3m,macro,decimal (change),M,1915-02-28,2026-10-31,True,3-month change in policy rate. From predictors/macro.parquet; converted from percent (x0.01)
+macro_real_short_rate,macro,decimal,M,1872-01-31,2026-09-30,True,short rate minus trailing YoY inflation. From predictors/macro.parquet; converted from percent (x0.01)
+macro_sahm_gap,macro,decimal (unemployment-rate change),M,1949-03-31,2026-10-31,True,3m avg unemployment minus prior-12m min. From predictors/macro.parquet; converted from percent (x0.01)
+macro_sahm_recession,macro,flag 0/1,M,1949-03-31,2026-10-31,True,1 if Sahm gap >= 0.5pp. From predictors/macro.parquet
+macro_short_rate,macro,decimal,M,1871-01-31,2026-10-31,True,"short rate, monthly avg (CP-spread to 1919, 3-6m Treasury to 1933, 3m bill after). From predictors/macro.parquet; converted from percent (x0.01)"
+macro_term_spread,macro,decimal,M,1871-01-31,2026-10-31,True,long yield minus short rate. From predictors/macro.parquet; converted from percent (x0.01)
+macro_unrate,macro,decimal,M,1948-01-31,2026-10-31,True,"civilian unemployment rate, SA; 2025-10 missing. From predictors/macro.parquet; converted from percent (x0.01)"
+macro_unrate_chg_12m,macro,decimal (change),M,1949-01-31,2026-09-30,True,12-month change in unemployment rate. From predictors/macro.parquet; converted from percent (x0.01)
+macro_usd_broad_yoy,macro,decimal (log change),M,1974-01-31,2026-10-31,True,12-month log change of the broad dollar index. From predictors/macro.parquet; converted from percent (x0.01)
+tips_breakeven_10y,tips,decimal,D,1999-01-04,2026-11-06,True,GSW 10y zero-coupon breakeven inflation. Original name `breakeven_10y` in predictors/tips_real_yields.parquet; converted from percent (x0.01)
+tips_breakeven_5y,tips,decimal,D,1999-01-04,2026-11-06,True,GSW 5y zero-coupon breakeven inflation. Original name `breakeven_5y` in predictors/tips_real_yields.parquet; converted from percent (x0.01)
+tips_real_yield_10y,tips,decimal,D,1999-01-04,2026-11-06,True,GSW TIPS 10y zero-coupon real yield (cont. comp.). Original name `real_yield_10y` in predictors/tips_real_yields.parquet; converted from percent (x0.01)
+tips_real_yield_5y,tips,decimal,D,1999-01-04,2026-11-06,True,GSW TIPS 5y zero-coupon real yield (cont. comp.). Original name `real_yield_5y` in predictors/tips_real_yields.parquet; converted from percent (x0.01)
+ust_cmt_yield_10y,treasury,decimal,D,1962-01-02,2026-11-09,True,H.15 10y CMT par yield. Original name `yield_10y` in predictors/treasury_curve.parquet
+ust_cmt_yield_20y,treasury,decimal,D,1962-01-02,2026-11-09,True,H.15 20y CMT par yield; gap 1987-01..1993-09. Original name `yield_20y` in predictors/treasury_curve.parquet
+ust_cmt_yield_2y,treasury,decimal,D,1976-06-01,2026-11-09,True,H.15 2y constant-maturity par yield. Original name `yield_2y` in predictors/treasury_curve.parquet
+ust_cmt_yield_30y,treasury,decimal,D,1977-02-15,2026-11-09,True,H.15 30y CMT par yield. Original name `yield_30y` in predictors/treasury_curve.parquet
+ust_cmt_yield_5y,treasury,decimal,D,1962-01-02,2026-11-09,True,H.15 5y CMT par yield. Original name `yield_5y` in predictors/treasury_curve.parquet
+ust_cmt_yield_7y,treasury,decimal,D,1969-07-01,2026-11-09,True,H.15 7y CMT par yield. Original name `yield_7y` in predictors/treasury_curve.parquet
+ust_etf_duration_est_int,treasury,years,D,2003-08-07,2026-11-06,True,IEF duration estimated by rolling 252-day regression (past data only). Original name `duration_ust_int_etf_est` in predictors/treasury_curve.parquet
+ust_etf_duration_est_long,treasury,years,D,2003-08-07,2026-11-06,True,TLT duration estimated by rolling 252-day regression (past data only). Original name `duration_ust_long_etf_est` in predictors/treasury_curve.parquet
+ust_ladder_duration_int,treasury,years,D,1962-01-02,2026-11-09,True,modified duration of the 7-10y par ladder. Original name `duration_ust_int` in predictors/treasury_curve.parquet
+ust_ladder_duration_long,treasury,years,D,1962-01-02,2026-11-09,True,modified duration of the 20-30y par ladder; understates TLT's by ~2y after 2020. Original name `duration_ust_long` in predictors/treasury_curve.parquet
+ust_ladder_yield_int,treasury,decimal,D,1971-08-16,2026-11-06,True,mean GSW par yield of the 7-10y ladder (ust_int construction). Original name `yield_ladder_ust_int` in predictors/treasury_curve.parquet
+ust_ladder_yield_long,treasury,decimal,D,1985-11-25,2026-11-06,True,mean GSW par yield of the 20-30y ladder (ust_long construction). Original name `yield_ladder_ust_long` in predictors/treasury_curve.parquet
