@@ -12,7 +12,7 @@ from volmodel.models.regime.hmm import (expected_path, fit_common_ms_t, fit_ms_t
 from volmodel.models.regime.models import estimation_date
 
 MODELS = ["regime_ms2", "regime_ms3", "regime_ms2_weekly", "regime_common3",
-          "regime_bocpd", "regime_break_blend"]
+          "regime_bocpd", "regime_bocpd_eb", "regime_bocpd_weekly", "regime_break_blend"]
 
 
 @pytest.fixture(scope="module")

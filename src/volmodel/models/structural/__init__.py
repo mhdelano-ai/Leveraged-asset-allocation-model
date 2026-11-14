@@ -29,3 +29,4 @@ from .factor import StructuralFactorCov  # noqa: E402
 
 register("cov", "structural_factor_lognormal")(lambda: StructuralFactorCov(beta=1.0))
 register("cov", "structural_factor_normal")(lambda: StructuralFactorCov(beta=0.0))
+register("cov", "structural_factor_global")(lambda: StructuralFactorCov(beta=1.0, global_eq=True))
