@@ -304,7 +304,7 @@ def yahoo_series(sym: str, refresh: bool = False) -> pd.Series | None:
     close = res["indicators"]["quote"][0].get("close") or []
     s = pd.Series(pd.to_numeric(pd.Series(close), errors="coerce").to_numpy(), index=idx, name=sym)
     s = s[~s.index.duplicated(keep="last")].sort_index().dropna()
-    return s
+    return s[s.index.dayofweek < 5]
 
 
 # ------------------------------------------------------------------- cleaning

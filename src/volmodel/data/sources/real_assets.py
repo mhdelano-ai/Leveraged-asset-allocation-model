@@ -405,3 +405,58 @@ def build_gold() -> tuple[pd.DataFrame, pd.DataFrame, list[Segment], dict]:
     diag["wb_avg_ac1"] = np.log1p(wb.loc[GOLD_START:].dropna()).autocorr()
     diag["ifs_eom_ac1"] = np.log1p(ifs_r.loc[GOLD_START:].dropna()).autocorr()
     return daily, monthly, segs, diag
+
+
+# --------------------------------------------------------------------------- #
+# Output
+# --------------------------------------------------------------------------- #
+
+
+def save(asset: str, daily: pd.DataFrame, monthly: pd.DataFrame) -> None:
+    ASSET_DIR.mkdir(parents=True, exist_ok=True)
+    for freq, df in [("daily", daily), ("monthly", monthly)]:
+        df = df.sort_index()
+        df.index = pd.DatetimeIndex(df.index, name="date")
+        df["source"] = df["source"].astype(str)
+        df["tier"] = df["tier"].astype(str)
+        df.to_parquet(ASSET_DIR / f"{asset}_{freq}.parquet")
+
+
+def segments_frame(segs: list[Segment]) -> pd.DataFrame:
+    return pd.DataFrame([{
+        "asset": s.asset, "start": pd.Timestamp(s.start).date(), "end": pd.Timestamp(s.end).date(),
+        "freq": s.freq, "source": s.source, "tier": s.tier, "notes": s.notes} for s in segs])
+
+
+def _md_table(df: pd.DataFrame, floatfmt: str = "{:.3f}") -> str:
+    cols = list(df.columns)
+    out = ["| " + " | ".join(map(str, cols)) + " |", "|" + "---|" * len(cols)]
+    for _, row in df.iterrows():
+        cells = []
+        for v in row:
+            if isinstance(v, float):
+                cells.append("" if np.isnan(v) else floatfmt.format(v))
+            else:
+                cells.append(str(v))
+        out.append("| " + " | ".join(cells) + " |")
+    return "\n".join(out)
+
+
+def decade_table(series: dict[str, tuple[pd.Series, str]]) -> pd.DataFrame:
+    cols = {}
+    for name, (r, f) in series.items():
+        cols[name] = ann_vol_by_decade(r, f)
+    t = pd.DataFrame(cols)
+    t.index = [f"{int(i)}s" for i in t.index]
+    t.index.name = "decade"
+    return t.reset_index()
+
+
+def diag_table(diag: dict) -> pd.DataFrame:
+    rows = []
+    for k, s in diag.items():
+        if isinstance(s, dict) and s.get("n", 0) >= 3:
+            rows.append({"comparison (a vs b)": k, "n": s["n"], "start": s["start"], "end": s["end"],
+                         "vol a": s["vol_a"], "vol b": s["vol_b"], "ratio a/b": s["vol_ratio"],
+                         "corr": s["corr"], "TE": s["te"], "mean diff/yr": s["mean_diff_ann"]})
+    return pd.DataFrame(rows)

@@ -39,8 +39,8 @@ Variance estimators (``kernel``)
     exactly Student-t with ``B`` degrees of freedom and Wald statistics are
     F-distributed, so the reference distribution *pays* for the estimation
     noise in the variance. The estimator is always positive. Default
-    ``B = ewc_terms(T, h)`` (see :func:`default_ewc_terms`), which was chosen
-    by the Monte Carlo documented in ``tests/eval/test_inference.py``.
+    ``B = T/(4h)`` (see :func:`default_ewc_terms`), chosen by the Monte Carlo
+    below.
 ``"bartlett"``
     Newey-West with lag truncation ``bandwidth`` (default
     :func:`default_bandwidth`) and Kiefer-Vogelsang (2005) fixed-b critical
@@ -82,6 +82,22 @@ At 5% (default EWC): base T=480/1080 -- 6%/9% for a true 5% QLIKE skill,
 12%/22% for 14% skill, 22%/52% for 22% skill, 39%/82% for 32% skill. In the
 persistent design 15%/41% for 28% skill. A 40-model horse race will mostly
 fail to separate models whose true mean losses differ by less than ~15-20%.
+
+Other components (details in each docstring):
+
+* Panel DM (Driscoll-Kraay EWC): 5.0-5.8% at 5% nominal with 12 correlated
+  assets and staggered starts; pooling cells as iid rejects ~50%.
+* MCS (default Götze-Künsch studentized circular bootstrap, L=36): keeps 10
+  equal models 94-98% of the time at alpha=0.10 (conservative); the
+  HLN/``arch`` bootstrap-variance recipe only 41-74%.
+* Skill CI (default Fieller-EWC): 87-91% coverage for nominal 90%
+  (1500 reps); percentile block bootstrap 64-81%, delta method 80-89%.
+* Mincer-Zarnowitz: even the true conditional mean is rejected 8-12% of the
+  time at 5% (GLS levels or log slope), 19-23% with OLS levels; descriptive.
+
+Functions whose chosen variant is known to be miscalibrated emit an
+:class:`InferenceWarning` (silence with ``warn=False``); every result also
+carries the caveats in ``notes``.
 """
 
 from __future__ import annotations
@@ -532,6 +548,26 @@ def _reliability_notes(n_obs: int, n_eff: float, h: int, emit: bool) -> list[str
     return notes
 
 
+def _caveat(msg: str, emit: bool) -> list[str]:
+    """A known-miscalibration caveat: recorded as a WARNING note and emitted if ``emit``."""
+    msg = "WARNING: " + msg
+    if emit:
+        warnings.warn(msg, InferenceWarning, stacklevel=3)
+    return [msg]
+
+
+def _short_bandwidth_note(kernel: str, bandwidth: float, h: int, emit: bool) -> list[str]:
+    if kernel in ("bartlett", "truncated") and bandwidth < h - 1:
+        msg = (
+            f"WARNING: {kernel} bandwidth {bandwidth:.0f} < h-1={h - 1}: ignores the forecast-window "
+            "overlap; p-values will be far too small"
+        )
+        if emit:
+            warnings.warn(msg, InferenceWarning, stacklevel=4)
+        return [msg]
+    return []
+
+
 def _pair_frame(loss_a, loss_b) -> pd.DataFrame:
     if isinstance(loss_a, pd.Series) and isinstance(loss_b, pd.Series):
         return pd.concat({"a": loss_a, "b": loss_b}, axis=1)
@@ -591,9 +627,13 @@ def dm_test(
     if r.fallback:
         notes.append("rectangular kernel gave a negative variance; fell back to Bartlett at the same lag")
     if kernel == "truncated":
-        notes.append(
-            "classic DM assumes the differential is MA(h-1); persistent volatility makes it over-reject"
+        notes += _caveat(
+            "classic DM (rectangular kernel at h-1) assumes an MA(h-1) differential; with persistent "
+            "volatility it over-rejects (~2x nominal in Monte Carlo). Prefer kernel='ewc'.",
+            warn,
         )
+    if kernel == "bartlett" or bandwidth is not None:
+        notes += _short_bandwidth_note(kernel, r.bandwidth, h, warn)
     notes += _reliability_notes(n, r.n_eff, h, warn)
     return DMResult(
         mean_diff=dbar,
@@ -707,7 +747,7 @@ def dm_test_bootstrap(
     if L < 2 * h:
         notes.append(f"block length {L} < 2h={2 * h}: expect over-rejection")
     if not studentize:
-        notes.append("non-studentized block bootstrap over-rejects in samples under ~50 years")
+        notes += _caveat("non-studentized block bootstrap over-rejects (2-4x nominal in 20-40 year samples)", warn)
     notes += _reliability_notes(n, n_eff, h, warn)
     return DMResult(
         mean_diff=dbar,
@@ -782,7 +822,15 @@ def panel_dm_test(
     no independence assumption across assets: 12 highly correlated assets add
     little information, and ``n_eff`` reports that honestly in units of
     *dates*. ``method="bootstrap"`` resamples whole cross-sections (dates) in
-    circular blocks, studentized-free percentile test.
+    circular blocks (non-studentized percentile test); it over-rejects
+    somewhat (8-9% at 5% nominal in the Monte Carlo) and is secondary.
+
+    Monte Carlo (12 assets sharing 60% of their log-vol variation, staggered
+    starts, common model-error factor, 400 reps), rejection at 5%/10% under
+    H0: default (EWC Driscoll-Kraay, obs weights) 5.8/11.7 (40y) and
+    5.0/10.7 (90y); date weights 3.0/8.0 and 4.3/6.8. Treating all
+    (origin, asset) cells as iid, or clustering by date without HAC over
+    time, rejects 46-50% of the time at 5%.
 
     Assets with different loss scales (e.g. MSE on variances) are weighted
     implicitly by scale; prefer scale-free losses (QLIKE) or normalize first.
@@ -853,6 +901,8 @@ def panel_dm_test(
         meth = f"panel_boot_circular_L{L}"
     else:
         raise ValueError(f"unknown method {method!r}")
+    if method == "hac":
+        notes += _short_bandwidth_note(kernel, bw, h, warn)
     notes += _reliability_notes(T_dates, n_eff, h, warn)
     return DMResult(
         mean_diff=dbar,
@@ -994,11 +1044,22 @@ def model_confidence_set(
 
     Notes
     -----
-    Monte Carlo (10 models, see ``tests/eval/test_inference.py``): with the
-    default settings the set keeps all 10 equally good models in roughly
-    85-90% of samples at alpha = 0.10 and contains the best of 10 graded models
-    in >= 95%; models that are 30-40% worse in QLIKE are excluded in most
-    samples only with 90 years of data. See the report for the full table.
+    Monte Carlo (10 models, 300 reps, QLIKE; "graded": mean losses 0, +9,
+    +9, +14, +14, +18, +22, +22, +45, +65% above the best in the base design;
+    +12% ... +92% in the persistent design):
+
+    * all 10 equal, P(MCS keeps all) at alpha=0.10: default 0.94-0.98 (both
+      designs, 40 and 90 years); ``variance="bootstrap"`` 0.41-0.74.
+    * graded, P(best model in MCS) at alpha=0.10: default >= 0.99;
+      ``variance="bootstrap"`` 0.96-1.00.
+    * graded, P(worst model, +65%/+92%, still in MCS) at alpha=0.10: default
+      0.92 (base, 40y), 0.33 (base, 90y), 0.96 (persistent, 40y), 0.61
+      (persistent, 90y).
+
+    So the default is valid and conservative: with 40 years of data it will
+    rarely shrink the set unless a model is grossly worse. Expect a large
+    MCS; it is the honest answer. Use ``alpha=0.25`` for a tighter (still
+    roughly valid: P(all equal kept) 0.70-0.85 vs nominal 0.75) set.
     """
     if not isinstance(losses, pd.DataFrame):
         raise TypeError("losses must be a DataFrame (origins x models)")
@@ -1033,6 +1094,12 @@ def model_confidence_set(
         return MCSResult(names, [], pv, names, alpha, statistic, np.nan, bootstrap, 0, n, pd.Series(mu, index=names), dropped, tuple(notes))
     Lb = int(block_length) if block_length is not None else default_block_length(n, h)
     Lb = max(1, min(Lb, n))
+    if variance == "bootstrap":
+        notes += _caveat(
+            "variance='bootstrap' (HLN/arch recipe) over-rejects with overlapping losses: equal models are "
+            "wrongly excluded 25-60% of the time at alpha=0.10",
+            warn,
+        )
     if Lb < h:
         notes.append(f"WARNING: block length {Lb} < h={h}; the MCS will be too small")
         if warn:
@@ -1112,8 +1179,8 @@ class MZResult:
     ``params``/``se``/``tstat`` are Series indexed ``["intercept", "slope"]``;
     ``t`` tests for the slope are against 1 (``tstat["slope"]`` is
     ``(b - 1)/se``). ``wald``/``wald_pvalue`` test (a, b) = (0, 1) jointly with
-    an F(2, df-1) reference under EWC (exact under fixed-b) or chi2(2)/2
-    scaling for other kernels.
+    an F(2, df-1) reference (exact under fixed-b for EWC; approximate for
+    other kernels). ``r2`` is computed in original (unweighted) units.
     """
 
     params: pd.Series
@@ -1128,6 +1195,7 @@ class MZResult:
     n_eff: float
     log: bool
     kernel: str
+    weighting: str = "ols"
     notes: tuple[str, ...] = ()
 
 
@@ -1163,27 +1231,41 @@ def mincer_zarnowitz(
     forecast: pd.Series,
     *,
     log: bool = False,
+    weighting: Literal["gls", "ols"] = "gls",
     h: int = 12,
     kernel: Kernel = "ewc",
     bandwidth: int | None = None,
     ewc_terms: int | None = None,
     warn: bool = True,
 ) -> MZResult:
-    """Mincer-Zarnowitz efficiency regression with HAC standard errors.
+    """Mincer-Zarnowitz efficiency regression ``y = a + b f + e`` with HAC errors.
 
-    Regresses ``realized`` on ``forecast`` (aligned by origin; both must be
-    positive when ``log=True``). Use variances (or vols) in levels for the
-    unbiasedness test: with a noisy but *unbiased* realized proxy, an optimal
-    forecast has (a, b) = (0, 1). In logs, Jensen's inequality and proxy noise
-    shift the intercept: E[log RV | f] = log f - c with c > 0, so in logs read
-    the **slope** (b = 1: forecasts move one-for-one with outcomes; b < 1:
-    forecasts too dispersed) and treat the joint test as a test of
-    "log-unbiasedness", which an otherwise good forecast may fail. Levels
-    regressions are dominated by crisis years (heavy tails): the log version
-    is the more robust slope diagnostic.
+    ``realized`` and ``forecast`` are aligned by origin (use variances, or
+    vols, consistently). H0 for an efficient forecast with a noisy but
+    unbiased realized proxy: (a, b) = (0, 1).
 
-    Standard errors: HAC on the regression scores x_t e_t with the chosen
-    kernel (default EWC, t(B)/F(2, B-1) references, Lazarus et al. 2018).
+    * Levels, ``weighting="gls"`` (default): the Patton-Sheppard (2009)
+      weighted form ``y/f = a (1/f) + b + e/f``. Under H0 the error ``e/f`` is
+      roughly homoskedastic, which removes most of the leverage of crisis
+      years. Requires positive forecasts.
+    * Levels, ``weighting="ols"``: plain OLS. Not recommended (see below).
+    * ``log=True``: ``log y = a + b log f`` by OLS. Jensen's inequality and
+      proxy noise shift the intercept (E[log RV | f] = log f - c, c > 0), so
+      read the **slope** (b < 1: forecasts too dispersed) and do not expect
+      the joint test to pass.
+
+    Standard errors: HAC on the regression scores with ``kernel`` (default
+    EWC, t(B) and F(2, B-1) references).
+
+    **Honest caveat - p-values are optimistic.** The forecast is a highly
+    persistent regressor and the 12-month errors contain shocks that also
+    move later forecasts, so the regressor is not strictly exogenous
+    (Stambaugh-type finite-sample bias) and the scores are heavy-tailed.
+    Monte Carlo with the *true* conditional expectation as forecast (so H0
+    holds exactly), rejection of the joint test at 5% nominal: OLS levels
+    19-23%, GLS levels 8-12%, log-slope test 8-12% (40 and 90 years).
+    Treat MZ as a descriptive calibration diagnostic: a slope far from 1
+    is informative, a p-value of 0.03 is not.
     """
     frame = pd.concat({"y": realized, "f": forecast}, axis=1) if isinstance(realized, pd.Series) else pd.DataFrame(
         {"y": np.asarray(realized, float), "f": np.asarray(forecast, float)}
@@ -1202,8 +1284,18 @@ def mincer_zarnowitz(
     n = int(mask.sum())
     if n < 5:
         raise ValueError("need at least 5 observations")
-    X = np.column_stack([np.ones_like(f), f])[mask]
-    yy = y[mask]
+    use_gls = (not log) and weighting == "gls"
+    if weighting not in ("gls", "ols"):
+        raise ValueError(f"unknown weighting {weighting!r}")
+    yo, fo = y[mask], f[mask]
+    if use_gls:
+        if np.any(fo <= 0):
+            raise ValueError("GLS weighting needs positive forecasts; use weighting='ols' or log=True")
+        X = np.column_stack([1.0 / fo, np.ones_like(fo)])  # coefficients: (a, b)
+        yy = yo / fo
+    else:
+        X = np.column_stack([np.ones_like(fo), fo])
+        yy = yo
     XtX_inv = np.linalg.inv(X.T @ X)
     beta = XtX_inv @ X.T @ yy
     e = yy - X @ beta
@@ -1218,13 +1310,19 @@ def mincer_zarnowitz(
     pv = np.array([_pvalue_t(ti, df, "two-sided") for ti in t])
     W = float(r @ np.linalg.solve(V, r))
     if np.isfinite(df) and df > 2:
-        F = W * (df - 2 + 1) / (df * 2)  # Hotelling-type small-sample scaling
-        wald_p = float(stats.f.sf(F, 2, df - 1))
+        Fs = W * (df - 2 + 1) / (df * 2)  # Hotelling-type small-sample scaling (exact under fixed-b EWC)
+        wald_p = float(stats.f.sf(Fs, 2, df - 1))
     else:
         wald_p = float(stats.chi2.sf(W, 2))
-    r2 = float(1 - np.sum(e**2) / np.sum((yy - yy.mean()) ** 2))
+    resid = yo - beta[0] - beta[1] * fo  # in original units
+    r2 = float(1 - np.sum(resid**2) / np.sum((yo - yo.mean()) ** 2))
     n_eff = _lrv_core(np.where(mask, y - f, 0.0), mask, kernel=kernel, h=h, bandwidth=bandwidth, ewc_terms=ewc_terms).n_eff
     notes += _reliability_notes(n, n_eff, h, warn)
+    notes += _caveat(
+        "Mincer-Zarnowitz p-values are optimistic (~2x nominal rejection for GLS/log, ~4x for OLS levels); "
+        "treat as descriptive",
+        warn,
+    )
     if log:
         notes.append("log regression: intercept < 0 expected from Jensen/proxy noise; judge the slope")
     names = ["intercept", "slope"]
@@ -1241,6 +1339,7 @@ def mincer_zarnowitz(
         n_eff=float(n_eff),
         log=log,
         kernel=kernel,
+        weighting="ols" if log else weighting,
         notes=tuple(notes),
     )
 
@@ -1356,11 +1455,18 @@ def pairwise_dm(
                 continue
             common = losses[[a, benchmark]].dropna()
             mb = common[benchmark].mean()
+            try:
+                sk = skill_score(losses[a], losses[benchmark], h=h, kernel=kernel, ewc_terms=ewc_terms, warn=False)
+                sk_lo, sk_hi = sk.ci_low, sk.ci_high
+            except ValueError:
+                sk_lo = sk_hi = np.nan
             rows[a] = {
                 "mean_loss": common[a].mean(),
                 "bench_loss": mb,
                 "mean_diff": r.mean_diff,
                 "skill_pct": 100.0 * (1.0 - common[a].mean() / mb) if mb != 0 else np.nan,
+                "skill_ci90_low": sk_lo,
+                "skill_ci90_high": sk_hi,
                 "stat": r.stat,
                 "pvalue": r.pvalue,
                 "n_obs": r.n_obs,
@@ -1473,8 +1579,8 @@ def skill_score(
         A = mb * mb - qa * S[1, 1]
         Bq = -2.0 * (mm * mb - qa * S[0, 1])
         Cq = mm * mm - qa * S[0, 0]
-        disc = Bq * Bq - 4 * A * Cq
-        if A <= 0 or disc < 0:
+        disc = max(Bq * Bq - 4 * A * Cq, 0.0)  # >= 0 whenever A > 0 (R-hat is in the set)
+        if A <= 0:
             lo, hi = -np.inf, np.inf
             notes.append(
                 "WARNING: Fieller set unbounded - the benchmark's mean loss is not "
@@ -1494,11 +1600,13 @@ def skill_score(
         sk = 100.0 * (1.0 - Rb)
         lo, hi = np.quantile(sk, [a / 2, 1 - a / 2])
         meth = f"bootstrap_{bootstrap}_L{L}_percentile"
+        notes += _caveat("percentile block-bootstrap skill intervals under-cover (64-81% for nominal 90%)", warn)
     elif method == "hac":
         se = math.sqrt(lr.lrv / lr.n_obs)
         q = stats.t.ppf(1 - a / 2, lr.df) if np.isfinite(lr.df) else stats.norm.ppf(1 - a / 2)
         lo, hi = skill - 100 * q * se, skill + 100 * q * se
         meth = f"delta_{kernel}"
+        notes += _caveat("delta-method skill intervals under-cover (80-89% for nominal 90%); prefer 'fieller'", warn)
     else:
         raise ValueError(f"unknown method {method!r}")
     notes += _reliability_notes(n, n_eff, h, warn)

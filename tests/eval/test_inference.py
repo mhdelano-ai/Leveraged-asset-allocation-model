@@ -186,6 +186,21 @@ def test_dm_handles_gaps_and_nan():
         inf.dm_test(sparse.a, sparse.b)
 
 
+def test_short_bandwidth_warns():
+    rng = np.random.default_rng(22)
+    L = simulate_losses(480, [0.3, 0.3], rng)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always", inf.InferenceWarning)
+        r = inf.dm_test(L[:, 0], L[:, 1], kernel="bartlett", bandwidth=3)
+    assert any("overlap" in str(x.message) for x in w)
+    assert any("overlap" in n for n in r.notes)
+    P = _panel_from({"x": L})
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always", inf.InferenceWarning)
+        inf.panel_dm_test(P, "a", "b", kernel="bartlett", bandwidth=0)
+    assert any("overlap" in str(x.message) for x in w)
+
+
 def test_dm_warns_on_short_sample():
     rng = np.random.default_rng(6)
     L = simulate_losses(96, [0.3, 0.3], rng)
@@ -295,7 +310,9 @@ def test_panel_unbalanced_and_weights():
 
 def test_mcs_obvious_cases():
     rng = np.random.default_rng(13)
-    X = simulate_losses(600, [0.3, 0.3, 0.3, 1.2, 1.5], rng)
+    X = simulate_losses(600, [0.3] * 5, rng)
+    X[:, 3] += 0.08  # ~55% worse on average, in every period
+    X[:, 4] += 0.15
     L = monthly(X, columns=list("abcde"))
     r = inf.model_confidence_set(L, 0.10, n_boot=500, seed=1)
     assert set(r.excluded) == {"d", "e"}
@@ -305,8 +322,13 @@ def test_mcs_obvious_cases():
     assert np.all(np.diff(pv) >= 0) and pv[-1] == 1.0
     summ = r.summary()
     assert summ["in_mcs"].sum() == 3
-    rmax = inf.model_confidence_set(L, 0.10, statistic="max", n_boot=500, seed=1, bootstrap="circular")
-    assert set(rmax.excluded) == {"d", "e"}
+    for kw in (dict(statistic="max"), dict(variance="bootstrap"), dict(variance="bootstrap", bootstrap="circular")):
+        rr = inf.model_confidence_set(L, 0.10, n_boot=500, seed=1, **kw)
+        assert "e" in rr.excluded and rr.elimination_order[:2] == ["e", "d"], kw
+    with pytest.raises(ValueError):
+        inf.model_confidence_set(L, variance="gk", bootstrap="stationary")
+    single = inf.model_confidence_set(L[["a"]])
+    assert single.included == ["a"]
 
 
 def test_mcs_matches_arch():
@@ -315,13 +337,29 @@ def test_mcs_matches_arch():
     X = simulate_losses(600, [0.3, 0.31, 0.33, 0.36, 0.4, 0.45], rng)
     L = monthly(X, columns=[f"m{i}" for i in range(6)])
     for stat in ("R", "max"):
-        ours = inf.model_confidence_set(L, 0.10, statistic=stat, n_boot=2000, block_length=24, seed=1)
+        ours = inf.model_confidence_set(
+            L, 0.10, statistic=stat, variance="bootstrap", n_boot=2000, block_length=24, seed=1
+        )
         ref = arch_bs.MCS(L, size=0.10, reps=2000, block_size=24, method=stat, bootstrap="stationary", seed=1)
         ref.compute()
         theirs = ref.pvalues["Pvalue"]
         common = theirs.index
         assert np.max(np.abs(ours.pvalues[common].to_numpy() - theirs.to_numpy())) < 0.08
         assert ours.elimination_order[-1] == theirs.index[-1]
+    # the studentized default is more conservative than the HLN/arch recipe here
+    gk = inf.model_confidence_set(L, 0.10, n_boot=2000, block_length=24, seed=1)
+    assert gk.pvalues.min() >= ours.pvalues.min() - 0.02
+
+
+def test_mcs_equal_models_kept_quick():
+    """Ten equally good models: the default MCS should rarely drop any (seeded, 40 reps)."""
+    rng = np.random.default_rng(20)
+    all_in = []
+    for i in range(40):
+        X = simulate_losses(480, [0.3] * 10, rng)
+        r = inf.model_confidence_set(pd.DataFrame(X), 0.10, n_boot=300, seed=i, warn=False)
+        all_in.append(len(r.included) == 10)
+    assert np.mean(all_in) >= 0.7
 
 
 def test_mcs_unequal_histories():
@@ -368,6 +406,11 @@ def test_mincer_zarnowitz():
     assert lg.params["slope"] == pytest.approx(1.0, abs=0.1)
     nw = inf.mincer_zarnowitz(monthly(y), monthly(f), kernel="bartlett")
     assert nw.se["slope"] > 0
+    ols = inf.mincer_zarnowitz(monthly(y), monthly(f), weighting="ols")
+    assert ols.weighting == "ols" and good.weighting == "gls"
+    assert ols.params["slope"] == pytest.approx(1.0, abs=0.15)
+    badols = inf.mincer_zarnowitz(monthly(y), monthly(2 * f + 0.02), weighting="ols")
+    assert badols.params["slope"] == pytest.approx(0.5, abs=0.1)
 
 
 # ---------------------------------------------------------------------------
@@ -407,10 +450,28 @@ def test_skill_score():
     assert r.skill == pytest.approx(10.0)
     assert r.ci_low == pytest.approx(10.0) and r.ci_high == pytest.approx(10.0)
     X = simulate_losses(480, [0.3, 0.4], rng)
-    for method in ("bootstrap", "hac"):
+    res = {}
+    for method in ("fieller", "bootstrap", "hac"):
         s = inf.skill_score(monthly(X[:, 0]), monthly(X[:, 1]), method=method, n_boot=500, seed=2)
         assert s.ci_low < s.skill < s.ci_high
         assert s.n_obs == 480
+        res[method] = s
+    assert res["fieller"].method == "fieller_ewc"
+    # Fieller interval is asymmetric (ratio) and close to the delta method near the centre
+    f, d = res["fieller"], res["hac"]
+    assert abs((f.ci_low + f.ci_high) / 2 - (d.ci_low + d.ci_high) / 2) < 0.5 * (d.ci_high - d.ci_low)
+
+
+def test_skill_fieller_unbounded_when_benchmark_is_noise():
+    rng = np.random.default_rng(21)
+    b = rng.standard_normal(120) * 5
+    b = b - b.mean() + 0.2  # benchmark mean 0.2, s.e. ~0.45: not distinguishable from 0
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always", inf.InferenceWarning)
+        r = inf.skill_score(np.full(120, 0.1), b)
+    assert r.ci_low == -np.inf and r.ci_high == np.inf
+    assert r.skill == pytest.approx(50.0)
+    assert any("unbounded" in str(x.message) for x in w)
 
 
 # ---------------------------------------------------------------------------
@@ -440,8 +501,19 @@ def test_slow_mcs_contains_best_and_shrinks():
         r = inf.model_confidence_set(pd.DataFrame(X, columns=[f"m{j}" for j in range(10)]), 0.10, n_boot=500, seed=i)
         best_in.append("m0" in r.included)
         worst_in.append("m9" in r.included)
-    assert np.mean(best_in) >= 0.85
-    assert np.mean(worst_in) <= 0.8
+    assert np.mean(best_in) >= 0.95
+    assert np.mean(worst_in) <= 0.6  # MC: 0.33
+
+
+@pytest.mark.slow
+def test_slow_mcs_equal_models_size():
+    rng = np.random.default_rng(103)
+    all_in = []
+    for i in range(200):
+        X = simulate_losses(480, [0.3] * 10, rng, phi=0.98, rho_e=0.97)
+        r = inf.model_confidence_set(pd.DataFrame(X), 0.10, n_boot=500, seed=i, warn=False)
+        all_in.append(len(r.included) == 10)
+    assert np.mean(all_in) >= 0.88  # nominal 0.90; MC 0.98
 
 
 @pytest.mark.slow
