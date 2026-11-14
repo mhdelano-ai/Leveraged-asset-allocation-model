@@ -30,9 +30,11 @@ scored once. These are the holdout results.
   mean at any horizon. The two hints from development reversed in the holdout: a
   price-only boosting model went from +0.57% to -0.61% at one month, and the
   ensemble from +1.50% to -1.06% at twelve.
-- **The distribution forecasts are better than the baseline in every holdout
-  comparison, but not significantly.** A small linear volatility model does the
-  work; boosted trees on top of it scored lower at every horizon.
+- **The distribution forecasts are better than the baseline, but not
+  significantly.** The four models built on a small linear volatility model
+  beat the volatility-tracking baseline at every horizon (by 0.5-1.2% of CRPS);
+  the test over the family does not confirm it. Boosted trees on top of the
+  linear model scored lower at every horizon.
 - **Covariance forecasts that move with the data beat static shrinkage.** This
   is the one result that holds in the holdout. A plain exponentially weighted
   covariance does about as well as the more elaborate models.
