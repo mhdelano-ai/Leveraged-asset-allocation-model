@@ -37,3 +37,16 @@ SEED = 20261114
 # model list is frozen, and are the evidence that counts.
 DEV_END = "2014-12-31"
 HOLDOUT_START = "2015-01-31"
+
+# The frozen model lists, fixed on development evidence (targets realized by
+# DEV_END) before any holdout origin was scored. Changing these after the
+# holdout run turns the holdout into a tuning sample.
+BASELINES = ("hist_mean", "vol_ewma", "hist_quantile", "vol_ewma_fhs", "zero")
+FROZEN_MEAN = ("ridge_z", "combo_z", "gbm_z", "rf_z", "ens_z", "gbm_z.price")
+FROZEN_DIST = ("dist_ewma_fhs", "dist_lin_agg", "dist_lin_agg_grp", "dist_gbm_agg", "dist_lin_agg_cshape")
+# One composite: the pre-designed ensemble mean with the main scale model.
+# It is the model the dashboard shows as "the forecast".
+COMPOSITE = "ens_z__dist_lin_agg"
+FROZEN_MARGINAL = (*BASELINES, *FROZEN_MEAN, *FROZEN_DIST, COMPOSITE)
+FROZEN_COV = ("vc_daily_ewma_m_lwb", "vc_ewma_ewma_m_lwb", "vc_daily_daily_m_lw", "ewma_cov", "lw")
+PRIMARY_COV = "vc_daily_ewma_m_lwb"

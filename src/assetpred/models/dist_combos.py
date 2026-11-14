@@ -20,6 +20,7 @@ from .dist_core import register_combo
 COMBOS = [
     ("ridge", "dist_lin_agg"),        # demonstration with the repo's reference point model
     ("hist_mean", "dist_lin_agg"),    # sanity: same forecasts as dist_lin_agg itself
+    ("ens_z", "dist_lin_agg"),        # config.COMPOSITE: the frozen full-distribution forecast
 ]
 
 for _c in COMBOS:
