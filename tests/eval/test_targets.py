@@ -34,6 +34,7 @@ def test_hand_computed_target():
     days = pd.bdate_range("2001-01-01", "2001-12-31")
     M = len(days) - (K - 1)                                             # overlapping 21-day sums
     assert M == 241
+    A = len(days) / K                                                   # annualization n_rows / k (261 rows)
     r = 0.01 * np.where(np.arange(len(days)) % 2 == 0, 1.0, -1.0)      # log returns +-1%
     mu = 0.001                                                          # constant drift
     daily = pd.DataFrame({"a": np.expm1(r), "b": np.expm1(r), "c": np.expm1(-r), "d": np.nan,
@@ -43,17 +44,17 @@ def test_hand_computed_target():
     dm = np.expm1(0.05 * np.where(np.arange(12) % 2 == 0, 1.0, -1.0) + 0.001)
     p = tiny_panel(daily, {"d": pd.Series(dm, index=m01)})
     T = compute_targets(p)
-    assert T.meta["horizon_days"] == K and T.meta["version"] == 2
+    assert T.meta["horizon_days"] == K and T.meta["version"] == 3
     o = pd.Timestamp("2000-12-31")
     assert list(T.origins) == [o]                    # the only fully observed window
     v = T.vol_at(o)
-    # every 21-day sum of alternating +-1% is +-1%: var = (252/21) * 1e-4. (The old 1-day
-    # definition gave 252e-4: strong negative autocorrelation no longer inflates the target.)
-    assert v.loc["a", "vol"] == pytest.approx(0.01 * np.sqrt(12))
-    assert v.loc["c", "vol"] == pytest.approx(0.01 * np.sqrt(12))
+    # every 21-day sum of alternating +-1% is +-1%: var = (n_rows/21) * 1e-4. (The 1-day measure
+    # gives n_rows * 1e-4: strong negative autocorrelation no longer inflates the target.)
+    assert v.loc["a", "vol"] == pytest.approx(0.01 * np.sqrt(A))
+    assert v.loc["c", "vol"] == pytest.approx(0.01 * np.sqrt(A))
     assert not v.loc["a", "proxy"]
     # uncentered: a constant return is all "variance"
-    assert v.loc["e", "vol"] == pytest.approx(np.sqrt(12) * K * mu)
+    assert v.loc["e", "vol"] == pytest.approx(np.sqrt(A) * K * mu)
     lm = np.log1p(dm)
     assert v.loc["d", "vol"] == pytest.approx(np.sqrt(12 * np.mean(lm ** 2)))
     assert v.loc["d", "proxy"]
@@ -64,8 +65,8 @@ def test_hand_computed_target():
     # sums of a alternate +1%, -1%, ... starting with + : 121 positive, 120 negative
     S = T.cov_matrix(o)
     assert list(S.index) == ["a", "b", "c", "e"]
-    assert S.loc["a", "c"] == pytest.approx(-12 * 0.01 ** 2)
-    assert S.loc["a", "e"] == pytest.approx(12 * (K * mu) * 0.01 / M)
+    assert S.loc["a", "c"] == pytest.approx(-A * 0.01 ** 2)
+    assert S.loc["a", "e"] == pytest.approx(A * (K * mu) * 0.01 / M)
     assert T.corr[T.corr["origin"] == o]["n_obs"].eq(M).all()
     f = T.fwd_ret.set_index("asset")["ret"]
     assert f["a"] == pytest.approx(r.sum())
@@ -86,7 +87,7 @@ def _naive(panel: Panel, origin, frac=0.9, per_month=10, k=K):
         s = w[a].dropna()
         months = s.groupby(s.index + pd.offsets.MonthEnd(0)).size().reindex(wm.index, fill_value=0)
         if n_days and len(s) >= frac * n_days and months.min() >= per_month:
-            out[a] = (np.sqrt((y[a] ** 2).mean() * 252 / k), False)
+            out[a] = (np.sqrt((y[a] ** 2).mean() * len(w) / k), False)       # n_rows / k
             daily.append(a)
         elif wm[a].notna().sum() == 12:
             out[a] = (np.sqrt(12 * (wm[a] ** 2).mean()), True)
@@ -196,6 +197,42 @@ def test_smoothed_and_overshooting_prices_get_the_same_target():
     assert np.allclose(var.mean() / pv, 1.0, atol=0.06)
 
 
+def _even_calendar(days_per_year: int, years: range) -> pd.DatetimeIndex:
+    """``days_per_year`` trading days spread evenly over each calendar year."""
+    out = []
+    for y in years:
+        cal = pd.date_range(f"{y}-01-01", f"{y}-12-31")
+        out.append(cal[np.linspace(0, len(cal) - 1, days_per_year).round().astype(int)])
+    return out[0].append(out[1:])
+
+
+def test_annualization_follows_the_calendar():
+    """Same daily variance, 300 vs 252 trading days a year (e.g. Saturday trading
+    before 1952): the annual target scales with the number of trading days."""
+    years = range(1800, 2100)
+    v = 0.01 ** 2
+    res = {}
+    for n in (252, 300):
+        days = _even_calendar(n, years)
+        x = np.random.default_rng(n).standard_normal(len(days)) * np.sqrt(v)
+        r = 0.01 * np.where(np.arange(len(days)) % 2 == 0, 1.0, -1.0)    # deterministic +-1% pattern
+        daily = pd.DataFrame({"iid": np.expm1(x), "alt": np.expm1(r)}, index=days)
+        T = compute_targets(tiny_panel(daily, month_start="1800-01-31"))
+        assert not T.vol["proxy"].any()
+        rows = T.vol_wide("n_days")["iid"]                                   # = n_rows here (one asset trades daily)
+        assert rows.between(n - 1, n + 1).all()
+        var = T.vol_wide("var")
+        # truth for a simulated process: (rows in the window) x daily variance
+        assert np.allclose(var["alt"], rows * v / K)                         # every 21-day sum is +-1%
+        assert (var["iid"] / (rows * v)).mean() == pytest.approx(1.0, abs=0.06)
+        # the monthly proxy measures the same quantity on either calendar
+        P = compute_targets(tiny_panel(daily, month_start="1800-01-31"), min_daily_frac=2.0)
+        assert P.vol_wide("var")["iid"].mean() / (n * v) == pytest.approx(1.0, abs=0.06)
+        res[n] = var.mean()
+    assert res[300]["alt"] / res[252]["alt"] == pytest.approx(300 / 252, rel=2e-3)
+    assert res[300]["iid"] / res[252]["iid"] == pytest.approx(300 / 252, rel=0.08)
+
+
 def test_window_must_be_fully_observed_and_partial_month():
     days = pd.bdate_range("2001-01-01", "2003-06-12")                 # June 2003 is partial
     daily = pd.DataFrame({"a": 0.001, "b": -0.001}, index=days)
@@ -229,11 +266,11 @@ def test_synthetic_targets_sane_and_cached(tmp_path):
     # a cache built under another definition is never silently reused
     meta_path = tmp_path / "targets" / "meta.json"
     meta = json.loads(meta_path.read_text())
-    meta_path.write_text(json.dumps({**meta, "version": 1}))
+    meta_path.write_text(json.dumps({**meta, "version": 2}))
     with pytest.raises(ValueError, match="another definition"):
         load_targets(tmp_path)
     T1 = get_targets(p, tmp_path)                              # rebuilt, same fingerprint
-    assert T1.meta["version"] == 2 and load_targets(tmp_path).meta["version"] == 2
+    assert T1.meta["version"] == 3 and load_targets(tmp_path).meta["version"] == 3
     T10 = get_targets(p, tmp_path, horizon_days=10)            # other horizon: own directory
     assert (tmp_path / "targets_h10" / "meta.json").exists() and T10.meta["horizon_days"] == 10
     assert panel_fingerprint(p, 10) != panel_fingerprint(p)

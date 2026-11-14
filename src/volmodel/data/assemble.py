@@ -948,7 +948,7 @@ def _tiers_by_era(tiers: pd.Series) -> str:
 
 EVENTS = {
     "1929-10": "1929 crash", "1929-11": "1929 crash", "1931-10": "1931 sterling crisis", "1932": "1932 bear market/rally",
-    "1933": "1933 bank holiday/reflation", "1937-10": "1937 crash", "1940-05": "fall of France", "1962-05": "1962 flash crash",
+    "1933": "1933 bank holiday/reflation", "1937-10": "1937 crash", "1939-09": "outbreak of WWII", "1940-05": "fall of France", "1962-05": "1962 flash crash",
     "1980-01": "gold spike and collapse", "1980-02": "Volcker / rates spike", "1980-03": "silver crisis / rates spike",
     "1980-04": "Volcker / rates reversal", "1987-10": "Oct 1987 crash", "1989-10": "1989 mini-crash",
     "1997-10": "Asian crisis", "1998-08": "Russia / LTCM", "2000-04": "dot-com", "2001-09": "9/11 reopening",

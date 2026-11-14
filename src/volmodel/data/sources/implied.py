@@ -67,8 +67,7 @@ OUT_FILE = PREDICTOR_DIR / "implied.parquet"
 REPORT_FILE = REPORTS / "data" / "implied.md"
 COLUMNS = ["obs_date", "available_date", "series", "value"]
 
-BROWSER_UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-              "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+BROWSER_UA = "Mozilla/5.0"  # Yahoo answers 429 to a full Chrome string from this network
 CBOE_CSV = "https://cdn.cboe.com/api/global/us_indices/daily_prices/{sym}_History.csv"
 CBOE_RES = "https://cdn.cboe.com/resources/us/indices/{name}"
 YAHOO_URL = "https://{host}.finance.yahoo.com/v8/finance/chart/{sym}"

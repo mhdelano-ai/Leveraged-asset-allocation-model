@@ -7,6 +7,7 @@ prevented structurally rather than by convention.
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field, replace
 
 import numpy as np
@@ -141,8 +142,16 @@ class Panel:
         return [a for a in self.daily.columns if n[a] >= min_days]
 
 
-def load_panel() -> Panel:
-    """Load the assembled real-data panel from data/processed."""
+def load_panel(max_date=None) -> Panel:
+    """Load the assembled real-data panel from data/processed.
+
+    ``max_date`` (or the environment variable ``VOLMODEL_MAX_DATE``) cuts the
+    panel off at that date, as if nothing later existed: no returns, no
+    predictors, and therefore no targets beyond it. Model development runs
+    with ``VOLMODEL_MAX_DATE=2014-12-31`` so that the years after it remain a
+    holdout nobody has tuned against.
+    """
+    max_date = max_date or os.environ.get("VOLMODEL_MAX_DATE") or None
     daily = pd.read_parquet(PROCESSED / "panel_daily.parquet")
     monthly = pd.read_parquet(PROCESSED / "panel_monthly.parquet")
     cash_d = pd.read_parquet(PROCESSED / "cash_daily.parquet")["cash"]
@@ -156,6 +165,10 @@ def load_panel() -> Panel:
     else:
         pred = pd.DataFrame(columns=PREDICTOR_COLUMNS)
     cols = [a for a in ASSET_IDS if a in daily.columns or a in monthly.columns]
+    if max_date is not None:
+        t = pd.Timestamp(max_date)
+        daily, monthly, tiers = daily.loc[:t], monthly.loc[:t], tiers.loc[:t]
+        pred = pred[(pred["available_date"] <= t) & (pred["obs_date"] <= t)]
     return Panel(
         daily=daily.reindex(columns=cols),
         monthly=monthly.reindex(columns=cols),

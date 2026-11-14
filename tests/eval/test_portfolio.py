@@ -24,11 +24,20 @@ def true_cov(seed=0):
     return C * np.outer(VOLS, VOLS)
 
 
+def days_per_year(days: pd.DatetimeIndex) -> float:
+    return len(days) / ((days[-1] - days[0]).days / 365.25)
+
+
 def known_panel(Sigma, start="1990-01-01", end="2009-12-31", seed=1):
-    """Panel of iid normal daily LOG excess returns with annualized covariance Sigma (cash = 0)."""
+    """Panel of iid normal daily LOG excess returns with annualized covariance Sigma (cash = 0).
+
+    The target annualizes by the window's own number of trading days, so the daily
+    covariance is Sigma / (rows per year of this calendar, ~261 business days);
+    a window with n_rows rows then has true annual covariance n_rows * daily cov.
+    """
     rng = np.random.default_rng(seed)
     days = pd.bdate_range(start, end)
-    X = rng.multivariate_normal(np.zeros(12), Sigma / 252, size=len(days))
+    X = rng.multivariate_normal(np.zeros(12), Sigma / days_per_year(days), size=len(days))
     daily = pd.DataFrame(np.expm1(X), index=days, columns=ASSET_IDS)
     monthly = (1 + daily).groupby(pd.Grouper(freq="ME")).prod() - 1
     return Panel(daily=daily, monthly=monthly,
@@ -124,21 +133,23 @@ def test_realized_cov_matches_target_definition(setup):
     X = panel.excess_daily.loc[(panel.excess_daily.index > t) & (panel.excess_daily.index <= rw.end)]
     assert rw.end == pd.Timestamp("2001-06-30") and rw.n_days == len(X)
     S21 = X.rolling(21).sum().dropna()                               # overlapping 21-day sums in the window
-    expected = S21.T @ S21 * (252 / 21) / len(S21)
+    expected = S21.T @ S21 * (len(X) / 21) / len(S21)                # n_rows / k periods in the year
     assert np.allclose(rw.cov, expected, rtol=1e-12)
     # realized portfolio variance = uncentered annualized variance of the portfolio's 21-day returns
     w = np.linspace(1, 2, 12) / np.linspace(1, 2, 12).sum()
-    assert w @ rw.cov @ w == pytest.approx(((S21 @ w) ** 2).mean() * 252 / 21, rel=1e-12)
-    assert np.allclose(rw.cov_direct, X.T @ X * 252 / len(X))
+    assert w @ rw.cov @ w == pytest.approx(((S21 @ w) ** 2).mean() * len(X) / 21, rel=1e-12)
+    assert np.allclose(rw.cov_direct, X.T @ X)                       # summed over the year
     # ... and it is the very matrix the cov_rv target uses
     T = compute_targets(panel)
     for o in (t, pd.Timestamp("1995-12-31"), pd.Timestamp("2007-03-31")):
         r = cache.get(o)
         assert list(r.assets) == T.daily_assets(o)
         assert np.allclose(r.cov, T.cov_array(o, list(r.assets)), rtol=1e-10, atol=0)
-    # realized vols are unbiased for the truth on average (each one has ~17% noise)
-    V = np.array([np.diag(cache.get(o).cov) for o in origins_of(panel)[::3]])
-    assert abs(np.mean(V.mean(axis=0) / np.diag(S)) - 1) < 0.05
+    # realized variances are unbiased for the truth, n_rows x daily variance, on average (~17% noise each)
+    daily_var = np.diag(S) / days_per_year(panel.daily.index)
+    ws = [cache.get(o) for o in origins_of(panel)[::3]]
+    ratio = np.array([np.diag(r.cov) / (r.n_days * daily_var) for r in ws])
+    assert abs(ratio.mean() - 1) < 0.05
     # a window running past the panel end is not complete and is skipped
     assert not cache.get(pd.Timestamp("2009-06-30")).complete
 

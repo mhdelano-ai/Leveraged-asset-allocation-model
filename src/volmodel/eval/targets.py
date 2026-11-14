@@ -4,14 +4,19 @@ The target (ARCHITECTURE.md, "What is being forecast") is the annualized
 covariance of OVERLAPPING ``k``-TRADING-DAY LOG EXCESS returns realized in the
 window ``(t, t + 12 calendar months]``, ``k = horizon_days`` (default 21):
 
-    Sigma = (252 / k) * mean over the window of  s s'
+    Sigma = (n_rows / k) * mean over the window of  s s'
 
 where ``s`` is the vector of ``k``-day log excess return sums ending on each
 trading day of the window whose ``k`` days all lie inside the window
 (``M = n_rows - k + 1`` sums, ``n_rows`` = panel daily rows in the window),
 UNCENTERED. Variances and correlations both come from this one matrix, which
 is positive semi-definite by construction (a Gram matrix). The trading-day
-clock is the panel's daily calendar (the US equity trading calendar).
+clock is the panel's daily calendar (the US equity trading calendar), and
+the annualization ``n_rows / k`` is the number of k-day periods the window
+holds on that calendar - not a fixed 252 / k: before 1952 the NYSE also
+traded on Saturdays (~295 days a year), and a fixed 252 would understate
+that era's annual variance by ~15%. For a process with constant daily
+variance v the target is therefore ``n_rows * v``, whatever the calendar.
 
 Why k days and not one: measured 1-day volatility depends on how a source is
 priced (smoothed NAVs understate it, ETFs of foreign/illiquid assets overstate
@@ -70,9 +75,10 @@ the standard error of a realized 12-month vol is ~17% (about 17 effective
 observations; vs ~4.4% for the old 1-day definition and ~20% for the monthly
 proxy), ~18-19% with persistent volatility and fat tails. The variance is
 unbiased; the vol is ~1.5% low by Jensen. Uncentered sums include the squared
-mean: a relative upward bias of ``k * SR^2 / 252`` in variance (0.02 for a
-Sharpe ratio of 0.5, i.e. 1% in vol), identical to the monthly proxy's
-``SR^2 / 12``, so the two eras stay consistent. Centering on the window mean
+mean: a relative upward bias of ``k * SR^2 / n_rows`` in variance (0.02 for
+a Sharpe ratio of 0.5 at ~252 rows a year, i.e. 1% in vol), identical to the
+monthly proxy's ``SR^2 / 12`` (k / n_rows = 1 / 12 for any calendar), so the
+two eras stay consistent. Centering on the window mean
 would instead bias the variance down by ~9% (the overlapping sums share the
 window's drift), which is why the target is uncentered.
 
@@ -99,15 +105,16 @@ import pandas as pd
 
 from ..data.panel import Panel
 from ..paths import RESULTS
-from ..universe import HORIZON_MONTHS, TRADING_DAYS
+from ..universe import HORIZON_MONTHS
 
-TARGETS_VERSION = 2          # 1 = 1-day variances + 3-day correlations; 2 = k-day sums
+TARGETS_VERSION = 3          # 1 = 1-day vars + 3-day corrs; 2 = k-day sums x 252/k; 3 = x n_rows/k
 HORIZON_DAYS = 21            # default k: trading days per summed return
 MIN_DAILY_FRAC = 0.90
 MIN_DAYS_PER_MONTH = 10
-DEFINITION = ("annualized uncentered covariance of overlapping {k}-trading-day log excess return sums "
-              "in (t, t+12 months]; missing days contribute 0; monthly proxy 12*mean(r_m^2) for assets "
-              "failing daily coverage (no correlations)")
+DEFINITION = ("(n_rows/{k}) x uncentered mean of s s' over overlapping {k}-trading-day log excess return "
+              "sums s in (t, t+12 months], n_rows = panel daily rows in the window; missing days "
+              "contribute 0; monthly proxy 12*mean(r_m^2) for assets failing daily coverage "
+              "(no correlations)")
 _TIER_RANK = {"A": 0, "B": 1, "C": 2, "D": 3}
 _TIER_LETTER = np.array(["A", "B", "C", "D"], dtype=object)
 
@@ -157,11 +164,15 @@ def kday_sums(X0: np.ndarray, k: int) -> np.ndarray:
 
 
 def realized_kday_cov(X: np.ndarray, k: int = HORIZON_DAYS) -> tuple[np.ndarray, int]:
-    """Realized target matrix for ONE window of daily log excess returns.
+    """Realized target matrix for ONE 12-month window of daily log excess returns.
 
-    ``X`` is the n_rows x N array of the window's daily rows (NaN = did not
-    trade, contributes 0). Returns ``((252/k) * mean_m s_m s_m', M)`` with
-    ``M = n_rows - k + 1`` overlapping sums; an empty-window matrix is NaN.
+    ``X`` is the n_rows x N array of ALL the window's daily rows (NaN = did
+    not trade, contributes 0). Returns ``((n_rows/k) * mean_m s_m s_m', M)``
+    with ``M = n_rows - k + 1`` overlapping sums; an empty-window matrix is
+    NaN. Annualization uses the window's own number of trading days, not a
+    fixed 252: a 12-month window holds ``n_rows / k`` k-day periods. (Before
+    1952 the NYSE traded on Saturdays, about 295 days a year; a fixed 252
+    would understate that era's variance by about 15%.)
     Coverage rules are the caller's business. Shared by ``portfolio``.
     """
     X0 = np.where(np.isfinite(X), X, 0.0)
@@ -169,7 +180,7 @@ def realized_kday_cov(X: np.ndarray, k: int = HORIZON_DAYS) -> tuple[np.ndarray,
     M = Y.shape[0]
     if M == 0:
         return np.full((X.shape[1], X.shape[1]), np.nan), 0
-    return Y.T @ Y * (TRADING_DAYS / k) / M, M
+    return Y.T @ Y * (X.shape[0] / k) / M, M
 
 
 # ---------------------------------------------------------------- container
@@ -431,7 +442,7 @@ def compute_targets(panel: Panel, min_daily_frac: float = MIN_DAILY_FRAC,
     s_c = np.minimum(s, hi_c)
     G_win = P_yy[hi_c] - P_yy[s_c]                                    # n_orig x N x N
     with np.errstate(invalid="ignore", divide="ignore"):
-        Sig = G_win * (TRADING_DAYS / k) / n_sums[:, None, None]
+        Sig = G_win * ((e - s) / k / n_sums)[:, None, None]
     diag = np.diagonal(Sig, axis1=1, axis2=2)
 
     daily_ok = (n_days[:, None] > 0) & (n_sums[:, None] > 0) \
@@ -482,7 +493,7 @@ def compute_targets(panel: Panel, min_daily_frac: float = MIN_DAILY_FRAC,
 def _rules(f, m, k) -> dict:
     return {"horizon_days": k, "min_daily_frac": f, "min_days_per_month": m,
             "missing_day": "contributes 0 to k-day sums", "centered": False,
-            "trading_days": TRADING_DAYS, "horizon_months": HORIZON_MONTHS}
+            "annualization": "n_rows/k (daily rows in the window)", "horizon_months": HORIZON_MONTHS}
 
 
 def _meta(assets, through, f, m, k) -> dict:

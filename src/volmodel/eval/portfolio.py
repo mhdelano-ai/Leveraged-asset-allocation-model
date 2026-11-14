@@ -33,13 +33,13 @@ Conventions (all binding for interpretation of the numbers)
   21-day log excess return is ``w's`` (``s`` = the assets' 21-day sums).
   Realized portfolio variance is then the quadratic form ``w' S w``.
 * **Realized measure.** PRIMARY: ``S`` is exactly the ``cov_rv`` target
-  matrix (``targets.realized_kday_cov``): ``(252/21) * mean s s'`` over the
+  matrix (``targets.realized_kday_cov``): ``(n_rows/21) * mean s s'`` over the
   overlapping 21-day sums lying inside the window, uncentered. So
   ``w'Sw`` is the uncentered annualized variance of the portfolio's
   overlapping 21-day returns. It is insensitive to asynchronous closes and
   to smoothed / overreacting pricing conventions, and as noisy as the target
   (~17% SE on a realized vol). DIRECT (secondary, ``*_direct`` metrics,
-  DIAGNOSTIC ONLY): ``S = X'X * 252 / n_days`` from same-day 1-day returns
+  DIAGNOSTIC ONLY): ``S = X'X`` (summed over the year) from same-day 1-day returns
   with missing days set to 0. It is CONVENTION-DEPENDENT: it depends on how
   each source is priced (smoothed NAVs read low, ETFs of foreign/illiquid
   assets read high), is biased low for portfolios mixing US and non-US
@@ -77,7 +77,7 @@ import pandas as pd
 
 from ..data.panel import Panel
 from ..paths import FORECASTS
-from ..universe import ASSET_IDS, HORIZON_MONTHS, TRADING_DAYS
+from ..universe import ASSET_IDS, HORIZON_MONTHS
 from .targets import HORIZON_DAYS, MIN_DAILY_FRAC, MIN_DAYS_PER_MONTH, realized_kday_cov
 
 __all__ = [
@@ -373,7 +373,7 @@ class RealizedWindow:
     assets        daily test universe (panel column order)
     dropped       panel assets with insufficient daily data in the window
     cov           primary realized covariance: the 21-day target matrix, aligned to ``assets``
-    cov_direct    DIAGNOSTIC: X'X * 252 / n_days from same-day 1-day returns (missing = 0);
+    cov_direct    DIAGNOSTIC: X'X summed over the year, from same-day 1-day returns (missing = 0);
                   depends on the sources' pricing conventions
     n_days        panel daily rows in the window
     complete      the daily window is fully observed in the panel
@@ -452,7 +452,7 @@ class RealizedCache:
             Xk = X[:, keep]
             cov, _ = realized_kday_cov(Xk, self.horizon_days)
             X0 = np.where(np.isfinite(Xk), Xk, 0.0)
-            cov_direct = X0.T @ X0 * TRADING_DAYS / n_days
+            cov_direct = X0.T @ X0  # the window is one year: the sum is already annual
         else:
             cov = cov_direct = np.empty((0, 0))
         # monthly / annual

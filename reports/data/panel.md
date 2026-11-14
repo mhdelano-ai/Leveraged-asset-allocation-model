@@ -2,14 +2,15 @@
 
 Built by `python -m volmodel.data.assemble` (module `src/volmodel/data/assemble.py`). Read with `volmodel.data.panel.load_panel()`. All returns SIMPLE total returns in decimals; excess/log transforms are done by `Panel`.
 
-* Daily panel: 1962-01-03 .. 2026-11-13, 16,326 US equity trading days (the cash calendar), 10 assets.
-* Monthly panel: 1919-02-28 .. 2026-10-31, 1,293 month-ends. Last month = last month whose final trading day is in the daily data (data end 2026-11-13, so the partial current month is excluded).
-* **Missing assets (no files yet): us_large, us_small.** Re-run the module when they land.
+* Daily panel: 1926-07-01 .. 2026-11-13, 26,370 US equity trading days (the cash calendar), 12 assets.
+* Monthly panel: 1871-02-28 .. 2026-10-31, 1,869 month-ends. Last month = last month whose final trading day is in the daily data (data end 2026-11-13, so the partial current month is excluded).
 
 ## Coverage
 
 | asset | first_monthly | first_daily | first_daily_month | A | B | C | D | tiers_by_era |
 |---|---|---|---|---|---|---|---|---|
+| us_large | 1871-02-28 | 1926-07-01 | 1926-07 | 405 | 799 | 0 | 665 | D 1871-02..1926-06, B 1926-07..1993-01, A 1993-02..2026-10 |
+| us_small | 1926-07-31 | 1926-07-01 | 1926-07 | 317 | 887 | 0 | 0 | B 1926-07..2000-05, A 2000-06..2026-10 |
 | intl_dev | 1975-01-31 | 1986-01-02 | 1986-01 | 302 | 188 | 132 | 0 | C 1975-01..1985-12, B 1986-01..2001-08, A 2001-09..2026-10 |
 | em | 1989-07-31 | 1994-06-01 | 1994-06 | 389 | 0 | 59 | 0 | C 1989-07..1994-05, A 1994-06..2026-10 |
 | ust_int | 1953-05-31 | 1962-01-03 | 1962-02 | 291 | 486 | 0 | 105 | D 1953-05..1962-01, B 1962-02..2002-07, A 2002-08..2026-10 |
@@ -27,6 +28,11 @@ Built by `python -m volmodel.data.assemble` (module `src/volmodel/data/assemble.
 
 | asset | freq | start | end | tier | source |
 |---|---|---|---|---|---|
+| us_large | M | 1871-02-28 | 1926-06-30 | D | shiller_sp_composite_avgprice |
+| us_large | D | 1926-07-01 | 1993-01-29 | B | french_me_vw_hi30 |
+| us_large | D | 1993-02-01 | 2026-11-13 | A | yahoo_SPY |
+| us_small | D | 1926-07-01 | 2000-05-26 | B | french_me_vw_qnt2_qnt3_5050 |
+| us_small | D | 2000-05-30 | 2026-11-13 | A | yahoo_IWM |
 | intl_dev | M | 1975-01-31 | 1985-12-31 | C | french_intl_indices_eafe_weighted |
 | intl_dev | D | 1986-01-02 | 2001-08-31 | B | aqr_mkt_global_ex_usa_plus_rf |
 | intl_dev | D | 2001-09-04 | 2026-11-13 | A | yahoo_EFA |
@@ -78,6 +84,8 @@ Off-calendar returns are compounded into the next calendar day; calendar days wi
 
 | asset | input_days | folded | folded_across_month | dropped | nan_days_in_span | examples_folded | examples_nan |
 |---|---|---|---|---|---|---|---|
+| us_large | 26370 | 0 | 0 | 0 | 0 |  |  |
+| us_small | 26370 | 0 | 0 | 0 | 0 |  |  |
 | intl_dev | 10412 | 117 | 3 | 0 | 2 | 1986-02-17→1986-02-18, 1986-03-28→1986-03-31 | 1991-11-01, 1997-12-24 |
 | em | 8170 | 0 | 0 | 0 | 0 |  |  |
 | ust_int | 16217 | 31 | 1 | 0 | 140 | 1968-06-12→1968-06-13, 1968-06-19→1968-06-20 | 1962-02-12, 1962-10-12, 1962-11-12 |
@@ -93,6 +101,8 @@ Off-calendar returns are compounded into the next calendar day; calendar days wi
 
 | asset | daily_months | compared | max_abs_vs_track | worst_month | unfolded_max_abs_vs_track | months_moved_by_folding | max_folding_effect |
 |---|---|---|---|---|---|---|---|
+| us_large | 1204 | 1204 | 1.03e-15 | 1945-04 | 1.03e-15 | 0 | 2.78e-17 |
+| us_small | 1204 | 1204 | 1.33e-15 | 1950-12 | 1.33e-15 | 0 | 2.78e-17 |
 | intl_dev | 490 | 490 | 6.28e-03 | 1993-05 | 1.02e-15 | 6 | 6.28e-03 |
 | em | 389 | 389 | 7.91e-16 | 2013-09 | 7.91e-16 | 0 | 2.78e-17 |
 | ust_int | 777 | 777 | 1.52e-03 | 1968-07 | 1.23e-15 | 2 | 1.52e-03 |
@@ -116,7 +126,7 @@ Cash: compounded daily vs monthly max abs gap 2.86e-15.
 | monthly_index_month_ends | yes |
 | n_ret_le_minus1 | 0 |
 | min_daily_ret | -0.1951 |
-| min_monthly_ret | -0.3173 |
+| min_monthly_ret | -0.3275 |
 | last_month | 2026-10-31 |
 | no_partial_final_month | yes |
 | cash_daily_nan | 0 |
@@ -125,17 +135,19 @@ Cash: compounded daily vs monthly max abs gap 2.86e-15.
 | excess_nan_from_cash_monthly | 0 |
 | pred_available_ge_obs | yes |
 | pred_dup_series_obs | 0 |
-| pred_n_rows | 336435 |
-| pred_n_series | 61 |
+| pred_n_rows | 348018 |
+| pred_n_series | 62 |
 
 Returns before documented start: none.
 
-`load_panel()` smoke test: daily (16326, 10), monthly (1293, 10), 61 predictor series; `asof(2008-10-15)`: daily max 2008-10-15, monthly max 2008-09-30, latest predictor available_date 2008-10-15, no leak: True; eligible (36m) then: intl_dev, em, ust_int, ust_long, tips, ig_credit, hy_credit, reits, gold, commodities.
+`load_panel()` smoke test: daily (26370, 12), monthly (1869, 12), 62 predictor series; `asof(2008-10-15)`: daily max 2008-10-15, monthly max 2008-09-30, latest predictor available_date 2008-10-15, no leak: True; eligible (36m) then: us_large, us_small, intl_dev, em, ust_int, ust_long, tips, ig_credit, hy_credit, reits, gold, commodities.
 
 ### Five largest absolute daily returns
 
 | asset | days |
 |---|---|
+| us_large | 1929-10-30 +11.8% (1929 crash); 1933-03-15 +15.3% (1933 bank holiday/reflation); 1987-10-19 -18.9% (Oct 1987 crash); 2008-10-13 +14.5% (GFC); 2008-10-28 +11.7% (GFC) |
+| us_small | 1932-09-21 +13.4% (1932 bear market/rally); 1933-03-15 +21.7% (1933 bank holiday/reflation); 1933-07-21 -14.0% (1933 bank holiday/reflation); 1937-10-20 +16.0% (1937 crash); 1939-09-05 +16.2% (outbreak of WWII) |
 | intl_dev | 1987-10-20 -13.5% (Oct 1987 crash); 2008-09-29 -11.2% (Lehman / GFC); 2008-10-13 +15.9% (GFC); 2008-10-28 +13.8% (GFC); 2020-03-12 -11.0% (COVID crash) |
 | em | 2008-10-13 +22.8% (GFC); 2008-10-15 -16.2% (GFC); 2008-10-28 +20.9% (GFC); 2008-11-13 +13.8% (GFC); 2008-11-21 +14.4% (GFC) |
 | ust_int | 1980-02-19 -3.0% (Volcker / rates spike); 1980-02-28 +3.2% (Volcker / rates spike); 1980-04-16 +3.1% (Volcker / rates reversal); 1987-10-20 +4.4% (Oct 1987 crash); 2009-03-18 +3.4% (March 2009 bottom / QE1 / PPIP) |
@@ -151,12 +163,12 @@ Every date matches a known stress episode. Several ETF days are one-day overshoo
 
 ## Predictors
 
-`predictors.parquet`: 336,435 rows, 61 series, long format (obs_date, available_date, series, value). `predictors_catalog.csv` lists every series. Standard units: rates, yields, spreads, breakevens, inflation/growth rates and implied vols in DECIMALS; durations in years; index levels and flags unchanged. `live` = an observation within 60 days (monthly series: 100 days) of the data end.
+`predictors.parquet`: 348,018 rows, 62 series, long format (obs_date, available_date, series, value). `predictors_catalog.csv` lists every series. Standard units: rates, yields, spreads, breakevens, inflation/growth rates and implied vols in DECIMALS; durations in years; index levels and flags unchanged. `live` = an observation within 60 days (monthly series: 100 days) of the data end.
 
 | group | series | live | start | end |
 |---|---|---|---|---|
 | credit | 7 | 1 | 1919-01-31 | 2026-10-31 |
-| implied | 22 | 21 | 1986-01-02 | 2026-11-13 |
+| implied | 23 | 22 | 1986-01-02 | 2026-11-13 |
 | macro | 16 | 16 | 1871-01-31 | 2026-10-31 |
 | tips | 4 | 4 | 1999-01-04 | 2026-11-06 |
 | treasury | 12 | 12 | 1962-01-02 | 2026-11-09 |

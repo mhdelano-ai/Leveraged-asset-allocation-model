@@ -6,26 +6,27 @@ credit_moodys_baa_aaa_spread_m,credit,decimal,M,1919-01-31,2025-12-31,False,"Baa
 credit_moodys_baa_ust10y_spread_d,credit,decimal,D,1986-01-02,2016-10-07,False,"Baa minus 10y CMT, daily 1986-2016 (dead). Original name `moodys_baa_minus_ust10y_d` in predictors/credit_spreads.parquet; converted from percent (x0.01)"
 credit_moodys_baa_ust10y_spread_m,credit,decimal,M,1953-04-30,2025-12-31,False,"Baa minus 10y CMT, monthly avg; ends 2025-12. Original name `moodys_baa_minus_ust10y_m` in predictors/credit_spreads.parquet; converted from percent (x0.01)"
 credit_moodys_baa_yield_m,credit,decimal,M,1919-01-31,2025-12-31,False,"Moody's seasoned Baa yield, monthly avg; ends 2025-12. Original name `moodys_baa_yield_m` in predictors/credit_spreads.parquet; converted from percent (x0.01)"
-iv_gvz,implied,decimal vol,D,2009-09-18,2026-11-13,True,Cboe gold ETF (GLD) vol (GVZ). From predictors/implied.parquet
-iv_ovx,implied,decimal vol,D,2009-09-18,2026-11-13,True,Cboe crude oil ETF (USO) vol (OVX). USO options; peaked at 3.25 on 2020-04-21 (negative WTI front month). From predictors/implied.parquet
+iv_gvz,implied,decimal vol,D,2008-06-03,2026-11-13,True,Cboe gold ETF (GLD) vol (GVZ). From predictors/implied.parquet
+iv_move,implied,decimal yield vol (bp vol / 1e4),D,2002-11-12,2026-11-13,True,"ICE BofA MOVE (1-month Treasury option normal vol). Yield (basis-point) vol, not price vol. From predictors/implied.parquet"
+iv_ovx,implied,decimal vol,D,2007-05-10,2026-11-13,True,Cboe crude oil ETF (USO) vol (OVX). USO options; peaked at 3.25 on 2020-04-21 (negative WTI front month). From predictors/implied.parquet
 iv_rvx,implied,decimal vol,D,2009-09-16,2026-11-13,True,Cboe Russell 2000 vol (RVX). From predictors/implied.parquet
 iv_skew_index,implied,index level (not a vol),D,1990-01-02,2026-11-13,True,Cboe S&P 500 SKEW index. 100 - 10 x risk-neutral skewness of 30-day SPX returns. From predictors/implied.parquet
 iv_vix,implied,decimal vol,D,1990-01-02,2026-11-13,True,"Cboe S&P 500 30-day vol (VIX). Sep-2003 redefinition (SPX full strip, model-free) back-calculated to 1990; the pre-2003 'old VIX' is VXO. From predictors/implied.parquet"
 iv_vix1y,implied,decimal vol,D,2007-01-03,2026-11-13,True,Cboe S&P 500 1-year vol (VIX1Y). Close-only (O=H=L=C) until ~2018-04: early history is retrospectively calculated. From predictors/implied.parquet
 iv_vix1y_term_slope,implied,ratio - 1,D,2007-01-03,2026-11-13,True,VIX1Y / VIX - 1 (same-day closes). From predictors/implied.parquet
-iv_vix3m,implied,decimal vol,D,2009-09-18,2026-11-13,True,"Cboe S&P 500 3-month vol (VIX3M, formerly VXV). Renamed VXV -> VIX3M in 2017; same index. From predictors/implied.parquet"
+iv_vix3m,implied,decimal vol,D,2006-07-17,2026-11-13,True,"Cboe S&P 500 3-month vol (VIX3M, formerly VXV). Renamed VXV -> VIX3M in 2017; same index. From predictors/implied.parquet"
 iv_vix6m,implied,decimal vol,D,2008-01-02,2026-11-13,True,"Cboe S&P 500 6-month vol (VIX6M, formerly VXMT). Renamed VXMT -> VIX6M in 2017; close-only (O=H=L=C) until ~2013-12, consistent with retrospective calculation. From predictors/implied.parquet"
 iv_vix9d,implied,decimal vol,D,2011-01-04,2026-11-13,True,Cboe S&P 500 9-day vol (VIX9D). From predictors/implied.parquet
-iv_vix_term_slope,implied,ratio - 1,D,2009-09-18,2026-11-13,True,VIX3M / VIX - 1 (same-day closes). From predictors/implied.parquet
+iv_vix_term_slope,implied,ratio - 1,D,2006-07-17,2026-11-13,True,VIX3M / VIX - 1 (same-day closes). From predictors/implied.parquet
 iv_vix_vxo_spliced,implied,decimal vol,D,1986-01-02,2026-11-13,True,"VIX from 1990-01-02; before that VXO x k, k = exp(mean log(VIX/VXO)) over 1990-1994. From predictors/implied.parquet"
 iv_vvix,implied,decimal vol (of VIX),D,2006-06-01,2026-11-13,True,"Cboe VIX of VIX (VVIX). 2006-03..05 dropped: 3-8 prints a month, levels 16-92 vs ~90 after (start-up noise). From predictors/implied.parquet"
-iv_vxd,implied,decimal vol,D,2009-09-18,2026-11-13,True,Cboe DJIA vol (VXD). From predictors/implied.parquet
+iv_vxd,implied,decimal vol,D,2005-11-22,2026-11-13,True,Cboe DJIA vol (VXD). From predictors/implied.parquet
 iv_vxeem,implied,decimal vol,D,2011-03-16,2026-11-13,True,Cboe EEM ETF vol (VXEEM). From predictors/implied.parquet
 iv_vxefa,implied,decimal vol,D,2008-01-02,2026-11-13,True,Cboe EFA ETF vol (VXEFA). Close-only until ~2013-07 (retrospective). From predictors/implied.parquet
 iv_vxhyg,implied,decimal vol,D,2015-04-22,2026-11-13,True,"Cboe HY corporate ETF (HYG) vol (VXHYG). Noisy; one garbage print (-19,738,470 on 2017-10-30) removed; no data 2021-09-24..2025-05-14. From predictors/implied.parquet"
 iv_vxief,implied,decimal vol,D,2015-04-22,2026-11-13,True,"Cboe 7-10yr Treasury ETF (IEF) vol (VXIEF). Thin: long stale runs (e.g. one value carried 2020-07..2020-12, dropped); no data 2022-11-08..2025-07-13. From predictors/implied.parquet"
 iv_vxlqd,implied,decimal vol,D,2020-11-27,2026-11-13,True,Cboe IG corporate ETF (LQD) vol (VXLQD). Starts 2020-11; no data 2022-11-08..2025-07-13. From predictors/implied.parquet
-iv_vxn,implied,decimal vol,D,2009-09-14,2026-11-13,True,Cboe Nasdaq-100 vol (VXN). From predictors/implied.parquet
+iv_vxn,implied,decimal vol,D,2001-01-23,2026-11-13,True,Cboe Nasdaq-100 vol (VXN). From predictors/implied.parquet
 iv_vxo,implied,decimal vol,D,1986-01-02,2021-01-07,False,"Cboe S&P 100 30-day ATM vol (VXO, the pre-2003 'old VIX'). Old methodology: OEX at-the-money, TRADING-day convention (inflates level vs calendar-day VIX). Discontinued by Cboe in 2021. From predictors/implied.parquet"
 iv_vxtlt,implied,decimal vol,D,2004-01-02,2026-11-13,True,Cboe 20+yr Treasury ETF (TLT) vol (VXTLT). From predictors/implied.parquet
 macro_cpi_level,macro,index level (1982-84=100),M,1871-01-31,2026-10-31,True,CPI-U NSA; pre-1913 wholesale-based reconstruction. From predictors/macro.parquet
