@@ -170,3 +170,27 @@ def expectations_verdict(statuses) -> dict:
     n, k = len(st), len(met)
     status = "na" if not n else ("all" if k == n else ("none" if k == 0 else "some"))
     return {"status": status, "n": n, "n_met": k, "n_met_point_only": len(partial), "n_not_met": n - k}
+
+
+# --------------------------------------------------------------------------- several horizons at once
+
+def combine_edges(vs) -> dict:
+    """One verdict over several cells (horizons) of ``mean_verdict`` / ``dist_skill_verdict``."""
+    st = [v["status"] for v in vs if v.get("status") != "na"]
+    status = "na" if not st else ("pass" if "pass" in st else ("weak" if "weak" in st else "none"))
+    return {"status": status, "n_cells": len(st), "n_pass": st.count("pass"), "n_weak": st.count("weak")}
+
+
+def combine_strategy(vs) -> dict:
+    """One verdict over several cells of ``strategy_verdict``: counts summed, same rule."""
+    vs = [v for v in vs if v.get("status") != "na"]
+    if not vs:
+        return {"status": "na", "n": 0}
+    tot = {k: sum(int(v[k]) for v in vs) for k in ("n", "n_pos", "n_sig_pos", "n_q_pos", "n_neg", "n_sig_neg")}
+    if tot["n_q_pos"]:
+        status = "pass"
+    elif 2 * tot["n_neg"] > tot["n"]:
+        status = "worse"
+    else:
+        status = "weak" if tot["n_pos"] else "none"
+    return {"status": status, "n_cells": len(vs), **tot}

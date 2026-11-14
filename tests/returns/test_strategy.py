@@ -646,7 +646,12 @@ def test_strategy_reproduces_archived_12_month_metrics(ap_run):
     assert set(extra.get_level_values("family")) == {"static"}
     got = new.reindex(old.index)
     both_nan = old.isna() & got.isna()
-    assert (both_nan | (got == old)).all(), (got - old)[~(both_nan | (got == old))].head()
+    # floating-point noise only: in the full suite one skewness cell came out 1.1e-15
+    # away from the archive (equal when this test was written in isolation)
+    # equal covers infinite break-even costs, where a difference is undefined
+    close = (got == old) | ((got - old).abs() <= 1e-12 * np.maximum(1.0, old.abs()))
+    assert (both_nan | close).all(), (got - old)[~(both_nan | close)].head()
+    assert (both_nan | (got == old)).mean() > 0.9999
 
 
 @pytest.mark.slow

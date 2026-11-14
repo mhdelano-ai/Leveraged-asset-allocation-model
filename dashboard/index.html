@@ -1,18 +1,22 @@
 <meta name="dash-one-writer">
 <style>
-  .vf { display: flex; flex-direction: column; gap: var(--cds-gap-xl); color: var(--color-fg); font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-body); max-width: 1080px; margin: 0 auto; }
+  .vf { display: flex; flex-direction: column; gap: var(--cds-gap-xl); color: var(--color-fg); font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-body); max-width: 1080px; margin: 0 auto; min-width: 0; }
   .vf h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
   .vf h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; text-wrap: balance; }
-  .vf p { margin: 0; max-width: 68ch; line-height: 1.5; }
+  .vf h3 { font-size: var(--cds-font-size-body); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  .vf p { margin: 0; max-width: 72ch; line-height: 1.5; }
   .vf-muted { color: var(--color-fg-muted); }
   .vf-cap { color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); }
   .vf-sec { display: flex; flex-direction: column; gap: var(--cds-gap-md); min-width: 0; }
+  .vf-part { display: flex; flex-direction: column; gap: var(--cds-gap-xl); border-top: 2px solid var(--color-border-line); padding-top: var(--cds-pad-lg); min-width: 0; }
+  .vf-kicker { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); text-transform: uppercase; letter-spacing: .06em; }
   .vf-head { display: flex; flex-direction: column; gap: var(--cds-gap-sm); }
   .vf-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--cds-gap-md); }
   .vf-tile { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-xs); min-width: 0; }
   .vf-big { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: 2.1rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
   .vf-chart { position: relative; min-height: 260px; min-width: 0; }
   .vf-chart.vf-tall { min-height: 420px; }
+  .vf-chart.vf-short { min-height: 200px; }
   .vf-chart svg { display: block; width: 100%; overflow: visible; }
   .vf-chart text { font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-caption); fill: var(--cds-text-secondary); font-variant-numeric: tabular-nums; }
   .vf-chart text.vf-strong { fill: var(--color-fg); font-weight: var(--cds-font-weight-medium); }
@@ -24,9 +28,11 @@
   .vf-sw { width: 14px; height: 3px; border-radius: 2px; background: var(--cds-chart-muted); display: inline-block; }
   .vf-sw.vf-dot { width: 9px; height: 9px; border-radius: 50%; }
   .vf-sw.vf-band { height: 9px; opacity: .3; }
+  .vf-sw.vf-band2 { height: 9px; opacity: .65; }
   .vf-sw.vf-tick { width: 2px; height: 12px; background: var(--color-fg); }
   .vf-sw.vf-ring { width: 8px; height: 8px; border-radius: 50%; background: transparent; border: 1.5px solid var(--color-fg); }
   .vf-sw.vf-shade { height: 10px; background: var(--cds-chart-muted); opacity: .25; }
+  .vf-sw.vf-dash { height: 0; border-top: 2px dashed var(--color-fg); background: transparent; }
   .vf-scroll { overflow-x: auto; min-width: 0; }
   .vf table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: var(--cds-font-size-caption); }
   .vf th { text-align: right; font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding: 6px 10px; border-bottom: 1px solid var(--color-border-line); vertical-align: bottom; white-space: normal; }
@@ -34,54 +40,221 @@
   .vf th:first-child, .vf td:first-child { text-align: left; padding-left: 0; }
   .vf td.vf-txt, .vf th.vf-txt { text-align: left; white-space: normal; min-width: 14ch; }
   .vf td.vf-key { color: var(--color-fg); font-weight: var(--cds-font-weight-medium); font-size: var(--cds-font-size-body); }
-  .vf-pill { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--color-border-line); white-space: nowrap; }
+  .vf tr.vf-sens td { color: var(--color-fg-muted); font-style: italic; }
+  .vf-pill { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--color-border-line); white-space: nowrap; font-size: var(--cds-font-size-caption); font-style: normal; }
   .vf-pill.vf-ok { color: var(--color-ok); border-color: var(--color-ok); }
   .vf-pill.vf-warn { color: var(--color-warn); border-color: var(--color-warn); }
   .vf-pill.vf-bad { color: var(--color-bad); border-color: var(--color-bad); }
   .vf-row { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); align-items: center; }
   .vf-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--cds-gap-xl); align-items: start; }
+  .vf-three { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: var(--cds-gap-md); align-items: stretch; }
+  .vf-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-width: 0; }
+  .vf-card.vf-seen { border-style: dashed; }
+  .vf-card ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 8px; }
+  .vf-card li { line-height: 1.45; }
+  .vf-tag { display: inline-block; align-self: flex-start; padding: 2px 8px; border-radius: var(--cds-radius); font-size: var(--cds-font-size-caption); border: 1px solid var(--color-border-line); }
+  .vf-tag.vf-oos { color: var(--color-ok); border-color: var(--color-ok); }
+  .vf-tag.vf-desc { color: var(--color-warn); border-color: var(--color-warn); }
+  .vf-label { font-size: var(--cds-font-size-caption); color: var(--color-warn); border-left: 3px solid var(--color-warn); padding-left: 8px; max-width: 72ch; }
+  .vf-verdict { line-height: 1.5; max-width: 72ch; }
   .vf details { border-top: 1px solid var(--color-border-line); padding-top: var(--cds-pad-md); }
   .vf summary { cursor: pointer; font-weight: var(--cds-font-weight-medium); }
   .vf details p, .vf details li { color: var(--color-fg-muted); max-width: 72ch; line-height: 1.5; }
   .vf details ul { margin: var(--cds-gap-sm) 0 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
+  .vf dl { margin: var(--cds-gap-sm) 0 0; display: grid; grid-template-columns: minmax(0, 14ch) minmax(0, 1fr); gap: 6px 14px; }
+  .vf dt { font-weight: var(--cds-font-weight-medium); }
+  .vf dd { margin: 0; color: var(--color-fg-muted); line-height: 1.45; }
   [data-dash-source-state=refreshing] { opacity: .5; }
 </style>
 
 <div class="vf">
   <header class="vf-head" id="top">
-    <h1 id="title">Asset class volatility forecast</h1>
-    <p id="takeaway">For November 2026 to October 2027, a 60/40 portfolio is forecast at
-      <b data-draw="s6040" data-source="forecast_portfolios" data-field="vol12" data-where="portfolio=p6040">—</b>% annualized volatility and US large-cap equity at
-      <b data-draw="susl" data-source="forecast_assets" data-field="vol12" data-where="asset=us_large">—</b>%, against
-      <b data-draw="suslr" data-source="forecast_assets" data-field="last12" data-where="asset=us_large">—</b>% realized over the last 12 months.</p>
-    <p class="vf-cap">All figures are for log returns in excess of T-bills. A forecast is the expected level of next year's variance, expressed as a volatility: because variance is skewed, a typical year comes in below it and an occasional year far above. Expected returns are not forecast here.</p>
+    <h1 id="title">Twelve asset classes: risk, expected return and the range of next year's outcomes</h1>
+    <p id="takeaway">For <b data-draw="v" data-source="snapshot" data-field="window" data-where="key=now">—</b>, a 60/40 portfolio's expected excess return over T-bills is
+      <b data-draw="v" data-fmt="s1" data-source="outlook_portfolios" data-field="er" data-where="portfolio=p6040&amp;shape=portfolios">—</b>% with
+      <b data-draw="v" data-source="outlook_portfolios" data-field="vol12" data-where="portfolio=p6040&amp;shape=portfolios">—</b>% volatility, and one year in twenty it would return
+      <b data-draw="v" data-source="outlook_portfolios" data-field="q05" data-where="portfolio=p6040&amp;shape=portfolios">—</b>% or less.
+      <span class="vf-verdict" data-verdict="mean_orig">
+        <span data-when="weak" hidden>The expected returns are each asset's long-run average: no forecasting model beat that average on years it had not seen.</span>
+        <span data-when="none" hidden>The expected returns are each asset's long-run average: no forecasting model beat that average on years it had not seen.</span>
+        <span data-when="pass" hidden>The expected returns are each asset's long-run average, although a forecasting model beat that average on held-out years at some horizon (see below).</span>
+      </span>
+    </p>
+    <p class="vf-cap">All returns are 12-month log returns in excess of T-bills; expected returns, volatilities and quantiles are in percent. The volatility is the forecast of next year's mean variance, expressed as a volatility; the quantiles include the expected return. Forecast made with data through <span data-draw="v" data-source="snapshot" data-field="data_through" data-where="key=now">—</span>.</p>
   </header>
 
   <section class="vf-tiles" id="tiles">
     <div class="vf-tile" id="tile-6040">
-      <span class="vf-cap">60/40 portfolio, 12-month volatility</span>
-      <span class="vf-big"><span data-draw="t6040" data-source="forecast_portfolios" data-field="vol12" data-where="portfolio=p6040">—</span>%</span>
-      <span class="vf-cap">5% downside over 12 months, before the mean: <span data-draw="t6040q" data-source="forecast_portfolios" data-field="q05" data-where="portfolio=p6040">—</span>%</span>
+      <span class="vf-cap">60/40 portfolio, next 12 months</span>
+      <span class="vf-big"><span data-draw="v" data-fmt="s1" data-source="outlook_portfolios" data-field="er" data-where="portfolio=p6040&amp;shape=portfolios">—</span>%</span>
+      <span class="vf-cap">Expected excess return. Volatility <span data-draw="v" data-source="forecast_portfolios" data-field="vol12" data-where="portfolio=p6040">—</span>%; 5% quantile <span data-draw="v" data-source="outlook_portfolios" data-field="q05" data-where="portfolio=p6040&amp;shape=portfolios">—</span>%.</span>
     </div>
     <div class="vf-tile" id="tile-balanced">
-      <span class="vf-cap">Balanced 12-asset mix, 12-month volatility</span>
-      <span class="vf-big"><span data-draw="tbal" data-source="forecast_portfolios" data-field="vol12" data-where="portfolio=p_balanced">—</span>%</span>
-      <span class="vf-cap">5% downside over 12 months, before the mean: <span data-draw="tbalq" data-source="forecast_portfolios" data-field="q05" data-where="portfolio=p_balanced">—</span>%</span>
+      <span class="vf-cap">Balanced 12-asset mix, next 12 months</span>
+      <span class="vf-big"><span data-draw="v" data-fmt="s1" data-source="outlook_portfolios" data-field="er" data-where="portfolio=p_balanced&amp;shape=portfolios">—</span>%</span>
+      <span class="vf-cap">Expected excess return. Volatility <span data-draw="v" data-source="forecast_portfolios" data-field="vol12" data-where="portfolio=p_balanced">—</span>%; 5% quantile <span data-draw="v" data-source="outlook_portfolios" data-field="q05" data-where="portfolio=p_balanced&amp;shape=portfolios">—</span>%.</span>
     </div>
     <div class="vf-tile" id="tile-corr">
       <span class="vf-cap">Stock–bond correlation, forecast</span>
-      <span class="vf-big" data-draw="tcorr" data-source="forecast_corr" data-field="corr" data-where="pair=us_large~ust_int">—</span>
+      <span class="vf-big" data-draw="v" data-fmt="f2" data-source="forecast_corr" data-field="corr" data-where="pair=us_large~ust_int">—</span>
       <span class="vf-cap">US large cap with intermediate Treasuries. Near zero means bonds are expected to offset little of an equity fall.</span>
     </div>
     <div class="vf-tile" id="tile-holdout">
-      <span class="vf-cap">Out-of-sample loss, 2014–2025 (lower is better)</span>
-      <span class="vf-big" data-draw="thold" data-source="candidates" data-field="holdout" data-where="role=primary">—</span>
-      <span class="vf-cap">Against <span data-draw="tholdref" data-source="candidates" data-field="holdout" data-where="role=reference">—</span> for the simple reference. Scored once, after the model was chosen.</span>
+      <span class="vf-cap">Volatility loss on 2014–2025, scored once (lower is better)</span>
+      <span class="vf-big" data-draw="v" data-fmt="f3" data-source="candidates" data-field="holdout" data-where="role=primary">—</span>
+      <span class="vf-cap">Against <span data-draw="v" data-fmt="f3" data-source="candidates" data-field="holdout" data-where="role=reference">—</span> for the simple reference. The return side has no such test of its own yet.</span>
     </div>
   </section>
 
+  <!-- ====================================================================== NOW -->
+  <section class="vf-sec" id="now">
+    <h2 id="now-h">What the package says for the next 12 months</h2>
+    <p class="vf-muted">The dot is the expected excess return, each asset's historical average, with its 90% interval: the uncertainty of that average, not of next year. The bars are the predictive range of next year's return: the inner bar holds half the outcomes, the outer bar nine in ten. The figure at the right is the volatility forecast.</p>
+    <div class="vf-legend" id="now-legend">
+      <span><i class="vf-sw vf-dot" style="background:var(--color-fg)"></i>Expected return</span>
+      <span><i class="vf-sw" style="background:var(--color-fg)"></i>90% interval of the expected return</span>
+      <span><i class="vf-sw vf-band2" data-c="0"></i>25–75% of outcomes</span>
+      <span><i class="vf-sw vf-band" data-c="0"></i>5–95% of outcomes</span>
+    </div>
+    <div class="vf-chart vf-tall" id="outlook-chart" data-draw="outlook-chart" data-source="outlook_assets"></div>
+    <div class="vf-scroll">
+      <table id="outlook-table" data-source="outlook_assets" data-row-key="asset">
+        <thead><tr>
+          <th data-field="name">Asset</th>
+          <th data-field="er">Expected return, %</th>
+          <th data-field="er_lo">90% interval, low</th>
+          <th data-field="er_hi">90% interval, high</th>
+          <th data-field="er_arith">Arithmetic equivalent, %</th>
+          <th data-field="vol12">Volatility, %</th>
+          <th data-field="q01">1% quantile</th>
+          <th data-field="q05">5% quantile</th>
+          <th data-field="q50">Median</th>
+          <th data-field="q95">95% quantile</th>
+          <th data-field="q99">99% quantile</th>
+          <th data-field="history_from">Average since</th>
+        </tr></thead>
+        <tbody data-draw="outlook-rows"></tbody>
+      </table>
+    </div>
+    <p class="vf-cap">The arithmetic equivalent is the simple 12-month excess return implied by the log mean and the forecast variance; it is the input for an optimizer that works in simple returns. Averages start in <span data-draw="v" data-source="snapshot" data-field="return_panel_from" data-where="key=now">—</span> or when an asset's history begins, whichever is later; the covariance side uses longer histories.</p>
+
+    <h3 id="now-port-h">Policy portfolios</h3>
+    <p class="vf-muted">Each portfolio is shown twice. The published row takes the shape of its range from past outcomes of the three policy portfolios themselves; the second row, in italics and drawn hollow, takes it from past single-asset outcomes instead, as a check on how much that choice matters.</p>
+    <div class="vf-legend" id="now-port-legend">
+      <span><i class="vf-sw vf-band2" data-c="0"></i>Published (portfolio shape)</span>
+      <span><i class="vf-sw vf-dash"></i>Sensitivity (asset shape)</span>
+    </div>
+    <div class="vf-chart" id="outlook-port-chart" data-draw="outlook-port-chart" data-source="outlook_portfolios"></div>
+    <div class="vf-scroll">
+      <table id="outlook-port-table" data-source="outlook_portfolios" data-row-key="portfolio,shape">
+        <thead><tr>
+          <th data-field="label">Portfolio</th>
+          <th class="vf-txt" data-field="shape_label">Shape</th>
+          <th data-field="er">Expected return, %</th>
+          <th data-field="vol12">Volatility, %</th>
+          <th data-field="q01">1% quantile</th>
+          <th data-field="q05">5% quantile</th>
+          <th data-field="q50">Median</th>
+          <th data-field="q95">95% quantile</th>
+          <th data-field="q99">99% quantile</th>
+          <th class="vf-txt" data-field="weights">Weights</th>
+        </tr></thead>
+        <tbody data-draw="outlook-port-rows"></tbody>
+      </table>
+    </div>
+    <p class="vf-cap">The portfolio shape is pooled from <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_p_n" data-where="key=now">—</span> past 12-month outcomes of the three portfolios, forecast from <span data-draw="v" data-source="snapshot" data-field="shape_p_from" data-where="key=now">—</span> to <span data-draw="v" data-source="snapshot" data-field="shape_p_to" data-where="key=now">—</span>, which overlap heavily: its 1% tail rests on <b data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_p_episodes_q01" data-where="key=now">—</b> separate historical episodes and its 5% tail on <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_p_episodes_q05" data-where="key=now">—</span>. The asset shape rests on <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_a_episodes_q01" data-where="key=now">—</span> and <span data-draw="v" data-fmt="int" data-source="snapshot" data-field="shape_a_episodes_q05" data-where="key=now">—</span>. Portfolio log returns are approximated by the weighted sum of the assets' log returns.</p>
+  </section>
+
+  <!-- ====================================================================== TRUST -->
+  <section class="vf-sec" id="trust">
+    <h2 id="trust-h">How far to trust each part</h2>
+    <p class="vf-muted">Three kinds of evidence stand behind these numbers. Only the first two are tests on years the models had not seen; the third was produced while combining the two projects, after both test periods had been looked at, so it describes the published method rather than testing it. Failures are listed with the same weight as successes.</p>
+    <div class="vf-three">
+      <div class="vf-card" id="trust-cov">
+        <span class="vf-tag vf-oos">Tested out of sample</span>
+        <h3>Volatility and correlation: the covariance model's holdout, <span data-draw="v" data-fmt="month" data-source="verdicts" data-field="first_origin" data-where="question=cov_vol">—</span> to <span data-draw="v" data-fmt="month" data-source="verdicts" data-field="last_origin" data-where="question=cov_vol">—</span></h3>
+        <ul>
+          <li class="vf-verdict" data-verdict="cov_vol">
+            <span data-when="pass" hidden><span class="vf-pill vf-ok">Edge holds</span> Volatility forecasts beat the simple reference: loss <span data-draw="v" data-fmt="f3" data-source="verdicts" data-field="q_model" data-where="question=cov_vol">—</span> against <span data-draw="v" data-fmt="f3" data-source="verdicts" data-field="q_ref" data-where="question=cov_vol">—</span>, skill <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=cov_vol">—</span>% (p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="p" data-where="question=cov_vol">—</span>).</span>
+            <span data-when="weak" hidden><span class="vf-pill vf-warn">Not significant</span> Volatility forecasts were ahead of the simple reference (skill <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=cov_vol">—</span>%), but not significantly (p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="p" data-where="question=cov_vol">—</span>).</span>
+            <span data-when="none" hidden><span class="vf-pill vf-bad">No edge</span> Volatility forecasts did not beat the simple reference (skill <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=cov_vol">—</span>%).</span>
+          </li>
+          <li class="vf-verdict" data-verdict="cov_matrix">
+            <span data-when="pass" hidden><span class="vf-pill vf-ok">Edge holds</span> The whole matrix beat the reference matrix (difference in covariance loss <span data-draw="v" data-fmt="f3" data-source="verdicts" data-field="diff" data-where="question=cov_matrix">—</span>, p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="p" data-where="question=cov_matrix">—</span>).</span>
+            <span data-when="weak" hidden><span class="vf-pill vf-warn">Not significant</span> The whole matrix was ahead of the reference matrix in point estimate only (difference in covariance loss <span data-draw="v" data-fmt="f3" data-source="verdicts" data-field="diff" data-where="question=cov_matrix">—</span>, p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="p" data-where="question=cov_matrix">—</span>).</span>
+            <span data-when="none" hidden><span class="vf-pill vf-bad">No edge</span> The whole matrix did not beat the reference matrix (difference in covariance loss <span data-draw="v" data-fmt="f3" data-source="verdicts" data-field="diff" data-where="question=cov_matrix">—</span>).</span>
+          </li>
+          <li class="vf-verdict" data-verdict="cov_expect">
+            <span data-when="all" hidden><span class="vf-pill vf-ok">All met</span> All <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=cov_expect">—</span> expectations written before the holdout was scored were met.</span>
+            <span data-when="some" hidden><span class="vf-pill vf-warn">Some missed</span> <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_met" data-where="question=cov_expect">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=cov_expect">—</span> expectations written before the holdout was scored were met (<span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_met_point_only" data-where="question=cov_expect">—</span> only in point estimate); <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_not_met" data-where="question=cov_expect">—</span> were not.</span>
+            <span data-when="none" hidden><span class="vf-pill vf-bad">None met</span> None of the <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=cov_expect">—</span> expectations written before the holdout was scored was met.</span>
+          </li>
+        </ul>
+        <p class="vf-cap">About twelve independent years: enough to rule out a collapse, not to rank close models.</p>
+      </div>
+
+      <div class="vf-card" id="trust-orig">
+        <span class="vf-tag vf-oos">Tested out of sample</span>
+        <h3>Return forecasts: the original project's holdout, forecasts from <span data-draw="v" data-fmt="month" data-source="verdicts" data-field="first_origin" data-where="question=mean_orig">—</span>, at 1, 3 and 12 months, on its own eleven assets</h3>
+        <ul>
+          <li class="vf-verdict" data-verdict="mean_orig">
+            <span data-when="pass" hidden><span class="vf-pill vf-ok">Edge holds</span> At <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_pass" data-where="question=mean_orig">—</span> of the 3 horizons a model beat the historical mean after allowing for the search over models.</span>
+            <span data-when="weak" hidden><span class="vf-pill vf-bad">No edge</span> No expected-return model beat the historical mean at any horizon once the search over six models is allowed for (figures below).</span>
+            <span data-when="none" hidden><span class="vf-pill vf-bad">No edge</span> No expected-return model even had a higher R² than the historical mean.</span>
+          </li>
+          <li class="vf-verdict" data-verdict="dist_orig">
+            <span data-when="pass" hidden><span class="vf-pill vf-ok">Edge holds</span> Distribution models beat a volatility-tracking baseline at <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_pass" data-where="question=dist_orig">—</span> horizon(s).</span>
+            <span data-when="weak" hidden><span class="vf-pill vf-warn">Not significant</span> Distribution models scored slightly better than a volatility-tracking baseline, but not significantly at any horizon.</span>
+            <span data-when="none" hidden><span class="vf-pill vf-bad">No edge</span> No distribution model scored better than a volatility-tracking baseline.</span>
+          </li>
+          <li class="vf-verdict" data-verdict="strat_orig">
+            <span data-when="pass" hidden><span class="vf-pill vf-ok">Edge holds</span> <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_q_pos" data-where="question=strat_orig">—</span> portfolio rules gained significantly from the forecasts after adjustment.</span>
+            <span data-when="weak" hidden><span class="vf-pill vf-warn">Not significant</span> No portfolio gain from the forecasts survived adjustment for testing <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=strat_orig">—</span> rule-model pairs.</span>
+            <span data-when="worse" hidden><span class="vf-pill vf-bad">Worse</span> In a portfolio the forecasts cost money: <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_neg" data-where="question=strat_orig">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=strat_orig">—</span> rule-model pairs did worse than the same rule on historical means (<span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_sig_neg" data-where="question=strat_orig">—</span> with p &lt; 0.05); none gained significantly.</span>
+            <span data-when="none" hidden><span class="vf-pill vf-bad">No edge</span> No portfolio rule gained from the forecasts.</span>
+          </li>
+        </ul>
+        <p class="vf-cap">Archived unchanged from that project. Its twelve-month results rest on few independent years (figures below).</p>
+      </div>
+
+      <div class="vf-card vf-seen" id="trust-rep">
+        <span class="vf-tag vf-desc">Seen data: described, not tested</span>
+        <h3>Replication on this package's twelve assets, 12 months, forecasts <span data-draw="v" data-fmt="month" data-source="verdicts" data-field="first_origin" data-where="question=mean_rep">—</span> to <span data-draw="v" data-fmt="month" data-source="verdicts" data-field="last_origin" data-where="question=mean_rep">—</span></h3>
+        <ul>
+          <li class="vf-verdict" data-verdict="mean_rep">
+            <span data-when="pass" hidden>The frozen models, re-run unchanged, beat the historical mean (best R² <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="r2" data-where="question=mean_rep">—</span>%, family p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=mean_rep">—</span>).</span>
+            <span data-when="weak" hidden>Re-run unchanged, the best model's R² against the historical mean was <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="r2" data-where="question=mean_rep">—</span>%, where about <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="r2_detectable" data-where="question=mean_rep">—</span>% was needed to detect anything; the test over the six gives p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=mean_rep">—</span>.</span>
+            <span data-when="none" hidden>Re-run unchanged, no model had a higher R² than the historical mean.</span>
+          </li>
+          <li class="vf-verdict" data-verdict="calib_assets">
+            <span data-when="ok" hidden>The published 90% interval held <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_assets">—</span>% of asset outcomes.</span>
+            <span data-when="wide" hidden>The published 90% interval held <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_assets">—</span>% of asset outcomes: wider than needed in these years.</span>
+            <span data-when="narrow" hidden>The published 90% interval held only <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_assets">—</span>% of asset outcomes: too narrow.</span>
+          </li>
+          <li class="vf-verdict" data-verdict="strat_rep">
+            <span data-when="pass" hidden>A portfolio rule gained significantly from the model forecasts after adjustment.</span>
+            <span data-when="weak" hidden>No portfolio rule gained significantly from the model forecasts; <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_pos" data-where="question=strat_rep">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=strat_rep">—</span> were ahead.</span>
+            <span data-when="worse" hidden>No portfolio rule gained significantly from the model forecasts; <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_neg" data-where="question=strat_rep">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=strat_rep">—</span> did worse than historical means, <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_sig_neg" data-where="question=strat_rep">—</span> with p &lt; 0.05.</span>
+            <span data-when="none" hidden>No portfolio rule gained from the model forecasts.</span>
+          </li>
+        </ul>
+        <p class="vf-label" data-draw="v" data-source="verdicts" data-field="label" data-where="question=mean_rep">—</p>
+      </div>
+    </div>
+    <p class="vf-verdict" data-verdict="mean_orig">
+      <span data-when="weak" hidden><b>What this means for the figures above.</b> The volatilities and correlations have passed a test on unseen years. The expected returns are plain historical averages because nothing tried did better; their interval measures only how precisely history pins the average down, not whether the future will resemble it. The predictive ranges combine the two and have been checked only on years already seen.</span>
+      <span data-when="none" hidden><b>What this means for the figures above.</b> The volatilities and correlations have passed a test on unseen years. The expected returns are plain historical averages because nothing tried did better; their interval measures only how precisely history pins the average down, not whether the future will resemble it. The predictive ranges combine the two and have been checked only on years already seen.</span>
+      <span data-when="pass" hidden><b>What this means for the figures above.</b> The volatilities and correlations have passed a test on unseen years. The expected returns are plain historical averages, by decision, even though a model beat them at some horizon. The predictive ranges combine the two and have been checked only on years already seen.</span>
+    </p>
+    <p class="vf-muted">New evidence for the return side starts with the forecast made at the end of <b data-draw="v" data-source="snapshot" data-field="oos_from" data-where="key=now">—</b>, the first whose whole 12-month window lies after the projects were combined; its outcome is known at the end of <b data-draw="v" data-source="snapshot" data-field="first_oos_outcome" data-where="key=now">—</b>.</p>
+  </section>
+
+  <!-- ====================================================================== COVARIANCE -->
+  <div class="vf-part" id="part-cov">
+    <span class="vf-kicker">The covariance forecast</span>
+
   <section class="vf-sec" id="forecast">
-    <h2 id="forecast-h">Most forecasts sit between last year's realized volatility and the long-run level</h2>
+    <h2 id="forecast-h">Volatility forecast against last year and the long run</h2>
     <p class="vf-muted">Each row compares the forecast with what the asset did over the last 12 months and over its whole history, all measured the same way (from 21-day returns). The bar is the spread across nine families of models: a wide bar means the models disagree. The bold figure at the right is the forecast for the 12-month return, which is what a planner uses.</p>
     <div class="vf-legend" id="forecast-legend">
       <span><i class="vf-sw vf-dot" data-c="0"></i>Forecast</span>
@@ -100,8 +273,6 @@
           <th data-field="p90">Model range, high %</th>
           <th data-field="last12">Realized, last 12 months, %</th>
           <th data-field="longrun">Long-run average, %</th>
-          <th data-field="q05">5% downside, %</th>
-          <th data-field="q01">1% downside, %</th>
           <th data-field="miss_lo">Typical miss, low %</th>
           <th data-field="miss_hi">Typical miss, high %</th>
           <th data-field="since">History since</th>
@@ -109,11 +280,11 @@
         <tbody data-draw="assets-rows"></tbody>
       </table>
     </div>
-    <p class="vf-cap">Downside figures are quantiles of the 12-month log excess return minus its mean, from a fat-tailed distribution. Typical miss is the range, relative to forecast, that realized volatility fell in two years out of three over the last 30 years.</p>
+    <p class="vf-cap">Typical miss is the range, relative to forecast, that realized volatility fell in two years out of three over the last 30 years. The quantiles of next year's return are in the first section.</p>
   </section>
 
   <section class="vf-sec" id="correlations">
-    <h2 id="correlations-h">Forecast correlations: equities move together, Treasuries stand apart</h2>
+    <h2 id="correlations-h">Forecast correlations</h2>
     <p class="vf-muted">Each cell is the forecast correlation between two assets over the next 12 months. Darker means stronger; the second colour marks negative values.</p>
     <div class="vf-legend" id="corr-legend">
       <span><i class="vf-sw vf-band" data-c="0" style="opacity:.75"></i>Positive</span>
@@ -151,7 +322,7 @@
   </section>
 
   <section class="vf-sec" id="evidence">
-    <h2 id="evidence-h">The chosen model held up out of sample; the ranking of individual models did not</h2>
+    <h2 id="evidence-h">Models in and out of sample</h2>
     <div class="vf-two">
       <div class="vf-sec">
         <p class="vf-muted">Volatility loss (QLIKE, lower is better) before 2014, where the models were developed, and on 2014–2025, which was scored once after the choice was written down. Realized ÷ forecast is 1.00 for a forecast with the right level.</p>
@@ -167,8 +338,8 @@
             <tbody data-draw="cand-rows"></tbody>
           </table>
         </div>
-        <p class="vf-muted">The model that ranked first before 2014 fell far down the list afterwards, and a 10-year average that had ranked near the bottom rose near the top. Across all 70 volatility models the two rankings have a correlation of
-          <b data-draw="rankcorr" data-source="rank_corr">—</b>. The family average was chosen because no single model could be shown to be best; it ranked the same in both periods.</p>
+        <p class="vf-muted">Across all the volatility models the development and holdout rankings have a correlation of
+          <b data-draw="rankcorr" data-source="rank_corr">—</b>: a backtest leaderboard said little about which single model would do well next. The family average was chosen because no single model could be shown to be best.</p>
       </div>
       <div class="vf-sec">
         <div class="vf-legend" id="rank-legend">
@@ -176,14 +347,14 @@
           <span><i class="vf-sw vf-dot"></i>Other models</span>
         </div>
         <div class="vf-chart vf-tall" id="rank-chart" data-draw="rank-chart" data-source="model_ranks"></div>
-        <p class="vf-cap">Rank among 70 volatility models, 1 is best. A model on the dashed line kept its rank.</p>
+        <p class="vf-cap">Rank among the volatility models, 1 is best. A model on the dashed line kept its rank.</p>
       </div>
     </div>
   </section>
 
   <section class="vf-sec" id="stockbond">
-    <h2 id="stockbond-h">The stock–bond correlation turned positive in 2021–23 and the forecast was late</h2>
-    <p class="vf-muted">Forecast and realized correlation between US large-cap equity and intermediate Treasuries. The forecast is an average of slow-moving estimates, so it follows a change of regime with a lag of a year or more. No candidate model anticipated the turn.</p>
+    <h2 id="stockbond-h">Stock–bond correlation, forecast and realized</h2>
+    <p class="vf-muted">Forecast and realized correlation between US large-cap equity and intermediate Treasuries. The forecast is an average of slow-moving estimates, so it follows a change of regime with a lag of a year or more, as in 2021–23.</p>
     <div class="vf-legend" id="sb-legend">
       <span><i class="vf-sw" data-c="0"></i>Forecast</span>
       <span><i class="vf-sw" style="background:var(--color-fg)"></i>Realized over the next 12 months</span>
@@ -193,7 +364,7 @@
   </section>
 
   <section class="vf-sec" id="expectations">
-    <h2 id="expectations-h">Five expectations written down before the held-out years were scored</h2>
+    <h2 id="expectations-h">Expectations written down before the held-out years were scored</h2>
     <div class="vf-scroll">
       <table id="expectations-table" data-source="expectations" data-row-key="id">
         <thead><tr>
@@ -205,55 +376,287 @@
         <tbody data-draw="exp-rows"></tbody>
       </table>
     </div>
+    <p class="vf-cap">Reworded from the scoring script's output; the numbers are as it wrote them, with 90% intervals in brackets.</p>
+  </section>
+  </div>
+
+  <!-- ====================================================================== RETURN EVIDENCE -->
+  <div class="vf-part" id="part-returns">
+    <span class="vf-kicker">The return side: what was tested</span>
+
+  <section class="vf-sec" id="mean">
+    <h2 id="mean-h">Does anything beat the historical mean?</h2>
+    <p class="vf-muted">Six expected-return models, fixed before their test, against each asset's expanding historical mean. R² is the share of the historical mean's squared error that a model removed, pooled over assets; positive means closer. The marker at the right of each panel is roughly the R² this sample could have detected.</p>
+    <p class="vf-verdict" data-verdict="mean_orig">
+      <span data-when="pass" hidden><b>Original holdout:</b> a model beat the historical mean at <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_pass" data-where="question=mean_orig">—</span> of 3 horizons after allowing for the search.</span>
+      <span data-when="weak" hidden><b>Original holdout:</b> no model beat the historical mean at 1, 3 or 12 months once the search over six models is allowed for (family test p =
+        <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=mean_orig_h1">—</span>,
+        <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=mean_orig_h3">—</span> and
+        <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=mean_orig_h12">—</span>). The best R² at 12 months was <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="r2" data-where="question=mean_orig_h12">—</span>%.</span>
+      <span data-when="none" hidden><b>Original holdout:</b> no model had a higher R² than the historical mean at any horizon.</span>
+    </p>
+    <p class="vf-verdict" data-verdict="mean_rep">
+      <span data-when="pass" hidden><b>Replication:</b> the same models, unchanged, beat the historical mean on the twelve-asset panel (family p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=mean_rep">—</span>). These years had been seen, so this is not evidence of skill.</span>
+      <span data-when="weak" hidden><b>Replication:</b> the same models, unchanged, on the twelve-asset panel: best R² <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="r2" data-where="question=mean_rep">—</span>% (<span data-draw="v" data-source="verdicts" data-field="best_label" data-where="question=mean_rep">—</span>), <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_positive" data-where="question=mean_rep">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_models" data-where="question=mean_rep">—</span> positive, family test p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=mean_rep">—</span>. Not a beat, and in any case not new evidence.</span>
+      <span data-when="none" hidden><b>Replication:</b> the same models, unchanged, had no higher R² than the historical mean on the twelve-asset panel.</span>
+    </p>
+    <div class="vf-legend" id="r2-legend">
+      <span><i class="vf-sw vf-dot" data-c="0"></i>Frozen model</span>
+      <span><i class="vf-sw vf-ring"></i>Robustness row (not in the test)</span>
+      <span><i class="vf-sw vf-tick"></i>R² the sample could detect</span>
+    </div>
+    <div class="vf-chart vf-tall" id="r2-chart" data-draw="r2-chart" data-source="mean_r2"></div>
+    <p class="vf-label" data-draw="v" data-source="verdicts" data-field="label" data-where="question=mean_rep_ap">—</p>
+
+    <h3 id="cum-h">Squared-error lead over the historical mean, accumulated by forecast date</h3>
+    <p class="vf-muted">Each line rises in months when the model's forecast was closer than the historical mean and falls when it was further. A model with a real edge climbs steadily through the shaded test years.</p>
+    <div class="vf-row">
+      <select class="dash-select" id="cum-select" aria-label="Which run">
+        <option value="original~12">Original project, 12 months</option>
+        <option value="original~3">Original project, 3 months</option>
+        <option value="original~1">Original project, 1 month</option>
+        <option value="replication~12">Replication, 12 months (seen data)</option>
+      </select>
+      <div class="vf-legend" id="cum-legend" data-draw="cum-legend" data-source="mean_cum"></div>
+    </div>
+    <div class="vf-chart" id="cum-chart" data-draw="cum-chart" data-source="mean_cum"></div>
+    <p class="vf-cap">Shaded: the run's test years. Before them the original project was developing its models on these same years, so the early part of each line is not a test.</p>
   </section>
 
-  <details id="notes">
-    <summary>How to read these numbers, and what they cannot tell you</summary>
+  <section class="vf-sec" id="calibration">
+    <h2 id="calibration-h">Are the predictive distributions calibrated?</h2>
+    <p class="vf-muted">A calibrated 90% interval holds about 90% of outcomes. The published distribution was designed after both test periods had been looked at, so every figure here describes it; none tests it.</p>
+    <ul class="vf-sec" style="margin:0;padding-left:1.1em">
+      <li class="vf-verdict" data-verdict="calib_assets">
+        <span data-when="ok" hidden>Assets, 2014–2025: the 90% interval held <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_assets">—</span>% of outcomes.</span>
+        <span data-when="wide" hidden>Assets, 2014–2025: the 90% interval held <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_assets">—</span>% of outcomes, more than 90%: wider than these years needed.</span>
+        <span data-when="narrow" hidden>Assets, 2014–2025: the 90% interval held only <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_assets">—</span>% of outcomes: too narrow.</span>
+        <span data-verdict="calib_assets" data-key="calib_test">
+          <span data-when="accepts" hidden>The calibration test does not reject (p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="calib_p" data-where="question=calib_assets">—</span>, about <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="n_indep" data-where="question=calib_assets">—</span> independent years).</span>
+          <span data-when="rejects" hidden>The calibration test rejects (p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="calib_p" data-where="question=calib_assets">—</span>).</span>
+        </span>
+      </li>
+      <li class="vf-verdict" data-verdict="calib_assets_full">
+        <span data-when="ok" hidden>Assets, every scored year since <span data-draw="v" data-fmt="month" data-source="verdicts" data-field="first_origin" data-where="question=calib_assets_full">—</span>: <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_assets_full">—</span>%.</span>
+        <span data-when="wide" hidden>Assets, every scored year since <span data-draw="v" data-fmt="month" data-source="verdicts" data-field="first_origin" data-where="question=calib_assets_full">—</span>: <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_assets_full">—</span>%, also on the wide side.</span>
+        <span data-when="narrow" hidden>Assets, every scored year since <span data-draw="v" data-fmt="month" data-source="verdicts" data-field="first_origin" data-where="question=calib_assets_full">—</span>: <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_assets_full">—</span>%, too narrow.</span>
+      </li>
+      <li class="vf-verdict" data-verdict="calib_ports">
+        <span data-when="ok" hidden>Policy portfolios, published shape, 2014–2025: <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_ports">—</span>%.</span>
+        <span data-when="wide" hidden>Policy portfolios, published shape, 2014–2025: <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_ports">—</span>%, wider than needed; with the asset shape, <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_ports_as">—</span>%.</span>
+        <span data-when="narrow" hidden>Policy portfolios, published shape, 2014–2025: <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_ports">—</span>%, too narrow; with the asset shape, <span data-draw="v" data-fmt="f1" data-source="verdicts" data-field="cover90" data-where="question=calib_ports_as">—</span>%.</span>
+      </li>
+      <li class="vf-verdict" data-verdict="dist_rep_vol">
+        <span data-when="pass" hidden>Against a distribution scaled by recent (EWMA) volatility it scored better on CRPS by <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=dist_rep_vol">—</span>% (p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="p" data-where="question=dist_rep_vol">—</span>).</span>
+        <span data-when="weak" hidden>Against a distribution scaled by recent (EWMA) volatility it scored better on CRPS by only <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=dist_rep_vol">—</span>% (p = <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="p" data-where="question=dist_rep_vol">—</span>): no detectable difference.</span>
+        <span data-when="none" hidden>Against a distribution scaled by recent (EWMA) volatility it scored worse on CRPS (<span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=dist_rep_vol">—</span>%).</span>
+      </li>
+    </ul>
+    <div class="vf-row">
+      <select class="dash-select" id="cover-select" aria-label="Years">
+        <option value="holdout">2014–2025</option>
+        <option value="full">Every scored year</option>
+      </select>
+      <div class="vf-legend" id="cover-legend" data-draw="cover-legend" data-source="dist_calib"></div>
+    </div>
+    <div class="vf-chart" id="cover-chart" data-draw="cover-chart" data-source="dist_calib"></div>
+    <div class="vf-scroll">
+      <table id="calib-table" data-source="dist_calib" data-row-key="id">
+        <thead><tr>
+          <th data-field="name">Assets</th>
+          <th class="vf-txt" data-field="label">Distribution</th>
+          <th data-field="cover_90">90% interval held, %</th>
+          <th data-field="hit_q05">Below 5% quantile, %</th>
+          <th data-field="hit_q01">Below 1% quantile, %</th>
+          <th data-field="hit_q95">Above 95% quantile, %</th>
+          <th data-field="calib_p">Calibration test p</th>
+          <th data-field="n_indep">Independent years</th>
+        </tr></thead>
+        <tbody data-draw="calib-rows"></tbody>
+      </table>
+    </div>
+    <p class="vf-cap">The historical-mean and EWMA rows are the replication's reference distributions (normal, with a static or a recent-volatility width). Per-asset rows are the published distribution.</p>
+
+    <h3 id="shape-h">The shape behind the quantiles</h3>
+    <p class="vf-muted">Quantiles of past 12-month outcomes, each measured in units of what was then forecast to be uncertain, beside the normal curve. Below zero is a loss relative to the expected return.</p>
+    <div class="vf-legend" id="shape-legend">
+      <span><i class="vf-sw vf-dot" data-c="0"></i>Single assets</span>
+      <span><i class="vf-sw vf-dot" data-c="1"></i>Policy portfolios (published)</span>
+      <span><i class="vf-sw vf-dash"></i>Normal</span>
+    </div>
+    <div class="vf-chart vf-short" id="shape-chart" data-draw="shape-chart" data-source="shape"></div>
+
+    <h3 id="orig-dist-h">The original project's distribution models</h3>
+    <p class="vf-verdict" data-verdict="dist_orig">
+      <span data-when="pass" hidden>On the original holdout a distribution model beat the EWMA-volatility baseline after allowing for the search.</span>
+      <span data-when="weak" hidden>On the original holdout the best distribution model improved on the EWMA-volatility baseline by
+        <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=dist_orig_h1">—</span>%,
+        <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=dist_orig_h3">—</span>% and
+        <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="skill" data-where="question=dist_orig_h12">—</span>% at 1, 3 and 12 months, none significant once the search over five models is allowed for (p =
+        <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=dist_orig_h1">—</span>,
+        <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=dist_orig_h3">—</span>,
+        <span data-draw="v" data-fmt="p" data-source="verdicts" data-field="spa_p" data-where="question=dist_orig_h12">—</span>). Those models were not carried into this package.</span>
+      <span data-when="none" hidden>On the original holdout no distribution model improved on the EWMA-volatility baseline.</span>
+    </p>
+    <div class="vf-scroll">
+      <table id="orig-dist-table" data-source="dist_original" data-row-key="id">
+        <thead><tr>
+          <th data-field="horizon">Months</th>
+          <th class="vf-txt" data-field="label">Model</th>
+          <th data-field="crps_skill_vol">CRPS gain over EWMA volatility, %</th>
+          <th data-field="crps_p_vol">p (one-sided)</th>
+          <th data-field="cover_90">90% interval held, %</th>
+        </tr></thead>
+        <tbody data-draw="orig-dist-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="vf-sec" id="portfolio">
+    <h2 id="portfolio-h">Is any of it worth anything in a portfolio?</h2>
+    <p class="vf-muted">Three portfolio rules fixed in advance (mean-variance, mean-variance at 10% volatility, per-asset timing) were run on each model's expected returns and, separately, on the historical means, with the same risk model; the bars are the difference in certainty-equivalent return per year after costs, with its 95% interval. Above zero, the forecasts helped.</p>
+    <p class="vf-verdict" data-verdict="strat_orig">
+      <span data-when="pass" hidden><b>Original holdout:</b> <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_q_pos" data-where="question=strat_orig">—</span> rule-model pairs gained significantly after adjustment.</span>
+      <span data-when="weak" hidden><b>Original holdout:</b> <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_pos" data-where="question=strat_orig">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=strat_orig">—</span> pairs were ahead, none significantly after adjustment.</span>
+      <span data-when="worse" hidden><b>Original holdout:</b> across 1, 3 and 12 months, <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_neg" data-where="question=strat_orig">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=strat_orig">—</span> rule-model pairs did worse than the same rule on historical means, <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_sig_neg" data-where="question=strat_orig">—</span> of them with p &lt; 0.05; no gain survived adjustment.</span>
+      <span data-when="none" hidden><b>Original holdout:</b> no rule-model pair gained.</span>
+    </p>
+    <p class="vf-verdict" data-verdict="strat_rep">
+      <span data-when="pass" hidden><b>Replication, with this package's covariance as the risk model:</b> some gains survive adjustment, on years already seen.</span>
+      <span data-when="weak" hidden><b>Replication, with this package's covariance as the risk model:</b> <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_pos" data-where="question=strat_rep">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=strat_rep">—</span> ahead, none significantly after adjustment (largest <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="best_d_cer" data-where="question=strat_rep">—</span>% a year).</span>
+      <span data-when="worse" hidden><b>Replication, with this package's covariance as the risk model:</b> <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_neg" data-where="question=strat_rep">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=strat_rep">—</span> did worse (<span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_sig_neg" data-where="question=strat_rep">—</span> with p &lt; 0.05); the largest gain, <span data-draw="v" data-fmt="s2" data-source="verdicts" data-field="best_d_cer" data-where="question=strat_rep">—</span>% a year, was not significant after adjustment.</span>
+      <span data-when="none" hidden><b>Replication, with this package's covariance as the risk model:</b> no rule gained.</span>
+    </p>
+    <div class="vf-row">
+      <select class="dash-select" id="strat-select" aria-label="Which test">
+        <option value="original~mean~12~holdout">Original project, 12 months</option>
+        <option value="original~mean~3~holdout">Original project, 3 months</option>
+        <option value="original~mean~1~holdout">Original project, 1 month</option>
+        <option value="replication~mean~12~holdout">Replication, 12 months, 2014–2025 (seen data)</option>
+        <option value="replication~mean~12~holdout_ap">Replication, 12 months, 2015–2025 (seen data)</option>
+      </select>
+      <div class="vf-legend" id="strat-legend">
+        <span><i class="vf-sw vf-dot" data-c="0"></i>Gain, frozen model</span>
+        <span><i class="vf-sw vf-ring"></i>Robustness row</span>
+        <span><i class="vf-sw" data-c="0"></i>95% interval</span>
+      </div>
+    </div>
+    <div class="vf-chart vf-tall" id="strat-chart" data-draw="strat-chart" data-source="strategy"></div>
+    <h3 id="risk-h">Does the package's covariance make a better risk model than a static one?</h3>
+    <p class="vf-verdict" data-verdict="risk_rep">
+      <span data-when="pass" hidden>With historical means as the expected returns, the package's covariance beat a static sample covariance after adjustment.</span>
+      <span data-when="weak" hidden>With historical means as the expected returns, the package's covariance beat a static sample covariance in <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_pos" data-where="question=risk_rep">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=risk_rep">—</span> rules and lost in <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_neg" data-where="question=risk_rep">—</span>; with p &lt; 0.05 there are (<span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_sig_pos" data-where="question=risk_rep">—</span> gains and <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_sig_neg" data-where="question=risk_rep">—</span> losses).</span>
+      <span data-when="worse" hidden>With historical means as the expected returns, the package's covariance did worse than a static sample covariance in <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_neg" data-where="question=risk_rep">—</span> of <span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n" data-where="question=risk_rep">—</span> rules (<span data-draw="v" data-fmt="int" data-source="verdicts" data-field="n_sig_neg" data-where="question=risk_rep">—</span> with p &lt; 0.05).</span>
+      <span data-when="none" hidden>With historical means as the expected returns, the package's covariance gained nothing over a static sample covariance.</span>
+    </p>
+    <div class="vf-scroll">
+      <table id="risk-table" data-source="strategy" data-row-key="id">
+        <thead><tr>
+          <th data-field="rule_label">Rule</th>
+          <th data-field="d_cer">Gain, % a year</th>
+          <th data-field="ci_lo">95% interval, low</th>
+          <th data-field="ci_hi">95% interval, high</th>
+          <th data-field="d_cer_p">p</th>
+          <th data-field="d_sharpe">Sharpe difference</th>
+        </tr></thead>
+        <tbody data-draw="risk-rows"></tbody>
+      </table>
+    </div>
+    <p class="vf-label" data-draw="v" data-source="verdicts" data-field="label" data-where="question=risk_rep">—</p>
+  </section>
+  </div>
+
+  <!-- ====================================================================== METHOD -->
+  <div class="vf-part" id="part-method">
+    <span class="vf-kicker">Method and limits</span>
+  <details id="notes-method">
+    <summary>How each number is made</summary>
     <ul>
-      <li>The model is an average: nine families of volatility models are averaged within each family and then across families, dropping the highest and lowest for each asset; 25 correlation forecasts are averaged; and the result is scaled up to the 12-month horizon, because 12-month returns are more dispersed than short-horizon volatility implies.</li>
-      <li>Short-horizon volatility is measured from 21-day returns, not daily ones. Daily volatility depends on how a fund or index is priced and is not comparable across sources or eras.</li>
-      <li>The forecast gives the expected level of risk over a year. It does not say when a crisis will start: high-yield bonds realized about three times their forecast in the year covering March 2020.</li>
-      <li>If the covariance matrix is fed to an optimizer, the risk of the optimized portfolio was under-predicted by about 1.4 times before 2014. Scale it up, or constrain the weights.</li>
-      <li>The backtest can only detect large differences between models. Twelve held-out years can show that nothing collapsed, not which model is best.</li>
-      <li>Data: US equities daily from 1926, Treasuries from 1962, gold from 1971, other assets later; all from free public sources and audited independently. The numbers on this page are a fixed snapshot made on 14 November 2026.</li>
+      <li><b>Covariance.</b> Nine families of volatility models are averaged within each family and then across families, dropping the highest and lowest for each asset; 25 correlation forecasts are averaged; the result is scaled up to the 12-month horizon, because 12-month returns are more dispersed than short-horizon volatility implies. Short-horizon volatility is measured from 21-day returns, not daily ones.</li>
+      <li><b>Expected return.</b> Twelve times each asset's average monthly log excess return over its whole history. Its interval allows for serial correlation and pays for the noise in that correction; it covers sampling error only, not an average that has shifted.</li>
+      <li><b>Predictive range.</b> Centred on the expected return; scaled by the forecast 12-month volatility widened by the expected return's own uncertainty; shaped by past outcomes measured in the same units, recentred, with the 1%, 5%, 95% and 99% points no thinner than a normal of the same spread.</li>
+      <li><b>No position sizing.</b> The package publishes the inputs; how much leverage to take is the allocation model's decision. For an optimized or leveraged portfolio, the covariance side's own evidence says to scale predicted variance up (expectation 4 above, and the report) or constrain the optimizer.</li>
     </ul>
   </details>
+  <details id="notes-limits">
+    <summary>What the numbers cannot tell you</summary>
+    <ul>
+      <li>When a crisis starts. The volatility forecast reacts after the fact; the predictive range assumes next year's shape resembles the past's.</li>
+      <li>Whether expected returns have shifted. A historical average is slow by construction, and its interval says nothing about a change of regime.</li>
+      <li>Much about the portfolio tails. The portfolio shape's 1% point rests on a handful of historical episodes (first section); the asset-shape row shows how much a different, also defensible, choice moves it.</li>
+      <li>The return side uses the history from <span data-draw="v" data-source="snapshot" data-field="return_panel_from" data-where="key=now">—</span> without the month-average price eras; the covariance side uses everything back to the 1870s. US small caps have no carry or valuation measure among the return predictors, and several daily-volatility predictors change level where their data source changes.</li>
+      <li>The backtests can detect only large differences: twelve held-out years can show that nothing collapsed, not which close model is best.</li>
+    </ul>
+  </details>
+  <details id="notes-terms">
+    <summary>Terms used on this page</summary>
+    <dl>
+      <dt>Excess return</dt><dd>Log return of the asset minus that of one-month T-bills, summed over the 12 months after the forecast date.</dd>
+      <dt>Out-of-sample R²</dt><dd>1 − (model's squared forecast errors) / (historical mean's). Positive means the model's point forecasts were closer.</dd>
+      <dt>Detectable R²</dt><dd>Roughly the R² a model would need for 5% significance given the number of non-overlapping years. Below it, a true edge could not be told from luck.</dd>
+      <dt>Family test (SPA)</dt><dd>Is the best of a set of models better than the benchmark, allowing for having searched over the set? The p-value to read for "did anything beat it".</dd>
+      <dt>CRPS</dt><dd>The error of a whole predictive distribution. A gain is 1 − CRPS(model) / CRPS(benchmark).</dd>
+      <dt>Coverage</dt><dd>How often the outcome fell inside a central interval; a calibrated 90% interval holds about 90%.</dd>
+      <dt>Calibration test</dt><dd>Whether outcomes fall at the predicted 10th, 50th and 90th percentiles as often as they should; a small p-value means miscalibration.</dd>
+      <dt>CER</dt><dd>Certainty-equivalent return: the safe return an investor with risk aversion 5 would accept instead of the strategy.</dd>
+      <dt>QLIKE</dt><dd>The volatility loss used throughout the covariance side; lower is better.</dd>
+      <dt>Holdout</dt><dd>Years held back and scored once, after the models were fixed.</dd>
+      <dt>Independent years</dt><dd>Overlapping 12-month returns share 11 of 12 months, so a decade of monthly forecasts holds about ten independent outcomes.</dd>
+    </dl>
+  </details>
+  </div>
 </div>
 
 <script>
 (() => {
   const L = d3.formatLocale({ decimal: '.', thousands: ',', grouping: [3], currency: ['$', ''], minus: '-' });
   const f1 = L.format('.1f'), f2 = L.format('.2f'), f3 = L.format('.3f');
-  const C = dash.colors, FG = 'var(--color-fg)', MUTED = 'var(--cds-chart-muted)', GRID = 'var(--cds-chart-grid)', AXIS = 'var(--cds-chart-axis)';
+  const C = dash.colors, FG = 'var(--color-fg)', MUTED = 'var(--cds-chart-muted)', GRID = 'var(--cds-chart-grid)', AXIS = 'var(--cds-chart-axis)', REF = 'var(--cds-chart-reference)';
   const SHORT = { us_large: 'US large', us_small: 'US small', intl_dev: 'Intl dev', em: 'EM', ust_int: 'UST 7y', ust_long: 'UST 20y', tips: 'TIPS', ig_credit: 'IG credit', hy_credit: 'High yield', reits: 'REITs', gold: 'Gold', commodities: 'Commod.' };
+  const PSHORT = { p6040: '60/40', p_balanced: 'Balanced', p_equity: 'Equity' };
+  const PNAME = { p6040: '60/40', p_balanced: 'Balanced 12-asset mix', p_equity: 'Global equity mix' };
+  const MODEL_ORDER = ['ridge_z', 'combo_z', 'gbm_z', 'rf_z', 'ens_z', 'gbm_z.price'];
+  const MODEL_NAME = { ridge_z: 'Ridge', combo_z: 'Combination', gbm_z: 'Boosting', rf_z: 'Forest', ens_z: 'Ensemble', 'gbm_z.price': 'Boosting, price', 'gbm_z.nohind': 'Boosting, no hindsight', 'combo_z.nohind': 'Combo, no hindsight' };
+  const mcolor = (m) => C[MODEL_ORDER.indexOf(m) % C.length] || C[0];
   const parseYM = d3.utcParse('%Y-%m'), fmtYM = d3.utcFormat('%b %Y');
   const HOLD = parseYM('2014-01');
   const num = (v) => (v === null || v === undefined || v === '' ? NaN : +v);
-  const rows = (id) => { const s = dash.data(id); return s.status === 'ok' ? s.data : null; };
+  const rows = (id) => { const s = dash.data(id); return s.status === 'ok' && Array.isArray(s.data) ? s.data : null; };
   const failed = (id) => dash.data(id).status === 'error';
-  const state = { asset: 'us_large' };
+  const sgn = (fmt) => (v) => (+v > 0 ? '+' : '') + fmt(+v);
+  const FMT = {
+    raw: (v) => String(v), f1: (v) => f1(+v), f2: (v) => f2(+v), f3: (v) => f3(+v), s1: sgn(f1), s2: sgn(f2),
+    int: (v) => String(Math.round(+v)), p: (v) => (String(v).startsWith('<') ? String(v) : f3(+v)),
+    month: (v) => { const t = parseYM(String(v)); return t ? fmtYM(t) : String(v); },
+  };
+  const state = { asset: 'us_large', cum: 'original~12', cover: 'holdout', strat: 'original~mean~12~holdout' };
 
   // legend swatches take the series colours
   document.querySelectorAll('.vf-sw[data-c]').forEach((n) => { n.style.background = C[+n.dataset.c] || C[0]; });
 
-  // ---- single numbers -------------------------------------------------
-  const one = (name, src, pick, fmt) => dash.draw(name, (el) => {
-    const r = rows(src); const v = r ? pick(r) : NaN;
-    el.textContent = Number.isFinite(v) ? fmt(v) : '—';
+  // ---- one value from one cell: every data-draw="v" ---------------------
+  const where = (data, w) => {
+    if (!w) return [];
+    const conds = w.split('&').map((kv) => kv.split('=').map(decodeURIComponent));
+    return data.filter((r) => conds.every(([k, v]) => String(r[k]) === v));
+  };
+  dash.draw('v', (el) => {
+    const s = dash.data(el.dataset.source);
+    if (s.status !== 'ok' || !Array.isArray(s.data)) { el.textContent = '—'; return; }
+    const hit = el.dataset.row !== undefined ? [s.data[+el.dataset.row]] : where(s.data, el.dataset.where);
+    const raw = hit.length === 1 && hit[0] ? hit[0][el.dataset.field] : null;
+    el.textContent = raw === null || raw === undefined || raw === '' ? '—' : (FMT[el.dataset.fmt || 'raw'] || FMT.raw)(raw);
   });
-  const port = (p, f) => (r) => num((r.find((d) => d.portfolio === p) || {})[f]);
-  const asset = (a, f) => (r) => num((r.find((d) => d.asset === a) || {})[f]);
-  const cand = (role, f) => (r) => num((r.find((d) => d.role === role) || {})[f]);
-  one('s6040', 'forecast_portfolios', port('p6040', 'vol12'), f1);
-  one('t6040', 'forecast_portfolios', port('p6040', 'vol12'), f1);
-  one('t6040q', 'forecast_portfolios', port('p6040', 'q05'), f1);
-  one('tbal', 'forecast_portfolios', port('p_balanced', 'vol12'), f1);
-  one('tbalq', 'forecast_portfolios', port('p_balanced', 'q05'), f1);
-  one('susl', 'forecast_assets', asset('us_large', 'vol12'), f1);
-  one('suslr', 'forecast_assets', asset('us_large', 'last12'), f1);
-  one('tcorr', 'forecast_corr', (r) => num((r.find((d) => d.pair === 'us_large~ust_int') || {}).corr), f2);
-  one('thold', 'candidates', cand('primary', 'holdout'), f3);
-  one('tholdref', 'candidates', cand('reference', 'holdout'), f3);
+
+  // ---- which prewritten sentence applies: [data-verdict] groups ---------
+  dash.onData(() => {
+    const s = dash.data('verdicts'), ok = s.status === 'ok' && Array.isArray(s.data);
+    document.querySelectorAll('[data-verdict]').forEach((g) => {
+      const r = ok ? s.data.find((d) => d.question === g.dataset.verdict) : null;
+      const val = r ? String(r[g.dataset.key || 'status']) : null;
+      g.querySelectorAll(':scope > [data-when]').forEach((alt) => { alt.hidden = alt.dataset.when !== val; });
+    });
+  });
 
   dash.calc('rank_corr', {
     inputs: ['model_ranks'],
@@ -272,21 +675,33 @@
 
   // ---- tables ---------------------------------------------------------
   const cell = (text, cls) => { const td = document.createElement('td'); td.textContent = text; if (cls) td.className = cls; return td; };
-  const table = (name, src, key, cols) => dash.draw(name, (tb) => {
-    const r = rows(src) || [];
+  const pill = (td, text, kind) => { const span = document.createElement('span'); span.className = 'vf-pill ' + kind; span.textContent = text; td.replaceChildren(span); };
+  const table = (name, src, keys, cols, opt = {}) => dash.draw(name, (tb) => {
+    const r = (rows(src) || []).filter(opt.filter || (() => true));
     tb.replaceChildren(...r.map((d) => {
-      const tr = document.createElement('tr'); tr.dataset.key = encodeURIComponent(d[key]);
-      cols.forEach(([f, cls, deco, fmt]) => { const raw = d[f] ?? ''; const td = cell(fmt && raw !== '' && Number.isFinite(+raw) ? fmt(+raw) : raw, cls); if (deco) deco(td, d); tr.append(td); });
+      const tr = document.createElement('tr');
+      tr.dataset.key = keys.map((k) => encodeURIComponent(d[k])).join(',');
+      if (opt.rowClass) tr.className = opt.rowClass(d);
+      cols.forEach(([f, cls, deco]) => { const raw = d[f] ?? ''; const td = cell(raw === '' ? '—' : raw, cls); if (deco) deco(td, d); tr.append(td); });
       return tr;
     }));
   });
-  table('assets-rows', 'forecast_assets', 'asset', [['name'], ['vol12', 'vf-key'], ['vol21'], ['p10'], ['p90'], ['last12'], ['longrun'], ['q05'], ['q01'], ['miss_lo'], ['miss_hi'], ['since']]);
-  table('cand-rows', 'candidates', 'role', [['label'], ['dev', null, null, f3], ['holdout', 'vf-key', null, f3], ['rf_dev', null, null, f2], ['rf_holdout', null, null, f2]]);
-  table('exp-rows', 'expectations', 'id', [['id'], ['expectation', 'vf-txt'], ['status', 'vf-txt', (td, d) => {
-    const s = String(d.status).toLowerCase(); const span = document.createElement('span');
-    span.className = 'vf-pill ' + (s.startsWith('not met') ? 'vf-bad' : s.includes('not significant') ? 'vf-warn' : 'vf-ok');
-    span.textContent = d.status; td.replaceChildren(span);
-  }], ['evidence', 'vf-txt']]);
+  table('outlook-rows', 'outlook_assets', ['asset'], [['name'], ['er', 'vf-key'], ['er_lo'], ['er_hi'], ['er_arith'], ['vol12'], ['q01'], ['q05'], ['q50'], ['q95'], ['q99'], ['history_from']]);
+  table('outlook-port-rows', 'outlook_portfolios', ['portfolio', 'shape'], [['label'], ['shape_label', 'vf-txt'], ['er', 'vf-key'], ['vol12'], ['q01'], ['q05'], ['q50'], ['q95'], ['q99'], ['weights', 'vf-txt']], { rowClass: (d) => (d.published === 'yes' ? '' : 'vf-sens') });
+  table('assets-rows', 'forecast_assets', ['asset'], [['name'], ['vol12', 'vf-key'], ['vol21'], ['p10'], ['p90'], ['last12'], ['longrun'], ['miss_lo'], ['miss_hi'], ['since']]);
+  table('cand-rows', 'candidates', ['role'], [['label'], ['dev'], ['holdout', 'vf-key'], ['rf_dev'], ['rf_holdout']]);
+  table('exp-rows', 'expectations', ['id'], [['id'], ['expectation', 'vf-txt'], ['status', 'vf-txt', (td, d) => pill(td, d.status, d.outcome === 'met' ? 'vf-ok' : d.outcome === 'partly' ? 'vf-warn' : 'vf-bad')], ['evidence', 'vf-txt']]);
+  dash.draw('calib-rows', (tb) => {
+    const r = (rows('dist_calib') || []).filter((d) => d.period === state.cover && (d.asset === 'pooled' || d.model === 'dist_hm_af'));
+    tb.replaceChildren(...r.map((d) => {
+      const tr = document.createElement('tr'); tr.dataset.key = encodeURIComponent(d.id);
+      if (d.model === 'dist_hm_af.assetshape') tr.className = 'vf-sens';
+      ['name', 'label', 'cover_90', 'hit_q05', 'hit_q01', 'hit_q95', 'calib_p', 'n_indep'].forEach((f, i) => tr.append(cell(d[f] === '' || d[f] == null ? '—' : d[f], i === 1 ? 'vf-txt' : (f === 'cover_90' ? 'vf-key' : null))));
+      return tr;
+    }));
+  });
+  table('orig-dist-rows', 'dist_original', ['id'], [['horizon'], ['label', 'vf-txt'], ['crps_skill_vol', 'vf-key'], ['crps_p_vol'], ['cover_90']]);
+  table('risk-rows', 'strategy', ['id'], [['rule_label'], ['d_cer', 'vf-key'], ['ci_lo'], ['ci_hi'], ['d_cer_p'], ['d_sharpe']], { filter: (d) => d.family === 'risk' && d.period === 'holdout' });
 
   // ---- chart helpers --------------------------------------------------
   const blank = (el, id) => { el.replaceChildren(); const p = document.createElement('p'); p.className = 'vf-cap'; p.textContent = failed(id) ? 'Failed to load' : '—'; el.append(p); };
@@ -303,8 +718,8 @@
     };
   };
   const pt = (ev, node) => { const e = ev.touches && ev.touches[0] ? ev.touches[0] : ev; return d3.pointer(e, node); };
-  const shade = (g, x, y0, y1, xMax, label) => {
-    const x0 = Math.max(x(HOLD), x.range()[0]); if (x0 >= xMax) return;
+  const shade = (g, x, y0, y1, xMax, label, from) => {
+    const x0 = Math.max(x(from || HOLD), x.range()[0]); if (x0 >= xMax) return;
     g.append('rect').attr('x', x0).attr('y', y1).attr('width', xMax - x0).attr('height', y0 - y1).style('fill', MUTED).style('opacity', 0.16);
     if (xMax - x0 > 60) g.append('text').attr('x', x0 + 4).attr('y', y1 + 12).text(label);
   };
@@ -319,11 +734,60 @@
       g.append('text').attr('x', x0 - 6).attr('y', y(t)).attr('dy', '0.32em').attr('text-anchor', 'end').text(fmt(t));
     });
   };
+  const xGrid = (g, x, y0, y1, fmt, n) => {
+    x.ticks(n).forEach((t) => {
+      g.append('line').attr('x1', x(t)).attr('x2', x(t)).attr('y1', y0).attr('y2', y1).style('stroke', t === 0 ? AXIS : GRID);
+      g.append('text').attr('x', x(t)).attr('y', y1 + 14).attr('text-anchor', 'middle').text(fmt(t));
+    });
+  };
+  const legendItems = (el, items) => {
+    el.replaceChildren(...items.map(([text, color, cls]) => {
+      const s = document.createElement('span'), i = document.createElement('i');
+      i.className = 'vf-sw ' + (cls || ''); i.style.background = color; s.append(i, document.createTextNode(text)); return s;
+    }));
+  };
 
-  // ---- forecast by asset ----------------------------------------------
+  // ---- range chart: expected return, its interval, predictive quantiles --
+  const rangeChart = (el, d, opt) => {
+    const w = Math.max(300, el.clientWidth), narrow = w < 560, rowH = opt.rowH || 30, top = 26, left = narrow ? opt.leftN : opt.leftW, right = 52;
+    const h = top + d.length * rowH + 26;
+    const svg = svgIn(el, w, h, opt.label), g = svg.append('g');
+    const lo = d3.min(d, (a) => Math.min(a.q05, a.er_lo)), hi = d3.max(d, (a) => Math.max(a.q95, a.er_hi));
+    const x = d3.scaleLinear().domain([Math.min(0, lo), Math.max(0, hi)]).nice().range([left, w - right]);
+    xGrid(g, x, top - 6, h - 22, (t) => t + '%', narrow ? 4 : 8);
+    g.append('text').attr('class', 'vf-strong').attr('x', w - 2).attr('y', 12).attr('text-anchor', 'end').text('Vol');
+    const tip = tipIn(el);
+    d.forEach((a, i) => {
+      const y = top + i * rowH + rowH / 2, sens = a.sens;
+      g.append('text').attr('x', left - 10).attr('y', y).attr('dy', '0.32em').attr('text-anchor', 'end').style('fill', sens ? 'var(--color-fg-muted)' : FG).style('font-style', sens ? 'italic' : null).text(narrow ? a.short : a.name);
+      const band = (q0, q1, hgt, op) => g.append('rect').attr('x', x(q0)).attr('y', y - hgt / 2).attr('width', Math.max(1, x(q1) - x(q0))).attr('height', hgt).attr('rx', 2)
+        .style('fill', sens ? 'none' : C[0]).style('opacity', sens ? 1 : op).style('stroke', sens ? C[0] : 'none').style('stroke-dasharray', sens ? '3 2' : null);
+      band(a.q05, a.q95, 12, 0.22); band(a.q25, a.q75, 12, 0.5);
+      g.append('line').attr('x1', x(a.er_lo)).attr('x2', x(a.er_hi)).attr('y1', y).attr('y2', y).style('stroke', FG).style('stroke-width', 2.5);
+      g.append('circle').attr('cx', x(a.er)).attr('cy', y).attr('r', 4.5).style('fill', sens ? 'var(--color-bg)' : FG).style('stroke', FG).style('stroke-width', 1.5);
+      g.append('text').attr('class', 'vf-strong').attr('x', w - 2).attr('y', y).attr('dy', '0.32em').attr('text-anchor', 'end').text(f1(a.vol) + '%');
+      g.append('rect').attr('x', 0).attr('y', y - rowH / 2).attr('width', w).attr('height', rowH).style('fill', 'transparent')
+        .on('pointermove', (ev) => { const [mx, my] = pt(ev, el); tip.show(mx, my, [[a.name + (sens ? ' (asset shape)' : '')], ['Expected return', sgn(f1)(a.er) + '%']].concat(a.er_lo < a.er_hi ? [['90% interval of the mean', f1(a.er_lo) + ' to ' + f1(a.er_hi) + '%']] : []).concat([['5–95% of outcomes', f1(a.q05) + ' to ' + f1(a.q95) + '%'], ['25–75% of outcomes', f1(a.q25) + ' to ' + f1(a.q75) + '%'], ['Volatility', f1(a.vol) + '%']])); })
+        .on('pointerleave', () => tip.hide());
+    });
+  };
+  dash.draw('outlook-chart', (el) => {
+    const r = rows('outlook_assets'); if (!r) return blank(el, 'outlook_assets');
+    rangeChart(el, r.map((a) => ({ name: a.name, short: SHORT[a.asset] || a.asset, er: num(a.er), er_lo: num(a.er_lo), er_hi: num(a.er_hi), q05: num(a.q05), q25: num(a.q25), q75: num(a.q75), q95: num(a.q95), vol: num(a.vol12) })),
+      { leftN: 74, leftW: 200, label: 'Expected 12-month excess return with its 90% interval and the 5–95% and 25–75% predictive ranges, per asset' });
+  });
+  dash.draw('outlook-port-chart', (el) => {
+    const r = rows('outlook_portfolios'); if (!r) return blank(el, 'outlook_portfolios');
+    const order = ['p6040', 'p_balanced', 'p_equity'];
+    const d = r.slice().sort((a, b) => order.indexOf(a.portfolio) - order.indexOf(b.portfolio) || (a.published === 'yes' ? -1 : 1))
+      .map((a) => ({ sens: a.published !== 'yes', name: a.published === 'yes' ? (PNAME[a.portfolio] || a.label) : 'same, asset shape', short: (PSHORT[a.portfolio] || a.portfolio) + (a.published === 'yes' ? '' : ' (alt)'), er: num(a.er), er_lo: num(a.er), er_hi: num(a.er), q05: num(a.q05), q25: num(a.q25), q75: num(a.q75), q95: num(a.q95), vol: num(a.vol12) }));
+    rangeChart(el, d, { rowH: 28, leftN: 104, leftW: 200, label: 'Expected 12-month excess return and predictive ranges of the three policy portfolios, published shape and asset-shape sensitivity' });
+  });
+
+  // ---- volatility forecast by asset -----------------------------------
   dash.draw('assets-chart', (el) => {
     const r = rows('forecast_assets'); if (!r) return blank(el, 'forecast_assets');
-    const d = r.map((a) => ({ id: a.asset, name: a.name, group: a.group, v21: num(a.vol21), v12: num(a.vol12), lo: num(a.p10), hi: num(a.p90), last: num(a.last12), lr: num(a.longrun) }));
+    const d = r.map((a) => ({ id: a.asset, name: a.name, v21: num(a.vol21), v12: num(a.vol12), lo: num(a.p10), hi: num(a.p90), last: num(a.last12), lr: num(a.longrun) }));
     const w = Math.max(300, el.clientWidth), narrow = w < 560, rowH = 30, top = 26, left = narrow ? 74 : 200, right = 62;
     const h = top + d.length * rowH + 26;
     const svg = svgIn(el, w, h, 'Forecast volatility by asset with the range across model families, last year’s realized volatility and the long-run average');
@@ -353,8 +817,8 @@
   dash.draw('corr-chart', (el) => {
     const r = rows('forecast_corr'); if (!r) return blank(el, 'forecast_corr');
     const ids = Array.from(new Set(r.map((d) => d.asset_i))), n = ids.length;
-    const w = Math.max(300, el.clientWidth), narrow = w < 560, left = narrow ? 58 : 84, top = narrow ? 58 : 66;
-    const cs = Math.min(52, (w - left - 2) / n), h = top + n * cs + 4;
+    const w = Math.max(300, el.clientWidth), narrow = w < 560, left = narrow ? 70 : 84, top = narrow ? 58 : 66;
+    const cs = Math.min(52, (w - left - 40) / n), h = top + n * cs + 4;
     const svg = svgIn(el, w, h, 'Forecast correlation matrix for the twelve assets');
     const g = svg.append('g'), ix = new Map(ids.map((a, i) => [a, i])), tip = tipIn(el);
     ids.forEach((a, i) => {
@@ -423,7 +887,7 @@
   // ---- development rank against holdout rank ---------------------------
   dash.draw('rank-chart', (el) => {
     const r = rows('model_ranks'); if (!r) return blank(el, 'model_ranks');
-    const d = r.map((p) => ({ model: p.model, family: p.family, a: num(p.rank_dev), b: num(p.rank_holdout), qa: num(p.qlike_dev), qb: num(p.qlike_holdout), label: p.label || '' }));
+    const d = r.map((p) => ({ model: p.model, a: num(p.rank_dev), b: num(p.rank_holdout), qa: num(p.qlike_dev), qb: num(p.qlike_holdout), label: p.label || '' }));
     const w = Math.max(300, el.clientWidth), h = Math.min(460, Math.max(340, w * 0.9)), m = { t: 16, r: 16, b: 40, l: 46 }, n = d.length;
     const svg = svgIn(el, w, h, 'Each volatility model’s rank before 2014 against its rank on 2014 to 2025'), g = svg.append('g');
     const x = d3.scaleLinear().domain([0, n + 1]).range([m.l, w - m.r]), y = d3.scaleLinear().domain([0, n + 1]).range([m.t, h - m.b]);
@@ -447,5 +911,147 @@
       g.append('text').attr('class', 'vf-strong').attr('x', x(p.a) + (rightSide ? 9 : -9)).attr('y', y(p.b)).attr('dy', '0.32em').attr('text-anchor', rightSide ? 'start' : 'end').style('pointer-events', 'none').text(p.label);
     });
   });
+
+  // ---- R² against the historical mean, small multiples -----------------
+  const PANELS = [
+    ['original', '1', 'holdout', 'Original project, 1 month'], ['original', '3', 'holdout', 'Original project, 3 months'],
+    ['original', '12', 'holdout', 'Original project, 12 months'],
+    ['replication', '12', 'holdout', 'Replication, 12 months, 2014–2025 (seen data)'], ['replication', '12', 'holdout_ap', 'Replication, 12 months, 2015–2025 (seen data)'],
+  ];
+  dash.draw('r2-chart', (el) => {
+    const r = rows('mean_r2'); if (!r) return blank(el, 'mean_r2');
+    const w = Math.max(300, el.clientWidth), narrow = w < 560, left = narrow ? 146 : 260, right = 16, rowH = 17, head = 22, foot = 24;
+    const panels = PANELS.map(([s, hz, p, title]) => ({ title, d: r.filter((x) => x.source === s && String(x.horizon) === hz && x.period === p) })).filter((p) => p.d.length);
+    const ph = panels.map((p) => head + p.d.length * rowH + foot), h = d3.sum(ph) + 4;
+    const svg = svgIn(el, w, h, 'Pooled out-of-sample R-squared of each expected-return model against the historical mean, by test'), tip = tipIn(el);
+    let y0 = 0;
+    panels.forEach((p, k) => {
+      const g = svg.append('g').attr('transform', `translate(0,${y0})`), det = num(p.d[0].r2_detectable);
+      const vals = p.d.map((x) => num(x.r2)).concat([det, 0]).filter(Number.isFinite);
+      const x = d3.scaleLinear().domain(d3.extent(vals)).nice().range([left, w - right]);
+      g.append('text').attr('class', 'vf-strong').attr('x', 0).attr('y', 14).text(p.title);
+      const yb = head + p.d.length * rowH;
+      xGrid(g, x, head - 2, yb, (t) => L.format('~r')(t) + '%', narrow ? 4 : 6);
+      if (Number.isFinite(det)) {
+        g.append('line').attr('x1', x(det)).attr('x2', x(det)).attr('y1', head - 2).attr('y2', yb).style('stroke', FG).style('stroke-width', 2);
+      }
+      p.d.forEach((m, i) => {
+        const y = head + i * rowH + rowH / 2, v = num(m.r2), rob = m.role !== 'frozen';
+        g.append('text').attr('x', left - 8).attr('y', y).attr('dy', '0.32em').attr('text-anchor', 'end').style('fill', rob ? 'var(--color-fg-muted)' : FG).text(narrow ? (MODEL_NAME[m.model] || m.model) : m.label);
+        g.append('line').attr('x1', x(0)).attr('x2', x(v)).attr('y1', y).attr('y2', y).style('stroke', rob ? MUTED : C[0]).style('stroke-width', 2);
+        g.append('circle').attr('cx', x(v)).attr('cy', y).attr('r', 4).style('fill', rob ? 'var(--color-bg)' : C[0]).style('stroke', rob ? FG : C[0]).style('stroke-width', 1.5);
+        g.append('rect').attr('x', 0).attr('y', y - rowH / 2).attr('width', w).attr('height', rowH).style('fill', 'transparent')
+          .on('pointermove', (ev) => { const [mx, my] = pt(ev, el); tip.show(mx, my, [[m.label + (rob ? ' (robustness row)' : '')], ['Test', p.title], ['R² vs historical mean', sgn(f2)(v) + '%'], ['Detectable', f1(det) + '%'], ['Clark-West p', String(m.cw_p)]]); })
+          .on('pointerleave', () => tip.hide());
+      });
+      y0 += ph[k];
+    });
+  });
+
+  // ---- cumulative squared-error difference ------------------------------
+  dash.draw('cum-legend', (el) => legendItems(el, MODEL_ORDER.map((m) => [MODEL_NAME[m], mcolor(m)])));
+  dash.draw('cum-chart', (el) => {
+    const r = rows('mean_cum'); if (!r) return blank(el, 'mean_cum');
+    const sel = r.filter((p) => p.series === state.cum); if (!sel.length) return blank(el, 'mean_cum');
+    const by = d3.group(sel, (p) => p.model), w = Math.max(300, el.clientWidth), h = 300, m = { t: 14, r: 12, b: 26, l: 56 };
+    const svg = svgIn(el, w, h, 'Cumulative squared-error difference against the historical mean for each frozen model'), g = svg.append('g');
+    const all = sel.map((p) => ({ t: parseYM(p.date), v: num(p.cum), m: p.model }));
+    const x = d3.scaleUtc().domain(d3.extent(all, (p) => p.t)).range([m.l, w - m.r]);
+    const y = d3.scaleLinear().domain(d3.extent(all.map((p) => p.v).concat([0]))).nice().range([h - m.b, m.t]);
+    yGrid(g, y, m.l, w - m.r, L.format('.2~f'), 5);
+    const from = parseYM(state.cum.startsWith('original') ? '2015-01' : '2014-01');
+    shade(g, x, h - m.b, m.t, w - m.r, state.cum.startsWith('original') ? 'Holdout' : 'Replication test years', from);
+    g.append('line').attr('x1', m.l).attr('x2', w - m.r).attr('y1', y(0)).attr('y2', y(0)).style('stroke', AXIS);
+    const series_ = MODEL_ORDER.filter((k) => by.has(k)).map((k) => ({ k, d: by.get(k).map((p) => ({ t: parseYM(p.date), v: num(p.cum) })).sort((a, b) => a.t - b.t) }));
+    series_.forEach((s) => g.append('path').attr('d', d3.line().x((p) => x(p.t)).y((p) => y(p.v))(s.d)).style('fill', 'none').style('stroke', mcolor(s.k)).style('stroke-width', 1.5));
+    yearAxis(g, x, h - m.b, w);
+    const tip = tipIn(el), rule = g.append('line').attr('y1', m.t).attr('y2', h - m.b).style('stroke', AXIS).style('opacity', 0), bis = d3.bisector((p) => p.t).center;
+    svg.append('rect').attr('x', m.l).attr('y', m.t).attr('width', w - m.l - m.r).attr('height', h - m.t - m.b).style('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        const [mx, my] = pt(ev, el), t = x.invert(mx); const ref = series_[0].d[bis(series_[0].d, t)]; if (!ref) return;
+        rule.attr('x1', x(ref.t)).attr('x2', x(ref.t)).style('opacity', 1);
+        tip.show(x(ref.t), my, [['Forecasts through ' + fmtYM(ref.t)]].concat(series_.map((s) => { const p = s.d[bis(s.d, t)]; return [MODEL_NAME[s.k], p ? L.format('+.4f')(p.v) : '—']; })));
+      })
+      .on('pointerleave', () => { tip.hide(); rule.style('opacity', 0); });
+  });
+  document.querySelectorAll('#cum-select').forEach((sel) => { sel.value = state.cum; sel.addEventListener('change', () => { state.cum = sel.value; dash.draw('cum-chart'); }); });
+
+  // ---- coverage: nominal against realized -------------------------------
+  const COVER_SERIES = [
+    ['dist_hm_af~assets~pooled', 'Published, assets', 0], ['dist_hm_af~portfolios~pooled', 'Published, portfolios', 1],
+    ['dist_hm_af.assetshape~portfolios~pooled', 'Portfolios, asset shape', 2], ['hist_mean~assets~pooled', 'Historical mean, normal', 3], ['vol_ewma~assets~pooled', 'EWMA volatility, normal', 4],
+  ];
+  dash.draw('cover-legend', (el) => legendItems(el, COVER_SERIES.map(([, t, c]) => [t, C[c] || C[0], 'vf-dot'])));
+  dash.draw('cover-chart', (el) => {
+    const r = rows('dist_calib'); if (!r) return blank(el, 'dist_calib');
+    const levels = [50, 80, 90, 98], w = Math.max(300, el.clientWidth), h = 300, m = { t: 14, r: 14, b: 38, l: 46 };
+    const svg = svgIn(el, w, h, 'Share of outcomes inside the central 50, 80, 90 and 98% intervals against the nominal share'), g = svg.append('g'), tip = tipIn(el);
+    const lo = Math.min(45, Math.floor((d3.min(r.flatMap((p) => levels.map((lv) => num(p['cover_' + lv])))) || 45) / 5) * 5);
+    const x = d3.scaleLinear().domain([45, 100]).range([m.l, w - m.r]), y = d3.scaleLinear().domain([lo, 100]).range([h - m.b, m.t]);
+    yGrid(g, y, m.l, w - m.r, (t) => t + '%', 5);
+    levels.forEach((t) => g.append('text').attr('x', x(t)).attr('y', h - m.b + 14).attr('text-anchor', 'middle').text(t + '%'));
+    g.append('text').attr('x', (m.l + w - m.r) / 2).attr('y', h - 4).attr('text-anchor', 'middle').text('Nominal');
+    g.append('line').attr('x1', x(45)).attr('y1', y(Math.max(45, lo))).attr('x2', x(100)).attr('y2', y(100)).style('stroke', REF).style('stroke-dasharray', '4 4');
+    const n = COVER_SERIES.length;
+    COVER_SERIES.forEach(([key, title, c], k) => {
+      const d = r.find((p) => p.id === key + '~' + state.cover); if (!d) return;
+      const pts = levels.map((lv) => ({ lv, v: num(d['cover_' + lv]) }));
+      const dx = (k - (n - 1) / 2) * 3;
+      g.append('path').attr('d', d3.line().x((p) => x(p.lv) + dx).y((p) => y(p.v))(pts)).style('fill', 'none').style('stroke', C[c] || C[0]).style('stroke-width', 1.2).style('opacity', 0.6);
+      pts.forEach((p) => g.append('circle').attr('cx', x(p.lv) + dx).attr('cy', y(p.v)).attr('r', 4).style('fill', C[c] || C[0])
+        .on('pointermove', (ev) => { const [mx, my] = pt(ev, el); tip.show(mx, my, [[title], ['Nominal', p.lv + '%'], ['Held', f1(p.v) + '%'], ['Independent years', String(d.n_indep)]]); })
+        .on('pointerleave', () => tip.hide()));
+    });
+  });
+  document.querySelectorAll('#cover-select').forEach((sel) => { sel.value = state.cover; sel.addEventListener('change', () => { state.cover = sel.value; dash.draw('cover-chart'); dash.draw('calib-rows'); }); });
+
+  // ---- shape --------------------------------------------------------------
+  dash.draw('shape-chart', (el) => {
+    const r = rows('shape'); if (!r) return blank(el, 'shape');
+    const d = r.map((p) => ({ tau: num(p.tau), a: num(p.z_assets), p: num(p.z_portfolios), n: num(p.z_normal) }));
+    const w = Math.max(300, el.clientWidth), h = 220, m = { t: 12, r: 14, b: 36, l: 40 };
+    const svg = svgIn(el, w, h, 'Quantiles of past standardized outcomes for assets and portfolios against the normal'), g = svg.append('g'), tip = tipIn(el);
+    const x = d3.scalePoint().domain(d.map((p) => p.tau)).range([m.l + 10, w - m.r - 10]);
+    const y = d3.scaleLinear().domain(d3.extent(d.flatMap((p) => [p.a, p.p, p.n]))).nice().range([h - m.b, m.t]);
+    yGrid(g, y, m.l, w - m.r, L.format('~r'), 5);
+    d.forEach((p) => g.append('text').attr('x', x(p.tau)).attr('y', h - m.b + 14).attr('text-anchor', 'middle').text(p.tau + '%'));
+    g.append('text').attr('x', (m.l + w - m.r) / 2).attr('y', h - 4).attr('text-anchor', 'middle').text('Quantile');
+    g.append('path').attr('d', d3.line().x((p) => x(p.tau)).y((p) => y(p.n))(d)).style('fill', 'none').style('stroke', FG).style('stroke-dasharray', '4 3');
+    d.forEach((p) => {
+      [['a', 0, -3], ['p', 1, 3]].forEach(([k, c, dx]) => g.append('circle').attr('cx', x(p.tau) + dx).attr('cy', y(p[k])).attr('r', 4).style('fill', C[c]));
+      g.append('rect').attr('x', x(p.tau) - 14).attr('y', m.t).attr('width', 28).attr('height', h - m.t - m.b).style('fill', 'transparent')
+        .on('pointermove', (ev) => { const [mx, my] = pt(ev, el); tip.show(mx, my, [[p.tau + '% quantile'], ['Single assets', f3(p.a)], ['Portfolios', f3(p.p)], ['Normal', f3(p.n)]]); })
+        .on('pointerleave', () => tip.hide());
+    });
+  });
+
+  // ---- strategy: gain over the historical-mean version, with interval ---
+  dash.draw('strat-chart', (el) => {
+    const r = rows('strategy'); if (!r) return blank(el, 'strategy');
+    const [src, fam, hz, per] = state.strat.split('~');
+    const d = r.filter((p) => p.source === src && p.family === fam && String(p.horizon) === hz && p.period === per)
+      .sort((a, b) => a.rule_label.localeCompare(b.rule_label) || a.label.localeCompare(b.label));
+    if (!d.length) return blank(el, 'strategy');
+    const w = Math.max(300, el.clientWidth), narrow = w < 560, left = narrow ? 160 : 300, right = 16, rowH = 20, top = 8, bottom = 26;
+    const h = top + d.length * rowH + bottom;
+    const svg = svgIn(el, w, h, 'Net certainty-equivalent gain of each rule on each model over the same rule on historical means, with 95% intervals'), g = svg.append('g'), tip = tipIn(el);
+    const ext = d3.extent(d.flatMap((p) => [num(p.ci_lo), num(p.ci_hi), 0]));
+    const x = d3.scaleLinear().domain(ext).nice().range([left, w - right]);
+    xGrid(g, x, top, top + d.length * rowH, (t) => L.format('~r')(t) + '%', narrow ? 4 : 7);
+    let prev = '';
+    d.forEach((p, i) => {
+      const y = top + i * rowH + rowH / 2, rob = p.role !== 'frozen', v = num(p.d_cer);
+      if (p.rule_label !== prev && i) g.append('line').attr('x1', 0).attr('x2', w).attr('y1', y - rowH / 2).attr('y2', y - rowH / 2).style('stroke', GRID);
+      g.append('text').attr('x', left - 8).attr('y', y).attr('dy', '0.32em').attr('text-anchor', 'end').style('fill', rob ? 'var(--color-fg-muted)' : FG)
+        .text((p.rule_label !== prev || !narrow ? (narrow ? p.rule.replace('_', ' ') : p.rule_label) + ' · ' : '· ') + (MODEL_NAME[p.model] || p.label));
+      prev = p.rule_label;
+      g.append('line').attr('x1', x(num(p.ci_lo))).attr('x2', x(num(p.ci_hi))).attr('y1', y).attr('y2', y).style('stroke', rob ? MUTED : C[0]).style('stroke-width', 2);
+      g.append('circle').attr('cx', x(v)).attr('cy', y).attr('r', 4).style('fill', rob ? 'var(--color-bg)' : C[0]).style('stroke', rob ? FG : C[0]).style('stroke-width', 1.5);
+      g.append('rect').attr('x', 0).attr('y', y - rowH / 2).attr('width', w).attr('height', rowH).style('fill', 'transparent')
+        .on('pointermove', (ev) => { const [mx, my] = pt(ev, el); tip.show(mx, my, [[p.rule_label + ', ' + p.label], ['Gain, % a year', sgn(f2)(v)], ['95% interval', f2(num(p.ci_lo)) + ' to ' + f2(num(p.ci_hi))], ['p', String(p.d_cer_p)], ['q (adjusted)', p.d_cer_q === '' || p.d_cer_q == null ? 'not in the test' : String(p.d_cer_q)]]); })
+        .on('pointerleave', () => tip.hide());
+    });
+  });
+  document.querySelectorAll('#strat-select').forEach((sel) => { sel.value = state.strat; sel.addEventListener('change', () => { state.strat = sel.value; dash.draw('strat-chart'); }); });
 })();
 </script>

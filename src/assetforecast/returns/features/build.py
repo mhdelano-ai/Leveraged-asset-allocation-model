@@ -10,9 +10,9 @@ function of the inputs, so the truncation tests can rebuild from inputs cut at
 any month.
 
 ``--max-date D`` sets ``ASSETFORECAST_MAX_DATE`` before ``paths`` is imported and
-builds from the panel as it stood at D. It writes to the same ``paths.FEATURES``
-(that path does not move under the development switch): rows dated <= D equal
-the full build's, but later rows are absent until the full build is rerun.
+builds from the panel as it stood at D. Under the development switch
+``paths.FEATURES`` moves to ``results/dev/features``, so the committed
+full-sample panel is never overwritten; rows dated <= D equal the full build's.
 """
 from __future__ import annotations
 

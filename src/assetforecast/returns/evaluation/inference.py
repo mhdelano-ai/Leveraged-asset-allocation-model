@@ -7,7 +7,7 @@ Every test here uses a Bartlett (Newey-West) long-run variance with
 and Student-t(n-1) reference distributions. Lag h-1 alone is too short for the
 Bartlett kernel (it down-weights the overlap autocovariances); 1.5h gave close
 to nominal size for Clark-West and Diebold-Mariano at h = 12 with ~350
-monthly observations in Monte Carlo (``tests/test_inference.py``).
+monthly observations in Monte Carlo (``tests/returns/test_return_inference.py``).
 
 Pooled tests aggregate across assets *per date first* (sum or mean), then apply
 the time-series test, so cross-asset correlation is accounted for.

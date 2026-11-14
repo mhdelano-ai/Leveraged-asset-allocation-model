@@ -222,7 +222,7 @@ def outlook_assets(s: Sources) -> pd.DataFrame:
     d = s.read("distribution_assets.csv").set_index("asset").loc[er.asset].reset_index()
     out = pd.DataFrame({"asset": er.asset, "name": er.name, "er": pc(er.mean_12m), "er_lo": pc(er.ci90_lo),
                         "er_hi": pc(er.ci90_hi), "er_se": pc(er.se_12m), "er_arith": pc(er.mean_12m_arith),
-                        "sd": pc(d.sd)})
+                        "vol12": pc(d.scale), "sd": pc(d.sd)})
     for q in QS:
         out[q] = pc(d[q])
     out["n_months"] = er.n_months
@@ -450,14 +450,20 @@ def verdict_rows(s: Sources) -> list[dict]:
     # 2. the original return-forecasting project's holdout (archived; genuine out-of-sample)
     a = _archive_scores(s)
     astrat = s.read("strategy/summary_by_period.csv", "archive")
+    per_h = {}
     for h in ARCHIVE_HORIZONS:
         span = _archive_span(s, h)
-        rows.append(_verdict_row(f"mean_orig_h{h}", "original", h, ARCHIVE_PERIOD, span,
-                                 vd.mean_verdict(a, rc.FROZEN_MEAN, h, ARCHIVE_PERIOD)))
-        rows.append(_verdict_row(f"dist_orig_h{h}", "original", h, ARCHIVE_PERIOD, span,
-                                 vd.dist_skill_verdict(a, archive_dist_family(a), h, ARCHIVE_PERIOD)))
-        rows.append(_verdict_row(f"strat_orig_h{h}", "original", h, ARCHIVE_PERIOD, span,
-                                 vd.strategy_verdict(astrat, rc.FROZEN_MEAN, RULES, h, ARCHIVE_PERIOD)))
+        per_h[h] = {"mean": vd.mean_verdict(a, rc.FROZEN_MEAN, h, ARCHIVE_PERIOD),
+                    "dist": vd.dist_skill_verdict(a, archive_dist_family(a), h, ARCHIVE_PERIOD),
+                    "strat": vd.strategy_verdict(astrat, rc.FROZEN_MEAN, RULES, h, ARCHIVE_PERIOD)}
+        for k, v in per_h[h].items():
+            rows.append(_verdict_row(f"{k}_orig_h{h}", "original", h, ARCHIVE_PERIOD, span, v))
+    span = (_archive_span(s, ARCHIVE_HORIZONS[0])[0], max(_archive_span(s, h)[1] for h in ARCHIVE_HORIZONS))
+    for k in ("mean", "dist"):
+        rows.append(_verdict_row(f"{k}_orig", "original", "all", ARCHIVE_PERIOD, span,
+                                 vd.combine_edges([per_h[h][k] for h in ARCHIVE_HORIZONS])))
+    rows.append(_verdict_row("strat_orig", "original", "all", ARCHIVE_PERIOD, span,
+                             vd.combine_strategy([per_h[h]["strat"] for h in ARCHIVE_HORIZONS])))
 
     # 3. the merge-time replication on the 12-asset panel (seen data; descriptive)
     r, d = _replication_scores(s), _dist_scores(s)

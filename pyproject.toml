@@ -9,7 +9,7 @@ description = "One-year-ahead covariance, expected returns and predictive distri
 requires-python = ">=3.11"
 dependencies = [
   "numpy", "pandas", "scipy", "statsmodels", "scikit-learn", "arch",
-  "lightgbm", "hmmlearn", "pyarrow", "requests", "openpyxl", "xlrd", "matplotlib", "threadpoolctl",
+  "lightgbm", "pyarrow", "requests", "openpyxl", "xlrd", "matplotlib", "threadpoolctl",
 ]
 
 [project.optional-dependencies]
