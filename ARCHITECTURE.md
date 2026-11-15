@@ -307,7 +307,7 @@ out-of-sample evidence of its own. The dashboard's frontier section shows it.
 | `results/archive/assetpred/` | the `assetpred` project's results and inputs as merged: its 1-, 3- and 12-month findings (`scores/`, `strategy/`; its HTML dashboard was removed, recoverable from git history), its development trial logs, and the fixtures the port is checked against | yes, never rewritten |
 | `results/horizons/` | score tables of the horizon study (`assetforecast.horizons`: returns, volatility and correlations at 1 month to 10 years, descriptive only); its report is `reports/horizon_study.md`, its page `dashboard/horizons.html` | yes |
 | `results/dev/` | every development run (and the horizon study's forecast caches, `results/dev/horizons/`) | no |
-| `forecasts/` | the published forecast per origin and `latest/` | yes |
+| `forecasts/` | the published forecast per origin and `latest/`; `three_fund/` holds its restatement for two declared composites (world stocks, world bonds) and cash, with the mixes into the borrowed range (`python -m assetforecast.threefund`) | yes |
 | `dashboard/` | the published dashboard page, its data and the one-page summary (`summary.html`) | yes |
 
 Every output of the replication, the distribution scores and the strategy

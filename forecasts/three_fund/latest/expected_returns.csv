@@ -1,0 +1,3 @@
+asset,name,mean_12m,se_12m,ci90_lo,ci90_hi,n_months,first_month,mean_12m_full_mix,first_month_full_mix,mean_12m_arith
+world_stocks,World stocks (composite),0.06336,0.02024,0.02878,0.09793,1204,1926-07,0.06104,1989-07,0.079
+world_bonds,World bonds (composite),0.01048,0.00471,0.00244,0.01851,1204,1926-07,0.01161,1962-02,0.01192
