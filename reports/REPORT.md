@@ -532,6 +532,7 @@ for t in cash_macro us_equity intl_equity treasuries tips credit reits real_asse
 done
 python -m assetforecast.data.sources.return_predictors --from-committed   # the return side's 73 series, offline
 python -m assetforecast.data.assemble
+python -m assetforecast.data.sources.margin_rates --refresh   # Robinhood's margin rates, which the frontier borrows at
 
 # Everything else, in order (python -m assetforecast.pipeline --list shows the steps):
 python -m assetforecast.pipeline --jobs 4

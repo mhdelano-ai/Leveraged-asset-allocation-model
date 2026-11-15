@@ -116,21 +116,27 @@ def test_match_points_and_gap(inp):
 def test_borrow_terms_are_the_margin_rate_over_tbills():
     cash = pd.Series({pd.Timestamp("2026-09-30"): 0.0030, pd.Timestamp("2026-10-31"): 0.0032,
                       pd.Timestamp("2026-12-31"): 0.0025})
-    b = F.borrow_terms("2026-10-31", cash=cash)
-    lo, hi, rate = F.MARGIN["tiers"][F.MARGIN_TIER]
+    sched = {"lender": "L", "source": "S", "as_of": "2026-09-17", "retrieved": "2026-11-15", "day_count": 360,
+             "tiers": [{"from": 0.0, "below": 50_000.0, "rate": 0.0525}, {"from": 50_000.0, "below": 1e6, "rate": 0.05},
+                       {"from": 1e6, "below": None, "rate": 0.045}]}
+    terms = lambda origin, **k: F.borrow_terms(origin, **{"cash": cash, "schedule": sched, **k})
+    b = terms("2026-10-31")
+    rate = 0.0525
     assert (b["margin_rate"], b["tbill_month"], b["tier"]) == (rate, "2026-10-31", "up to $50,000")
     assert b["annual_cost"] == pytest.approx(rate * 365 / 360, abs=1e-6)
     assert b["tbill_rate"] == pytest.approx(12 * 0.0032)
     assert b["spread"] == pytest.approx(b["annual_cost"] - b["tbill_rate"], abs=1e-9)
     # a bigger balance borrows cheaper; the T-bill rate is the origin month's and nothing later
-    rates = [r for _, _, r in F.MARGIN["tiers"]]
-    assert rates == sorted(rates, reverse=True) and len(b["schedule"]) == len(rates)
-    assert F.borrow_terms("2026-10-31", tier=2, cash=cash)["spread"] < b["spread"]
-    assert F.borrow_terms("2026-10-31", cash=cash.iloc[:2]) == b
+    assert [s["balance"] for s in b["schedule"]] == ["up to $50,000", "$50,000 up to $1,000,000", "$1,000,000 or more"]
+    assert terms("2026-10-31", tier=2)["spread"] == pytest.approx(b["spread"] - 0.0075 * 365 / 360, abs=2e-6)
+    assert terms("2026-10-31", cash=cash.iloc[:2]) == b
+    # a new schedule moves the spread by the change in its rate
+    cut = {**sched, "tiers": [{**sched["tiers"][0], "rate": 0.05}] + sched["tiers"][1:]}
+    assert terms("2026-10-31", schedule=cut)["spread"] == pytest.approx(b["spread"] - 0.0025 * 365 / 360, abs=2e-6)
     # an origin before the schedule's date is measured in the schedule's month; a missing month is an error
-    assert F.borrow_terms("2020-01-31", cash=cash)["tbill_month"] == "2026-09-30"
+    assert terms("2020-01-31")["tbill_month"] == "2026-09-30"
     with pytest.raises(ValueError, match="no T-bill return"):
-        F.borrow_terms("2026-11-30", cash=cash)
+        terms("2026-11-30")
 
 
 def test_spread_defaults_to_the_inputs(inp):
@@ -183,7 +189,7 @@ def test_published_frontier_hangs_together(latest):
     assert meta["borrow"] == F.borrow_terms(origin) and meta["max_leverage"] == F.MAX_LEVERAGE
     spread = meta["borrow_spread"]
     assert spread == meta["borrow"]["spread"] > 0
-    assert meta["borrow"]["margin_rate"] == F.MARGIN["tiers"][F.MARGIN_TIER][2]
+    assert meta["borrow"]["margin_rate"] == F.margin_schedule()["tiers"][F.MARGIN_TIER]["rate"]
     assert meta["borrow"]["tbill_month"] == origin
     np.testing.assert_allclose(p.loc[er.index, "growth"], er["mean_12m"], atol=1e-5)
     np.testing.assert_allclose(p.loc[er.index, "growth_lo"], er["ci90_lo"], atol=2e-5)

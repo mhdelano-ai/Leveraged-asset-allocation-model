@@ -1,10 +1,13 @@
 """The efficient frontier the published forecast implies: long-only portfolios, cash and borrowing.
 
-    python -m assetforecast.frontier [--dir forecasts/latest]
+    python -m assetforecast.frontier [--dir DIR]
+
+(without ``--dir``: ``forecasts/latest`` and the dated folder it is a copy of)
 
 Reads a published forecast folder (``cov_annual.csv``, ``expected_returns.csv`` and the
-policy weights and origin in ``forecast.json``) and the T-bill return of the origin month
-(``data/processed/cash_monthly.parquet``), and writes, into the same folder,
+policy weights and origin in ``forecast.json``), the T-bill return of the origin month
+(``data/processed/cash_monthly.parquet``) and Robinhood's margin rates
+(``data/processed/margin_rates.json``), and writes, into the same folder,
 
     frontier.csv          portfolios along two frontiers, with their weights
     frontier_points.csv   the reference points: the assets, the policy portfolios, minimum
@@ -57,12 +60,13 @@ net drift is also the one with the most growth: these are frontiers in growth as
 
 Borrowing
 ---------
-Borrowed money is a Robinhood margin loan. ``MARGIN`` holds Robinhood's published schedule
-(one rate on the whole balance, set by the size of the balance; the date it was published
-as of; interest accrues daily on a 360-day year) and ``MARGIN_TIER`` the balance tier the
-frontier uses. Returns here are in excess of T-bills, so what enters is the spread
+Borrowed money is a Robinhood margin loan. ``data/processed/margin_rates.json`` holds
+Robinhood's published schedule (one rate on the whole balance, set by the size of the
+balance; the date it is stated as of; the day count of its interest, a 360-day year),
+downloaded by ``python -m assetforecast.data.sources.margin_rates --refresh``, and
+``MARGIN_TIER`` is the balance tier the frontier uses. Returns here are in excess of T-bills, so what enters is the spread
 
-    borrow_spread = margin rate x 365/360 - 12 x the T-bill return of the origin month
+    borrow_spread = margin rate x 365/day_count - 12 x the T-bill return of the origin month
 
 (:func:`borrow_terms`), held for the 12 months: Robinhood's rate floats with the federal
 funds target, and T-bills with it. Not counted: the first $1,000 that a Gold subscription
@@ -85,30 +89,15 @@ from scipy.optimize import minimize
 from . import paths
 from .universe import BY_ID
 
-__all__ = ["MARGIN", "MARGIN_TIER", "MAX_LEVERAGE", "N_POINTS", "METHOD", "Inputs", "borrow_terms",
+__all__ = ["MARGIN_FILE", "MARGIN_TIER", "margin_schedule", "MAX_LEVERAGE", "N_POINTS", "METHOD", "Inputs", "borrow_terms",
            "load_inputs", "drift",
            "stats", "min_variance", "max_sharpe", "risk_parity", "frontier_point", "at_volatility",
            "curve", "build", "publish"]
 
-# Robinhood's margin interest schedule: the rate on the whole margin balance, by its size in dollars.
-MARGIN = {
-    "lender": "Robinhood Financial (margin investing)",
-    "source": "https://robinhood.com/us/en/support/articles/margin-rates/",
-    "as_of": "2026-09-17",          # "The margin interest rates shown are as of September 17, 2026"
-    "retrieved": "2026-11-15",
-    "day_count": 360,               # daily interest = balance x rate / 360
-    "tiers": [                      # (balance from, balance below, annual rate)
-        (0, 50_000, 0.0525),
-        (50_000, 100_000, 0.0505),
-        (100_000, 1_000_000, 0.0475),
-        (1_000_000, 10_000_000, 0.045),
-        (10_000_000, 50_000_000, 0.0445),
-        (50_000_000, None, 0.042),
-    ],
-}
 MARGIN_TIER = 0          # the tier the frontier borrows at: a balance up to $50,000, the dearest
 MAX_LEVERAGE = 2.0       # total exposure as a multiple of capital (Regulation T: 50% initial margin)
 CASH_FILE = paths.PROCESSED / "cash_monthly.parquet"
+MARGIN_FILE = paths.PROCESSED / "margin_rates.json"       # written by assetforecast.data.sources.margin_rates
 N_POINTS = 41            # portfolios per frontier
 FRONTIER_FILE, POINTS_FILE = "frontier.csv", "frontier_points.csv"
 _TOL = 1e-9
@@ -160,12 +149,21 @@ def _tier_label(lo: float, hi: float | None) -> str:
     return f"${lo:,.0f} or more" if hi is None else f"up to ${hi:,.0f}" if lo == 0 else f"${lo:,.0f} up to ${hi:,.0f}"
 
 
-def borrow_terms(origin, tier: int = MARGIN_TIER, cash: pd.Series | None = None) -> dict:
+def margin_schedule() -> dict:
+    """Robinhood's published margin rates as last downloaded (``assetforecast.data.sources.margin_rates``)."""
+    return json.loads(MARGIN_FILE.read_text())
+
+
+def borrow_terms(origin, tier: int = MARGIN_TIER, cash: pd.Series | None = None,
+                 schedule: dict | None = None) -> dict:
     """The cost of a Robinhood margin loan at ``origin`` as a spread over T-bills (module docstring).
 
-    ``cash`` is the simple monthly T-bill return by month-end (default: the processed panel's).
+    ``cash`` is the simple monthly T-bill return by month-end (default: the processed panel's);
+    ``schedule`` the margin rates (default: :func:`margin_schedule`).
     """
-    lo, hi, rate = MARGIN["tiers"][tier]
+    MARGIN = margin_schedule() if schedule is None else schedule
+    t = MARGIN["tiers"][tier]
+    lo, hi, rate = t["from"], t["below"], t["rate"]
     if cash is None:
         cash = pd.read_parquet(CASH_FILE)["cash"]
     month = max(pd.Timestamp(origin), pd.Timestamp(MARGIN["as_of"])) + pd.offsets.MonthEnd(0)
@@ -177,7 +175,7 @@ def borrow_terms(origin, tier: int = MARGIN_TIER, cash: pd.Series | None = None)
             "retrieved": MARGIN["retrieved"], "tier": _tier_label(lo, hi), "margin_rate": rate,
             "day_count": MARGIN["day_count"], "annual_cost": cost, "tbill_rate": tbill,
             "tbill_month": str(month.date()), "spread": round(cost - tbill, 6),
-            "schedule": [{"balance": _tier_label(a, b), "rate": r} for a, b, r in MARGIN["tiers"]]}
+            "schedule": [{"balance": _tier_label(t["from"], t["below"]), "rate": t["rate"]} for t in MARGIN["tiers"]]}
 
 
 def load_inputs(d: Path) -> Inputs:
@@ -384,8 +382,14 @@ def publish(d: Path) -> dict:
 
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="python -m assetforecast.frontier", description=__doc__.split("\n")[0])
-    ap.add_argument("--dir", type=Path, default=paths.FORECASTS_OUT / "latest", help="a published forecast folder")
+    ap.add_argument("--dir", type=Path, default=None,
+                    help="a published forecast folder (default: forecasts/latest and the dated folder it copies)")
     a = ap.parse_args(argv)
+    if a.dir is None:
+        a.dir = paths.FORECASTS_OUT / "latest"
+        dated = paths.FORECASTS_OUT / json.loads((a.dir / "forecast.json").read_text())["origin"]
+        if dated.is_dir():
+            publish(dated)
     res = publish(a.dir)
     pd.set_option("display.width", 200)
     cols = ["point", "kind", "vol", "growth", "growth_lo", "growth_hi", "invested"]
