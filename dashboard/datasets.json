@@ -29,6 +29,35 @@
   ]
  },
  {
+  "id": "frontier",
+  "file": "data/frontier.csv",
+  "title": "Efficient frontier",
+  "description": "Portfolios along the long-only frontier with and without cash and borrowing: volatility, expected compound growth with its range, share invested and weights, in percent.",
+  "sources": [
+   "forecasts/latest/frontier.csv"
+  ]
+ },
+ {
+  "id": "frontier_points",
+  "file": "data/frontier_points.csv",
+  "title": "Portfolios and assets beside the frontier",
+  "description": "The policy portfolios, minimum variance, best return per unit of risk, risk parity, the frontier portfolio at each policy portfolio's volatility, and the twelve assets, on the frontier's axes.",
+  "sources": [
+   "forecasts/latest/frontier_points.csv"
+  ]
+ },
+ {
+  "id": "frontier_settings",
+  "file": "data/frontier_settings.csv",
+  "title": "Frontier settings",
+  "description": "One row: the borrowing spread, the leverage limit and counts quoted beside the frontier.",
+  "sources": [
+   "forecasts/latest/forecast.json",
+   "forecasts/latest/frontier.csv",
+   "forecasts/latest/frontier_points.csv"
+  ]
+ },
+ {
   "id": "shape",
   "file": "data/shape.csv",
   "title": "Shape of the predictive distribution",

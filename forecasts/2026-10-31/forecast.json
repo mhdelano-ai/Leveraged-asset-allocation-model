@@ -1215,5 +1215,16 @@
    "cov_annual_max_abs_diff": 0.0
   },
   "portfolio_scale_vs_vol_12m_return_max_abs_diff": 1.3877787807814457e-17
+ },
+ "frontier": {
+  "method": "Arithmetic on the published forecast, not a model and not a tested strategy. Weights x are shares of capital, long-only; the rest is cash, or borrowing at T-bills plus borrow_spread when sum(x) > 1, up to max_leverage. drift_i = mean_12m_i + 0.5 cov_annual_ii. volatility = sqrt(x'cov_annual x). growth = x'drift - borrow_spread x max(sum(x) - 1, 0) - 0.5 x'cov_annual x, the expected log excess return of the portfolio rebalanced to x; for one asset it equals mean_12m, for a mix it exceeds x'mean_12m (the approximation of the published portfolio rows) by 0.5 (sum x_i cov_ii - x'cov x). growth_lo/growth_hi = growth -/+ sum_i x_i (ci90_hi_i - ci90_lo_i)/2: the 90% intervals of the means added as if perfectly correlated; sampling error of the means only. Curve 'unlevered': least variance per level of drift with sum(x) = 1. Curve 'levered': the same with sum(x) <= max_leverage and drift net of the borrowing cost, from all cash to the volatility of the most volatile asset. Points: min_variance and max_sharpe (most drift per unit of volatility) are long-only and fully invested; risk_parity gives every asset the same share of portfolio variance; 'match' rows are the levered frontier at a policy portfolio's volatility, with gap = its growth minus the policy portfolio's and gap_lo/gap_hi = gap -/+ sum_i |x_i - w_i| (ci90_hi_i - ci90_lo_i)/2, the widest the 90% intervals of the means allow.",
+  "borrow_spread": 0.01,
+  "max_leverage": 2.0,
+  "n_points": 41,
+  "interval_level": 0.9,
+  "files": [
+   "frontier.csv",
+   "frontier_points.csv"
+  ]
  }
 }

@@ -61,6 +61,8 @@ PORTFOLIOS: dict[str, str] = {
     "p_equity": "Global equity mix",
 }
 
+PORTFOLIO_SHORT: dict[str, str] = {"p6040": "60/40", "p_balanced": "the balanced mix", "p_equity": "the equity mix"}
+
 SHAPES: dict[str, str] = {
     "portfolios": "Published: shape from past portfolio outcomes",
     "assets": "Sensitivity: shape from past single-asset outcomes",

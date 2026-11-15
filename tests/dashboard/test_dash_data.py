@@ -228,6 +228,40 @@ def test_verdict_figures():
         assert (v.loc[q, "label"] == rc.REPLICATION_LABEL) == (v.loc[q, "evidence"] == "replication")
 
 
+def test_frontier_equals_published_forecast():
+    """The frontier datasets are the published frontier in percent; group shares and counts recomputed."""
+    from assetforecast.universe import BY_ID
+    f, p = pd.read_csv(LATEST / "frontier.csv"), pd.read_csv(LATEST / "frontier_points.csv")
+    d, q, st = csv("frontier"), csv("frontier_points").set_index("point"), csv("frontier_settings").iloc[0]
+    assert list(d.id) == list(f.curve + "~" + f.i.astype(str))
+    for c in ("vol", "growth", "growth_lo", "growth_hi"):
+        close(d[c], (100 * f[c]).round(2))
+        close(q[c], (100 * p.set_index("point")[c]).round(2).loc[q.index])
+    close(d.invested, (100 * f.invested).round(1))
+    wcols = [c for c in f.columns if c.startswith("w_")]
+    for g in ("equity", "rates", "credit", "real"):
+        close(d[g], (100 * f[[c for c in wcols if BY_ID[c[2:]].group == g]].sum(axis=1)).round(1))
+    for c in wcols:
+        close(d[c], (100 * f[c]).round(1))
+    pp = p.set_index("point").loc[q.index]
+    for c in ("gap", "gap_lo", "gap_hi"):
+        close(q[c], (100 * pp[c]).round(2))
+    assert set(q.kind) == {"asset", "policy", "special", "match"} and q.label.notna().all()
+    assert (q.loc[q.kind == "asset", "group"] == [BY_ID[a].group for a in q.index[q.kind == "asset"]]).all()
+    assert q.loc["p6040", "weights"] == "60% US large, 40% UST 7y"
+    assert d.loc[d.id == "levered~0", "weights"].iloc[0] == "100% cash"
+    assert "borrowed" in d.loc[d.invested.idxmax(), "weights"]
+    m = json.loads((LATEST / "forecast.json").read_text())["frontier"]
+    assert st.borrow_spread == 100 * m["borrow_spread"] and st.max_invested == 100 * m["max_leverage"]
+    match = p[p.kind == "match"]
+    assert st.n_match == len(match) == 3
+    assert st.n_gap_incl_zero == ((match.gap_lo <= 0) & (match.gap_hi >= 0)).sum()
+    lev = f[f.curve == "levered"]
+    assert st.n_assets_held == (lev[wcols].max() >= 0.005).sum() and st.n_assets == len(wcols)
+    top = lev.loc[lev.vol.idxmax()]
+    assert st.top_vol == round(100 * top.vol, 1) and st.top_growth == round(100 * top.growth, 1)
+
+
 def test_manifest_covers_every_file():
     man = json.loads(dd.MANIFEST.read_text())
     files = {m["file"] for m in man}
