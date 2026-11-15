@@ -12,7 +12,7 @@ converts units; :func:`render` prints them. Sources:
 
 * ``forecasts/latest/``  ``expected_returns.csv``, ``distribution_assets.csv``,
                          ``distribution_portfolios.csv``, ``frontier.csv``, ``frontier_points.csv``,
-                         ``forecast.json``
+                         ``shape.csv``, ``forecast.json``
 * ``results/final/``     ``accuracy.csv``, ``portfolio_summary.csv``, ``summary.json`` (frozen)
 * the dashboard's own builders ``verdicts``, ``snapshot`` and ``history_vol`` (``data.py``)
 
@@ -35,6 +35,20 @@ swing          a volatility, unchanged: ``vol_12m_return`` and the frontier's ``
 frontier band  ``exp(drift -/+ h) - 1`` with ``h`` the half-width of the published growth band.
 swing excess   the square root of a realized/predicted VARIANCE ratio (``portfolio_summary.csv``
                and :data:`VARIANCE_HAIRCUT`).
+
+Recommended mixes
+-----------------
+The four mixes are rows of the published levered frontier (``frontier.csv``): the points one
+fifth, two fifths, three fifths and four fifths of the way, in volatility, from all cash to
+the most volatile asset. Nothing is optimized here. Their bad year (1 in 20) follows the
+report's rule for optimized and leveraged portfolios (``reports/REPORT.md``, section 2):
+
+    exp(center + sqrt(k vol^2 + (sum_i |w_i| se_i)^2) z) - 1
+
+with ``center = sum_i w_i mean_12m_i - borrow_spread x max(sum(w) - 1, 0)``, ``k`` =
+:data:`VARIANCE_HAIRCUT`, ``se`` the standard errors of the means and ``z`` the 5% point of the
+asset-pooled shape (``shape.csv``, column ``z_assets``). They are arithmetic on the forecast,
+not tested strategies, and the page says so beside them.
 """
 from __future__ import annotations
 
@@ -71,6 +85,15 @@ GROUP_OF = {"equity": "Stocks", "rates": "Bonds", "credit": "Bonds", "real": "Re
 GROUP_WORD = {"Stocks": "stocks", "Bonds": "bonds", "Real assets": "real assets"}
 PORTFOLIO_NAMES = {"p6040": "60/40", "p_balanced": "Balanced mix", "p_equity": "Global stock mix"}
 PORTFOLIO_GROUP = "Portfolios"
+MIX_NAMES = ("Cautious", "Moderate", "Growth", "Aggressive")     # the four recommended mixes, by rising swing
+MIX_TAU = 0.05                                                   # their bad year: the 1-in-20 outcome
+MIX_MIN_WEIGHT = 0.005                                           # holdings below half a percent are not listed
+HOLDING_NAMES = {
+    "us_large": "US large stocks", "us_small": "US small stocks", "intl_dev": "developed ex-US stocks",
+    "em": "emerging-market stocks", "ust_int": "mid-term Treasuries", "ust_long": "long-term Treasuries",
+    "tips": "inflation-protected Treasuries", "ig_credit": "high-grade bonds", "hy_credit": "high-yield bonds",
+    "reits": "REITs", "gold": "gold", "commodities": "commodities",
+}
 
 
 # --------------------------------------------------------------------------- units and text
@@ -200,12 +223,38 @@ def borrowing(s: dd.Sources) -> dict:
         "margin_rate": float(b["margin_rate"]), "tier": str(b["tier"]), "as_of": str(b["as_of"]),
         "cash_rate": float(b["tbill_rate"]), "spread": float(fr["borrow_spread"]), "max_leverage": float(fr["max_leverage"]),
         "curve": curve, "borrow_from_vol": unborrowed[-1]["vol"], "top": curve[-1],
-        "policies": policies, "gaps": gaps,
+        "policies": policies, "gaps": gaps, "mixes": mixes(s),
         "gap_min": min(g["gap"] for g in gaps), "gap_max": max(g["gap"] for g in gaps),
         "n_gap_zero": sum(g["includes_zero"] for g in gaps),
         "var_ratio": float(ratio), "swing_excess": math.sqrt(float(ratio)) - 1.0,
         "haircut": VARIANCE_HAIRCUT, "haircut_swing": math.sqrt(VARIANCE_HAIRCUT) - 1.0,
     }
+
+
+def mixes(s: dd.Sources) -> list[dict]:
+    """The recommended mixes: evenly spaced rows of the published levered frontier (module docstring)."""
+    spread = float(s.json("forecast.json")["frontier"]["borrow_spread"])
+    lev = s.read("frontier.csv")
+    lev = lev[lev.curve == "levered"].sort_values("i").reset_index(drop=True)
+    e = s.read("expected_returns.csv").set_index("asset")
+    shape = s.read("shape.csv")
+    z = float(shape[(shape.tau - MIX_TAU).abs() < 1e-9].z_assets.iloc[0])
+    out = []
+    for k, name in enumerate(MIX_NAMES, 1):
+        r = lev.iloc[round(k * (len(lev) - 1) / (len(MIX_NAMES) + 1))]
+        w = {a.id: float(r[f"w_{a.id}"]) for a in ASSETS}
+        invested = float(r.invested)
+        center = sum(w[a] * float(e.mean_12m[a]) for a in w) - spread * max(invested - 1.0, 0.0)
+        se = sum(abs(w[a]) * float(e.se_12m[a]) for a in w)
+        scale = math.sqrt(VARIANCE_HAIRCUT * float(r.vol) ** 2 + se ** 2)
+        groups: dict[str, float] = {g: 0.0 for g in GROUP_WORD}
+        for a, x in w.items():
+            groups[GROUP_OF[BY_ID[a].group]] += x
+        held = sorted(((a, x) for a, x in w.items() if x >= MIX_MIN_WEIGHT), key=lambda t: -t[1])
+        out.append({"no": k, "name": name, "vol": float(r.vol), "avg": simple(r.drift), "bad": simple(center + scale * z),
+                    "invested": invested, "cash": max(1.0 - invested, 0.0), "borrowed": max(invested - 1.0, 0.0),
+                    "weights": w, "groups": groups, "holdings": [(HOLDING_NAMES[a], x) for a, x in held]})
+    return out
 
 
 def machine(s: dd.Sources) -> dict:
@@ -313,7 +362,7 @@ def history_chart(h: dict) -> str:
 
 def frontier_chart(b: dict) -> str:
     """The best mix at each level of swing, with cash below full investment and borrowing above it."""
-    W, H, L, R, T, B = 460, 204, 34, 16, 8, 34
+    W, H, L, R, T, B = 460, 190, 34, 60, 8, 34
     curve = b["curve"]
     xmax = math.ceil(100 * curve[-1]["vol"] / 5) * 5
     ymax = math.ceil(100 * max(c["hi"] for c in curve) / 5) * 5
@@ -333,14 +382,16 @@ def frontier_chart(b: dict) -> str:
     lent = [c for c in curve if c["vol"] >= b["borrow_from_vol"] - 1e-9]
     g.append(f'<path class="line-a" d="{_path([(X(c["vol"]), Y(c["avg"])) for c in own])}"/>')
     g.append(f'<path class="line-a dash" d="{_path([(X(c["vol"]), Y(c["avg"])) for c in lent])}"/>')
-    bx, by = X(lent[0]["vol"]), Y(lent[0]["avg"])
-    g.append(f'<line class="lead" x1="{bx:.1f}" x2="{bx:.1f}" y1="{by - 6:.1f}" y2="{by - 30:.1f}"/>'
-             f'<text class="note" x="{bx:.1f}" y="{by - 35:.1f}" text-anchor="middle">Borrowing starts</text>'
-             f'<circle class="ring-a" cx="{bx:.1f}" cy="{by:.1f}" r="3.5"/>')
     top = b["top"]
     g.append(f'<circle class="dot-a" cx="{X(top["vol"]):.1f}" cy="{Y(top["avg"]):.1f}" r="4"/>'
-             f'<text class="lab" x="{X(top["vol"]) - 8:.1f}" y="{Y(top["avg"]) - 9:.1f}" text-anchor="end">'
-             f'{round(100 * top["invested"]):d}% invested</text>')
+             f'<text class="lab" x="{X(top["vol"]) + 8:.1f}" y="{Y(top["avg"]) + 1:.1f}">{round(100 * top["invested"]):d}%</text>'
+             f'<text class="lab muted" x="{X(top["vol"]) + 8:.1f}" y="{Y(top["avg"]) + 13:.1f}">invested</text>')
+    for m in b["mixes"]:                                                 # the recommended mixes, numbered as in the table
+        x, y = X(m["vol"]), Y(m["avg"])
+        g.append(f'<line class="lead" x1="{x:.1f}" x2="{x:.1f}" y1="{y - 4:.1f}" y2="{y - 10:.1f}"/>'
+                 f'<circle class="dot-a" cx="{x:.1f}" cy="{y:.1f}" r="3.5"/>'
+                 f'<circle class="bub" cx="{x:.1f}" cy="{y - 18:.1f}" r="8"/>'
+                 f'<text class="bub-t" x="{x:.1f}" y="{y - 14.5:.1f}" text-anchor="middle">{m["no"]}</text>')
     g.append(f'<circle class="ring-a" cx="{X(0):.1f}" cy="{Y(0):.1f}" r="3.5"/>'
              f'<text class="lab muted" x="{X(0) + 7:.1f}" y="{Y(0) - 22:.1f}">All cash</text>')
     side = {"p6040": ("end", -7), "p_balanced": ("start", 7), "p_equity": ("start", 7)}
@@ -351,6 +402,39 @@ def frontier_chart(b: dict) -> str:
                  f'<text class="lab" x="{x + dx:.1f}" y="{y + 14:.1f}" text-anchor="{anchor}">{esc(p["name"])}</text>')
     g.append("</svg>")
     return "".join(g)
+
+
+def _funding(m: dict) -> str:
+    inv = round(100 * m["invested"])
+    if inv < 100:
+        return f"{inv}% invested, {100 - inv}% cash"
+    return "fully invested" if inv == 100 else f"{inv}% invested, {inv - 100}% borrowed"
+
+
+def mix_table(b: dict) -> str:
+    """The recommended mixes: what each holds (a bar by asset group and a list), its average, swing and bad year."""
+    rows = b["mixes"]
+    full = math.ceil(2 * max(m["invested"] for m in rows)) / 2              # the bar's full width, as a multiple of capital
+    own = f"{100 / full:.2f}%"
+    out = ['<div class="mixes">',
+           '<div class="mix mix-top"><div class="legend" aria-hidden="true">'
+           '<span><i class="k-sq k-stocks"></i>stocks</span><span><i class="k-sq k-bonds"></i>bonds</span>'
+           '<span><i class="k-sq k-real"></i>real assets</span><span><i class="k-line"></i>100% of your money</span></div>'
+           '<span class="mix-k">Average</span><span class="mix-k">Swing</span><span class="mix-k">Bad year</span></div>']
+    seg = {"Stocks": "seg-stocks", "Bonds": "seg-bonds", "Real assets": "seg-real"}
+    for m in rows:
+        bar = "".join(f'<i class="{seg[g]}" style="width:{100 * x / full:.2f}%"></i>' for g, x in m["groups"].items() if x >= MIX_MIN_WEIGHT)
+        hold = ", ".join(f"{round(100 * x)}% {n}" for n, x in m["holdings"])
+        tip = f'{m["name"]}: {_funding(m)}. {hold}.'
+        out.append(
+            f'<div class="mix" title="{esc(tip)}">'
+            f'<div class="mix-name"><b class="mix-no">{m["no"]}</b><h3>{esc(m["name"])}</h3><small>{esc(_funding(m))}</small></div>'
+            f'<span class="mix-v">{pct(m["avg"])}</span><span class="mix-v">{pct(m["vol"], 1, sign=False)}</span>'
+            f'<span class="mix-v">{pct(m["bad"])}</span>'
+            f'<div class="mix-bar" style="--own:{own}">{bar}<b></b></div>'
+            f'<p class="mix-hold">{esc(hold)}</p></div>')
+    out.append("</div>")
+    return "\n".join(out)
 
 
 # --------------------------------------------------------------------------- sentences
@@ -393,6 +477,7 @@ LIGHT = {
     "bg": "#ffffff", "panel": "#f3f6f9", "ink": "#001e50", "ink-2": "#3d4f72", "ink-3": "#6a7890",
     "rule": "#dfe4ea", "rule-strong": "#001e50", "grid": "#e6eaf0",
     "hi": "#0040c5", "band-in": "#00b0f0", "band-out": "#c4eafb", "line-b": "#76859c", "shade": "#e9f1fb",
+    "g-stocks": "#0040c5", "g-bonds": "#0a9bd6", "g-real": "#d98a1f",
     "chip-ink": "#ffffff",
     "head-weight": "300", "head-stretch": "100%", "head-track": "-0.015em", "label-weight": "600",
     "h1-size": "clamp(1.75rem, 4.4vw, 2.75rem)",
@@ -401,6 +486,7 @@ DARK = {
     "bg": "#000000", "panel": "#141414", "ink": "#ffffff", "ink-2": "#c9c9c9", "ink-3": "#8f8f8f",
     "rule": "#2e2e2e", "rule-strong": "#ffffff", "grid": "#262626",
     "hi": "#f50537", "band-in": "#b3b3b3", "band-out": "#474747", "line-b": "#8c8c8c", "shade": "#1c1c1c",
+    "g-stocks": "#f50537", "g-bonds": "#4a90cc", "g-real": "#b98a3a",
     "chip-ink": "#ffffff",
     "head-weight": "600", "head-stretch": "125%", "head-track": "0", "label-weight": "500",
     "h1-size": "clamp(1.5rem, 3.5vw, 2.125rem)",
@@ -430,6 +516,7 @@ h2 { font-size: 1.5rem; line-height: 1.15; text-wrap: balance; }
 h3 { font-size: 0.875rem; font-weight: 600; }
 .eyebrow { font-size: 0.6875rem; font-weight: var(--label-weight); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2); }
 .lede { color: var(--ink-2); max-width: 68ch; }
+.lede-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem 1.5rem; }
 small, .fine { font-size: 0.75rem; color: var(--ink-3); }
 .num, .rng-a, .rng-s, .big { font-variant-numeric: tabular-nums; }
 
@@ -504,8 +591,32 @@ figcaption b { color: var(--ink); font-weight: 600; }
 .chart .dot-c { fill: var(--ink); stroke: var(--bg); stroke-width: 2; }
 .chart .ring-a { fill: var(--bg); stroke: var(--hi); stroke-width: 2; }
 .chart .ring-b { fill: var(--bg); stroke: var(--line-b); stroke-width: 1.5; }
+.chart .bub { fill: var(--ink); stroke: none; }
+.chart .bub-t { fill: var(--bg); font-size: 10px; font-weight: 700; }
 
-.rates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.mixes { display: flex; flex-direction: column; }
+.mix { display: grid; grid-template-columns: minmax(0, 1fr) 3.75rem 3.25rem 4rem; column-gap: 0.75rem; row-gap: 0.3rem;
+  align-items: baseline; padding-block: 0.5rem; border-top: 1px solid var(--rule); }
+.mix-top { padding-block: 0 0.3rem; border-top: 0; font-size: 0.6875rem; color: var(--ink-3); }
+.mix-top .legend { font-size: 0.6875rem; gap: 0.25rem 0.75rem; }
+.mix-k, .mix-v { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mix-v { font-weight: 600; }
+.mix-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.1rem 0.5rem; min-width: 0; }
+.mix-name small { white-space: nowrap; }
+.mix-no { display: inline-flex; align-items: center; justify-content: center; width: 1.15rem; height: 1.15rem; border-radius: 50%;
+  background: var(--ink); color: var(--bg); font-size: 0.6875rem; font-weight: 700; align-self: center; }
+.mix-bar { grid-column: 1 / -1; position: relative; display: flex; gap: 2px; height: 0.5rem; }
+.mix-bar::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--own); background: var(--grid); border-radius: 0.25rem; }
+.mix-bar i { position: relative; display: block; height: 100%; }
+.mix-bar i:first-of-type { border-radius: 0.25rem 0 0 0.25rem; }
+.mix-bar i:last-of-type { border-radius: 0 0.25rem 0.25rem 0; }
+.mix-bar b { position: absolute; top: -0.2rem; bottom: -0.2rem; left: var(--own); width: 1px; background: var(--ink); }
+.seg-stocks, .k-stocks { background: var(--g-stocks); }
+.seg-bonds, .k-bonds { background: var(--g-bonds); }
+.seg-real, .k-real { background: var(--g-real); }
+.legend .k-sq { width: 0.625rem; height: 0.5rem; border-radius: 2px; }
+.legend .k-line { width: 1px; height: 0.8rem; border-radius: 0; background: var(--ink); }
+.mix-hold { grid-column: 1 / -1; font-size: 0.75rem; color: var(--ink-2); }
 .caution { background: var(--panel); padding: 0.75rem 0.875rem; font-size: 0.8125rem; color: var(--ink-2); border-left: 2px solid var(--hi); }
 .caution b { color: var(--ink); font-weight: 600; }
 
@@ -514,6 +625,7 @@ figcaption b { color: var(--ink); font-weight: 600; }
 .flow li + li { padding-left: 1.25rem; border-left: 1px solid var(--rule); }
 .flow li + li::before { content: ""; position: absolute; left: -0.3125rem; top: 0.9rem; width: 0.5rem; height: 0.5rem;
   border-top: 1px solid var(--ink); border-right: 1px solid var(--ink); transform: rotate(45deg); background: var(--bg); }
+.flow .step { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 0.5rem; }
 .flow .big { font-size: 1.375rem; line-height: 1.1; }
 .flow p { font-size: 0.75rem; color: var(--ink-2); }
 
@@ -545,6 +657,8 @@ footer p { font-size: 0.6875rem; color: var(--ink-3); max-width: none; }
   .mast { padding-bottom: 0.9rem; gap: 1rem 2.5rem; }
   .mast-text { gap: 0.6rem; }
   section { gap: 0.5rem; break-inside: avoid; }
+  .screen-only { display: none; }                 /* the curve behind the four mixes: the sheet keeps the table */
+  .mix { padding-block: 0.4rem; row-gap: 0.25rem; }
   .sec-head { gap: 0.2rem; }
   .rng-row, .rng-plot { min-height: 1.2rem; }
   .duo { gap: 2.25rem; }
@@ -587,13 +701,15 @@ def render(f: dict) -> str:
   <div class="sec-head">
     <p class="eyebrow">What next year may look like</p>
     <h2>Wide ranges around modest averages</h2>
-    <p class="lede">Gain or loss above cash over the 12 months, in ordinary percent. Cash itself yields about
-    {pct(b["cash_rate"], 1, sign=False)} today.</p>
-  </div>
-  <div class="legend" aria-hidden="true">
-    <span><i class="k-out"></i>9 years in 10 land here</span>
-    <span><i class="k-in"></i>half of all years land here</span>
-    <span><i class="k-dot"></i>average</span>
+    <div class="lede-row">
+      <p class="lede">Gain or loss above cash over the 12 months, in ordinary percent. Cash itself yields about
+      {pct(b["cash_rate"], 1, sign=False)} today.</p>
+      <div class="legend" aria-hidden="true">
+        <span><i class="k-out"></i>9 years in 10</span>
+        <span><i class="k-in"></i>half of all years</span>
+        <span><i class="k-dot"></i>average</span>
+      </div>
+    </div>
   </div>
   {range_chart(f["outlook"])}
 </section>
@@ -615,24 +731,21 @@ def render(f: dict) -> str:
 
 <section class="borrow">
   <div class="sec-head">
-    <p class="eyebrow">What it means for borrowing</p>
-    <h2>Borrowing buys more doubt than gain</h2>
+    <p class="eyebrow">Recommended mixes at four risk levels</p>
+    <h2>Four mixes, from cautious to borrowed</h2>
   </div>
-  <figure>
+  <figure class="screen-only">
     <figcaption><b>Expected gain above cash for the best mix at each level of risk.</b> Dotted: with borrowed
-    money (legal limit {num(b["max_leverage"], 0)}&times; your capital). Shaded: how far off the averages could be.</figcaption>
+    money. Shaded: how far off the averages could be.</figcaption>
     {frontier_chart(b)}
   </figure>
-  <div class="rates">
-    <div class="key"><b class="big">{pct(b["margin_rate"], 2, sign=False)}</b><span>Robinhood margin rate, balances {esc(b["tier"])}</span></div>
-    <div class="key"><b class="big">{pct(b["cash_rate"], 1, sign=False)}</b><span>what cash earns (T-bills)</span></div>
-    <div class="key"><b class="big">{pct(b["spread"], 1, sign=False)}</b><span>yearly cost of each borrowed dollar above cash</span></div>
-  </div>
-  <p class="caution"><b>Read the curve as arithmetic, not as a tested strategy.</b> At the same risk as each sample portfolio the
-  best mix is ahead by {num(100 * b["gap_min"])} to {num(100 * b["gap_max"])} points a year, and {zero} the plausible range
-  includes zero. In back-tests, portfolios chosen by an optimizer swung {num(100 * b["swing_excess"], 0)}% more than
-  forecast. The report&rsquo;s rule: add about {num(100 * b["haircut_swing"], 0)}% to the forecast swing of any optimized
-  or borrowed portfolio.</p>
+  {mix_table(b)}
+  <p class="caution"><b>These are the forecast&rsquo;s best mixes, not tested strategies.</b> At equal risk their edge over
+  the plain portfolios is {num(100 * b["gap_min"])} to {num(100 * b["gap_max"])} points a year, and {zero} it could be zero.
+  Borrowing costs {pct(b["margin_rate"], 2, sign=False)} a year (Robinhood margin, balances {esc(b["tier"])}),
+  {num(100 * b["spread"])} points more than cash earns; the legal limit is {num(b["max_leverage"], 0)}&times; your capital.
+  Optimizer-built portfolios swung {num(100 * b["swing_excess"], 0)}% more than forecast in back-tests, so each bad year
+  assumes swings {num(100 * b["haircut_swing"], 0)}% above the forecast.</p>
 </section>
 </div>
 
@@ -642,11 +755,11 @@ def render(f: dict) -> str:
     <h2>Many models for risk, one long average for return</h2>
   </div>
   <ol class="flow">
-    <li><b class="big">{esc(m["since"])}</b><h3>Market history</h3><p>Prices for {m["n_assets"]} asset classes; the oldest series starts in {esc(m["since"])}.</p></li>
-    <li><b class="big">{m["n_models"]}</b><h3>Risk models compared</h3><p>Each estimates how bumpy every asset will be.</p></li>
-    <li><b class="big">{m["n_families"]}</b><h3>Families averaged</h3><p>The models&rsquo; families are blended, so no single blind spot decides.</p></li>
-    <li><b class="big">{esc(t["mean_from"])}</b><h3>Average returns added</h3><p>Each asset&rsquo;s average gain above cash over its recorded history.</p></li>
-    <li><b class="big">{HORIZON_MONTHS} mo</b><h3>A range for the year</h3><p>Risk and average combine into the ranges above, every month.</p></li>
+    <li><div class="step"><b class="big">{esc(m["since"])}</b><h3>Market history</h3></div><p>Prices for {m["n_assets"]} asset classes; the oldest series starts in {esc(m["since"])}.</p></li>
+    <li><div class="step"><b class="big">{m["n_models"]}</b><h3>Risk models compared</h3></div><p>Each estimates how bumpy every asset will be.</p></li>
+    <li><div class="step"><b class="big">{m["n_families"]}</b><h3>Families averaged</h3></div><p>The models&rsquo; families are blended, so no single blind spot decides.</p></li>
+    <li><div class="step"><b class="big">{esc(t["mean_from"])}</b><h3>Average returns added</h3></div><p>Each asset&rsquo;s average gain above cash over its recorded history.</p></li>
+    <li><div class="step"><b class="big">{HORIZON_MONTHS} mo</b><h3>A range for the year</h3></div><p>Risk and average combine into the ranges above, every month.</p></li>
   </ol>
 </section>
 
