@@ -305,7 +305,8 @@ out-of-sample evidence of its own. The dashboard's frontier section shows it.
 | `results/returns/distribution/` | `history.parquet`, `history_portfolios.parquet`, `shape_history.parquet`, `residuals.parquet`, `scores.parquet`, metadata | yes |
 | `results/returns/strategy/` | `metrics.parquet`, `summary.csv`, `summary_by_period.csv`, `meta.json` (`returns.parquet`, `weights.parquet` regenerate in a minute and are not committed) | partly |
 | `results/archive/assetpred/` | the `assetpred` project's results and inputs as merged: its 1-, 3- and 12-month findings (`scores/`, `strategy/`; its HTML dashboard was removed, recoverable from git history), its development trial logs, and the fixtures the port is checked against | yes, never rewritten |
-| `results/dev/` | every development run | no |
+| `results/horizons/` | score tables of the horizon study (`assetforecast.horizons`: returns, volatility and correlations at 1 month to 10 years, descriptive only); its report is `reports/horizon_study.md`, its page `dashboard/horizons.html` | yes |
+| `results/dev/` | every development run (and the horizon study's forecast caches, `results/dev/horizons/`) | no |
 | `forecasts/` | the published forecast per origin and `latest/` | yes |
 | `dashboard/` | the published dashboard page, its data and the one-page summary (`summary.html`) | yes |
 

@@ -1,0 +1,81 @@
+{
+ "label": "Descriptive horizon study; both holdouts were spent before it was designed, so no number here is out-of-sample evidence and nothing was selected on it",
+ "horizons": [
+  1,
+  3,
+  6,
+  12,
+  24,
+  36,
+  60,
+  120
+ ],
+ "returns_through": "2026-10-31",
+ "return_models": [
+  "hist_mean",
+  "hz_ens",
+  "hz_gbm",
+  "hz_ridge",
+  "sig_carry",
+  "sig_combo",
+  "sig_g_default_spread",
+  "sig_g_tbill",
+  "sig_g_term_spread",
+  "sig_g_us_cape_ey_z",
+  "sig_lt_rev_60_12",
+  "sig_mom_12_1",
+  "sig_trend_ma10",
+  "sig_value"
+ ],
+ "signals": [
+  "carry",
+  "value",
+  "mom_12_1",
+  "trend_ma10",
+  "lt_rev_60_12",
+  "g_term_spread",
+  "g_default_spread",
+  "g_us_cape_ey_z",
+  "g_tbill"
+ ],
+ "copies_equal_frozen_at_h12": {
+  "hz_ridge": {
+   "frozen": "ridge_z",
+   "rows": 5107,
+   "unmatched": 0,
+   "max_abs_diff": 0.0
+  },
+  "hz_gbm": {
+   "frozen": "gbm_z",
+   "rows": 5107,
+   "unmatched": 0,
+   "max_abs_diff": 0.0
+  },
+  "hz_ens": {
+   "frozen": "ens_z",
+   "rows": 5107,
+   "unmatched": 0,
+   "max_abs_diff": 0.0
+  }
+ },
+ "risk": {
+  "k": [
+   21,
+   1
+  ],
+  "min_days": 1260,
+  "vol_rows": 102928,
+  "corr_rows": 423345
+ },
+ "value": {
+  "gamma": 5.0,
+  "cap": 1.5
+ },
+ "rows": {
+  "return_scores": 4465,
+  "vol_scores": 3688,
+  "corr_scores": 2806,
+  "sleeves": 2748,
+  "minvar": 88
+ }
+}
