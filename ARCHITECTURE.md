@@ -307,7 +307,7 @@ out-of-sample evidence of its own. The dashboard's frontier section shows it.
 | `results/archive/assetpred/` | the `assetpred` project's results and inputs as merged: its 1-, 3- and 12-month findings (`scores/`, `strategy/`; its HTML dashboard was removed, recoverable from git history), its development trial logs, and the fixtures the port is checked against | yes, never rewritten |
 | `results/dev/` | every development run | no |
 | `forecasts/` | the published forecast per origin and `latest/` | yes |
-| `dashboard/` | the published dashboard page and its data | yes |
+| `dashboard/` | the published dashboard page, its data and the one-page summary (`summary.html`) | yes |
 
 Every output of the replication, the distribution scores and the strategy
 test carries `returns.config.REPLICATION_LABEL`.

@@ -1,11 +1,12 @@
 """``python -m assetforecast.dashboard [--out DIR] [--manifest PATH]``: write the dashboard's data files,
-then rebuild ``dashboard/index.html`` with that data inlined (skipped when ``--out`` or ``--manifest`` is moved)."""
+then rebuild ``dashboard/index.html`` with that data inlined and the one-page summary
+``dashboard/summary.html`` (both skipped when ``--out`` or ``--manifest`` is moved)."""
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
-from . import data, page
+from . import data, page, summary
 
 
 def main(argv=None) -> None:
@@ -18,6 +19,8 @@ def main(argv=None) -> None:
     if a.out == data.paths.DASHBOARD_DATA and a.manifest == data.MANIFEST:
         p = page.build()
         print(f"rebuilt {p} ({p.stat().st_size / 1e6:.2f} MB, data inlined)")
+        p = summary.build()
+        print(f"rebuilt {p} ({p.stat().st_size / 1e3:.0f} kB, the one-page summary)")
 
 
 if __name__ == "__main__":
