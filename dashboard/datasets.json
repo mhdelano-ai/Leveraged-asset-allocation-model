@@ -50,7 +50,7 @@
   "id": "frontier_settings",
   "file": "data/frontier_settings.csv",
   "title": "Frontier settings",
-  "description": "One row: the borrowing spread, the leverage limit and counts quoted beside the frontier.",
+  "description": "One row: the borrowing terms (Robinhood's margin rate for the balance tier used, the T-bill rate and the spread between them), the leverage limit and counts quoted beside the frontier.",
   "sources": [
    "forecasts/latest/forecast.json",
    "forecasts/latest/frontier.csv",

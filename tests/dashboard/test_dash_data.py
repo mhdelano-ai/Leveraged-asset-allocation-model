@@ -252,7 +252,9 @@ def test_frontier_equals_published_forecast():
     assert d.loc[d.id == "levered~0", "weights"].iloc[0] == "100% cash"
     assert "borrowed" in d.loc[d.invested.idxmax(), "weights"]
     m = json.loads((LATEST / "forecast.json").read_text())["frontier"]
-    assert st.borrow_spread == 100 * m["borrow_spread"] and st.max_invested == 100 * m["max_leverage"]
+    assert st.borrow_spread == round(100 * m["borrow_spread"], 1) and st.max_invested == 100 * m["max_leverage"]
+    assert st.margin_rate == 100 * m["borrow"]["margin_rate"] and st.margin_tier == m["borrow"]["tier"]
+    assert st.margin_as_of == m["borrow"]["as_of"] and st.tbill_rate == round(100 * m["borrow"]["tbill_rate"], 1)
     match = p[p.kind == "match"]
     assert st.n_match == len(match) == 3
     assert st.n_gap_incl_zero == ((match.gap_lo <= 0) & (match.gap_hi >= 0)).sum()

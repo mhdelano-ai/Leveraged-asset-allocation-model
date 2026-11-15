@@ -1,2 +1,2 @@
-key,borrow_spread,max_leverage,max_invested,level,top_vol,top_growth,top_growth_lo,top_growth_hi,n_match,n_gap_incl_zero,n_assets_held,n_assets
-now,1.0,2.0,200,90,24.5,9.8,2.2,17.5,3,3,7,12
+key,borrow_spread,margin_rate,margin_tier,margin_as_of,tbill_rate,max_leverage,max_invested,level,top_vol,top_growth,top_growth_lo,top_growth_hi,n_match,n_gap_incl_zero,n_assets_held,n_assets
+now,1.4,5.25,"up to $50,000",2026-09-17,3.9,2.0,200,90,24.5,9.5,2.3,16.6,3,3,7,12
