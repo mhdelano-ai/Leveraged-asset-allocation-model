@@ -9,10 +9,10 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap">
 <style>
 /* Layout: one sheet. Masthead, a full-width range chart, two columns (trust | borrowing), a five-step strip. */
-:root { color-scheme: light; --bg: #ffffff; --panel: #f3f6f9; --ink: #001e50; --ink-2: #3d4f72; --ink-3: #6a7890; --rule: #dfe4ea; --rule-strong: #001e50; --grid: #e6eaf0; --hi: #0040c5; --band-in: #00b0f0; --band-out: #c4eafb; --line-b: #76859c; --shade: #e9f1fb; --chip-ink: #ffffff; --head-weight: 300; --head-stretch: 100%; --head-track: -0.015em; --label-weight: 600; --h1-size: clamp(1.75rem, 4.4vw, 2.75rem); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; --bg: #000000; --panel: #141414; --ink: #ffffff; --ink-2: #c9c9c9; --ink-3: #8f8f8f; --rule: #2e2e2e; --rule-strong: #ffffff; --grid: #262626; --hi: #f50537; --band-in: #b3b3b3; --band-out: #474747; --line-b: #8c8c8c; --shade: #1c1c1c; --chip-ink: #ffffff; --head-weight: 600; --head-stretch: 125%; --head-track: 0; --label-weight: 500; --h1-size: clamp(1.5rem, 3.5vw, 2.125rem); } }
-:root[data-theme="dark"] { color-scheme: dark; --bg: #000000; --panel: #141414; --ink: #ffffff; --ink-2: #c9c9c9; --ink-3: #8f8f8f; --rule: #2e2e2e; --rule-strong: #ffffff; --grid: #262626; --hi: #f50537; --band-in: #b3b3b3; --band-out: #474747; --line-b: #8c8c8c; --shade: #1c1c1c; --chip-ink: #ffffff; --head-weight: 600; --head-stretch: 125%; --head-track: 0; --label-weight: 500; --h1-size: clamp(1.5rem, 3.5vw, 2.125rem); }
-@media print { :root:root:root { color-scheme: light; --bg: #ffffff; --panel: #f3f6f9; --ink: #001e50; --ink-2: #3d4f72; --ink-3: #6a7890; --rule: #dfe4ea; --rule-strong: #001e50; --grid: #e6eaf0; --hi: #0040c5; --band-in: #00b0f0; --band-out: #c4eafb; --line-b: #76859c; --shade: #e9f1fb; --chip-ink: #ffffff; --head-weight: 300; --head-stretch: 100%; --head-track: -0.015em; --label-weight: 600; --h1-size: clamp(1.75rem, 4.4vw, 2.75rem); } }
+:root { color-scheme: light; --bg: #ffffff; --panel: #f3f6f9; --ink: #001e50; --ink-2: #3d4f72; --ink-3: #6a7890; --rule: #dfe4ea; --rule-strong: #001e50; --grid: #e6eaf0; --hi: #0040c5; --band-in: #00b0f0; --band-out: #c4eafb; --line-b: #76859c; --shade: #e9f1fb; --g-stocks: #0040c5; --g-bonds: #0a9bd6; --g-real: #d98a1f; --chip-ink: #ffffff; --head-weight: 300; --head-stretch: 100%; --head-track: -0.015em; --label-weight: 600; --h1-size: clamp(1.75rem, 4.4vw, 2.75rem); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; --bg: #000000; --panel: #141414; --ink: #ffffff; --ink-2: #c9c9c9; --ink-3: #8f8f8f; --rule: #2e2e2e; --rule-strong: #ffffff; --grid: #262626; --hi: #f50537; --band-in: #b3b3b3; --band-out: #474747; --line-b: #8c8c8c; --shade: #1c1c1c; --g-stocks: #f50537; --g-bonds: #4a90cc; --g-real: #b98a3a; --chip-ink: #ffffff; --head-weight: 600; --head-stretch: 125%; --head-track: 0; --label-weight: 500; --h1-size: clamp(1.5rem, 3.5vw, 2.125rem); } }
+:root[data-theme="dark"] { color-scheme: dark; --bg: #000000; --panel: #141414; --ink: #ffffff; --ink-2: #c9c9c9; --ink-3: #8f8f8f; --rule: #2e2e2e; --rule-strong: #ffffff; --grid: #262626; --hi: #f50537; --band-in: #b3b3b3; --band-out: #474747; --line-b: #8c8c8c; --shade: #1c1c1c; --g-stocks: #f50537; --g-bonds: #4a90cc; --g-real: #b98a3a; --chip-ink: #ffffff; --head-weight: 600; --head-stretch: 125%; --head-track: 0; --label-weight: 500; --h1-size: clamp(1.5rem, 3.5vw, 2.125rem); }
+@media print { :root:root:root { color-scheme: light; --bg: #ffffff; --panel: #f3f6f9; --ink: #001e50; --ink-2: #3d4f72; --ink-3: #6a7890; --rule: #dfe4ea; --rule-strong: #001e50; --grid: #e6eaf0; --hi: #0040c5; --band-in: #00b0f0; --band-out: #c4eafb; --line-b: #76859c; --shade: #e9f1fb; --g-stocks: #0040c5; --g-bonds: #0a9bd6; --g-real: #d98a1f; --chip-ink: #ffffff; --head-weight: 300; --head-stretch: 100%; --head-track: -0.015em; --label-weight: 600; --h1-size: clamp(1.75rem, 4.4vw, 2.75rem); } }
 *, *::before, *::after { box-sizing: border-box; }
 html { font-size: 16px; -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: Archivo, "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -26,6 +26,7 @@ h2 { font-size: 1.5rem; line-height: 1.15; text-wrap: balance; }
 h3 { font-size: 0.875rem; font-weight: 600; }
 .eyebrow { font-size: 0.6875rem; font-weight: var(--label-weight); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2); }
 .lede { color: var(--ink-2); max-width: 68ch; }
+.lede-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.5rem 1.5rem; }
 small, .fine { font-size: 0.75rem; color: var(--ink-3); }
 .num, .rng-a, .rng-s, .big { font-variant-numeric: tabular-nums; }
 
@@ -100,8 +101,32 @@ figcaption b { color: var(--ink); font-weight: 600; }
 .chart .dot-c { fill: var(--ink); stroke: var(--bg); stroke-width: 2; }
 .chart .ring-a { fill: var(--bg); stroke: var(--hi); stroke-width: 2; }
 .chart .ring-b { fill: var(--bg); stroke: var(--line-b); stroke-width: 1.5; }
+.chart .bub { fill: var(--ink); stroke: none; }
+.chart .bub-t { fill: var(--bg); font-size: 10px; font-weight: 700; }
 
-.rates { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+.mixes { display: flex; flex-direction: column; }
+.mix { display: grid; grid-template-columns: minmax(0, 1fr) 3.75rem 3.25rem 4rem; column-gap: 0.75rem; row-gap: 0.3rem;
+  align-items: baseline; padding-block: 0.5rem; border-top: 1px solid var(--rule); }
+.mix-top { padding-block: 0 0.3rem; border-top: 0; font-size: 0.6875rem; color: var(--ink-3); }
+.mix-top .legend { font-size: 0.6875rem; gap: 0.25rem 0.75rem; }
+.mix-k, .mix-v { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mix-v { font-weight: 600; }
+.mix-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.1rem 0.5rem; min-width: 0; }
+.mix-name small { white-space: nowrap; }
+.mix-no { display: inline-flex; align-items: center; justify-content: center; width: 1.15rem; height: 1.15rem; border-radius: 50%;
+  background: var(--ink); color: var(--bg); font-size: 0.6875rem; font-weight: 700; align-self: center; }
+.mix-bar { grid-column: 1 / -1; position: relative; display: flex; gap: 2px; height: 0.5rem; }
+.mix-bar::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--own); background: var(--grid); border-radius: 0.25rem; }
+.mix-bar i { position: relative; display: block; height: 100%; }
+.mix-bar i:first-of-type { border-radius: 0.25rem 0 0 0.25rem; }
+.mix-bar i:last-of-type { border-radius: 0 0.25rem 0.25rem 0; }
+.mix-bar b { position: absolute; top: -0.2rem; bottom: -0.2rem; left: var(--own); width: 1px; background: var(--ink); }
+.seg-stocks, .k-stocks { background: var(--g-stocks); }
+.seg-bonds, .k-bonds { background: var(--g-bonds); }
+.seg-real, .k-real { background: var(--g-real); }
+.legend .k-sq { width: 0.625rem; height: 0.5rem; border-radius: 2px; }
+.legend .k-line { width: 1px; height: 0.8rem; border-radius: 0; background: var(--ink); }
+.mix-hold { grid-column: 1 / -1; font-size: 0.75rem; color: var(--ink-2); }
 .caution { background: var(--panel); padding: 0.75rem 0.875rem; font-size: 0.8125rem; color: var(--ink-2); border-left: 2px solid var(--hi); }
 .caution b { color: var(--ink); font-weight: 600; }
 
@@ -110,6 +135,7 @@ figcaption b { color: var(--ink); font-weight: 600; }
 .flow li + li { padding-left: 1.25rem; border-left: 1px solid var(--rule); }
 .flow li + li::before { content: ""; position: absolute; left: -0.3125rem; top: 0.9rem; width: 0.5rem; height: 0.5rem;
   border-top: 1px solid var(--ink); border-right: 1px solid var(--ink); transform: rotate(45deg); background: var(--bg); }
+.flow .step { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 0.5rem; }
 .flow .big { font-size: 1.375rem; line-height: 1.1; }
 .flow p { font-size: 0.75rem; color: var(--ink-2); }
 
@@ -141,6 +167,8 @@ footer p { font-size: 0.6875rem; color: var(--ink-3); max-width: none; }
   .mast { padding-bottom: 0.9rem; gap: 1rem 2.5rem; }
   .mast-text { gap: 0.6rem; }
   section { gap: 0.5rem; break-inside: avoid; }
+  .screen-only { display: none; }                 /* the curve behind the four mixes: the sheet keeps the table */
+  .mix { padding-block: 0.4rem; row-gap: 0.25rem; }
   .sec-head { gap: 0.2rem; }
   .rng-row, .rng-plot { min-height: 1.2rem; }
   .duo { gap: 2.25rem; }
@@ -175,13 +203,15 @@ footer p { font-size: 0.6875rem; color: var(--ink-3); max-width: none; }
   <div class="sec-head">
     <p class="eyebrow">What next year may look like</p>
     <h2>Wide ranges around modest averages</h2>
-    <p class="lede">Gain or loss above cash over the 12 months, in ordinary percent. Cash itself yields about
-    3.9% today.</p>
-  </div>
-  <div class="legend" aria-hidden="true">
-    <span><i class="k-out"></i>9 years in 10 land here</span>
-    <span><i class="k-in"></i>half of all years land here</span>
-    <span><i class="k-dot"></i>average</span>
+    <div class="lede-row">
+      <p class="lede">Gain or loss above cash over the 12 months, in ordinary percent. Cash itself yields about
+      3.9% today.</p>
+      <div class="legend" aria-hidden="true">
+        <span><i class="k-out"></i>9 years in 10</span>
+        <span><i class="k-in"></i>half of all years</span>
+        <span><i class="k-dot"></i>average</span>
+      </div>
+    </div>
   </div>
   <div class="rng">
 <div class="rng-row rng-head"><span class="rng-g"></span><span class="rng-n"></span><div class="rng-axis" aria-hidden="true"><span style="left:0.00%">−40%</span><span style="left:20.00%">−20%</span><span style="left:40.00%">0%</span><span style="left:60.00%">+20%</span><span style="left:80.00%">+40%</span><span style="left:100.00%">+60%</span></div><span class="rng-a">Average</span><span class="rng-s">9 years in 10</span></div>
@@ -221,24 +251,27 @@ footer p { font-size: 0.6875rem; color: var(--ink-3); max-width: none; }
 
 <section class="borrow">
   <div class="sec-head">
-    <p class="eyebrow">What it means for borrowing</p>
-    <h2>Borrowing buys more doubt than gain</h2>
+    <p class="eyebrow">Recommended mixes at four risk levels</p>
+    <h2>Four mixes, from cautious to borrowed</h2>
   </div>
-  <figure>
+  <figure class="screen-only">
     <figcaption><b>Expected gain above cash for the best mix at each level of risk.</b> Dotted: with borrowed
-    money (legal limit 2&times; your capital). Shaded: how far off the averages could be.</figcaption>
-    <svg class="chart" viewBox="0 0 460 204" role="img" aria-label="Expected gain above cash against the size of yearly swings for the best mix at each level of risk, with and without borrowing"><line class="grid base" x1="34" x2="444" y1="170.0" y2="170.0"/><text class="tick" x="28" y="173.5" text-anchor="end">0%</text><line class="grid" x1="34" x2="444" y1="137.6" y2="137.6"/><text class="tick" x="28" y="141.1" text-anchor="end">5%</text><line class="grid" x1="34" x2="444" y1="105.2" y2="105.2"/><text class="tick" x="28" y="108.7" text-anchor="end">10%</text><line class="grid" x1="34" x2="444" y1="72.8" y2="72.8"/><text class="tick" x="28" y="76.3" text-anchor="end">15%</text><line class="grid" x1="34" x2="444" y1="40.4" y2="40.4"/><text class="tick" x="28" y="43.9" text-anchor="end">20%</text><line class="grid" x1="34" x2="444" y1="8.0" y2="8.0"/><text class="tick" x="28" y="11.5" text-anchor="end">25%</text><text class="tick" x="34.0" y="184" text-anchor="middle">0%</text><text class="tick" x="116.0" y="184" text-anchor="middle">5%</text><text class="tick" x="198.0" y="184" text-anchor="middle">10%</text><text class="tick" x="280.0" y="184" text-anchor="middle">15%</text><text class="tick" x="362.0" y="184" text-anchor="middle">20%</text><text class="tick" x="444.0" y="184" text-anchor="middle">25%</text><text class="axis" x="444" y="200" text-anchor="end">Typical yearly swing →</text><path class="band" d="M34.0,170.0 L44.0,165.9 L54.1,161.8 L64.1,157.6 L74.1,153.5 L84.1,149.2 L94.2,145.0 L104.2,140.8 L114.2,136.5 L124.2,132.2 L134.3,127.8 L144.3,123.6 L154.3,120.2 L164.3,117.0 L174.4,113.9 L184.4,110.9 L194.4,108.0 L204.4,105.1 L214.5,102.2 L224.5,99.4 L234.5,96.6 L244.5,93.7 L254.6,90.9 L264.6,88.1 L274.6,85.1 L284.6,81.8 L294.7,78.4 L304.7,75.0 L314.7,71.7 L324.8,68.2 L334.8,64.8 L344.8,61.4 L354.8,57.9 L364.9,54.5 L374.9,51.0 L384.9,47.5 L394.9,44.0 L405.0,40.4 L415.0,36.9 L425.0,33.3 L435.0,29.7 L435.0,134.5 L425.0,135.2 L415.0,135.8 L405.0,136.5 L394.9,137.2 L384.9,137.9 L374.9,138.5 L364.9,139.2 L354.8,139.9 L344.8,140.5 L334.8,141.2 L324.8,141.9 L314.7,142.5 L304.7,143.2 L294.7,143.9 L284.6,144.6 L274.6,145.2 L264.6,146.2 L254.6,147.3 L244.5,148.5 L234.5,149.7 L224.5,150.9 L214.5,152.1 L204.4,153.3 L194.4,154.5 L184.4,155.7 L174.4,157.0 L164.3,158.3 L154.3,159.6 L144.3,161.0 L134.3,162.0 L124.2,162.8 L114.2,163.6 L104.2,164.4 L94.2,165.2 L84.1,166.0 L74.1,166.8 L64.1,167.6 L54.1,168.4 L44.0,169.2 L34.0,170.0 Z"/><path class="line-a" d="M34.0,170.0 L44.0,167.6 L54.1,165.1 L64.1,162.6 L74.1,160.2 L84.1,157.7 L94.2,155.2 L104.2,152.7 L114.2,150.2 L124.2,147.7 L134.3,145.1 L144.3,142.6 L154.3,140.2 L164.3,138.0 L174.4,135.8 L184.4,133.7 L194.4,131.6 L204.4,129.6 L214.5,127.6 L224.5,125.6 L234.5,123.6 L244.5,121.7 L254.6,119.7 L264.6,117.8"/><path class="line-a dash" d="M264.6,117.8 L274.6,115.8 L284.6,113.9 L294.7,111.9 L304.7,110.0 L314.7,108.0 L324.8,106.0 L334.8,104.0 L344.8,102.1 L354.8,100.1 L364.9,98.1 L374.9,96.1 L384.9,94.1 L394.9,92.1 L405.0,90.1 L415.0,88.0 L425.0,86.0 L435.0,84.0"/><line class="lead" x1="264.6" x2="264.6" y1="111.8" y2="87.8"/><text class="note" x="264.6" y="82.8" text-anchor="middle">Borrowing starts</text><circle class="ring-a" cx="264.6" cy="117.8" r="3.5"/><circle class="dot-a" cx="435.0" cy="84.0" r="4"/><text class="lab" x="427.0" y="75.0" text-anchor="end">170% invested</text><circle class="ring-a" cx="34.0" cy="170.0" r="3.5"/><text class="lab muted" x="41.0" y="148.0">All cash</text><circle class="dot-c" cx="202.8" cy="134.3" r="4"/><text class="lab" x="195.8" y="148.3" text-anchor="end">60/40</text><circle class="dot-c" cx="210.2" cy="132.5" r="4"/><text class="lab" x="217.2" y="146.5" text-anchor="start">Balanced mix</text><circle class="dot-c" cx="295.9" cy="119.0" r="4"/><text class="lab" x="302.9" y="133.0" text-anchor="start">Global stock mix</text></svg>
+    money. Shaded: how far off the averages could be.</figcaption>
+    <svg class="chart" viewBox="0 0 460 190" role="img" aria-label="Expected gain above cash against the size of yearly swings for the best mix at each level of risk, with and without borrowing"><line class="grid base" x1="34" x2="400" y1="156.0" y2="156.0"/><text class="tick" x="28" y="159.5" text-anchor="end">0%</text><line class="grid" x1="34" x2="400" y1="126.4" y2="126.4"/><text class="tick" x="28" y="129.9" text-anchor="end">5%</text><line class="grid" x1="34" x2="400" y1="96.8" y2="96.8"/><text class="tick" x="28" y="100.3" text-anchor="end">10%</text><line class="grid" x1="34" x2="400" y1="67.2" y2="67.2"/><text class="tick" x="28" y="70.7" text-anchor="end">15%</text><line class="grid" x1="34" x2="400" y1="37.6" y2="37.6"/><text class="tick" x="28" y="41.1" text-anchor="end">20%</text><line class="grid" x1="34" x2="400" y1="8.0" y2="8.0"/><text class="tick" x="28" y="11.5" text-anchor="end">25%</text><text class="tick" x="34.0" y="170" text-anchor="middle">0%</text><text class="tick" x="107.2" y="170" text-anchor="middle">5%</text><text class="tick" x="180.4" y="170" text-anchor="middle">10%</text><text class="tick" x="253.6" y="170" text-anchor="middle">15%</text><text class="tick" x="326.8" y="170" text-anchor="middle">20%</text><text class="tick" x="400.0" y="170" text-anchor="middle">25%</text><text class="axis" x="400" y="186" text-anchor="end">Typical yearly swing →</text><path class="band" d="M34.0,156.0 L42.9,152.3 L51.9,148.5 L60.8,144.7 L69.8,140.9 L78.8,137.0 L87.7,133.2 L96.6,129.3 L105.6,125.4 L114.5,121.4 L123.5,117.5 L132.5,113.6 L141.4,110.5 L150.3,107.6 L159.3,104.8 L168.2,102.0 L177.2,99.4 L186.2,96.7 L195.1,94.1 L204.0,91.5 L213.0,88.9 L221.9,86.3 L230.9,83.8 L239.9,81.2 L248.8,78.5 L257.7,75.4 L266.7,72.3 L275.6,69.3 L284.6,66.2 L293.6,63.0 L302.5,59.9 L311.4,56.8 L320.4,53.6 L329.3,50.4 L338.3,47.3 L347.3,44.1 L356.2,40.9 L365.1,37.6 L374.1,34.4 L383.0,31.1 L392.0,27.9 L392.0,123.6 L383.0,124.2 L374.1,124.8 L365.1,125.4 L356.2,126.0 L347.3,126.6 L338.3,127.3 L329.3,127.9 L320.4,128.5 L311.4,129.1 L302.5,129.7 L293.6,130.3 L284.6,130.9 L275.6,131.5 L266.7,132.1 L257.7,132.8 L248.8,133.4 L239.9,134.2 L230.9,135.3 L221.9,136.4 L213.0,137.4 L204.0,138.5 L195.1,139.6 L186.2,140.7 L177.2,141.8 L168.2,142.9 L159.3,144.1 L150.3,145.3 L141.4,146.5 L132.5,147.8 L123.5,148.7 L114.5,149.4 L105.6,150.2 L96.6,150.9 L87.7,151.6 L78.8,152.4 L69.8,153.1 L60.8,153.8 L51.9,154.5 L42.9,155.3 L34.0,156.0 Z"/><path class="line-a" d="M34.0,156.0 L42.9,153.8 L51.9,151.5 L60.8,149.3 L69.8,147.0 L78.8,144.7 L87.7,142.5 L96.6,140.2 L105.6,137.9 L114.5,135.6 L123.5,133.3 L132.5,131.0 L141.4,128.8 L150.3,126.7 L159.3,124.8 L168.2,122.8 L177.2,120.9 L186.2,119.1 L195.1,117.3 L204.0,115.4 L213.0,113.6 L221.9,111.8 L230.9,110.1 L239.9,108.3"/><path class="line-a dash" d="M239.9,108.3 L248.8,106.5 L257.7,104.7 L266.7,102.9 L275.6,101.1 L284.6,99.3 L293.6,97.5 L302.5,95.7 L311.4,93.9 L320.4,92.1 L329.3,90.3 L338.3,88.5 L347.3,86.6 L356.2,84.8 L365.1,83.0 L374.1,81.1 L383.0,79.3 L392.0,77.4"/><circle class="dot-a" cx="392.0" cy="77.4" r="4"/><text class="lab" x="400.0" y="78.4">170%</text><text class="lab muted" x="400.0" y="90.4">invested</text><line class="lead" x1="105.6" x2="105.6" y1="133.9" y2="127.9"/><circle class="dot-a" cx="105.6" cy="137.9" r="3.5"/><circle class="bub" cx="105.6" cy="119.9" r="8"/><text class="bub-t" x="105.6" y="123.4" text-anchor="middle">1</text><line class="lead" x1="177.2" x2="177.2" y1="116.9" y2="110.9"/><circle class="dot-a" cx="177.2" cy="120.9" r="3.5"/><circle class="bub" cx="177.2" cy="102.9" r="8"/><text class="bub-t" x="177.2" y="106.4" text-anchor="middle">2</text><line class="lead" x1="248.8" x2="248.8" y1="102.5" y2="96.5"/><circle class="dot-a" cx="248.8" cy="106.5" r="3.5"/><circle class="bub" cx="248.8" cy="88.5" r="8"/><text class="bub-t" x="248.8" y="92.0" text-anchor="middle">3</text><line class="lead" x1="320.4" x2="320.4" y1="88.1" y2="82.1"/><circle class="dot-a" cx="320.4" cy="92.1" r="3.5"/><circle class="bub" cx="320.4" cy="74.1" r="8"/><text class="bub-t" x="320.4" y="77.6" text-anchor="middle">4</text><circle class="ring-a" cx="34.0" cy="156.0" r="3.5"/><text class="lab muted" x="41.0" y="134.0">All cash</text><circle class="dot-c" cx="184.7" cy="123.4" r="4"/><text class="lab" x="177.7" y="137.4" text-anchor="end">60/40</text><circle class="dot-c" cx="191.3" cy="121.7" r="4"/><text class="lab" x="198.3" y="135.7" text-anchor="start">Balanced mix</text><circle class="dot-c" cx="267.8" cy="109.5" r="4"/><text class="lab" x="274.8" y="123.5" text-anchor="start">Global stock mix</text></svg>
   </figure>
-  <div class="rates">
-    <div class="key"><b class="big">5.25%</b><span>Robinhood margin rate, balances up to $50,000</span></div>
-    <div class="key"><b class="big">3.9%</b><span>what cash earns (T-bills)</span></div>
-    <div class="key"><b class="big">1.4%</b><span>yearly cost of each borrowed dollar above cash</span></div>
-  </div>
-  <p class="caution"><b>Read the curve as arithmetic, not as a tested strategy.</b> At the same risk as each sample portfolio the
-  best mix is ahead by 0.6 to 1.1 points a year, and for all of them the plausible range
-  includes zero. In back-tests, portfolios chosen by an optimizer swung 19% more than
-  forecast. The report&rsquo;s rule: add about 22% to the forecast swing of any optimized
-  or borrowed portfolio.</p>
+  <div class="mixes">
+<div class="mix mix-top"><div class="legend" aria-hidden="true"><span><i class="k-sq k-stocks"></i>stocks</span><span><i class="k-sq k-bonds"></i>bonds</span><span><i class="k-sq k-real"></i>real assets</span><span><i class="k-line"></i>100% of your money</span></div><span class="mix-k">Average</span><span class="mix-k">Swing</span><span class="mix-k">Bad year</span></div>
+<div class="mix" title="Cautious: 74% invested, 26% cash. 30% high-yield bonds, 27% inflation-protected Treasuries, 6% US large stocks, 4% US small stocks, 4% gold, 2% commodities."><div class="mix-name"><b class="mix-no">1</b><h3>Cautious</h3><small>74% invested, 26% cash</small></div><span class="mix-v">+3.1%</span><span class="mix-v">4.9%</span><span class="mix-v">−7.4%</span><div class="mix-bar" style="--own:66.67%"><i class="seg-stocks" style="width:7.07%"></i><i class="seg-bonds" style="width:38.09%"></i><i class="seg-real" style="width:4.25%"></i><b></b></div><p class="mix-hold">30% high-yield bonds, 27% inflation-protected Treasuries, 6% US large stocks, 4% US small stocks, 4% gold, 2% commodities</p></div>
+<div class="mix" title="Moderate: fully invested. 23% inflation-protected Treasuries, 22% high-yield bonds, 19% US large stocks, 17% US small stocks, 13% gold, 3% REITs, 3% commodities."><div class="mix-name"><b class="mix-no">2</b><h3>Moderate</h3><small>fully invested</small></div><span class="mix-v">+5.9%</span><span class="mix-v">9.8%</span><span class="mix-v">−14.7%</span><div class="mix-bar" style="--own:66.67%"><i class="seg-stocks" style="width:23.93%"></i><i class="seg-bonds" style="width:30.06%"></i><i class="seg-real" style="width:12.68%"></i><b></b></div><p class="mix-hold">23% inflation-protected Treasuries, 22% high-yield bonds, 19% US large stocks, 17% US small stocks, 13% gold, 3% REITs, 3% commodities</p></div>
+<div class="mix" title="Growth: 102% invested, 2% borrowed. 32% US large stocks, 30% US small stocks, 22% gold, 12% REITs, 4% inflation-protected Treasuries, 3% commodities."><div class="mix-name"><b class="mix-no">3</b><h3>Growth</h3><small>102% invested, 2% borrowed</small></div><span class="mix-v">+8.4%</span><span class="mix-v">14.7%</span><span class="mix-v">−21.8%</span><div class="mix-bar" style="--own:66.67%"><i class="seg-stocks" style="width:40.88%"></i><i class="seg-bonds" style="width:2.39%"></i><i class="seg-real" style="width:24.76%"></i><b></b></div><p class="mix-hold">32% US large stocks, 30% US small stocks, 22% gold, 12% REITs, 4% inflation-protected Treasuries, 3% commodities</p></div>
+<div class="mix" title="Aggressive: 136% invested, 36% borrowed. 42% US large stocks, 40% US small stocks, 30% gold, 17% REITs, 5% inflation-protected Treasuries, 3% commodities."><div class="mix-name"><b class="mix-no">4</b><h3>Aggressive</h3><small>136% invested, 36% borrowed</small></div><span class="mix-v">+10.8%</span><span class="mix-v">19.6%</span><span class="mix-v">−28.3%</span><div class="mix-bar" style="--own:66.67%"><i class="seg-stocks" style="width:54.51%"></i><i class="seg-bonds" style="width:3.18%"></i><i class="seg-real" style="width:33.01%"></i><b></b></div><p class="mix-hold">42% US large stocks, 40% US small stocks, 30% gold, 17% REITs, 5% inflation-protected Treasuries, 3% commodities</p></div>
+</div>
+  <p class="caution"><b>These are the forecast&rsquo;s best mixes, not tested strategies.</b> At equal risk their edge over
+  the plain portfolios is 0.6 to 1.1 points a year, and for all of them it could be zero.
+  Borrowing costs 5.25% a year (Robinhood margin, balances up to $50,000),
+  1.4 points more than cash earns; the legal limit is 2&times; your capital.
+  Optimizer-built portfolios swung 19% more than forecast in back-tests, so each bad year
+  assumes swings 22% above the forecast.</p>
 </section>
 </div>
 
@@ -248,11 +281,11 @@ footer p { font-size: 0.6875rem; color: var(--ink-3); max-width: none; }
     <h2>Many models for risk, one long average for return</h2>
   </div>
   <ol class="flow">
-    <li><b class="big">1871</b><h3>Market history</h3><p>Prices for 12 asset classes; the oldest series starts in 1871.</p></li>
-    <li><b class="big">70</b><h3>Risk models compared</h3><p>Each estimates how bumpy every asset will be.</p></li>
-    <li><b class="big">9</b><h3>Families averaged</h3><p>The models&rsquo; families are blended, so no single blind spot decides.</p></li>
-    <li><b class="big">1926</b><h3>Average returns added</h3><p>Each asset&rsquo;s average gain above cash over its recorded history.</p></li>
-    <li><b class="big">12 mo</b><h3>A range for the year</h3><p>Risk and average combine into the ranges above, every month.</p></li>
+    <li><div class="step"><b class="big">1871</b><h3>Market history</h3></div><p>Prices for 12 asset classes; the oldest series starts in 1871.</p></li>
+    <li><div class="step"><b class="big">70</b><h3>Risk models compared</h3></div><p>Each estimates how bumpy every asset will be.</p></li>
+    <li><div class="step"><b class="big">9</b><h3>Families averaged</h3></div><p>The models&rsquo; families are blended, so no single blind spot decides.</p></li>
+    <li><div class="step"><b class="big">1926</b><h3>Average returns added</h3></div><p>Each asset&rsquo;s average gain above cash over its recorded history.</p></li>
+    <li><div class="step"><b class="big">12 mo</b><h3>A range for the year</h3></div><p>Risk and average combine into the ranges above, every month.</p></li>
   </ol>
 </section>
 

@@ -50,7 +50,7 @@ Expected return and quantiles are of the 12-month log excess return, in percent;
 | `results/archive/assetpred/` | the original return-forecasting project's results, unmodified |
 | `reports/SELECTION.md`, `reports/final_evaluation.md` | the covariance model choice (committed before its holdout was scored) and its evaluation |
 | `reports/models/`, `reports/data/` | one report per model family and per data source; the data audit; the feature port |
-| `dashboard/` | `index.html` (the page, self-contained: open it in a browser), `summary.html` (the one-page summary: the key takeaways in plain language on a single printable sheet, in ordinary percent gains rather than log returns), `data/*.csv` and `datasets.json`, all written by `python -m assetforecast.dashboard`; d3 vendored in `vendor/` |
+| `dashboard/` | `index.html` (the page, self-contained: open it in a browser), `summary.html` (the one-page summary: the key takeaways in plain language on a single printable sheet, in ordinary percent gains rather than log returns, with four recommended mixes read off the levered frontier; like the frontier they are arithmetic on the forecast, not a tested strategy), `data/*.csv` and `datasets.json`, all written by `python -m assetforecast.dashboard`; d3 vendored in `vendor/` |
 | `src/assetforecast/` | `data/`, `models/`, `eval/`, `bridge/` (covariance side); `returns/` (expected returns, distributions, replication, strategy test); `covhistory.py`, `forecast.py`, `pipeline.py`, `dashboard/` |
 | `scripts/` | `run_all.sh`, `score_final.py`, `make_report_figures.py`, `make_report_tables.py`, `leak_test.py` |
 

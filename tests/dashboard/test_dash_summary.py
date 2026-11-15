@@ -83,6 +83,35 @@ def test_borrowing(facts):
         assert g["includes_zero"] == (best.gap_lo <= 0 <= best.gap_hi)
 
 
+def test_recommended_mixes_are_rows_of_the_published_frontier(facts, page):
+    mixes = facts["borrow"]["mixes"]
+    lev = pd.read_csv(LATEST / "frontier.csv").query("curve == 'levered'").sort_values("i").reset_index(drop=True)
+    e = pd.read_csv(LATEST / "expected_returns.csv").set_index("asset")
+    spread = json.loads((LATEST / "forecast.json").read_text())["frontier"]["borrow_spread"]
+    z05 = pd.read_csv(LATEST / "shape.csv").set_index("tau").z_assets[0.05]
+    assert [m["name"] for m in mixes] == list(sm.MIX_NAMES) and len(mixes) == 4
+    top = lev.vol.iloc[-1]
+    for k, m in enumerate(mixes, 1):
+        row = lev.iloc[(lev.vol - k * top / 5).abs().idxmin()]                 # the grid point nearest k fifths of the way
+        w = row[[c for c in lev.columns if c.startswith("w_")]].rename(lambda c: c[2:]).astype(float)
+        assert m["vol"] == pytest.approx(row.vol) and m["avg"] == pytest.approx(math.expm1(row.drift))
+        assert m["weights"] == pytest.approx(w.to_dict()) and sum(m["weights"].values()) == pytest.approx(m["invested"], abs=1e-4)
+        assert sum(m["groups"].values()) == pytest.approx(m["invested"], abs=1e-4)
+        assert m["cash"] == pytest.approx(max(1 - row.invested, 0)) and m["borrowed"] == pytest.approx(max(row.invested - 1, 0))
+        center = float(w @ e.mean_12m[w.index]) - spread * max(row.invested - 1, 0)
+        scale = math.sqrt(1.5 * row.vol ** 2 + float(w.abs() @ e.se_12m[w.index]) ** 2)
+        assert m["bad"] == pytest.approx(math.expm1(center + scale * z05))
+        assert m["bad"] < 0 < m["avg"]
+        text = re.sub(r"\s+", " ", page)
+        assert (f'<span class="mix-v">{sm.pct(m["avg"])}</span><span class="mix-v">{sm.pct(m["vol"], 1, sign=False)}</span>'
+                f'<span class="mix-v">{sm.pct(m["bad"])}</span>') in text
+        assert all(f"{round(100 * x)}% {n}" in text for n, x in m["holdings"])
+    assert [m["vol"] for m in mixes] == sorted(m["vol"] for m in mixes)
+    assert [m["bad"] for m in mixes] == sorted((m["bad"] for m in mixes), reverse=True)   # more swing, worse bad year
+    assert sm._funding({"invested": 0.741}) == "74% invested, 26% cash" and sm._funding({"invested": 1.0}) == "fully invested"
+    assert sm._funding({"invested": 1.361}) == "136% invested, 36% borrowed"
+
+
 def test_trust(facts):
     t = facts["trust"]
     acc = pd.read_csv(F / "accuracy.csv").query("sample == 'last30y' and asset == 'pooled'").iloc[0]
@@ -106,8 +135,8 @@ def test_page_shows_the_facts(facts, page):
     for r in facts["outlook"]:
         assert f'{sm.pct(r["avg"])}</span><span class="rng-s">{sm.pct(r["lo"])} to {sm.pct(r["hi"])}' in text
     b, t, m = facts["borrow"], facts["trust"], facts["machine"]
-    for s in (sm.pct(b["margin_rate"], 2, sign=False), sm.pct(b["spread"], 1, sign=False), facts["window"],
-              f'{round(100 * b["top"]["invested"])}% invested', f'{sm.num(t["vol_skill"])}% lower than',
+    for s in (sm.pct(b["margin_rate"], 2, sign=False), f'{sm.num(100 * b["spread"])} points more than cash', facts["window"],
+              f'>{round(100 * b["top"]["invested"])}%</text>', f'{sm.num(t["vol_skill"])}% lower than',
               f'For {t["n_zero"]} of the {t["n_assets"]} assets', f'>{m["n_models"]}</b>', f'>{m["since"]}</b>'):
         assert s in text, s
 
