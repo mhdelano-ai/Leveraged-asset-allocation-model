@@ -647,7 +647,10 @@ def frontier_settings(s: Sources) -> pd.DataFrame:
     match = p[p.kind == "match"]
     top = lev.loc[lev.vol.idxmax()]
     return pd.DataFrame([{
-        "key": "now", "borrow_spread": pc(m["borrow_spread"], 1), "max_leverage": round(float(m["max_leverage"]), 1),
+        "key": "now", "borrow_spread": pc(m["borrow_spread"], 1),
+        "margin_rate": pc(m["borrow"]["margin_rate"], 2), "margin_tier": m["borrow"]["tier"],
+        "margin_as_of": m["borrow"]["as_of"], "tbill_rate": pc(m["borrow"]["tbill_rate"], 1),
+        "max_leverage": round(float(m["max_leverage"]), 1),
         "max_invested": round(100 * float(m["max_leverage"])), "level": round(100 * m["interval_level"]),
         "top_vol": pc(top.vol, 1), "top_growth": pc(top.growth, 1),
         "top_growth_lo": pc(top.growth_lo, 1), "top_growth_hi": pc(top.growth_hi, 1),
@@ -688,7 +691,7 @@ DATASETS: tuple[Dataset, ...] = (
             "The policy portfolios, minimum variance, best return per unit of risk, risk parity, the frontier portfolio at each policy portfolio's volatility, and the twelve assets, on the frontier's axes.",
             ("forecasts/latest/frontier_points.csv",), frontier_points),
     Dataset("frontier_settings", "Frontier settings",
-            "One row: the borrowing spread, the leverage limit and counts quoted beside the frontier.",
+            "One row: the borrowing terms (Robinhood's margin rate for the balance tier used, the T-bill rate and the spread between them), the leverage limit and counts quoted beside the frontier.",
             ("forecasts/latest/forecast.json", "forecasts/latest/frontier.csv", "forecasts/latest/frontier_points.csv"), frontier_settings),
     Dataset("shape", "Shape of the predictive distribution",
             "Quantiles of past standardized 12-month outcomes, pooled over assets and over portfolios, beside the normal.",

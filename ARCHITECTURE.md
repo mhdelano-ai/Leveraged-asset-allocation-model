@@ -281,8 +281,11 @@ statement of method per block and the consistency checks).
 
 It also writes `frontier.csv` and `frontier_points.csv` (`assetforecast.frontier`,
 also `python -m assetforecast.frontier --dir <folder>`): the long-only efficient
-frontier those files imply, with cash below full investment and borrowing at
-T-bills plus `BORROW_SPREAD` up to `MAX_LEVERAGE` above it, in expected compound
+frontier those files imply, with cash below full investment and borrowing on
+Robinhood margin up to `MAX_LEVERAGE` above it (`frontier.MARGIN`: the published
+rate schedule and its date; the cost is the rate of tier `MARGIN_TIER` on a
+360-day year, less the T-bill rate of the origin month, recorded in the
+`frontier.borrow` block of `forecast.json`), in expected compound
 growth against volatility, with a band from the 90% intervals of the means. It
 is arithmetic on the published covariance and expected returns, computed from the
 rounded files themselves; it is not a model, selects nothing and has no

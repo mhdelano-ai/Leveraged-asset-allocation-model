@@ -23,7 +23,7 @@ def inp():
     cov = pd.DataFrame(R * np.outer(sd, sd), assets, assets)
     mean = np.array([0.012, 0.02, 0.03, 0.05, 0.055, 0.04])
     exp = pd.DataFrame({"mean_12m": mean, "ci90_lo": mean - 0.03, "ci90_hi": mean + 0.03}, index=assets)
-    return F.Inputs(cov, exp, {"half": {"a0": 0.5, "a3": 0.5}})
+    return F.Inputs(cov, exp, {"half": {"a0": 0.5, "a3": 0.5}}, spread=0.01)
 
 
 def random_long_only(rng, n, k):
@@ -113,11 +113,41 @@ def test_match_points_and_gap(inp):
     assert p.loc[p.kind != "match", "gap"].isna().all()
 
 
+def test_borrow_terms_are_the_margin_rate_over_tbills():
+    cash = pd.Series({pd.Timestamp("2026-09-30"): 0.0030, pd.Timestamp("2026-10-31"): 0.0032,
+                      pd.Timestamp("2026-12-31"): 0.0025})
+    b = F.borrow_terms("2026-10-31", cash=cash)
+    lo, hi, rate = F.MARGIN["tiers"][F.MARGIN_TIER]
+    assert (b["margin_rate"], b["tbill_month"], b["tier"]) == (rate, "2026-10-31", "up to $50,000")
+    assert b["annual_cost"] == pytest.approx(rate * 365 / 360, abs=1e-6)
+    assert b["tbill_rate"] == pytest.approx(12 * 0.0032)
+    assert b["spread"] == pytest.approx(b["annual_cost"] - b["tbill_rate"], abs=1e-9)
+    # a bigger balance borrows cheaper; the T-bill rate is the origin month's and nothing later
+    rates = [r for _, _, r in F.MARGIN["tiers"]]
+    assert rates == sorted(rates, reverse=True) and len(b["schedule"]) == len(rates)
+    assert F.borrow_terms("2026-10-31", tier=2, cash=cash)["spread"] < b["spread"]
+    assert F.borrow_terms("2026-10-31", cash=cash.iloc[:2]) == b
+    # an origin before the schedule's date is measured in the schedule's month; a missing month is an error
+    assert F.borrow_terms("2020-01-31", cash=cash)["tbill_month"] == "2026-09-30"
+    with pytest.raises(ValueError, match="no T-bill return"):
+        F.borrow_terms("2026-11-30", cash=cash)
+
+
+def test_spread_defaults_to_the_inputs(inp):
+    x = np.full(len(inp.assets), 2 / len(inp.assets))
+    assert F.stats(inp, x) == F.stats(inp, x, spread=inp.spread)
+    assert F.stats(inp, x)["drift"] == pytest.approx(F.stats(inp, x, spread=0.0)["drift"] - inp.spread)
+    with pytest.raises(ValueError, match="spread"):
+        F.Inputs(pd.DataFrame(inp.cov, inp.assets, inp.assets),
+                 pd.DataFrame({"mean_12m": inp.mean, "ci90_lo": inp.mean, "ci90_hi": inp.mean}, index=inp.assets),
+                 {}, spread=float("nan"))
+
+
 def test_inputs_must_line_up(inp):
     cov = pd.DataFrame(inp.cov, inp.assets, inp.assets)
     exp = pd.DataFrame({"mean_12m": inp.mean, "ci90_lo": inp.mean, "ci90_hi": inp.mean}, index=inp.assets)
     with pytest.raises(ValueError, match="same assets"):
-        F.Inputs(cov, exp.iloc[1:], {})
+        F.Inputs(cov, exp.iloc[1:], {}, spread=0.01)
 
 
 # ------------------------------------------------------------------ the published files
@@ -149,7 +179,12 @@ def test_published_frontier_hangs_together(latest):
     cov = pd.read_csv(latest / "cov_annual.csv", index_col=0)
     ports = pd.read_csv(latest / "portfolios.csv", index_col=0)
     meta = json.loads((latest / "forecast.json").read_text())["frontier"]
-    assert meta["borrow_spread"] == F.BORROW_SPREAD and meta["max_leverage"] == F.MAX_LEVERAGE
+    origin = json.loads((latest / "forecast.json").read_text())["origin"]
+    assert meta["borrow"] == F.borrow_terms(origin) and meta["max_leverage"] == F.MAX_LEVERAGE
+    spread = meta["borrow_spread"]
+    assert spread == meta["borrow"]["spread"] > 0
+    assert meta["borrow"]["margin_rate"] == F.MARGIN["tiers"][F.MARGIN_TIER][2]
+    assert meta["borrow"]["tbill_month"] == origin
     np.testing.assert_allclose(p.loc[er.index, "growth"], er["mean_12m"], atol=1e-5)
     np.testing.assert_allclose(p.loc[er.index, "growth_lo"], er["ci90_lo"], atol=2e-5)
     np.testing.assert_allclose(p.loc[er.index, "vol"], np.sqrt(np.diag(cov)), atol=1e-5)
@@ -163,7 +198,7 @@ def test_published_frontier_hangs_together(latest):
     drift = er["mean_12m"] + 0.5 * np.diag(cov.loc[er.index, er.index])
     x = w.to_numpy()
     var = np.einsum("pi,ij,pj->p", x, cov.to_numpy(), x)
-    g = x @ drift.to_numpy() - F.BORROW_SPREAD * np.clip(f.invested - 1, 0, None) - 0.5 * var
+    g = x @ drift.to_numpy() - spread * np.clip(f.invested - 1, 0, None) - 0.5 * var
     np.testing.assert_allclose(f.growth, g, atol=5e-5)
     np.testing.assert_allclose(f.vol, np.sqrt(var), atol=5e-5)
     # the policy portfolios do not sit above the frontier
