@@ -14,7 +14,7 @@ counts as evidence) before changing anything.
 - `models/<family>/`, `eval/`, `bridge/`: covariance models, their harness, losses and inference, the 12-month bridge
 - `covhistory.py`: the selected covariance at every origin
 - `returns/`: config, inputs, features, mean models, walk-forward, scoring, inference, strategy test, `expected.py`, `distribution.py`
-- `forecast.py`: the published forecast (`forecasts/<origin>/`, `forecasts/latest/`); `pipeline.py`: everything in order
+- `forecast.py`: the published forecast (`forecasts/<origin>/`, `forecasts/latest/`); `frontier.py`: the efficient frontier it implies; `pipeline.py`: everything in order
 - `data/processed/`, `results/` (except `results/full/`, `results/dev/`), `forecasts/` are committed; `data/raw/` is a download cache
 
 ## Rules

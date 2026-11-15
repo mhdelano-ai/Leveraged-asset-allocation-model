@@ -27,6 +27,10 @@ writes
                                                   shape="portfolios" are the published ones, rows with
                                                   shape="assets" a sensitivity check
     forecasts/<origin>/shape.csv                  the pooled standardized shapes behind the quantiles
+    forecasts/<origin>/frontier.csv               the efficient frontier these numbers imply, long-only with
+                                                  cash and borrowing (``assetforecast.frontier``)
+    forecasts/<origin>/frontier_points.csv        the assets, policy portfolios and named portfolios on
+                                                  the same axes
     forecasts/latest/                             a copy of the newest origin
 
 All returns are log returns in excess of T-bills. The method of every block
@@ -357,6 +361,8 @@ def write(result: dict, out: Path, latest: bool = True) -> Path:
         "checks": blocks["checks"],
     }
     (d / "forecast.json").write_text(json.dumps(payload, indent=1))
+    from . import frontier
+    frontier.publish(d)      # frontier.csv, frontier_points.csv and the "frontier" block, from the files above
     if latest:
         lt = Path(out) / "latest"
         if lt.exists():

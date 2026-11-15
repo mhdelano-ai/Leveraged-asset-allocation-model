@@ -279,6 +279,15 @@ an optimizer), `cov_21d.csv`, `corr.csv`, `vols.csv`, `portfolios.csv`,
 `assets` = sensitivity), `shape.csv` and `forecast.json` (everything, with a
 statement of method per block and the consistency checks).
 
+It also writes `frontier.csv` and `frontier_points.csv` (`assetforecast.frontier`,
+also `python -m assetforecast.frontier --dir <folder>`): the long-only efficient
+frontier those files imply, with cash below full investment and borrowing at
+T-bills plus `BORROW_SPREAD` up to `MAX_LEVERAGE` above it, in expected compound
+growth against volatility, with a band from the 90% intervals of the means. It
+is arithmetic on the published covariance and expected returns, computed from the
+rounded files themselves; it is not a model, selects nothing and has no
+out-of-sample evidence of its own. The dashboard's frontier section shows it.
+
 ## Results layout
 
 | path | contents | committed |

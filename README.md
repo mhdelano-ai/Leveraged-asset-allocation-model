@@ -43,7 +43,7 @@ Expected return and quantiles are of the 12-month log excess return, in percent;
 | path | contents |
 |---|---|
 | `reports/REPORT.md` | the report: numbers, how to use them, the evidence, limits |
-| `forecasts/latest/` | `cov_annual.csv` (feed this to an optimizer), `cov_21d.csv`, `corr.csv`, `vols.csv`, `portfolios.csv`, `expected_returns.csv`, `distribution_assets.csv`, `distribution_portfolios.csv`, `shape.csv`, `forecast.json` |
+| `forecasts/latest/` | `cov_annual.csv` (feed this to an optimizer), `cov_21d.csv`, `corr.csv`, `vols.csv`, `portfolios.csv`, `expected_returns.csv`, `distribution_assets.csv`, `distribution_portfolios.csv`, `shape.csv`, `frontier.csv` and `frontier_points.csv` (the long-only efficient frontier these numbers imply, with cash and borrowing; arithmetic on the forecast, not a tested strategy), `forecast.json` |
 | `results/final/` | the covariance model's development and holdout scores (frozen) |
 | `results/covariance/` | the selected covariance forecast at every past month-end |
 | `results/returns/` | the 12-month replication of the frozen return models, expected-return and distribution history, distribution scores, strategy test. The replication, distribution and strategy outputs carry the replication label (not out-of-sample); `expected/history.json` and `covariances/sample/h12.json` describe inputs and carry no label |

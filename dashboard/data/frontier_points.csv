@@ -1,0 +1,22 @@
+point,kind,group,label,vol,growth,growth_lo,growth_hi,invested,equity,rates,credit,real,w_us_large,w_us_small,w_intl_dev,w_em,w_ust_int,w_ust_long,w_tips,w_ig_credit,w_hy_credit,w_reits,w_gold,w_commodities,weights,gap,gap_lo,gap_hi
+p6040,policy,,60/40 (US large cap / intermediate Treasuries),10.3,4.83,2.02,7.64,100.0,60.0,40.0,0.0,0.0,60.0,0.0,0.0,0.0,40.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,"60% US large, 40% UST 7y",,,
+p_balanced,policy,,Balanced 12-asset mix,10.75,5.05,1.63,8.47,100.0,55.0,25.0,8.0,12.0,30.0,5.0,15.0,5.0,15.0,5.0,5.0,5.0,3.0,4.0,4.0,4.0,"30% US large, 15% Intl dev, 15% UST 7y, 5% US small, 5% EM, 5% UST 20y, 5% TIPS, 5% IG credit, 4% REITs, 4% Gold, 4% Commod., 3% High yield",,,
+p_equity,policy,,Global equity mix,15.97,6.29,2.21,10.38,100.0,100.0,0.0,0.0,0.0,55.0,10.0,25.0,10.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,"55% US large, 25% Intl dev, 10% US small, 10% EM",,,
+min_variance,special,,Minimum variance,5.19,2.74,0.35,5.12,100.0,0.0,59.9,38.6,1.5,0.0,0.0,0.0,0.0,2.8,0.0,57.1,0.0,38.6,0.0,0.0,1.5,"57% TIPS, 39% High yield, 3% UST 7y, 1% Commod.",,,
+max_sharpe,special,,Best return per unit of risk,6.6,3.85,1.11,6.59,100.0,14.3,36.6,40.5,8.6,8.6,5.7,0.0,0.0,0.0,0.0,36.6,0.0,40.5,0.0,5.6,3.0,"40% High yield, 37% TIPS, 9% US large, 6% US small, 6% Gold, 3% Commod.",,,
+risk_parity,special,,Risk parity,7.79,2.86,0.23,5.49,100.0,0.0,64.3,0.0,35.7,0.0,0.0,0.0,0.0,64.3,0.0,0.0,0.0,0.0,0.0,10.5,25.2,"64% UST 7y, 25% Commod., 10% Gold",,,
+match_p6040,match,,Frontier at the volatility of 60/40,10.3,5.47,1.93,9.02,104.2,38.0,23.2,22.7,20.2,20.1,17.9,0.0,0.0,0.0,0.0,23.2,0.0,22.7,3.8,13.6,2.8,"23% TIPS, 23% High yield, 20% US large, 18% US small, 14% Gold, 4% REITs, 3% Commod., 4% borrowed",0.64,-4.32,5.6
+match_p_balanced,match,,Frontier at the volatility of the balanced mix,10.75,5.64,1.94,9.35,108.7,39.6,24.3,23.7,21.1,21.0,18.7,0.0,0.0,0.0,0.0,24.3,0.0,23.7,4.0,14.2,3.0,"24% TIPS, 24% High yield, 21% US large, 19% US small, 14% Gold, 4% REITs, 3% Commod., 9% borrowed",0.59,-3.3,4.49
+match_p_equity,match,,Frontier at the volatility of the equity mix,15.97,7.48,1.98,12.98,161.6,58.9,36.1,35.2,31.4,31.2,27.7,0.0,0.0,0.0,0.0,36.1,0.0,35.2,5.9,21.0,4.4,"36% TIPS, 35% High yield, 31% US large, 28% US small, 21% Gold, 6% REITs, 4% Commod., 62% borrowed",1.19,-5.36,7.74
+us_large,asset,equity,US large-cap equity,15.87,6.45,2.99,9.92,100.0,100.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100% US large,,,
+us_small,asset,equity,US small-cap equity,21.54,7.65,3.27,12.03,100.0,100.0,0.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100% US small,,,
+intl_dev,asset,equity,International developed equity,16.82,4.73,0.01,9.45,100.0,100.0,0.0,0.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100% Intl dev,,,
+em,asset,equity,Emerging-market equity,23.15,5.26,-0.36,10.88,100.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100% EM,,,
+ust_int,asset,rates,Intermediate Treasuries (~7y),7.71,1.53,-0.29,3.35,100.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100% UST 7y,,,
+ust_long,asset,rates,Long Treasuries (~20y+),13.52,1.46,-1.28,4.2,100.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,100% UST 20y,,,
+tips,asset,rates,TIPS (broad),5.72,2.31,-0.34,4.97,100.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,100% TIPS,,,
+ig_credit,asset,credit,Investment-grade corporates,8.32,1.71,0.54,2.87,100.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,100% IG credit,,,
+hy_credit,asset,credit,High-yield corporates,6.34,3.25,1.26,5.23,100.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,100% High yield,,,
+reits,asset,real,US REITs,18.19,5.88,2.22,9.54,100.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0,0.0,0.0,100% REITs,,,
+gold,asset,real,Gold,24.45,3.79,-1.8,9.39,100.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0,0.0,100% Gold,,,
+commodities,asset,real,Broad commodities (futures TR),19.34,3.19,-0.28,6.66,100.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0,100% Commod.,,,

@@ -11,7 +11,8 @@ p-values with three, ``<0.001`` below that) and the page prints it unchanged.
 Sources (nothing here re-estimates a statistic; the arithmetic is unit
 conversion, rounding and selecting rows):
 
-* ``forecasts/latest/``  the published forecast (``python -m assetforecast.forecast``)
+* ``forecasts/latest/``  the published forecast (``python -m assetforecast.forecast``), with the
+                         efficient frontier it implies (``assetforecast.frontier``)
 * ``results/final/``     the covariance model's frozen evaluation (``scripts/score_final.py``)
 * ``results/returns/``   the merge-time replication, distribution scores and strategy test
 * ``results/archive/assetpred/``  the original return-forecasting project's holdout, unmodified
@@ -567,6 +568,94 @@ def verdicts(s: Sources) -> pd.DataFrame:
     return out
 
 
+# --------------------------------------------------------------------------- efficient frontier
+
+FRONTIER_GROUPS = ("equity", "rates", "credit", "real")
+FRONTIER_POINTS = {  # point id -> label (assets take their own name)
+    "min_variance": "Minimum variance", "max_sharpe": "Best return per unit of risk", "risk_parity": "Risk parity",
+}
+FRONTIER_KINDS = ("policy", "special", "match", "asset")
+
+
+def _weights(f: pd.DataFrame) -> pd.DataFrame:
+    w = f[[c for c in f.columns if c.startswith("w_")]]
+    return w.rename(columns=lambda c: c[2:])
+
+
+def weight_list(w: pd.Series) -> str:
+    """'37% TIPS, 36% High yield, ...' for weights of at least half a percent, largest first, then cash or borrowing."""
+    held = w[w >= 0.005].sort_values(ascending=False, kind="stable")
+    parts = [f"{round(100 * v):g}% {gl.SHORT_ASSET.get(a, a)}" for a, v in held.items()]
+    rest = round(100 * (1 - float(w.sum())))
+    if rest:
+        parts.append(f"{abs(rest):g}% {'cash' if rest > 0 else 'borrowed'}")
+    return ", ".join(parts) if parts else "100% cash"
+
+
+def _frontier_frame(f: pd.DataFrame) -> pd.DataFrame:
+    """The columns the frontier line and the reference points share, in display units."""
+    from ..universe import BY_ID as ASSET
+    w = _weights(f)
+    out = pd.DataFrame({"vol": pc(f.vol, 2), "growth": pc(f.growth, 2), "growth_lo": pc(f.growth_lo, 2),
+                        "growth_hi": pc(f.growth_hi, 2), "invested": pc(f.invested, 1)})
+    for g in FRONTIER_GROUPS:
+        out[g] = pc(w[[a for a in w.columns if ASSET[a].group == g]].sum(axis=1), 1)
+    for a in w.columns:
+        out[f"w_{a}"] = pc(w[a], 1)
+    out["weights"] = [weight_list(w.loc[i]) for i in w.index]
+    return out
+
+
+def frontier(s: Sources) -> pd.DataFrame:
+    f = s.read("frontier.csv")
+    out = _frontier_frame(f)
+    out.insert(0, "i", f.i)
+    out.insert(0, "curve", f.curve)
+    out.insert(0, "id", f.curve + "~" + f.i.astype(str))
+    return out
+
+
+def frontier_points(s: Sources) -> pd.DataFrame:
+    f = s.read("frontier_points.csv")
+    f = f.assign(_k=f.kind.map({k: i for i, k in enumerate(FRONTIER_KINDS)})).sort_values("_k", kind="stable")
+    f = f.drop(columns="_k").reset_index(drop=True)
+    out = _frontier_frame(f)
+    label = np.where(f.kind == "asset", f.name, np.where(
+        f.kind == "policy", f.name.map(gl.PORTFOLIOS), np.where(
+            f.kind == "match", "Frontier at the volatility of " + f.name.map(gl.PORTFOLIO_SHORT),
+            f.point.map(FRONTIER_POINTS))))
+    if pd.isna(label).any():
+        raise ValueError("a frontier point has no label")
+    out.insert(0, "label", label)
+    out.insert(0, "group", [gl_group(a) if k == "asset" else "" for a, k in zip(f.point, f.kind)])
+    out.insert(0, "kind", f.kind)
+    out.insert(0, "point", f.point)
+    for c in ("gap", "gap_lo", "gap_hi"):
+        out[c] = pc(f[c], 2)
+    return out
+
+
+def gl_group(asset: str) -> str:
+    from ..universe import BY_ID as ASSET
+    return ASSET[asset].group
+
+
+def frontier_settings(s: Sources) -> pd.DataFrame:
+    m = s.json("forecast.json")["frontier"]
+    f, p = s.read("frontier.csv"), s.read("frontier_points.csv")
+    lev = f[f.curve == "levered"]
+    match = p[p.kind == "match"]
+    top = lev.loc[lev.vol.idxmax()]
+    return pd.DataFrame([{
+        "key": "now", "borrow_spread": pc(m["borrow_spread"], 1), "max_leverage": round(float(m["max_leverage"]), 1),
+        "max_invested": round(100 * float(m["max_leverage"])), "level": round(100 * m["interval_level"]),
+        "top_vol": pc(top.vol, 1), "top_growth": pc(top.growth, 1),
+        "top_growth_lo": pc(top.growth_lo, 1), "top_growth_hi": pc(top.growth_hi, 1),
+        "n_match": len(match), "n_gap_incl_zero": int(((match.gap_lo <= 0) & (match.gap_hi >= 0)).sum()),
+        "n_assets_held": int((_weights(lev).max() >= 0.005).sum()), "n_assets": len(_weights(lev).columns),
+    }])
+
+
 # --------------------------------------------------------------------------- registry
 
 @dataclass(frozen=True)
@@ -592,6 +681,15 @@ DATASETS: tuple[Dataset, ...] = (
     Dataset("outlook_portfolios", "Expected return and range, policy portfolios",
             "Per policy portfolio and shape: expected 12-month log excess return, volatility and predictive quantiles; the asset-shape rows are a sensitivity check.",
             ("forecasts/latest/distribution_portfolios.csv",), outlook_portfolios),
+    Dataset("frontier", "Efficient frontier",
+            "Portfolios along the long-only frontier with and without cash and borrowing: volatility, expected compound growth with its range, share invested and weights, in percent.",
+            ("forecasts/latest/frontier.csv",), frontier),
+    Dataset("frontier_points", "Portfolios and assets beside the frontier",
+            "The policy portfolios, minimum variance, best return per unit of risk, risk parity, the frontier portfolio at each policy portfolio's volatility, and the twelve assets, on the frontier's axes.",
+            ("forecasts/latest/frontier_points.csv",), frontier_points),
+    Dataset("frontier_settings", "Frontier settings",
+            "One row: the borrowing spread, the leverage limit and counts quoted beside the frontier.",
+            ("forecasts/latest/forecast.json", "forecasts/latest/frontier.csv", "forecasts/latest/frontier_points.csv"), frontier_settings),
     Dataset("shape", "Shape of the predictive distribution",
             "Quantiles of past standardized 12-month outcomes, pooled over assets and over portfolios, beside the normal.",
             ("forecasts/latest/shape.csv",), shape),
