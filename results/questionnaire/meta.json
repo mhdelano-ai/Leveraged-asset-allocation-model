@@ -79,6 +79,10 @@
   "sleeve_rule_name": "1/volatility, whole past",
   "step": 0.05,
   "overlay": 0.5,
+  "overlay_caps": {
+   "margin": 1.0,
+   "stacked": 0.9500000000000001
+  },
   "max_leverage": 2.0,
   "spreads": {
    "margin": 0.013798,
@@ -130,28 +134,7 @@
    }
   ]
  },
- "overlay": {
-  "margin": {
-   "growth_all": 0.07148052822499601,
-   "vol_all": 0.15283715824247807,
-   "sharpe_all": 0.46769077001282144,
-   "worst_fall_all": -0.5061279399360855,
-   "growth_live": 0.0748209801081535,
-   "vol_live": 0.16354819501981013,
-   "sharpe_live": 0.45748581999997395,
-   "worst_fall_live": -0.5061279399360855
-  },
-  "stacked": {
-   "growth_all": 0.07834332427450683,
-   "vol_all": 0.15274833160567228,
-   "sharpe_all": 0.512891521962768,
-   "worst_fall_all": -0.5013419300583238,
-   "growth_live": 0.08168283506290835,
-   "vol_live": 0.1634530169833148,
-   "sharpe_live": 0.4997328074479439,
-   "worst_fall_live": -0.5013419300583238
-  }
- },
+ "least_risk_stocks": 0.1,
  "vehicles_retrieved": "2026-11-16",
  "covariance": {
   "model": "combo_cov_main",

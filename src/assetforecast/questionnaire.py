@@ -2,14 +2,21 @@
 
     python -m assetforecast.questionnaire
 
-Writes ``results/questionnaire/`` (``answers.csv``, ``ladder.csv``, ``funds.csv``,
-``frontier.csv``, ``points.csv``, ``inputs.csv``, ``cov.csv``, ``meta.json``),
-``reports/questionnaire.md`` and ``dashboard/questionnaire.html``
-(``questionnaire_page``). ARITHMETIC UNDER DECLARED RULES (``LABEL``): it reads the
-diversifier and allocation studies and the published forecast, fits nothing, selects
-no model and changes nothing frozen or published. The rules are judgements, written
-down here before the tables were computed; they are not advice and have no
-out-of-sample evidence.
+Writes ``results/questionnaire/`` (``answers.csv``, ``curve.csv``, ``funds.csv``,
+``inputs.csv``, ``cov.csv``, ``meta.json``), ``reports/questionnaire.md`` and
+``dashboard/questionnaire.html`` (``questionnaire_page``). ARITHMETIC UNDER DECLARED
+RULES (``LABEL``): it reads the diversifier and allocation studies and the published
+forecast, fits nothing, optimizes nothing, selects no model and changes nothing frozen
+or published. The rules are judgements, written down here before the tables were
+computed; they are not advice and have no out-of-sample evidence.
+
+Risk decides, returns do not
+----------------------------
+The allocation study's reading: risk carries over from one period to the next and can
+be forecast; returns cannot, and rules that optimized on them did not beat fixed
+weights. So nothing here is chosen on an expected return. Every answer is a point on
+one curve of mixes (``curve.csv``), and the goal's tolerance for loss picks the point.
+Expected growth is shown beside each point with its interval, and is not an input.
 
 The two questions
 -----------------
@@ -24,44 +31,44 @@ The two questions
               fall from a previous high the goal can sit through. ``near`` (spent
               within 3 years) is outside the model and is answered with T-bills.
 
+The curve
+---------
+``unlevered``  world stocks at every share from 0 to 100% in steps of ``STEP``, the
+               rest in the sleeve the diversifier study left: intermediate Treasuries,
+               gold and managed futures, weighted by ``SLEEVE_RULE`` (1/volatility on
+               the whole past, the allocation study's reading for the weights inside
+               the sleeve) at the last origin.
+``margin``,    100% stocks with the sleeve added on top, from ``STEP`` of capital up to
+``stacked``    what that financing can carry (:func:`overlay_caps`): a margin loan up
+               to ``frontier.MAX_LEVERAGE`` times capital; stacked funds until the
+               funds of the lookup use all the capital.
+
+Per point: ``vol``, its volatility on the allocation study's ``fcst`` matrix at the
+last origin (the package's 12-month forecast for stocks, Treasuries and gold; managed
+futures, which the forecast does not cover, at their last-``RECENT``-months volatility
+and correlations); the replay (below); and, for display only, ``growth`` with its band
+(``frontier.stats``: the expected log return over T-bills of the rebalanced mix, net of
+the borrowing spread, and the 90% intervals of the means added as if perfectly
+correlated). The means are each holding's historical mean (``returns.expected``):
+stocks from ``threefund.expected``, Treasuries and gold from the published forecast,
+managed futures from the live funds only (2007 on, after fees), the window the
+diversifier study says to trust.
+
 The rule
 --------
-1. Stock share. ``ladder``: world stocks at every share from 0 to 100% in steps of
-   ``STEP``, the rest in the sleeve, replayed month by month (below). The stock share
-   is the largest whose worst fall in the whole replay is no deeper than the goal's
-   ``loss_limit``. The allocation study's reading is that no input picks the stock
-   share: it is the risk accepted, which the goal states here.
-2. Backfill. The rest of the capital goes to the sleeve the diversifier study left:
-   intermediate Treasuries, gold and managed futures, weighted by ``SLEEVE_RULE``
-   (1/volatility on the whole past, the allocation study's reading for the weights
-   inside the sleeve), at the last origin.
-3. Nothing left to backfill. At 100% stocks the sleeve is added on top instead,
-   ``OVERLAY`` of capital (the diversifier study's overlay), financed the way the
-   account allows, if the replay of that position also stays within the limit.
+1. Stock share: the largest on the ``unlevered`` part whose worst fall in the whole
+   replay is no deeper than the goal's ``loss_limit``.
+2. Backfill: the rest of the capital is the sleeve. That is the point on the curve.
+3. Nothing left to backfill: at 100% stocks the sleeve goes on top instead,
+   ``OVERLAY`` of capital (the diversifier study's overlay), on the account's part of
+   the curve, if that point also stays within the limit. ``OVERLAY`` is a declared
+   amount: the loss limit alone does not pin it down.
 
 The replay is the allocation study's: the sleeve's walk-forward return (weights set
 at each month-end from returns through it, held over the next month, from ``BURN``
 months after the common start), beside stocks, rebalanced monthly, borrowing at
 T-bills plus the spread. Same series, same statistics (``diversifiers._path_stats``);
 ``menu.csv`` of the allocation study is reproduced at its mixes.
-
-The frontier
-------------
-``frontier`` (the published forecast's arithmetic, unchanged) applied to the four
-holdings. Covariance: the allocation study's ``fcst`` matrix at the last origin (the
-package's 12-month forecast for stocks, Treasuries and gold; managed futures, which
-the forecast does not cover, at their last-``RECENT``-months volatility and
-correlations). Expected returns: each holding's historical mean with the package's
-90% interval (``returns.expected``): stocks from ``threefund.expected``, Treasuries
-and gold from the published forecast, managed futures from the live funds only
-(2007 on, after fees), the window the diversifier study says to trust. Curves:
-``unlevered``, and ``levered_<financing>`` at each financing's spread. Each answer is
-placed on it (``vol``, ``growth`` and its band) next to the frontier portfolio at the
-same volatility (``match_*``, ``gap``), as the published ``match`` rows are.
-
-The frontier is where a mean-variance optimizer would go on these inputs. The
-allocation study found that optimizing on return estimates did not beat fixed
-weights, so the gap is what the optimizer claims, not a result.
 
 Funds
 -----
@@ -122,7 +129,7 @@ NOTES = {   # shown with the answer; statements about tax treatment, not modelle
         "Qualified withdrawals are untaxed. No holding is tax-favoured over another, and rebalancing costs no tax."],
 }
 SLEEVE_RULE = "invvol_hist"          # the weights inside the sleeve
-STEP = 0.05                          # steps of the stock share
+STEP = 0.05                          # steps of the stock share, and of the sleeve on top
 OVERLAY = diversifiers.OVERLAY       # sleeve added on top of 100% stocks, share of capital
 EXPOSURE = {"ust_int": "intermediate Treasuries", "gold": "gold", "mf": "managed futures"}   # names in the fund lookup
 STOCK_FUND = "A world stock fund"
@@ -154,35 +161,15 @@ def mix_stats(stocks: pd.Series, sleeve: pd.Series, cash: pd.Series, a: float, b
     return row
 
 
-def ladder(stocks: pd.Series, sleeve: pd.Series, cash: pd.Series, step: float = STEP) -> pd.DataFrame:
-    """Stocks at every share from 0 to 1, the rest in the sleeve: the replay of each."""
-    shares = np.round(np.arange(0.0, 1.0 + 1e-9, step), 6)
-    return pd.DataFrame([{"stocks": float(a), "sleeve": float(1 - a), **mix_stats(stocks, sleeve, cash, a, 1 - a, 0.0)}
-                         for a in shares])
+# ------------------------------------------------------------------ the curve
+def weights(stocks: float, sleeve: float, ws: pd.Series) -> np.ndarray:
+    return pd.Series({STOCKS: stocks, **(sleeve * ws).to_dict()})[ASSETS].to_numpy(float)
 
 
-def stock_share(lad: pd.DataFrame, limit: float) -> float | None:
-    """The largest stock share of the ladder whose worst fall is no deeper than ``limit``; None if none is."""
-    ok = lad[lad["worst_fall_all"] >= -limit - 1e-12]
-    return None if ok.empty else float(ok["stocks"].max())
+def _grid(lo: float, hi: float, step: float = STEP) -> np.ndarray:
+    return np.round(np.arange(lo, hi + 1e-9, step), 6)
 
 
-def decide(account: str, goal: str, lad: pd.DataFrame, overlay_fall: dict) -> dict:
-    """Shares of capital in stocks and the sleeve for one pair of answers (the rule of the module docstring).
-
-    ``overlay_fall``: {financing: worst fall in the replay of 100% stocks + ``OVERLAY`` sleeve}."""
-    fin, limit = ACCOUNTS[account]["financing"], GOALS[goal]["loss_limit"]
-    a = None if limit is None else stock_share(lad, limit)
-    if a is None:
-        return {"stocks": 0.0, "sleeve": 0.0, "cash": 1.0, "borrowed": 0.0, "financing": "none"}
-    if a < 1.0:
-        return {"stocks": a, "sleeve": 1.0 - a, "cash": 0.0, "borrowed": 0.0, "financing": "none"}
-    if overlay_fall[fin] >= -limit:
-        return {"stocks": 1.0, "sleeve": OVERLAY, "cash": 0.0, "borrowed": OVERLAY, "financing": fin}
-    return {"stocks": 1.0, "sleeve": 0.0, "cash": 0.0, "borrowed": 0.0, "financing": "none"}
-
-
-# ------------------------------------------------------------------ the four-holding frontier
 def expected_four(x_funds: pd.Series, origin: pd.Timestamp, forecast_dir=None) -> pd.DataFrame:
     """Each holding's historical mean and 90% interval (module docstring), with where it was read."""
     d = paths.FORECASTS_OUT / str(origin.date()) if forecast_dir is None else forecast_dir
@@ -196,26 +183,47 @@ def expected_four(x_funds: pd.Series, origin: pd.Timestamp, forecast_dir=None) -
     return e.loc[ASSETS]
 
 
-def four_inputs(cov: pd.DataFrame, exp: pd.DataFrame, spread: float) -> frontier.Inputs:
-    return frontier.Inputs(cov.loc[ASSETS, ASSETS], exp, {}, spread)
+def curve(inp: frontier.Inputs, ws: pd.Series, stocks: pd.Series, sleeve: pd.Series, cash: pd.Series,
+          spreads: dict, caps: dict) -> pd.DataFrame:
+    """Every mix an answer can be (module docstring, The curve), with its forecast risk, its replay and its growth."""
+    def row(segment, a, b, sp):
+        w = weights(a, b, ws)
+        fs = frontier.stats(inp, w, sp)
+        return {"segment": segment, "stocks": float(a), "sleeve": float(b), "borrowed": float(max(a + b - 1.0, 0.0)),
+                "spread": sp if a + b > 1 else 0.0, "vol": fs["vol"], "growth": fs["growth"],
+                "growth_lo": fs["growth_lo"], "growth_hi": fs["growth_hi"],
+                **{f"w_{k}": float(v) for k, v in zip(ASSETS, w)}, **mix_stats(stocks, sleeve, cash, a, b, sp)}
 
-
-def frontier_tables(inp: frontier.Inputs, spreads: dict, lad: pd.DataFrame, ws: pd.Series) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """(curves, points): ``unlevered`` and ``levered_<financing>``; the holdings and the ladder's mixes."""
-    rows = [frontier._row(inp, w, 0.0, curve="unlevered", i=i) for i, w in enumerate(frontier.curve(inp, False))]
+    rows = [row("unlevered", a, 1.0 - a, 0.0) for a in _grid(0.0, 1.0)]
     for fin, sp in spreads.items():
-        rows += [frontier._row(inp, w, sp, curve=f"levered_{fin}", i=i)
-                 for i, w in enumerate(frontier.curve(inp, True, spread=sp))]
-    n = len(ASSETS)
-    pts = [frontier._row(inp, np.eye(n)[i], 0.0, point=a, kind="asset", name=NAMES[a]) for i, a in enumerate(ASSETS)]
-    for a in lad["stocks"]:
-        pts.append(frontier._row(inp, weights(a, 1 - a, ws), 0.0, point=f"mix_{a:.2f}", kind="mix",
-                                 name=f"{a:.0%} stocks, {1 - a:.0%} sleeve"))
-    return pd.DataFrame(rows), pd.DataFrame(pts)
+        rows += [row(fin, 1.0, b, sp) for b in _grid(STEP, caps[fin])]
+    return pd.DataFrame(rows)
 
 
-def weights(stocks: float, sleeve: float, ws: pd.Series) -> np.ndarray:
-    return pd.Series({STOCKS: stocks, **(sleeve * ws).to_dict()})[ASSETS].to_numpy(float)
+def stock_share(unlevered: pd.DataFrame, limit: float) -> float | None:
+    """The largest stock share of the unlevered curve whose worst fall is no deeper than ``limit``; None if none is."""
+    ok = unlevered[unlevered["worst_fall_all"] >= -limit - 1e-12]
+    return None if ok.empty else float(ok["stocks"].max())
+
+
+def decide(account: str, goal: str, cv: pd.DataFrame) -> dict:
+    """The point of the curve ``cv`` for one pair of answers (the rule of the module docstring)."""
+    fin, limit = ACCOUNTS[account]["financing"], GOALS[goal]["loss_limit"]
+    a = None if limit is None else stock_share(cv[cv["segment"] == "unlevered"], limit)
+    if a is None:
+        return {"stocks": 0.0, "sleeve": 0.0, "cash": 1.0, "borrowed": 0.0, "financing": "none"}
+    if a < 1.0:
+        return {"stocks": a, "sleeve": 1.0 - a, "cash": 0.0, "borrowed": 0.0, "financing": "none"}
+    top = cv[(cv["segment"] == fin) & np.isclose(cv["sleeve"], OVERLAY)]
+    if len(top) and top["worst_fall_all"].iloc[0] >= -limit:
+        return {"stocks": 1.0, "sleeve": OVERLAY, "cash": 0.0, "borrowed": OVERLAY, "financing": fin}
+    return {"stocks": 1.0, "sleeve": 0.0, "cash": 0.0, "borrowed": 0.0, "financing": "none"}
+
+
+def on_curve(cv: pd.DataFrame, d: dict) -> pd.Series:
+    """The row of the curve a decision is."""
+    seg = d["financing"] if d["borrowed"] > 0 else "unlevered"
+    return cv[(cv["segment"] == seg) & np.isclose(cv["stocks"], d["stocks"]) & np.isclose(cv["sleeve"], d["sleeve"])].iloc[0]
 
 
 # ------------------------------------------------------------------ funds
@@ -227,6 +235,24 @@ def vehicles(path=None) -> dict:
     return v
 
 
+def _fund(veh: dict, asset: str, stacked: bool) -> dict:
+    pool = [r for r in veh["vehicles"] if r["exposure"] == EXPOSURE[asset] and r["kind"] == ("stacked" if stacked else "outright")]
+    if stacked:
+        return min(pool, key=lambda r: (-r["exposure_per_dollar"] / r["stocks_per_dollar"], r["fee"]))
+    return min(pool, key=lambda r: r["fee"])
+
+
+def overlay_caps(ws: pd.Series, veh: dict) -> dict:
+    """How much sleeve each financing can put on top of 100% stocks, on the ``STEP`` grid.
+
+    A margin loan: up to ``frontier.MAX_LEVERAGE`` times capital. Stacked funds: until the
+    funds that carry the sleeve use all the capital (no loan can buy more of them)."""
+    top = frontier.MAX_LEVERAGE - 1.0
+    use = sum(float(ws[a]) / _fund(veh, a, True)["exposure_per_dollar"] for a in SLEEVE)   # capital per unit of sleeve
+    down = lambda v: float(np.floor(v / STEP + 1e-9) * STEP)                                # noqa: E731
+    return {"margin": down(top), "stacked": down(min(top, 1.0 / use))}
+
+
 def fund_plan(d: dict, ws: pd.Series, veh: dict, stacked: bool) -> list[dict]:
     """Funds and their shares of capital for a decision ``d`` (module docstring, Funds).
 
@@ -234,19 +260,17 @@ def fund_plan(d: dict, ws: pd.Series, veh: dict, stacked: bool) -> list[dict]:
     if d["cash"] >= 1.0:
         return [{"symbol": "", "name": "T-bills or a money-market fund", "role": "cash", "weight": 1.0,
                  "stocks": 0.0, "exposure": 0.0, "fee": np.nan, "note": "outside the model"}]
-    V, rows = veh["vehicles"], []
+    rows = []
     for a in SLEEVE:
         w = d["sleeve"] * float(ws[a])
         if w <= 0:
             continue
-        pool = [r for r in V if r["exposure"] == EXPOSURE[a] and r["kind"] == ("stacked" if stacked else "outright")]
+        r = _fund(veh, a, stacked)
         if stacked:
-            r = min(pool, key=lambda r: (-r["exposure_per_dollar"] / r["stocks_per_dollar"], r["fee"]))
             k = w / r["exposure_per_dollar"]
             rows.append({"symbol": r["symbol"], "name": r["name"], "role": a, "weight": k,
                          "stocks": k * r["stocks_per_dollar"], "exposure": w, "fee": r["fee"], "note": r["holds"]})
         else:
-            r = min(pool, key=lambda r: r["fee"])
             rows.append({"symbol": r["symbol"], "name": r["name"], "role": a, "weight": w, "stocks": 0.0,
                          "exposure": w, "fee": r["fee"], "note": r["note"]})
     used = sum(r["weight"] for r in rows) if stacked else 0.0
@@ -285,7 +309,7 @@ def reason(goal: str, d: dict, row: dict) -> str:
         return ("Money needed within 3 years is outside this model. Every mix of stocks and the sleeve has fallen by "
                 "more than such a goal can make up in time.")
     s = (f"The goal can sit through a fall of {_p(limit)}. {_p(d['stocks'])} is the largest stock share whose worst fall "
-         f"in the replay stayed within that ({100 * row['worst_fall_ladder']:.1f}%, with the rest in the sleeve).")
+         f"in the replay stayed within that ({100 * row['worst_fall_unlevered']:.1f}%, with the rest in the sleeve).")
     if d["borrowed"] > 0:
         s += (f" At 100% stocks nothing is left to backfill, so the sleeve goes on top, {_p(d['sleeve'])} of capital; "
               f"that position's worst fall was {100 * row['worst_fall_all']:.0f}%.")
@@ -294,47 +318,36 @@ def reason(goal: str, d: dict, row: dict) -> str:
 
 # ------------------------------------------------------------------ run
 def build() -> dict:
-    x, cash, drag, full = A.load_inputs()
+    x, cash, _, _ = A.load_inputs()
     origin = x.index[-1]
     S = np.expm1(x)
     est = A.estimates(S, len(x) - 1, A.forecast_cov([origin]).get(origin))
     if "fcst" not in est:
         raise ValueError(f"no covariance forecast at {origin.date()}")
     cov, ws = est["fcst"][1].loc[ASSETS, ASSETS], A.sleeve_weights(SLEEVE_RULE, est)
-    sl = sleeve_replay(x)
-    st = S[STOCKS]
-    lad = ladder(st, sl, cash)
     borrow = frontier.borrow_terms(origin)
     spreads = {"margin": float(borrow["spread"]), "stacked": 0.0}
-    over = {f: mix_stats(st, sl, cash, 1.0, OVERLAY, sp) for f, sp in spreads.items()}
-    funds_x = diversifiers.load_inputs()[1]["mf_funds"]
-    exp = expected_four(funds_x, origin)
-    inp = four_inputs(cov, exp, spreads["margin"])
-    lad["vol_fcst"] = [float(np.sqrt(w @ inp.cov @ w)) for w in (weights(a, 1 - a, ws) for a in lad["stocks"])]
-    curves, points = frontier_tables(inp, spreads, lad, ws)
+    exp = expected_four(diversifiers.load_inputs()[1]["mf_funds"], origin)
+    inp = frontier.Inputs(cov, exp, {}, spreads["margin"])      # used for its arithmetic (stats); nothing is optimized
     veh = vehicles()
+    caps = overlay_caps(ws, veh)
+    cv = curve(inp, ws, S[STOCKS], sleeve_replay(x), cash, spreads, caps)
+    unl = cv[cv["segment"] == "unlevered"]
 
+    keep = ["spread", "vol", "growth", "growth_lo", "growth_hi", *[f"w_{a}" for a in ASSETS],
+            *[c for c in cv.columns if c.endswith(("_all", "_live"))]]
     answers, funds = [], []
     for acc in ACCOUNTS:
         for goal in GOALS:
-            d = decide(acc, goal, lad, {f: o["worst_fall_all"] for f, o in over.items()})
-            sp = spreads.get(d["financing"], 0.0)
-            acc_spread = spreads[ACCOUNTS[acc]["financing"]]
-            w = weights(d["stocks"], d["sleeve"], ws)
-            row = {"account": acc, "goal": goal, "loss_limit": GOALS[goal]["loss_limit"], **d, "spread": sp,
-                   **{f"w_{a}": float(v) for a, v in zip(ASSETS, w)}}
-            fs = frontier.stats(inp, w, sp)
-            row.update(vol=fs["vol"], growth=fs["growth"], growth_lo=fs["growth_lo"], growth_hi=fs["growth_hi"])
+            d = decide(acc, goal, cv)
+            row = {"account": acc, "goal": goal, "loss_limit": GOALS[goal]["loss_limit"], **d}
             if d["cash"] < 1.0:
-                row.update(mix_stats(st, sl, cash, d["stocks"], d["sleeve"], sp))
-                row["worst_fall_ladder"] = float(lad.loc[np.isclose(lad["stocks"], d["stocks"]), "worst_fall_all"].iloc[0])
-                m = frontier.at_volatility(inp, fs["vol"], True, acc_spread)
-                ms = frontier.stats(inp, m, acc_spread)
-                gap, band = ms["growth"] - fs["growth"], float(np.abs(m - w) @ inp.half)
-                row.update(match_vol=ms["vol"], match_growth=ms["growth"], match_invested=ms["invested"], gap=gap,
-                           gap_lo=gap - band, gap_hi=gap + band, **{f"match_w_{a}": float(v) for a, v in zip(ASSETS, m)})
+                row.update(on_curve(cv, d)[keep].to_dict())
+                row["worst_fall_unlevered"] = float(unl.loc[np.isclose(unl["stocks"], d["stocks"]), "worst_fall_all"].iloc[0])
+            else:
+                row.update(spread=0.0, vol=0.0, growth=0.0, growth_lo=0.0, growth_hi=0.0, **{f"w_{a}": 0.0 for a in ASSETS})
             plan = fund_plan(d, ws, veh, stacked=d["financing"] == "stacked")
-            row.update(fund_fees=_fees(plan), loan_cost=sp * d["borrowed"], stocks_held=sum(r["stocks"] for r in plan))
+            row.update(fund_fees=_fees(plan), loan_cost=row["spread"] * d["borrowed"], stocks_held=sum(r["stocks"] for r in plan))
             if d["financing"] == "margin":      # the other way to hold the same position in this account
                 row["stacked_fees"] = _fees(fund_plan(d, ws, veh, stacked=True))
             row.update(headline=headline(d), reason=reason(goal, d, row))
@@ -342,23 +355,30 @@ def build() -> dict:
             funds += [{"account": acc, "goal": goal, **r} for r in plan]
 
     meta = {"label": LABEL, "origin": str(origin.date()), "returns_through": str(origin.date()),
-            "first_holding_month": str(sl.index[0].date()), "live_from": A.LIVE, "assets": ASSETS, "names": NAMES,
+            "first_holding_month": str(x.index[A.BURN].date()), "live_from": A.LIVE, "assets": ASSETS, "names": NAMES,
             "accounts": ACCOUNTS, "goals": GOALS, "notes": NOTES, "financing": FINANCING,
             "settings": {"sleeve_rule": SLEEVE_RULE, "sleeve_rule_name": A.RULE_NAMES[SLEEVE_RULE], "step": STEP,
-                         "overlay": OVERLAY, "max_leverage": frontier.MAX_LEVERAGE, "spreads": spreads,
-                         "recent": A.RECENT},
+                         "overlay": OVERLAY, "overlay_caps": caps, "max_leverage": frontier.MAX_LEVERAGE,
+                         "spreads": spreads, "recent": A.RECENT},
             "sleeve_weights": {a: float(ws[a]) for a in SLEEVE}, "borrow": borrow,
-            "overlay": over, "vehicles_retrieved": veh["retrieved"],
+            "least_risk_stocks": float(unl.loc[unl["vol"].idxmin(), "stocks"]),
+            "vehicles_retrieved": veh["retrieved"],
             "covariance": {"model": A.covhistory.PRIMARY, "bridge": A.covhistory.BRIDGE}}
     inputs = exp.assign(name=[NAMES[a] for a in exp.index], vol=np.sqrt(np.diag(cov))).rename_axis("asset").reset_index()
-    return {"answers": pd.DataFrame(answers), "ladder": lad, "funds": pd.DataFrame(funds), "frontier": curves,
-            "points": points, "inputs": inputs, "cov": cov, "meta": meta}
+    return {"answers": pd.DataFrame(answers), "curve": cv, "funds": pd.DataFrame(funds), "inputs": inputs,
+            "cov": cov, "meta": meta}
+
+
+TABLES = ("answers", "curve", "funds", "inputs")
+STALE = ("ladder.csv", "frontier.csv", "points.csv")       # written by the first version, which drew an optimizer's frontier
 
 
 def run() -> dict:
     res = build()
     OUT.mkdir(parents=True, exist_ok=True)
-    for t in ("answers", "ladder", "funds", "frontier", "points", "inputs"):
+    for f in STALE:
+        (OUT / f).unlink(missing_ok=True)
+    for t in TABLES:
         res[t].to_csv(OUT / f"{t}.csv", index=False, float_format="%.6g")
     res["cov"].to_csv(OUT / "cov.csv", float_format="%.8g")
     (OUT / "meta.json").write_text(json.dumps(res["meta"], indent=1))
@@ -369,7 +389,7 @@ def main(argv=None) -> int:
     res = run()
     print(LABEL)
     pd.set_option("display.width", 220)
-    print(res["answers"][["account", "goal", "stocks", "sleeve", "borrowed", "vol", "growth", "worst_fall_all", "gap"]]
+    print(res["answers"][["account", "goal", "stocks", "sleeve", "borrowed", "vol", "growth", "worst_fall_all"]]
           .round(3).to_string(index=False))
     if not _DEV:
         from . import questionnaire_page

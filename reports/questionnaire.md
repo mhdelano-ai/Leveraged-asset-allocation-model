@@ -4,11 +4,13 @@
 
 Written by `python -m assetforecast.questionnaire`; origin 2026-10-31. Two answers, the account's tax treatment and the goal, give a stock share; the rest goes to the diversifier sleeve (intermediate Treasuries, gold, managed futures). Interactive page: `dashboard/questionnaire.html`.
 
+Risk decides and returns do not. Every answer is a point on one curve of mixes, and the goal's tolerance for loss picks the point. Nothing is optimized on an expected return; expected growth is shown with its interval and is not an input.
+
 ## The rule
 
 1. Each goal declares the largest fall from a previous high it can sit through. The stock share is the largest, in steps of 5%, whose worst fall in the replay stayed within it, with the rest in the sleeve.
 2. The sleeve is weighted by 1/volatility, whole past: today 44% Treasuries, 19% gold, 37% managed futures.
-3. At 100% stocks nothing is left to backfill, so the sleeve goes on top, 50% of capital: on a margin loan in a taxable account (T-bills + 1.38%), through stacked funds in a retirement account, where no loan is allowed.
+3. At 100% stocks nothing is left to backfill, so the sleeve goes on top, 50% of capital: on a margin loan in a taxable account (T-bills + 1.38%), through stacked funds in a retirement account, where no loan is allowed. The 50% is the diversifier study's amount, a judgement: the loss limit alone would allow any amount the curve below reaches.
 4. Money needed within 3 years is outside the model: T-bills.
 
 | Goal | Fall it can sit through | Stock share |
@@ -20,59 +22,90 @@ Written by `python -m assetforecast.questionnaire`; origin 2026-10-31. Two answe
 
 ## Every answer
 
-Forecast vol and expected growth are on the four-holding frontier's inputs; growth is over T-bills, with the 90% interval of the historical means. The last column is the frontier portfolio at the same volatility, with the account's financing, less the answer.
+Forecast vol is on the package's 12-month covariance forecast. Expected growth is over T-bills, with the 90% interval of the historical means.
 
-| Account | Goal | Answer | Stocks / Treasuries / gold / managed futures | Forecast vol | Expected growth (90%) | Replay growth | Replay worst fall | Frontier at the same risk, less this (range) |
-|---|---|---|---|---|---|---|---|---|
-| Taxable brokerage | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |  |
-| Taxable brokerage | Spending in 3 to 10 years | 40% stocks, 60% diversifiers | 40% / 26% / 11% / 22% | 7.4% | +4.5% (+1.6% to +7.4%) | +4.9% | -20% | +0.2% (-0.9% to +1.4%) |
-| Taxable brokerage | Retirement income, drawn now | 65% stocks, 35% diversifiers | 65% / 15% / 7% / 13% | 10.6% | +5.4% (+2.3% to +8.5%) | +5.5% | -35% | +0.7% (-1.3% to +2.7%) |
-| Taxable brokerage | Growth, untouched for 10 years or more | 100% stocks, plus 50% diversifiers on a margin loan | 100% / 22% / 9% / 19% | 16.3% | +7.0% (+2.3% to +11.7%) | +7.1% | -51% | +0.7% (-1.1% to +2.5%) |
-| Tax-deferred | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |  |
-| Tax-deferred | Spending in 3 to 10 years | 40% stocks, 60% diversifiers | 40% / 26% / 11% / 22% | 7.4% | +4.5% (+1.6% to +7.4%) | +4.9% | -20% | +1.3% (-1.2% to +3.9%) |
-| Tax-deferred | Retirement income, drawn now | 65% stocks, 35% diversifiers | 65% / 15% / 7% / 13% | 10.6% | +5.4% (+2.3% to +8.5%) | +5.5% | -35% | +2.0% (+0.0% to +4.0%) |
-| Tax-deferred | Growth, untouched for 10 years or more | 100% stocks, plus 50% diversifiers carried inside stacked funds | 100% / 22% / 9% / 19% | 16.3% | +7.7% (+3.0% to +12.4%) | +7.8% | -50% | +1.4% (-0.4% to +3.2%) |
-| Roth | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |  |
-| Roth | Spending in 3 to 10 years | 40% stocks, 60% diversifiers | 40% / 26% / 11% / 22% | 7.4% | +4.5% (+1.6% to +7.4%) | +4.9% | -20% | +1.3% (-1.2% to +3.9%) |
-| Roth | Retirement income, drawn now | 65% stocks, 35% diversifiers | 65% / 15% / 7% / 13% | 10.6% | +5.4% (+2.3% to +8.5%) | +5.5% | -35% | +2.0% (+0.0% to +4.0%) |
-| Roth | Growth, untouched for 10 years or more | 100% stocks, plus 50% diversifiers carried inside stacked funds | 100% / 22% / 9% / 19% | 16.3% | +7.7% (+3.0% to +12.4%) | +7.8% | -50% | +1.4% (-0.4% to +3.2%) |
+| Account | Goal | Answer | Stocks / Treasuries / gold / managed futures | Forecast vol | Replay worst fall | Replay growth | Expected growth (90%) |
+|---|---|---|---|---|---|---|---|
+| Taxable brokerage | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |
+| Taxable brokerage | Spending in 3 to 10 years | 40% stocks, 60% diversifiers | 40% / 26% / 11% / 22% | 7.4% | -20% | +4.9% | +4.5% (+1.6% to +7.4%) |
+| Taxable brokerage | Retirement income, drawn now | 65% stocks, 35% diversifiers | 65% / 15% / 7% / 13% | 10.6% | -35% | +5.5% | +5.4% (+2.3% to +8.5%) |
+| Taxable brokerage | Growth, untouched for 10 years or more | 100% stocks, plus 50% diversifiers on a margin loan | 100% / 22% / 9% / 19% | 16.3% | -51% | +7.1% | +7.0% (+2.3% to +11.7%) |
+| Tax-deferred | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |
+| Tax-deferred | Spending in 3 to 10 years | 40% stocks, 60% diversifiers | 40% / 26% / 11% / 22% | 7.4% | -20% | +4.9% | +4.5% (+1.6% to +7.4%) |
+| Tax-deferred | Retirement income, drawn now | 65% stocks, 35% diversifiers | 65% / 15% / 7% / 13% | 10.6% | -35% | +5.5% | +5.4% (+2.3% to +8.5%) |
+| Tax-deferred | Growth, untouched for 10 years or more | 100% stocks, plus 50% diversifiers carried inside stacked funds | 100% / 22% / 9% / 19% | 16.3% | -50% | +7.8% | +7.7% (+3.0% to +12.4%) |
+| Roth | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |
+| Roth | Spending in 3 to 10 years | 40% stocks, 60% diversifiers | 40% / 26% / 11% / 22% | 7.4% | -20% | +4.9% | +4.5% (+1.6% to +7.4%) |
+| Roth | Retirement income, drawn now | 65% stocks, 35% diversifiers | 65% / 15% / 7% / 13% | 10.6% | -35% | +5.5% | +5.4% (+2.3% to +8.5%) |
+| Roth | Growth, untouched for 10 years or more | 100% stocks, plus 50% diversifiers carried inside stacked funds | 100% / 22% / 9% / 19% | 16.3% | -50% | +7.8% | +7.7% (+3.0% to +12.4%) |
 
-## The ladder the stock share is read from
+## The curve
 
-Stocks beside the sleeve, replayed from 1990-01 to 2026-10, rebalanced monthly.
+Stocks beside the sleeve, replayed from 1990-01 to 2026-10, rebalanced monthly. Forecast risk is lowest at 10% stocks.
 
-| Stocks | Sleeve | Replay worst fall | Replay growth over T-bills | Replay vol | Forecast vol |
+Nothing borrowed:
+
+| Stocks | Sleeve | Borrowed or carried | Forecast vol | Replay worst fall | Replay growth over T-bills | Replay vol | Expected growth (90%) |
+|---|---|---|---|---|---|---|---|
+| 0% | 100% | 0% | 5.9% | -9.1% | +3.8% | 5.7% | +2.7% (+0.2% to +5.2%) |
+| 5% | 95% | 0% | 5.7% | -7.6% | +3.9% | 5.4% | +2.9% (+0.4% to +5.5%) |
+| 10% | 90% | 0% | 5.6% | -7.2% | +4.1% | 5.3% | +3.2% (+0.6% to +5.8%) |
+| 15% | 85% | 0% | 5.6% | -8.2% | +4.2% | 5.3% | +3.4% (+0.8% to +6.0%) |
+| 20% | 80% | 0% | 5.8% | -9.6% | +4.4% | 5.4% | +3.6% (+1.0% to +6.3%) |
+| 25% | 75% | 0% | 6.0% | -10.9% | +4.5% | 5.6% | +3.9% (+1.1% to +6.6%) |
+| 30% | 70% | 0% | 6.4% | -13.7% | +4.7% | 5.9% | +4.1% (+1.3% to +6.9%) |
+| 35% | 65% | 0% | 6.8% | -16.7% | +4.8% | 6.3% | +4.3% (+1.5% to +7.1%) |
+| 40% | 60% | 0% | 7.4% | -19.7% | +4.9% | 6.8% | +4.5% (+1.6% to +7.4%) |
+| 45% | 55% | 0% | 7.9% | -22.6% | +5.1% | 7.4% | +4.7% (+1.8% to +7.6%) |
+| 50% | 50% | 0% | 8.5% | -25.5% | +5.2% | 7.9% | +4.9% (+1.9% to +7.8%) |
+| 55% | 45% | 0% | 9.2% | -28.5% | +5.3% | 8.6% | +5.0% (+2.0% to +8.1%) |
+| 60% | 40% | 0% | 9.9% | -31.8% | +5.4% | 9.2% | +5.2% (+2.1% to +8.3%) |
+| 65% | 35% | 0% | 10.6% | -34.9% | +5.5% | 9.9% | +5.4% (+2.3% to +8.5%) |
+| 70% | 30% | 0% | 11.3% | -37.9% | +5.5% | 10.6% | +5.5% (+2.4% to +8.7%) |
+| 75% | 25% | 0% | 12.1% | -40.8% | +5.6% | 11.3% | +5.7% (+2.5% to +8.9%) |
+| 80% | 20% | 0% | 12.8% | -43.6% | +5.7% | 12.1% | +5.8% (+2.6% to +9.1%) |
+| 85% | 15% | 0% | 13.6% | -46.3% | +5.8% | 12.8% | +6.0% (+2.7% to +9.3%) |
+| 90% | 10% | 0% | 14.4% | -48.8% | +5.8% | 13.6% | +6.1% (+2.7% to +9.5%) |
+| 95% | 5% | 0% | 15.1% | -51.3% | +5.9% | 14.3% | +6.2% (+2.8% to +9.6%) |
+| 100% | 0% | 0% | 15.9% | -53.7% | +5.9% | 15.1% | +6.3% (+2.9% to +9.8%) |
+
+100% stocks with the sleeve on top, on a margin loan at T-bills + 1.38% (up to 100% of capital, 2 times capital in all):
+
+| Stocks | Sleeve | Borrowed or carried | Forecast vol | Replay worst fall | Replay growth over T-bills | Replay vol | Expected growth (90%) |
+|---|---|---|---|---|---|---|---|
+| 100% | 10% | 10% | 15.9% | -53.1% | +6.2% | 15.1% | +6.5% (+2.8% to +10.2%) |
+| 100% | 20% | 20% | 16.0% | -52.4% | +6.4% | 15.1% | +6.6% (+2.7% to +10.6%) |
+| 100% | 30% | 30% | 16.1% | -51.8% | +6.7% | 15.2% | +6.8% (+2.6% to +11.0%) |
+| 100% | 40% | 40% | 16.1% | -51.2% | +6.9% | 15.2% | +6.9% (+2.4% to +11.3%) |
+| 100% | 50% | 50% | 16.3% | -50.6% | +7.1% | 15.3% | +7.0% (+2.3% to +11.7%) |
+| 100% | 60% | 60% | 16.4% | -50.0% | +7.4% | 15.4% | +7.1% (+2.2% to +12.1%) |
+| 100% | 70% | 70% | 16.5% | -49.4% | +7.6% | 15.5% | +7.3% (+2.1% to +12.5%) |
+| 100% | 80% | 80% | 16.7% | -48.8% | +7.9% | 15.6% | +7.4% (+1.9% to +12.8%) |
+| 100% | 90% | 90% | 16.9% | -48.1% | +8.1% | 15.8% | +7.5% (+1.8% to +13.2%) |
+| 100% | 100% | 100% | 17.1% | -47.5% | +8.3% | 16.0% | +7.6% (+1.7% to +13.6%) |
+
+100% stocks with the sleeve on top, inside stacked funds (up to 95% of capital, where those funds use all the capital; financed inside the funds, counted at the T-bill rate):
+
+| Stocks | Sleeve | Borrowed or carried | Forecast vol | Replay worst fall | Replay growth over T-bills | Replay vol | Expected growth (90%) |
+|---|---|---|---|---|---|---|---|
+| 100% | 10% | 10% | 15.9% | -53.0% | +6.3% | 15.1% | +6.6% (+2.9% to +10.3%) |
+| 100% | 20% | 20% | 16.0% | -52.3% | +6.7% | 15.1% | +6.9% (+2.9% to +10.9%) |
+| 100% | 30% | 30% | 16.1% | -51.6% | +7.1% | 15.1% | +7.2% (+3.0% to +11.4%) |
+| 100% | 40% | 40% | 16.1% | -50.8% | +7.5% | 15.2% | +7.4% (+3.0% to +11.9%) |
+| 100% | 50% | 50% | 16.3% | -50.1% | +7.8% | 15.3% | +7.7% (+3.0% to +12.4%) |
+| 100% | 60% | 60% | 16.4% | -49.4% | +8.2% | 15.4% | +8.0% (+3.0% to +12.9%) |
+| 100% | 70% | 70% | 16.5% | -48.7% | +8.6% | 15.5% | +8.2% (+3.0% to +13.4%) |
+| 100% | 80% | 80% | 16.7% | -48.0% | +8.9% | 15.6% | +8.5% (+3.1% to +13.9%) |
+| 100% | 90% | 90% | 16.9% | -47.2% | +9.3% | 15.8% | +8.8% (+3.1% to +14.4%) |
+
+## What risk and expected growth are measured on
+
+| Holding | Forecast vol | Expected return over T-bills | 90% interval | History from | Read from |
 |---|---|---|---|---|---|
-| 0% | 100% | -9.1% | +3.8% | 5.7% | 5.9% |
-| 5% | 95% | -7.6% | +3.9% | 5.4% | 5.7% |
-| 10% | 90% | -7.2% | +4.1% | 5.3% | 5.6% |
-| 15% | 85% | -8.2% | +4.2% | 5.3% | 5.6% |
-| 20% | 80% | -9.6% | +4.4% | 5.4% | 5.8% |
-| 25% | 75% | -10.9% | +4.5% | 5.6% | 6.0% |
-| 30% | 70% | -13.7% | +4.7% | 5.9% | 6.4% |
-| 35% | 65% | -16.7% | +4.8% | 6.3% | 6.8% |
-| 40% | 60% | -19.7% | +4.9% | 6.8% | 7.4% |
-| 45% | 55% | -22.6% | +5.1% | 7.4% | 7.9% |
-| 50% | 50% | -25.5% | +5.2% | 7.9% | 8.5% |
-| 55% | 45% | -28.5% | +5.3% | 8.6% | 9.2% |
-| 60% | 40% | -31.8% | +5.4% | 9.2% | 9.9% |
-| 65% | 35% | -34.9% | +5.5% | 9.9% | 10.6% |
-| 70% | 30% | -37.9% | +5.5% | 10.6% | 11.3% |
-| 75% | 25% | -40.8% | +5.6% | 11.3% | 12.1% |
-| 80% | 20% | -43.6% | +5.7% | 12.1% | 12.8% |
-| 85% | 15% | -46.3% | +5.8% | 12.8% | 13.6% |
-| 90% | 10% | -48.8% | +5.8% | 13.6% | 14.4% |
-| 95% | 5% | -51.3% | +5.9% | 14.3% | 15.1% |
-| 100% | 0% | -53.7% | +5.9% | 15.1% | 15.9% |
-
-## The frontier's inputs
-
-| Holding | Expected return over T-bills | 90% interval | History from | Read from | Forecast vol |
-|---|---|---|---|---|---|
-| World stocks | +6.3% | +2.9% to +9.8% | 1926-07 | threefund.expected | 15.9% |
-| Intermediate Treasuries | +1.5% | -0.3% to +3.4% | 1962-02 | published forecast | 7.7% |
-| Gold | +3.8% | -1.8% to +9.4% | 1971-09 | published forecast | 24.5% |
-| Managed futures | +1.6% | -0.1% to +3.3% | 2007-03 | live funds only | 9.6% |
+| World stocks | 15.9% | +6.3% | +2.9% to +9.8% | 1926-07 | threefund.expected |
+| Intermediate Treasuries | 7.7% | +1.5% | -0.3% to +3.4% | 1962-02 | published forecast |
+| Gold | 24.5% | +3.8% | -1.8% to +9.4% | 1971-09 | published forecast |
+| Managed futures | 9.6% | +1.6% | -0.1% to +3.3% | 2007-03 | live funds only |
 
 Managed futures are not in the covariance forecast: their volatility and correlations are the last 60 months'. Their mean is the live funds' only.
 
@@ -115,9 +148,10 @@ Recorded fund fees: 0.29% of capital a year. Stocks held: 99% of capital.
 
 ## Caveats
 
-- The loss limits are judgements, and the stock shares follow from them. A different limit gives a different answer; the ladder shows every one.
+- The loss limits are judgements, and the stock shares follow from them. A different limit gives a different answer; the curve shows every one.
+- So is the 50% of sleeve on top of 100% stocks. More of it lowered the replay's worst fall and raised forecast volatility.
 - The replay is the allocation study's: every year had been seen, the sleeve's assets were chosen on the same years, and managed futures before 2007-03 are a paper factor. A worst fall in the past is not a bound on the next one.
 - Month-end values miss falls inside a month. A margin loan can be called before a month ends.
 - Taxes, trading costs and fund fees are not charged. Traditional and Roth accounts get the same numbers.
-- The frontier optimizes on historical means. The allocation study found that doing so did not beat fixed weights; the gap is what the optimizer claims.
+- Expected growth rests on historical means, which the allocation study found do not carry over. It is shown, with its interval, and decides nothing.
 - The stacked funds hold US or global stocks, not the study's world-stock composite, and none of them is in the study's returns.
