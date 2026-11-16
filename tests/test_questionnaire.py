@@ -1,4 +1,4 @@
-"""The questionnaire: the stock-share rule, the fund arithmetic, and that the committed tables and page agree."""
+"""The questionnaire: the path, the drawdown rule, the fund arithmetic, and that the committed tables and page agree."""
 import numpy as np
 import pandas as pd
 import pytest
@@ -8,47 +8,66 @@ from assetforecast import questionnaire as q
 WS = pd.Series({"ust_int": 0.5, "gold": 0.2, "mf": 0.3})
 
 
-def _curve(falls, margin=(-0.51, -0.48), stacked=(-0.50, -0.47)):
-    shares = np.linspace(0, 1, len(falls))
-    unl = pd.DataFrame({"segment": "unlevered", "stocks": shares, "sleeve": 1 - shares, "worst_fall_all": falls})
-    top = pd.DataFrame({"segment": ["margin"] * 2 + ["stacked"] * 2, "stocks": 1.0, "sleeve": [0.5, 1.0, 0.5, 0.95],
-                        "worst_fall_all": [*margin, *stacked]})
-    return pd.concat([unl, top], ignore_index=True)
+def _curve(falls, route="stacked"):
+    n = len(falls)
+    return pd.DataFrame({"route": route, "i": range(n), "segment": ["scaled"] * (n - 2) + ["tilted"] * 2,
+                         "stocks": np.linspace(0.1, 1.0, n), "sleeve": 1.0, "cash": [0.5] + [0.0] * (n - 1),
+                         "borrowed": [0.0] + list(np.linspace(0.2, 1.0, n - 1)), "worst_fall_all": falls})
 
 
-def test_stock_share_is_the_largest_within_the_limit():
-    unl = _curve([-0.09, -0.07, -0.20, -0.35, -0.54]).query("segment == 'unlevered'")
-    assert q.stock_share(unl, 0.20) == 0.5
-    assert q.stock_share(unl, 0.08) == 0.25          # the largest that passes, though 0% does not
-    assert q.stock_share(unl, 0.55) == 1.0
-    assert q.stock_share(unl, 0.05) is None
+def test_decide_takes_the_furthest_point_within_the_budget():
+    cv = _curve([-0.03, -0.08, -0.15, -0.30, -0.50])
+    assert q.decide("stacked", "near", cv)["cash"] == 1.0                      # no budget: T-bills
+    d = q.decide("stacked", "medium", cv)                                      # 20%: the third point
+    assert (d["i"], d["segment"], d["financing"]) == (2, "scaled", "stacked")
+    assert q.decide("stacked", "income", cv)["i"] == 3 and q.decide("stacked", "growth", cv)["i"] == 4
+    assert q.decide("stacked", "medium", _curve([-0.03, -0.25, -0.15, -0.30, -0.50]))["i"] == 2   # furthest, not first break
+    d = q.decide("stacked", "medium", _curve([-0.03, -0.25, -0.30, -0.40, -0.50]))
+    assert (d["i"], d["financing"], d["cash"]) == (0, "none", 0.5)             # below 100%: T-bills beside it, nothing carried
+    assert q.decide("stacked", "medium", _curve([-0.25, -0.30, -0.35, -0.40, -0.50]))["cash"] == 1.0
 
 
-def test_decide_backfills_then_puts_the_sleeve_on_top_by_the_accounts_financing():
-    cv = _curve([-0.09, -0.07, -0.20, -0.35, -0.54])
-    assert q.decide("taxable", "near", cv)["cash"] == 1.0
-    d = q.decide("roth", "medium", cv)
-    assert (d["stocks"], d["sleeve"], d["borrowed"], d["financing"]) == (0.5, 0.5, 0.0, "none")
-    d = q.decide("taxable", "growth", cv)             # every point on top is within the limit: the end of the line
-    assert (d["stocks"], d["sleeve"], d["borrowed"], d["financing"]) == (1.0, 1.0, 1.0, "margin")
-    assert q.on_curve(cv, d)["segment"] == "margin"
-    d = q.decide("traditional", "growth", cv)
-    assert (d["sleeve"], d["financing"]) == (0.95, "stacked")
-    d = q.decide("taxable", "growth", _curve([-0.09, -0.07, -0.20, -0.35, -0.54], margin=(-0.51, -0.60)))
-    assert (d["sleeve"], d["borrowed"]) == (0.5, 0.5)                  # the end breaks the limit; the most that does not
-    d = q.decide("taxable", "growth", _curve([-0.09, -0.07, -0.20, -0.35, -0.54], margin=(-0.60, -0.62)))
-    assert (d["sleeve"], d["borrowed"]) == (0.0, 0.0)                  # nothing on top stays within it
-    assert q.on_curve(cv, d)["segment"] == "unlevered"
+def test_path_scales_the_mix_then_tilts_to_stocks_within_what_the_route_carries():
+    veh, w = q.vehicles(), 0.2
+    for route in q.ROUTES:
+        pts = q.path(route, w, WS, veh)
+        scaled, tilted = [p for p in pts if p[0] == "scaled"], [p for p in pts if p[0] == "tilted"]
+        assert pts == scaled + tilted and scaled and tilted
+        for _, s, d in scaled:
+            assert s / (s + d) == pytest.approx(w)                             # the mix, only scaled
+        assert all(q.carries(route, s, d, WS, veh) for _, s, d in pts)
+        k = scaled[-1][1] + scaled[-1][2]
+        assert not q.carries(route, (k + q.STEP) * w, (k + q.STEP) * (1 - w), WS, veh)   # one step more does not fit
+        stocks = [s for _, s, _ in tilted]
+        assert stocks == sorted(stocks) and stocks[0] > scaled[-1][1] and stocks[-1] == pytest.approx(1.0)
+        for _, s, d in tilted:
+            assert not q.carries(route, s, d + q.STEP, WS, veh)                # each with the most sleeve that fits
+    margin = q.path("margin", w, WS, veh)
+    assert all(s + d == pytest.approx(q.frontier.MAX_LEVERAGE) for seg, s, d in margin if seg == "tilted")
+    assert q.carries("margin", 0.3, 0.6, WS, veh) and q.carries("stacked", 0.3, 0.6, WS, veh)   # nothing above 100%
+    assert not q.carries("margin", 1.2, 1.0, WS, veh)
 
 
-def test_overlay_caps_stop_where_the_financing_does():
-    caps = q.overlay_caps(WS, q.vehicles())
-    assert caps["margin"] == pytest.approx(q.frontier.MAX_LEVERAGE - 1)
-    assert 0 < caps["stacked"] <= caps["margin"]
-    d = {"stocks": 1.0, "sleeve": caps["stacked"], "cash": 0.0, "borrowed": caps["stacked"], "financing": "stacked"}
-    assert sum(r["weight"] for r in q.fund_plan(d, WS, q.vehicles(), stacked=True)) <= 1 + 1e-9
-    with pytest.raises(ValueError):                   # one step further and the funds need more than the capital
-        q.fund_plan({**d, "sleeve": caps["stacked"] + q.STEP}, WS, q.vehicles(), stacked=True)
+def test_stacked_plan_holds_the_exposures_without_a_loan():
+    veh = q.vehicles()
+    p = q.stacked_plan(0.7, 1.0, WS, veh)
+    funds = {a: (q._fund(veh, a, True), q._fund(veh, a, False)) for a in q.SLEEVE}
+    dollars = p["stock_fund"] + sum(p["stacked"].values()) + sum(p["plain"].values())
+    assert dollars <= 1 + 1e-9
+    for a in q.SLEEVE:                                                         # every diversifier exactly
+        assert p["stacked"][a] * funds[a][0]["exposure_per_dollar"] + p["plain"][a] == pytest.approx(WS[a])
+    stocks = p["stock_fund"] + sum(p["stacked"][a] * funds[a][0]["stocks_per_dollar"] for a in q.SLEEVE)
+    assert stocks + p["short"] == pytest.approx(0.7) and p["short"] <= q.STOCK_TOL
+    assert q.stacked_plan(0.1, 1.2, WS, veh) is None                           # more diversifiers than capital, few stocks to stack on
+    assert q.stacked_plan(1.0, 1.2, WS, veh) is None
+    d = {"stocks": 0.7, "sleeve": 1.0, "cash": 0.0, "borrowed": 0.7, "financing": "stacked"}
+    rows = q.fund_plan(d, WS, veh)
+    assert sum(r["weight"] for r in rows) <= 1 + 1e-9 and sum(r["exposure"] for r in rows) == pytest.approx(1.0)
+    out = q.fund_plan({**d, "financing": "margin"}, WS, veh)                   # on margin: plain funds, more than the capital
+    assert sum(r["weight"] for r in out) == pytest.approx(1.7) and all(r["symbol"] not in ("RSSB", "RSST", "GDE") for r in out)
+    cash = q.fund_plan({"stocks": 0.1, "sleeve": 0.4, "cash": 0.5, "borrowed": 0.0, "financing": "none"}, WS, veh)
+    assert cash[-1]["role"] == "cash" and sum(r["weight"] for r in cash) == pytest.approx(1.0)
+    assert [r["role"] for r in q.fund_plan({"stocks": 0, "sleeve": 0, "cash": 1.0, "borrowed": 0, "financing": "none"}, WS, veh)] == ["cash"]
 
 
 def test_mix_stats_charges_the_spread_on_what_is_borrowed():
@@ -59,24 +78,8 @@ def test_mix_stats_charges_the_spread_on_what_is_borrowed():
     free, paid = q.mix_stats(st, sl, cash, 1.0, 0.5, 0.0), q.mix_stats(st, sl, cash, 1.0, 0.5, 0.02)
     assert free["growth_all"] - paid["growth_all"] == pytest.approx(0.01, abs=2e-4)
     assert q.mix_stats(st, sl, cash, 0.6, 0.4, 0.02) == q.mix_stats(st, sl, cash, 0.6, 0.4, 0.0)
-
-
-def test_fund_plan_delivers_the_exposures():
-    veh = q.vehicles()
-    d = {"stocks": 1.0, "sleeve": 0.5, "cash": 0.0, "borrowed": 0.5, "financing": "stacked"}
-    rows = q.fund_plan(d, WS, veh, stacked=True)
-    assert sum(r["weight"] for r in rows) == pytest.approx(1.0)          # no loan: the funds use the capital once
-    assert sum(r["exposure"] for r in rows) == pytest.approx(0.5)
-    by = {r["role"]: r for r in rows}
-    assert by["gold"]["exposure"] == pytest.approx(0.1) and by["gold"]["symbol"] == "GDE"
-    assert by["ust_int"]["symbol"] == "RSSB"                             # more Treasuries per dollar of stocks than NTSX
-    assert 0.9 < sum(r["stocks"] for r in rows) <= 1.0
-    out = q.fund_plan({**d, "financing": "margin"}, WS, veh, stacked=False)
-    assert sum(r["weight"] for r in out) == pytest.approx(1.5)
-    fees = {r["exposure"]: min(v["fee"] for v in veh["vehicles"] if v["kind"] == "outright" and v["exposure"] == r["exposure"])
-            for r in veh["vehicles"]}
-    assert all(r["fee"] == fees[q.EXPOSURE[r["role"]]] for r in out if r["role"] != q.STOCKS)
-    assert q.fund_plan({"stocks": 0, "sleeve": 0, "cash": 1.0, "borrowed": 0, "financing": "none"}, WS, veh, False)[0]["role"] == "cash"
+    half, whole = q.mix_stats(st, sl, cash, 0.3, 0.2, 0.0), q.mix_stats(st, sl, cash, 0.6, 0.4, 0.0)
+    assert half["vol_all"] == pytest.approx(whole["vol_all"] / 2, rel=0.02)   # half the mix, the rest in T-bills
 
 
 def test_committed_tables_and_page_agree():
@@ -86,37 +89,45 @@ def test_committed_tables_and_page_agree():
         pytest.skip("results/questionnaire not written")
     d = pg.load()
     ans, cv, meta = d["answers"], d["curve"], d["meta"]
-    unl = cv[cv["segment"] == "unlevered"]
-    assert len(ans) == len(q.ACCOUNTS) * len(q.GOALS)
-    assert set(cv["segment"]) == {"unlevered", "margin", "stacked"}
-    for seg, cap in meta["settings"]["overlay_caps"].items():
-        assert cv[cv["segment"] == seg]["sleeve"].max() == pytest.approx(cap)
+    assert len(ans) == sum(len(a["routes"]) for a in q.ACCOUNTS.values()) * len(q.GOALS)
+    assert set(cv["route"]) == set(q.ROUTES) and sum(meta["mix"].values()) == pytest.approx(1.0)
+    for route, p in cv.groupby("route"):
+        sc = p[p["segment"] == "scaled"]
+        assert (sc["stocks"] / sc["exposure"]).to_numpy() == pytest.approx(meta["mix"]["world_stocks"], abs=1e-4)
+        assert sc["exposure"].max() == pytest.approx(meta["caps"][route]["exposure"])
+        assert p["stocks"].max() == pytest.approx(1.0) and p["exposure"].max() <= meta["settings"]["max_leverage"] + 1e-9
+        assert (p["vol"].diff().dropna() > 0).all()                    # the path runs from less forecast risk to more
     for _, r in ans.iterrows():
         limit = q.GOALS[r["goal"]]["loss_limit"]
+        assert r["route"] in q.ACCOUNTS[r["account"]]["routes"]
         if limit is None:
             assert r["cash"] == 1.0 and r["headline"] == "T-bills"
             continue
-        assert r["stocks"] == q.stock_share(unl, limit) and r["worst_fall_all"] >= -limit
-        assert r["stocks"] + r["sleeve"] == pytest.approx(1 + r["borrowed"])
+        p = cv[cv["route"] == r["route"]]
+        best = p[p["worst_fall_all"] >= -limit]["i"].max()             # the furthest point within the budget
+        row = p[p["i"] == r["i"]].iloc[0]
+        assert r["i"] == best and r["worst_fall_all"] >= -limit
+        for c in ("stocks", "sleeve", "vol", "growth", "growth_lo", "growth_hi", "worst_fall_all", "growth_all"):
+            assert r[c] == pytest.approx(row[c])
         assert sum(r[f"w_{a}"] for a in q.SLEEVE) == pytest.approx(r["sleeve"], abs=1e-5)
-        if r["borrowed"] > 0:                           # the most on top that stays within the limit
-            seg = cv[(cv["segment"] == r["financing"]) & (cv["worst_fall_all"] >= -limit)]
-            assert r["stocks"] == 1.0 and r["sleeve"] == pytest.approx(seg["sleeve"].max())
-        p = q.on_curve(cv, r)                           # every answer is a point of the curve, with its numbers
-        assert p["segment"] == (q.ACCOUNTS[r["account"]]["financing"] if r["borrowed"] > 0 else "unlevered")
-        for c in ("vol", "growth", "growth_lo", "growth_hi", "worst_fall_all", "growth_all"):
-            assert r[c] == pytest.approx(p[c])
-    # the curve is the allocation study's replay and forecast risk: its menu is reproduced at the shared mixes
+        f = d["funds"][(d["funds"]["account"] == r["account"]) & (d["funds"]["route"] == r["route"]) & (d["funds"]["goal"] == r["goal"])]
+        assert f["exposure"].sum() == pytest.approx(r["sleeve"], abs=1e-4)
+        assert r["stocks"] - q.STOCK_TOL - 1e-6 <= f["stocks"].sum() <= r["stocks"] + 1e-6
+        assert f["weight"].sum() == pytest.approx(1 + (r["borrowed"] if r["financing"] == "margin" else 0), abs=1e-4)
+    # the path is the allocation study's replay and forecast risk: its menu is reproduced where they share a mix
     menu = pd.read_csv(al.OUT / "menu.csv")
     menu = menu[menu["sleeve_rule"] == q.SLEEVE_RULE]
+    shared = 0
     for _, m in menu.iterrows():
-        seg = "margin" if m["borrowed"] > 0 else "unlevered"
-        row = cv[(cv["segment"] == seg) & np.isclose(cv["stocks"], m["stocks"]) & np.isclose(cv["sleeve"], m["sleeve"])].iloc[0]
-        for a, b in (("worst_fall_all", "worst_fall_all"), ("growth_all", "growth_all"), ("vol_all", "vol_all"), ("vol", "vol_fcst")):
-            assert row[a] == pytest.approx(m[b], rel=1e-4)
+        row = cv[(cv["route"] == "margin") & np.isclose(cv["stocks"], m["stocks"]) & np.isclose(cv["sleeve"], m["sleeve"])]
+        for _, p in row.iterrows():
+            shared += 1
+            for a, b in (("worst_fall_all", "worst_fall_all"), ("growth_all", "growth_all"), ("vol_all", "vol_all"), ("vol", "vol_fcst")):
+                assert p[a] == pytest.approx(m[b], rel=1e-4)
+    assert shared >= 1
     assert not {"frontier.csv", "points.csv", "ladder.csv"} & {f.name for f in q.OUT.iterdir()}
     html = pg.fragment(d)
     assert meta["label"] in html and "qn-data" in html
-    for k in (*q.ACCOUNTS, *q.GOALS):
+    for k in (*q.ACCOUNTS, *q.GOALS, *q.ROUTES):
         assert f'value="{k}"' in html
-    assert (q.REPORT).read_text().count("| Taxable brokerage |") == len(q.GOALS)
+    assert (q.REPORT).read_text().count("| Taxable brokerage |") == 2 * len(q.GOALS)

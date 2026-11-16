@@ -20,17 +20,34 @@
   "taxable": {
    "name": "Taxable brokerage",
    "detail": "Gains, interest and distributions are taxed as they come.",
-   "financing": "margin"
+   "routes": [
+    "stacked",
+    "margin"
+   ]
   },
   "traditional": {
    "name": "Tax-deferred",
    "detail": "Traditional IRA or 401(k): taxed as income on withdrawal.",
-   "financing": "stacked"
+   "routes": [
+    "stacked"
+   ]
   },
   "roth": {
    "name": "Roth",
    "detail": "Roth IRA or Roth 401(k): qualified withdrawals are untaxed.",
-   "financing": "stacked"
+   "routes": [
+    "stacked"
+   ]
+  }
+ },
+ "routes": {
+  "stacked": {
+   "name": "Stacked funds",
+   "detail": "Funds that hold stocks and add a diversifier with futures. No loan and no margin call."
+  },
+  "margin": {
+   "name": "Margin loan",
+   "detail": "Borrowed from the broker. It costs more and can be called."
   }
  },
  "goals": {
@@ -57,8 +74,8 @@
  },
  "notes": {
   "taxable": [
-   "A margin loan is available in this account, so the sleeve can sit on top of a full stock position. Funds that carry the exposure inside are available here too.",
-   "Taxes are not modelled. Stock index funds defer most of their gain until sold. The sleeve is taxed harder: Treasury interest is ordinary income (free of state tax), funds holding gold bullion are taxed as collectibles, and managed-futures funds pay out most of their return as taxable distributions.",
+   "Both ways of holding more than 100% of capital are open in this account: funds that carry the exposure inside, or a margin loan.",
+   "Taxes are not modelled. Stock index funds defer most of their gain until sold. The diversifiers are taxed harder: Treasury interest is ordinary income (free of state tax), funds holding gold bullion are taxed as collectibles, and funds that use futures pay out most of their return as taxable distributions.",
    "The replay rebalances every month. In this account a sale can realise a gain."
   ],
   "traditional": [
@@ -70,18 +87,10 @@
    "Qualified withdrawals are untaxed. No holding is tax-favoured over another, and rebalancing costs no tax."
   ]
  },
- "financing": {
-  "margin": "a margin loan",
-  "stacked": "funds that carry the exposure inside"
- },
  "settings": {
-  "sleeve_rule": "invvol_hist",
-  "sleeve_rule_name": "1/volatility, whole past",
+  "mix_rule": "1/volatility, whole past",
   "step": 0.05,
-  "overlay_caps": {
-   "margin": 1.0,
-   "stacked": 0.9500000000000001
-  },
+  "stock_tol": 0.025,
   "max_leverage": 2.0,
   "spreads": {
    "margin": 0.013798,
@@ -89,10 +98,32 @@
   },
   "recent": 60
  },
+ "mix": {
+  "world_stocks": 0.1634623555464444,
+  "ust_int": 0.3654442479076918,
+  "gold": 0.15791454307741587,
+  "mf": 0.31317885346844776
+ },
  "sleeve_weights": {
   "ust_int": 0.4368533207449474,
   "gold": 0.18877159219842293,
   "mf": 0.37437508705662975
+ },
+ "mix_stock_share_range": [
+  0.155626441270134,
+  0.17522265528061398
+ ],
+ "caps": {
+  "stacked": {
+   "exposure": 1.15,
+   "worst_fall_all": -0.09951023967506221,
+   "vol": 0.06482853509633908
+  },
+  "margin": {
+   "exposure": 2.0,
+   "worst_fall_all": -0.1834216454319589,
+   "vol": 0.11274527842841581
+  }
  },
  "borrow": {
   "lender": "Robinhood Financial (margin investing)",
@@ -133,7 +164,6 @@
    }
   ]
  },
- "least_risk_stocks": 0.1,
  "vehicles_retrieved": "2026-11-16",
  "covariance": {
   "model": "combo_cov_main",
