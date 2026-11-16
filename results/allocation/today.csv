@@ -1,0 +1,23 @@
+table,rule,name,origin,world_stocks,ust_int,gold,mf,cash,borrowed,vol_fcst,mean_hist,mean_recent,vol_hist,vol_recent
+sleeve,equal,A third each,2026-10-31,0,0.333333,0.333333,0.333333,0,0,0.088631,,,,
+sleeve,invvol_hist,"1/volatility, whole past",2026-10-31,0,0.436853,0.188772,0.374375,0,2.22045e-16,0.0591899,,,,
+sleeve,invvol_recent,"1/volatility, last 5 years",2026-10-31,0,0.446297,0.196126,0.357577,0,0,0.0607397,,,,
+sleeve,invvol_fcst,"1/volatility, forecast",2026-10-31,0,0.471481,0.148687,0.379832,1.11022e-16,0,0.0521842,,,,
+sleeve,minvar_hist,"Least variance, whole past",2026-10-31,0,0.539651,0.0656519,0.394697,1.11022e-16,0,0.0410047,,,,
+sleeve,minvar_recent,"Least variance, last 5 years",2026-10-31,0,0.568043,0,0.431957,0,0,0.0373127,,,,
+sleeve,minvar_fcst,"Least variance, forecast",2026-10-31,0,0.566382,0,0.433618,0,0,0.0373118,,,,
+sleeve,maxsharpe_hist,"Optimized: past returns, past risk",2026-10-31,0,0.361891,0.0626332,0.575476,0,0,0.0470787,,,,
+sleeve,maxsharpe_recent,Optimized: last 5 years of both,2026-10-31,0,0,0.494388,0.505612,0,0,0.126978,,,,
+sleeve,maxsharpe_mix,"Optimized: past returns, forecast risk",2026-10-31,0,0.529953,0,0.470047,0,0,0.0377401,,,,
+portfolio,fixed,Fixed 60% stocks / 40% sleeve,2026-10-31,0.6,0.133333,0.133333,0.133333,1.11022e-16,0,0.105038,,,,
+portfolio,target_hist,"60/40 scaled to 10% risk, whole past",2026-10-31,0.632038,0.140453,0.140453,0.140453,0,0.0533975,0.110647,,,,
+portfolio,target_recent,"60/40 scaled to 10% risk, last 5 years",2026-10-31,0.595542,0.132343,0.132343,0.132343,0.00743053,0,0.104258,,,,
+portfolio,target_fcst,"60/40 scaled to 10% risk, forecast",2026-10-31,0.57122,0.126938,0.126938,0.126938,0.0479665,0,0.1,,,,
+portfolio,riskonly_fcst,"1/volatility over all four, forecast",2026-10-31,0.361233,0.745937,0.23524,0.600937,0,0.943346,0.1,,,,
+portfolio,opt_hist,"Optimized: past returns, past risk",2026-10-31,0.368105,0.550852,0.0674232,0.90437,0,0.89075,0.0787418,,,,
+portfolio,opt_recent,Optimized: last 5 years of both,2026-10-31,0.331591,0,0.38723,0.628455,0,0.347276,0.120277,,,,
+portfolio,opt_mix,"Optimized: past returns, forecast risk",2026-10-31,0.277649,0.850897,0,0.871453,0,1,0.0685609,,,,
+inputs,world_stocks,World stocks,2026-10-31,,,,,,,0.159242,0.082637,0.0694785,0.149775,0.147492
+inputs,ust_int,Intermediate Treasuries,2026-10-31,,,,,,,0.0771159,0.0311619,-0.047844,0.0669939,0.0766943
+inputs,gold,Gold,2026-10-31,,,,,,,0.244532,0.0388934,0.13009,0.155037,0.174523
+inputs,mf,Managed futures,2026-10-31,,,,,,,0.0957233,0.0584011,0.0363929,0.0781743,0.0957233

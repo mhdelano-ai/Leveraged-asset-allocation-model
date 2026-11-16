@@ -1,0 +1,159 @@
+{
+ "label": "Descriptive allocation study; it replays weighting rules on a history that was all seen before the rules were written, selects nothing and is not out-of-sample evidence",
+ "returns_through": "2026-10-31",
+ "common_start": "1985-01-31",
+ "first_holding_month": "1990-01-31",
+ "live_from": "2007-03-31",
+ "assets": [
+  "world_stocks",
+  "ust_int",
+  "gold",
+  "mf"
+ ],
+ "names": {
+  "world_stocks": "World stocks",
+  "ust_int": "Intermediate Treasuries",
+  "gold": "Gold",
+  "mf": "Managed futures"
+ },
+ "settings": {
+  "burn": 60,
+  "recent": 60,
+  "persist": 60,
+  "target_vol": 0.1,
+  "base_stocks": 0.6,
+  "max_leverage": 2.0,
+  "spread": 0.013798,
+  "boot": {
+   "n": 2000,
+   "block": 12,
+   "seed": 20261116
+  }
+ },
+ "covariance": {
+  "model": "combo_cov_main",
+  "bridge": "vr_market"
+ },
+ "sleeve_rules": [
+  "equal",
+  "invvol_hist",
+  "invvol_recent",
+  "invvol_fcst",
+  "minvar_hist",
+  "minvar_recent",
+  "minvar_fcst",
+  "maxsharpe_hist",
+  "maxsharpe_recent",
+  "maxsharpe_mix"
+ ],
+ "portfolio_rules": [
+  "fixed",
+  "target_hist",
+  "target_recent",
+  "target_fcst",
+  "riskonly_fcst",
+  "opt_hist",
+  "opt_recent",
+  "opt_mix"
+ ],
+ "rule_names": {
+  "equal": "A third each",
+  "invvol_hist": "1/volatility, whole past",
+  "invvol_recent": "1/volatility, last 5 years",
+  "invvol_fcst": "1/volatility, forecast",
+  "minvar_hist": "Least variance, whole past",
+  "minvar_recent": "Least variance, last 5 years",
+  "minvar_fcst": "Least variance, forecast",
+  "maxsharpe_hist": "Optimized: past returns, past risk",
+  "maxsharpe_recent": "Optimized: last 5 years of both",
+  "maxsharpe_mix": "Optimized: past returns, forecast risk",
+  "fixed": "Fixed 60% stocks / 40% sleeve",
+  "target_hist": "60/40 scaled to 10% risk, whole past",
+  "target_recent": "60/40 scaled to 10% risk, last 5 years",
+  "target_fcst": "60/40 scaled to 10% risk, forecast",
+  "riskonly_fcst": "1/volatility over all four, forecast",
+  "opt_hist": "Optimized: past returns, past risk",
+  "opt_recent": "Optimized: last 5 years of both",
+  "opt_mix": "Optimized: past returns, forecast risk"
+ },
+ "rule_inputs": {
+  "equal": [
+   "none",
+   "none"
+  ],
+  "fixed": [
+   "none",
+   "none"
+  ],
+  "riskonly_fcst": [
+   "none",
+   "fcst"
+  ],
+  "invvol_hist": [
+   "none",
+   "hist"
+  ],
+  "invvol_recent": [
+   "none",
+   "recent"
+  ],
+  "invvol_fcst": [
+   "none",
+   "fcst"
+  ],
+  "minvar_hist": [
+   "none",
+   "hist"
+  ],
+  "minvar_recent": [
+   "none",
+   "recent"
+  ],
+  "minvar_fcst": [
+   "none",
+   "fcst"
+  ],
+  "target_hist": [
+   "none",
+   "hist"
+  ],
+  "target_recent": [
+   "none",
+   "recent"
+  ],
+  "target_fcst": [
+   "none",
+   "fcst"
+  ],
+  "maxsharpe_hist": [
+   "hist",
+   "hist"
+  ],
+  "maxsharpe_recent": [
+   "recent",
+   "recent"
+  ],
+  "maxsharpe_mix": [
+   "hist",
+   "fcst"
+  ],
+  "opt_hist": [
+   "hist",
+   "hist"
+  ],
+  "opt_recent": [
+   "recent",
+   "recent"
+  ],
+  "opt_mix": [
+   "hist",
+   "fcst"
+  ]
+ },
+ "drag": {
+  "months": 231,
+  "vol_ratio_funds_to_factor": 0.6288655362318338,
+  "gap_at_fund_vol": 0.01668884807629183,
+  "drag": 0.02653802301886586
+ }
+}
