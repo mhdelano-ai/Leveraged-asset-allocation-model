@@ -4031,6 +4031,12 @@
     "sha256": "9653fa3315feb92b7d4bbe276c049543d8b97dabea9c54b6cd9a499c95d93f2d",
     "url": "https://www.aqr.com/-/media/AQR/Documents/Insights/Data-Sets/Credit-Risk-Premium-Preliminary-Paper-Data.xlsx"
   },
+  "aqr/Time-Series-Momentum-Factors-Monthly.xlsx": {
+    "bytes": 139830,
+    "fetched_utc": "2026-11-16T12:24:28+00:00",
+    "sha256": "33470930e2269c0d97be4732ec2d9c27ddbc69ac8133b059a263e27400263eeb",
+    "url": "https://www.aqr.com/-/media/AQR/Documents/Insights/Data-Sets/Time-Series-Momentum-Factors-Monthly.xlsx"
+  },
   "cboe/VIX_History.csv": {
     "bytes": 474859,
     "fetched_utc": "2026-11-14T14:59:22+00:00",
@@ -4684,5 +4690,59 @@
     "fetched_utc": "2026-11-14T15:04:24+00:00",
     "sha256": "dca396ba2cbde5faea949568103c1e5fc323115c17f614af891390f62f03eed5",
     "url": "yfinance:VWO history(period='max', auto_adjust=False, actions=True)"
+  },
+  "yahoo_mf/ABYIX.json": {
+    "bytes": 326371,
+    "fetched_utc": "2026-11-16T12:24:43+00:00",
+    "sha256": "691c3b98bce1ffc1e34e7eebfe8cef6528190da8946d88df53f9bc6b095b78b8",
+    "url": "https://query1.finance.yahoo.com/v8/finance/chart/ABYIX?period1=-2208988800&period2=1794918283&interval=1d&events=div%2Csplits"
+  },
+  "yahoo_mf/AQMIX.json": {
+    "bytes": 430812,
+    "fetched_utc": "2026-11-16T12:24:37+00:00",
+    "sha256": "075451acc8ca4c29c369361785010122fc7427c6675fdb8fb354dbd3ea495cf9",
+    "url": "https://query1.finance.yahoo.com/v8/finance/chart/AQMIX?period1=-2208988800&period2=1794918277&interval=1d&events=div%2Csplits"
+  },
+  "yahoo_mf/ASFYX.json": {
+    "bytes": 419593,
+    "fetched_utc": "2026-11-16T12:24:39+00:00",
+    "sha256": "ee9b1c617d2534a18a538441304e592eae45ceaa7b3522a72b890edf87576d43",
+    "url": "https://query1.finance.yahoo.com/v8/finance/chart/ASFYX?period1=-2208988800&period2=1794918278&interval=1d&events=div%2Csplits"
+  },
+  "yahoo_mf/CTA.json": {
+    "bytes": 129577,
+    "fetched_utc": "2026-11-16T12:24:48+00:00",
+    "sha256": "eb45fc25cdd4ef7830b96bcb229639a4e30c6b2ed8d2432148aa3d3cf1a2fc79",
+    "url": "https://query1.finance.yahoo.com/v8/finance/chart/CTA?period1=-2208988800&period2=1794918287&interval=1d&events=div%2Csplits"
+  },
+  "yahoo_mf/DBMF.json": {
+    "bytes": 206464,
+    "fetched_utc": "2026-11-16T12:24:45+00:00",
+    "sha256": "af8c2b7eda6ca88159fb606708d0df1c01f7c56d069644a08eaef97aae1a57ee",
+    "url": "https://query1.finance.yahoo.com/v8/finance/chart/DBMF?period1=-2208988800&period2=1794918284&interval=1d&events=div%2Csplits"
+  },
+  "yahoo_mf/KMLM.json": {
+    "bytes": 161736,
+    "fetched_utc": "2026-11-16T12:24:46+00:00",
+    "sha256": "ad712f5836a48648d526b29d4a6922cd3a5d9c9fc58da1cbff618ad552558535",
+    "url": "https://query1.finance.yahoo.com/v8/finance/chart/KMLM?period1=-2208988800&period2=1794918286&interval=1d&events=div%2Csplits"
+  },
+  "yahoo_mf/PQTIX.json": {
+    "bytes": 333301,
+    "fetched_utc": "2026-11-16T12:24:42+00:00",
+    "sha256": "0ed35a13c659eeef655d0f4d137e9992c1ef902402b1936a78766350c6f7324c",
+    "url": "https://query1.finance.yahoo.com/v8/finance/chart/PQTIX?period1=-2208988800&period2=1794918281&interval=1d&events=div%2Csplits"
+  },
+  "yahoo_mf/RYMFX.json": {
+    "bytes": 520349,
+    "fetched_utc": "2026-11-16T12:24:36+00:00",
+    "sha256": "29b04b17758e185463705d128724e6826fd18901e25494e71280190f3524edad",
+    "url": "https://query1.finance.yahoo.com/v8/finance/chart/RYMFX?period1=-2208988800&period2=1794918276&interval=1d&events=div%2Csplits"
+  },
+  "yahoo_mf/WTMF.json": {
+    "bytes": 426244,
+    "fetched_utc": "2026-11-16T12:24:40+00:00",
+    "sha256": "74c1631fd2559a8337752642189ef813c7a1b5ed819aba7508d65cc5c587e07a",
+    "url": "https://query1.finance.yahoo.com/v8/finance/chart/WTMF?period1=-2208988800&period2=1794918280&interval=1d&events=div%2Csplits"
   }
 }

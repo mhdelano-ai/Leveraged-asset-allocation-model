@@ -118,6 +118,8 @@ Files in `data/processed/` (committed; `data/raw/` is a gitignored download cach
 | `panel_daily.parquet`, `panel_monthly.parquet`, `cash_daily.parquet` (col `cash`), `cash_monthly.parquet`, `tiers_monthly.parquet` | assembled wide panel |
 | `segments.csv`, `segments/` | asset, start, end, freq, source, tier, notes: the provenance of every spliced segment |
 | `features.parquet`, `feature_meta.csv` | the return side's point-in-time feature panel (below) |
+| `managed_futures_monthly.parquet`, `managed_futures_meta.json` | managed futures, outside the panel and read only by the diversifier study: AQR's time-series-momentum factor (`tsmom_xr`, simple excess, hypothetical, before fees) and an equal-weight composite of live funds (`funds_ret`, simple total, after fees), from `data/sources/managed_futures.py` |
+| `diversifier_vehicles.json` | funds that give the diversifier sleeve's exposures and their expense ratios: a hand-recorded outside lookup with its date and sources, shown in the diversifier report; no loader rebuilds it |
 | `raw_manifest.json` | what `data/fetch.py` downloaded, when, with a hash (written by the downloader) |
 
 The panel's daily calendar is the US equity trading calendar (the dates of the
@@ -306,6 +308,7 @@ out-of-sample evidence of its own. The dashboard's frontier section shows it.
 | `results/returns/strategy/` | `metrics.parquet`, `summary.csv`, `summary_by_period.csv`, `meta.json` (`returns.parquet`, `weights.parquet` regenerate in a minute and are not committed) | partly |
 | `results/archive/assetpred/` | the `assetpred` project's results and inputs as merged: its 1-, 3- and 12-month findings (`scores/`, `strategy/`; its HTML dashboard was removed, recoverable from git history), its development trial logs, and the fixtures the port is checked against | yes, never rewritten |
 | `results/horizons/` | score tables of the horizon study (`assetforecast.horizons`: returns, volatility and correlations at 1 month to 10 years, descriptive only); its report is `reports/horizon_study.md`, its page `dashboard/horizons.html` | yes |
+| `results/diversifiers/` | tables of the diversifier study (`assetforecast.diversifiers`: each non-stock asset and managed futures against world stocks, descriptive only), and of an equal-weight sleeve of intermediate Treasuries, gold and managed futures beside stocks, with and without borrowing (`sleeve.csv`); report `reports/diversifiers.md` | yes |
 | `results/dev/` | every development run (and the horizon study's forecast caches, `results/dev/horizons/`) | no |
 | `forecasts/` | the published forecast per origin and `latest/`; `three_fund/` holds its restatement for two declared composites (world stocks, world bonds) and cash, with the mixes into the borrowed range (`python -m assetforecast.threefund`) | yes |
 | `dashboard/` | the published dashboard page, its data and the one-page summary (`summary.html`) | yes |
