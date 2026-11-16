@@ -59,10 +59,10 @@ The rule
 1. Stock share: the largest on the ``unlevered`` part whose worst fall in the whole
    replay is no deeper than the goal's ``loss_limit``.
 2. Backfill: the rest of the capital is the sleeve. That is the point on the curve.
-3. Nothing left to backfill: at 100% stocks the sleeve goes on top instead,
-   ``OVERLAY`` of capital (the diversifier study's overlay), on the account's part of
-   the curve, if that point also stays within the limit. ``OVERLAY`` is a declared
-   amount: the loss limit alone does not pin it down.
+3. Nothing left to backfill: at 100% stocks the sleeve goes on top instead, the most
+   on the account's part of the curve whose worst fall also stays within the limit.
+   Where every such point does, that is the end of the line: the most the account's
+   financing can carry.
 
 The replay is the allocation study's: the sleeve's walk-forward return (weights set
 at each month-end from returns through it, held over the next month, from ``BURN``
@@ -130,7 +130,6 @@ NOTES = {   # shown with the answer; statements about tax treatment, not modelle
 }
 SLEEVE_RULE = "invvol_hist"          # the weights inside the sleeve
 STEP = 0.05                          # steps of the stock share, and of the sleeve on top
-OVERLAY = diversifiers.OVERLAY       # sleeve added on top of 100% stocks, share of capital
 EXPOSURE = {"ust_int": "intermediate Treasuries", "gold": "gold", "mf": "managed futures"}   # names in the fund lookup
 STOCK_FUND = "A world stock fund"
 ASSETS, STOCKS, SLEEVE, NAMES = A.ASSETS, A.STOCKS, A.SLEEVE, A.NAMES
@@ -214,10 +213,11 @@ def decide(account: str, goal: str, cv: pd.DataFrame) -> dict:
         return {"stocks": 0.0, "sleeve": 0.0, "cash": 1.0, "borrowed": 0.0, "financing": "none"}
     if a < 1.0:
         return {"stocks": a, "sleeve": 1.0 - a, "cash": 0.0, "borrowed": 0.0, "financing": "none"}
-    top = cv[(cv["segment"] == fin) & np.isclose(cv["sleeve"], OVERLAY)]
-    if len(top) and top["worst_fall_all"].iloc[0] >= -limit:
-        return {"stocks": 1.0, "sleeve": OVERLAY, "cash": 0.0, "borrowed": OVERLAY, "financing": fin}
-    return {"stocks": 1.0, "sleeve": 0.0, "cash": 0.0, "borrowed": 0.0, "financing": "none"}
+    top = cv[(cv["segment"] == fin) & (cv["worst_fall_all"] >= -limit - 1e-12)]
+    if top.empty:
+        return {"stocks": 1.0, "sleeve": 0.0, "cash": 0.0, "borrowed": 0.0, "financing": "none"}
+    b = float(top["sleeve"].max())
+    return {"stocks": 1.0, "sleeve": b, "cash": 0.0, "borrowed": b, "financing": fin}
 
 
 def on_curve(cv: pd.DataFrame, d: dict) -> pd.Series:
@@ -303,7 +303,7 @@ def headline(d: dict) -> str:
     return f"{_p(d['stocks'])} stocks, {_p(d['sleeve'])} diversifiers"
 
 
-def reason(goal: str, d: dict, row: dict) -> str:
+def reason(goal: str, d: dict, row: dict, caps: dict) -> str:
     limit = GOALS[goal]["loss_limit"]
     if limit is None:
         return ("Money needed within 3 years is outside this model. Every mix of stocks and the sleeve has fallen by "
@@ -311,8 +311,11 @@ def reason(goal: str, d: dict, row: dict) -> str:
     s = (f"The goal can sit through a fall of {_p(limit)}. {_p(d['stocks'])} is the largest stock share whose worst fall "
          f"in the replay stayed within that ({100 * row['worst_fall_unlevered']:.1f}%, with the rest in the sleeve).")
     if d["borrowed"] > 0:
-        s += (f" At 100% stocks nothing is left to backfill, so the sleeve goes on top, {_p(d['sleeve'])} of capital; "
-              f"that position's worst fall was {100 * row['worst_fall_all']:.0f}%.")
+        end = np.isclose(d["sleeve"], caps[d["financing"]])
+        most = (("the most a margin loan can carry" if d["financing"] == "margin" else "the most the stacked funds can carry")
+                if end else "the most that stays within the limit")
+        s += (f" At 100% stocks nothing is left to backfill, so the sleeve goes on top: {_p(d['sleeve'])} of capital, {most}. "
+              f"That position's worst fall was {100 * row['worst_fall_all']:.0f}%.")
     return s
 
 
@@ -347,10 +350,11 @@ def build() -> dict:
             else:
                 row.update(spread=0.0, vol=0.0, growth=0.0, growth_lo=0.0, growth_hi=0.0, **{f"w_{a}": 0.0 for a in ASSETS})
             plan = fund_plan(d, ws, veh, stacked=d["financing"] == "stacked")
-            row.update(fund_fees=_fees(plan), loan_cost=row["spread"] * d["borrowed"], stocks_held=sum(r["stocks"] for r in plan))
-            if d["financing"] == "margin":      # the other way to hold the same position in this account
-                row["stacked_fees"] = _fees(fund_plan(d, ws, veh, stacked=True))
-            row.update(headline=headline(d), reason=reason(goal, d, row))
+            row.update(fund_fees=_fees(plan), loan_cost=row["spread"] * d["borrowed"], stocks_held=sum(r["stocks"] for r in plan),
+                       stacked_fees=np.nan)
+            if d["financing"] == "margin" and d["sleeve"] <= caps["stacked"] + 1e-9:
+                row["stacked_fees"] = _fees(fund_plan(d, ws, veh, stacked=True))    # the other way to hold it in this account
+            row.update(headline=headline(d), reason=reason(goal, d, row, caps))
             answers.append(row)
             funds += [{"account": acc, "goal": goal, **r} for r in plan]
 
@@ -358,7 +362,7 @@ def build() -> dict:
             "first_holding_month": str(x.index[A.BURN].date()), "live_from": A.LIVE, "assets": ASSETS, "names": NAMES,
             "accounts": ACCOUNTS, "goals": GOALS, "notes": NOTES, "financing": FINANCING,
             "settings": {"sleeve_rule": SLEEVE_RULE, "sleeve_rule_name": A.RULE_NAMES[SLEEVE_RULE], "step": STEP,
-                         "overlay": OVERLAY, "overlay_caps": caps, "max_leverage": frontier.MAX_LEVERAGE,
+                         "overlay_caps": caps, "max_leverage": frontier.MAX_LEVERAGE,
                          "spreads": spreads, "recent": A.RECENT},
             "sleeve_weights": {a: float(ws[a]) for a in SLEEVE}, "borrow": borrow,
             "least_risk_stocks": float(unl.loc[unl["vol"].idxmin(), "stocks"]),

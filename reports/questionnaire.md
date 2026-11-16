@@ -10,7 +10,7 @@ Risk decides and returns do not. Every answer is a point on one curve of mixes, 
 
 1. Each goal declares the largest fall from a previous high it can sit through. The stock share is the largest, in steps of 5%, whose worst fall in the replay stayed within it, with the rest in the sleeve.
 2. The sleeve is weighted by 1/volatility, whole past: today 44% Treasuries, 19% gold, 37% managed futures.
-3. At 100% stocks nothing is left to backfill, so the sleeve goes on top, 50% of capital: on a margin loan in a taxable account (T-bills + 1.38%), through stacked funds in a retirement account, where no loan is allowed. The 50% is the diversifier study's amount, a judgement: the loss limit alone would allow any amount the curve below reaches.
+3. At 100% stocks nothing is left to backfill, so the sleeve goes on top, the most whose worst fall also stays within the limit: on a margin loan in a taxable account (T-bills + 1.38%, up to 100% of capital), through stacked funds in a retirement account, where no loan is allowed (up to 95%).
 4. Money needed within 3 years is outside the model: T-bills.
 
 | Goal | Fall it can sit through | Stock share |
@@ -29,15 +29,15 @@ Forecast vol is on the package's 12-month covariance forecast. Expected growth i
 | Taxable brokerage | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |
 | Taxable brokerage | Spending in 3 to 10 years | 40% stocks, 60% diversifiers | 40% / 26% / 11% / 22% | 7.4% | -20% | +4.9% | +4.5% (+1.6% to +7.4%) |
 | Taxable brokerage | Retirement income, drawn now | 65% stocks, 35% diversifiers | 65% / 15% / 7% / 13% | 10.6% | -35% | +5.5% | +5.4% (+2.3% to +8.5%) |
-| Taxable brokerage | Growth, untouched for 10 years or more | 100% stocks, plus 50% diversifiers on a margin loan | 100% / 22% / 9% / 19% | 16.3% | -51% | +7.1% | +7.0% (+2.3% to +11.7%) |
+| Taxable brokerage | Growth, untouched for 10 years or more | 100% stocks, plus 100% diversifiers on a margin loan | 100% / 44% / 19% / 37% | 17.1% | -48% | +8.3% | +7.6% (+1.7% to +13.6%) |
 | Tax-deferred | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |
 | Tax-deferred | Spending in 3 to 10 years | 40% stocks, 60% diversifiers | 40% / 26% / 11% / 22% | 7.4% | -20% | +4.9% | +4.5% (+1.6% to +7.4%) |
 | Tax-deferred | Retirement income, drawn now | 65% stocks, 35% diversifiers | 65% / 15% / 7% / 13% | 10.6% | -35% | +5.5% | +5.4% (+2.3% to +8.5%) |
-| Tax-deferred | Growth, untouched for 10 years or more | 100% stocks, plus 50% diversifiers carried inside stacked funds | 100% / 22% / 9% / 19% | 16.3% | -50% | +7.8% | +7.7% (+3.0% to +12.4%) |
+| Tax-deferred | Growth, untouched for 10 years or more | 100% stocks, plus 95% diversifiers carried inside stacked funds | 100% / 42% / 18% / 36% | 17.0% | -47% | +9.5% | +8.9% (+3.1% to +14.7%) |
 | Roth | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |
 | Roth | Spending in 3 to 10 years | 40% stocks, 60% diversifiers | 40% / 26% / 11% / 22% | 7.4% | -20% | +4.9% | +4.5% (+1.6% to +7.4%) |
 | Roth | Retirement income, drawn now | 65% stocks, 35% diversifiers | 65% / 15% / 7% / 13% | 10.6% | -35% | +5.5% | +5.4% (+2.3% to +8.5%) |
-| Roth | Growth, untouched for 10 years or more | 100% stocks, plus 50% diversifiers carried inside stacked funds | 100% / 22% / 9% / 19% | 16.3% | -50% | +7.8% | +7.7% (+3.0% to +12.4%) |
+| Roth | Growth, untouched for 10 years or more | 100% stocks, plus 95% diversifiers carried inside stacked funds | 100% / 42% / 18% / 36% | 17.0% | -47% | +9.5% | +8.9% (+3.1% to +14.7%) |
 
 ## The curve
 
@@ -124,32 +124,32 @@ Taxable brokerage, retirement income, drawn now: 65% stocks, 35% diversifiers.
 
 Recorded fund fees: 0.04% of capital a year.
 
-Taxable brokerage, growth, untouched for 10 years or more: 100% stocks, plus 50% diversifiers on a margin loan.
+Taxable brokerage, growth, untouched for 10 years or more: 100% stocks, plus 100% diversifiers on a margin loan.
 
 | Fund | Name | Share of capital | Fee a year |
 |---|---|---|---|
 |  | A world stock fund | 100.0% |  |
-| VGIT | Vanguard Intermediate-Term Treasury ETF | 21.8% | 0.03% |
-| IAUM | iShares Gold Trust Micro | 9.4% | 0.09% |
-| SDMF | Simplify DBi CTA Managed Futures Index ETF | 18.7% | 0.21% |
+| VGIT | Vanguard Intermediate-Term Treasury ETF | 43.7% | 0.03% |
+| IAUM | iShares Gold Trust Micro | 18.9% | 0.09% |
+| SDMF | Simplify DBi CTA Managed Futures Index ETF | 37.4% | 0.21% |
 
-Recorded fund fees: 0.05% of capital a year; loan: 0.69%. The same position through stacked funds: 0.29% in fees and no loan.
+Recorded fund fees: 0.11% of capital a year; loan: 1.38%.
 
-Roth, growth, untouched for 10 years or more: 100% stocks, plus 50% diversifiers carried inside stacked funds.
+Roth, growth, untouched for 10 years or more: 100% stocks, plus 95% diversifiers carried inside stacked funds.
 
 | Fund | Name | Share of capital | Fee a year |
 |---|---|---|---|
-|  | A world stock fund | 49.0% |  |
-| RSSB | Return Stacked Global Stocks & Bonds ETF | 21.8% | 0.40% |
-| GDE | WisdomTree Efficient Gold Plus Equity Strategy Fund | 10.5% | 0.20% |
-| RSST | Return Stacked U.S. Stocks & Managed Futures ETF | 18.7% | 0.99% |
+|  | A world stock fund | 3.0% |  |
+| RSSB | Return Stacked Global Stocks & Bonds ETF | 41.5% | 0.40% |
+| GDE | WisdomTree Efficient Gold Plus Equity Strategy Fund | 19.9% | 0.20% |
+| RSST | Return Stacked U.S. Stocks & Managed Futures ETF | 35.6% | 0.99% |
 
-Recorded fund fees: 0.29% of capital a year. Stocks held: 99% of capital.
+Recorded fund fees: 0.56% of capital a year. Stocks held: 98% of capital.
 
 ## Caveats
 
 - The loss limits are judgements, and the stock shares follow from them. A different limit gives a different answer; the curve shows every one.
-- So is the 50% of sleeve on top of 100% stocks. More of it lowered the replay's worst fall and raised forecast volatility.
+- A goal that allows 100% stocks gets the end of the curve, the most exposure the account can carry: more sleeve on top lowered the replay's worst fall, so the loss limit never stops it. Forecast volatility rises with it. On margin the end is Regulation T's limit for opening a position (2 times capital); the broker's maintenance requirement, which is not modelled, decides how far it can fall before it is called.
 - The replay is the allocation study's: every year had been seen, the sleeve's assets were chosen on the same years, and managed futures before 2007-03 are a paper factor. A worst fall in the past is not a bound on the next one.
 - Month-end values miss falls inside a month. A margin loan can be called before a month ends.
 - Taxes, trading costs and fund fees are not charged. Traditional and Roth accounts get the same numbers.

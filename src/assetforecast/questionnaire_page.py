@@ -71,10 +71,10 @@ def write_report(d: dict | None = None) -> str:
          f"in steps of {s['step']:.0%}, whose worst fall in the replay stayed within it, with the rest in the sleeve.",
          f"2. The sleeve is weighted by {s['sleeve_rule_name'].lower()}: today "
          + ", ".join(f"{100 * sw[a]:.0f}% {LOWER[a]}" for a in Q.SLEEVE) + ".",
-         f"3. At 100% stocks nothing is left to backfill, so the sleeve goes on top, {s['overlay']:.0%} of capital: on a "
-         f"margin loan in a taxable account (T-bills + {100 * s['spreads']['margin']:.2f}%), through stacked funds in a "
-         f"retirement account, where no loan is allowed. The {s['overlay']:.0%} is the diversifier study's amount, a "
-         "judgement: the loss limit alone would allow any amount the curve below reaches.",
+         "3. At 100% stocks nothing is left to backfill, so the sleeve goes on top, the most whose worst fall also stays "
+         f"within the limit: on a margin loan in a taxable account (T-bills + {100 * s['spreads']['margin']:.2f}%, up to "
+         f"{caps['margin']:.0%} of capital), through stacked funds in a retirement account, where no loan is allowed "
+         f"(up to {caps['stacked']:.0%}).",
          "4. Money needed within 3 years is outside the model: T-bills.", "",
          _table(["Goal", "Fall it can sit through", "Stock share"],
                 [[g["name"], "" if g["loss_limit"] is None else f"{g['loss_limit']:.0%}",
@@ -121,7 +121,7 @@ def write_report(d: dict | None = None) -> str:
               + (f". Stocks held: {100 * r['stocks_held']:.0f}% of capital" if r["financing"] == "stacked" else "") + ".", ""]
     L += ["## Caveats", "",
           "- The loss limits are judgements, and the stock shares follow from them. A different limit gives a different answer; the curve shows every one.",
-          f"- So is the {s['overlay']:.0%} of sleeve on top of 100% stocks. More of it lowered the replay's worst fall and raised forecast volatility.",
+          f"- A goal that allows 100% stocks gets the end of the curve, the most exposure the account can carry: more sleeve on top lowered the replay's worst fall, so the loss limit never stops it. Forecast volatility rises with it. On margin the end is Regulation T's limit for opening a position ({s['max_leverage']:.0f} times capital); the broker's maintenance requirement, which is not modelled, decides how far it can fall before it is called.",
           "- The replay is the allocation study's: every year had been seen, the sleeve's assets were chosen on the same years, and managed futures before 2007-03 are a paper factor. A worst fall in the past is not a bound on the next one.",
           "- Month-end values miss falls inside a month. A margin loan can be called before a month ends.",
           "- Taxes, trading costs and fund fees are not charged. Traditional and Roth accounts get the same numbers.",
@@ -304,6 +304,7 @@ JS = r"""
       cost = `Recorded fund fees come to ${pct(r.fund_fees, 2, false)} of capital a year` +
         (r.loan_cost > 0 ? `, and the loan costs ${pct(r.loan_cost, 2, false)} more than T-bills` : '') + '.';
       if (r.stacked_fees != null) cost += ` Holding the same position through stacked funds would cost ${pct(r.stacked_fees, 2, false)} in fees with no loan; their tax cost in this account is not measured.`;
+      else if (r.financing === 'margin') cost += ` Stacked funds cannot hold this position: they carry at most ${pct(S.overlay_caps.stacked, 0, false)} on top.`;
       if (r.financing === 'stacked') cost += ` These funds leave ${pct(r.stocks_held, 0, false)} of capital in stocks, and their stocks are US or global funds, not the study's composite.`;
     }
     $('qn-cost').textContent = cost;
@@ -416,8 +417,9 @@ exposure. Confirm on the issuer's page. No stock fund's fee is recorded.</p>
 <ul>
 <li>Each goal states the largest fall from a previous high it can sit through.</li>
 <li>The stock share is the largest whose worst fall in the replay stayed within that, with the rest in the sleeve.</li>
-<li>At 100% stocks nothing is left to backfill, so the sleeve goes on top, {s['overlay']:.0%} of capital: on a margin loan at
-T-bills + {100 * s['spreads']['margin']:.2f}% in a taxable account, inside stacked funds in a retirement account.</li>
+<li>At 100% stocks nothing is left to backfill, so the sleeve goes on top, the most whose worst fall also stays within the
+limit: on a margin loan at T-bills + {100 * s['spreads']['margin']:.2f}% in a taxable account, inside stacked funds in a
+retirement account.</li>
 <li>Money needed within 3 years is outside the model and gets T-bills.</li>
 </ul>
 </section>
@@ -425,7 +427,10 @@ T-bills + {100 * s['spreads']['margin']:.2f}% in a taxable account, inside stack
 <section><h2>What this does not show</h2>
 <ul>
 <li>The loss limits are judgements, and the stock shares follow from them. The table above shows what any other limit would give.</li>
-<li>So is the {s['overlay']:.0%} of sleeve on top of 100% stocks. The loss limit alone would allow any amount the line reaches.</li>
+<li>A goal that allows 100% stocks gets the end of the line, the most exposure the account can carry. More sleeve on top
+lowered the replay's worst fall, so the loss limit never stops it; forecast risk rises with it. On margin the end is
+Regulation T's limit for opening a position, {s['max_leverage']:.0f} times capital. The broker's maintenance requirement
+is not modelled, and it decides how far the position can fall before it is called.</li>
 <li>Every year in the replay had been seen before the rule was written, the three diversifiers were chosen on the same years,
 and managed futures before {meta['live_from'][:7]} are a paper factor. A worst fall in the past does not bound the next one.</li>
 <li>Month-end values miss falls inside a month, and a margin loan can be called before a month ends.</li>

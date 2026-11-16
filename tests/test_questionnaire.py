@@ -8,10 +8,11 @@ from assetforecast import questionnaire as q
 WS = pd.Series({"ust_int": 0.5, "gold": 0.2, "mf": 0.3})
 
 
-def _curve(falls, margin=-0.51, stacked=-0.50):
+def _curve(falls, margin=(-0.51, -0.48), stacked=(-0.50, -0.47)):
     shares = np.linspace(0, 1, len(falls))
     unl = pd.DataFrame({"segment": "unlevered", "stocks": shares, "sleeve": 1 - shares, "worst_fall_all": falls})
-    top = pd.DataFrame({"segment": ["margin", "stacked"], "stocks": 1.0, "sleeve": q.OVERLAY, "worst_fall_all": [margin, stacked]})
+    top = pd.DataFrame({"segment": ["margin"] * 2 + ["stacked"] * 2, "stocks": 1.0, "sleeve": [0.5, 1.0, 0.5, 0.95],
+                        "worst_fall_all": [*margin, *stacked]})
     return pd.concat([unl, top], ignore_index=True)
 
 
@@ -28,12 +29,15 @@ def test_decide_backfills_then_puts_the_sleeve_on_top_by_the_accounts_financing(
     assert q.decide("taxable", "near", cv)["cash"] == 1.0
     d = q.decide("roth", "medium", cv)
     assert (d["stocks"], d["sleeve"], d["borrowed"], d["financing"]) == (0.5, 0.5, 0.0, "none")
-    d = q.decide("taxable", "growth", cv)
-    assert (d["stocks"], d["sleeve"], d["borrowed"], d["financing"]) == (1.0, q.OVERLAY, q.OVERLAY, "margin")
+    d = q.decide("taxable", "growth", cv)             # every point on top is within the limit: the end of the line
+    assert (d["stocks"], d["sleeve"], d["borrowed"], d["financing"]) == (1.0, 1.0, 1.0, "margin")
     assert q.on_curve(cv, d)["segment"] == "margin"
-    assert q.decide("traditional", "growth", cv)["financing"] == "stacked"
-    d = q.decide("taxable", "growth", _curve([-0.09, -0.07, -0.20, -0.35, -0.54], margin=-0.60))   # on top, it breaks the limit
-    assert (d["sleeve"], d["borrowed"]) == (0.0, 0.0)
+    d = q.decide("traditional", "growth", cv)
+    assert (d["sleeve"], d["financing"]) == (0.95, "stacked")
+    d = q.decide("taxable", "growth", _curve([-0.09, -0.07, -0.20, -0.35, -0.54], margin=(-0.51, -0.60)))
+    assert (d["sleeve"], d["borrowed"]) == (0.5, 0.5)                  # the end breaks the limit; the most that does not
+    d = q.decide("taxable", "growth", _curve([-0.09, -0.07, -0.20, -0.35, -0.54], margin=(-0.60, -0.62)))
+    assert (d["sleeve"], d["borrowed"]) == (0.0, 0.0)                  # nothing on top stays within it
     assert q.on_curve(cv, d)["segment"] == "unlevered"
 
 
@@ -95,6 +99,9 @@ def test_committed_tables_and_page_agree():
         assert r["stocks"] == q.stock_share(unl, limit) and r["worst_fall_all"] >= -limit
         assert r["stocks"] + r["sleeve"] == pytest.approx(1 + r["borrowed"])
         assert sum(r[f"w_{a}"] for a in q.SLEEVE) == pytest.approx(r["sleeve"], abs=1e-5)
+        if r["borrowed"] > 0:                           # the most on top that stays within the limit
+            seg = cv[(cv["segment"] == r["financing"]) & (cv["worst_fall_all"] >= -limit)]
+            assert r["stocks"] == 1.0 and r["sleeve"] == pytest.approx(seg["sleeve"].max())
         p = q.on_curve(cv, r)                           # every answer is a point of the curve, with its numbers
         assert p["segment"] == (q.ACCOUNTS[r["account"]]["financing"] if r["borrowed"] > 0 else "unlevered")
         for c in ("vol", "growth", "growth_lo", "growth_hi", "worst_fall_all", "growth_all"):
