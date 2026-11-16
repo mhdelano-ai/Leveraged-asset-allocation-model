@@ -15,6 +15,7 @@ counts as evidence) before changing anything.
 - `covhistory.py`: the selected covariance at every origin
 - `returns/`: config, inputs, features, mean models, walk-forward, scoring, inference, strategy test, `expected.py`, `distribution.py`
 - `horizons/`: the descriptive horizon study (1 month to 10 years; `reports/horizon_study.md`, `dashboard/horizons.html`, `results/horizons/`); changes nothing that is frozen or published
+- `threefund.py`: the published forecast restated for world stocks, world bonds and cash (`forecasts/three_fund/`); arithmetic on declared composites, not a model
 - `forecast.py`: the published forecast (`forecasts/<origin>/`, `forecasts/latest/`); `frontier.py`: the efficient frontier it implies; `pipeline.py`: everything in order
 - `data/processed/`, `results/` (except `results/full/`, `results/dev/`), `forecasts/` are committed; `data/raw/` is a download cache
 

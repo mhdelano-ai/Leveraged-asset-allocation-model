@@ -1,0 +1,3 @@
+asset,name,vol_21d_horizon,vol_12m_return,corr_with_other
+world_stocks,World stocks (composite),0.14504,0.15924,0.25642
+world_bonds,World bonds (composite),0.04667,0.05249,0.25642
