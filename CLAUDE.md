@@ -17,6 +17,7 @@ counts as evidence) before changing anything.
 - `horizons/`: the descriptive horizon study (1 month to 10 years; `reports/horizon_study.md`, `dashboard/horizons.html`, `results/horizons/`); changes nothing that is frozen or published
 - `threefund.py`: the published forecast restated for world stocks, world bonds and cash (`forecasts/three_fund/`); arithmetic on declared composites, not a model
 - `diversifiers.py`: the descriptive diversifier study (which assets have diversified world stocks, and an equal-weight sleeve of the three that did, with and without borrowing; `reports/diversifiers.md`, `results/diversifiers/`). Managed futures are not in the 12-asset panel; they come from `data/sources/managed_futures.py` (`data/processed/managed_futures_monthly.parquet`). Fund fees in the report are a hand-recorded lookup (`data/processed/diversifier_vehicles.json`)
+- `allocation.py`, `allocation_page.py`: the descriptive allocation study (what should set the weights of stocks and the diversifier sleeve: fixed weights, history, or the covariance forecast; a month-by-month replay of 18 pre-declared rules; `reports/allocation.md`, `dashboard/allocation.html`, `results/allocation/`); changes nothing that is frozen or published
 - `forecast.py`: the published forecast (`forecasts/<origin>/`, `forecasts/latest/`); `frontier.py`: the efficient frontier it implies; `pipeline.py`: everything in order
 - `data/processed/`, `results/` (except `results/full/`, `results/dev/`), `forecasts/` are committed; `data/raw/` is a download cache
 
