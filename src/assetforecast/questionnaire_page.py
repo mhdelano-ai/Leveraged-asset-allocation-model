@@ -24,7 +24,7 @@ from .allocation_page import CSS, TOKENS, _records, _table
 
 PAGE = paths.ROOT / "dashboard" / "questionnaire.html"
 SHORT = {"world_stocks": "Stocks", "ust_int": "Treasuries", "gold": "Gold", "mf": "Managed futures"}
-LOWER = {"world_stocks": "stocks", "ust_int": "Treasuries", "gold": "gold", "mf": "managed futures"}
+LOWER = {"ust_int": "Treasuries", "gold": "gold", "mf": "managed futures"}
 
 
 def load(out: Path | None = None) -> dict:
@@ -47,63 +47,50 @@ def _held(r) -> str:
     return " / ".join(f"{100 * r[f'w_{a}']:.0f}%" for a in Q.ASSETS)
 
 
-def _mix(meta: dict) -> str:
-    return ", ".join(f"{100 * meta['mix'][a]:.0f}% {LOWER[a]}" for a in Q.ASSETS)
+def _sleeve(meta: dict) -> str:
+    return ", ".join(f"{100 * meta['sleeve_weights'][a]:.0f}% {LOWER[a]}" for a in Q.SLEEVE)
 
 
-def _round(cv: pd.DataFrame, col: str, every: float = 0.10) -> pd.Series:
-    return np.isclose(cv[col] / every, np.round(cv[col] / every))
-
-
-def _path_md(cv: pd.DataFrame, route: str) -> str:
-    """One route's path at round steps: of exposure while scaling, of the stock share while tilting."""
+def _path_md(cv: pd.DataFrame, route: str, every: float = 0.10) -> str:
+    """One route's path at every tenth of the stock share."""
     p = cv[cv["route"] == route]
-    keep = p[((p["segment"] == "scaled") & (_round(p, "exposure") | (p["i"] == p[p["segment"] == "scaled"]["i"].max())))
-             | ((p["segment"] == "tilted") & _round(p, "stocks"))]
-    return _table(["", "Stocks", "Diversifiers", "T-bills", "Above 100%", "Forecast vol", "Replay worst fall",
+    keep = p[np.isclose(p["stocks"] / every, np.round(p["stocks"] / every))]
+    return _table(["Stocks", "Diversifiers", "Above 100% of capital", "Forecast vol", "Replay worst fall",
                    "Replay growth over T-bills", "Expected growth (90%)"],
-                  [["the mix, scaled" if r["segment"] == "scaled" else "more stocks", f"{r['stocks']:.0%}",
-                    f"{r['sleeve']:.0%}", f"{r['cash']:.0%}", f"{r['borrowed']:.0%}", _pct(r["vol"], 1, False),
+                  [[f"{r['stocks']:.0%}", f"{r['sleeve']:.0%}", f"{r['borrowed']:.0%}", _pct(r["vol"], 1, False),
                     _pct(r["worst_fall_all"], 1), _pct(r["growth_all"]),
                     f"{_pct(r['growth'])} ({_pct(r['growth_lo'])} to {_pct(r['growth_hi'])})"] for _, r in keep.iterrows()])
 
 
 def facts(d: dict) -> dict:
-    """Numbers the sentences quote, each read from the tables."""
-    cv, meta = d["curve"], d["meta"]
-    m = cv[(cv["route"] == "margin") & (cv["segment"] == "scaled")]
-    one = m[np.isclose(m["exposure"], 1.0)].iloc[0]
-    return {"margin_lo_at_1": float(one["growth_lo"]), "margin_lo_at_cap": float(m.iloc[-1]["growth_lo"]),
-            "margin_cap": float(meta["caps"]["margin"]["exposure"]), "stacked_cap": float(meta["caps"]["stacked"]["exposure"]),
-            "stacked_cap_fall": float(meta["caps"]["stacked"]["worst_fall_all"]),
-            "margin_cap_fall": float(meta["caps"]["margin"]["worst_fall_all"])}
+    """Numbers the sentences quote, each read from one row of the path."""
+    cv = d["curve"]
+    first = {r: p.sort_values("i").iloc[0] for r, p in cv.groupby("route")}      # no stocks, only the diversifiers
+    return {"stacked_sleeve": float(first["stacked"]["sleeve"]), "stacked_fall": float(first["stacked"]["worst_fall_all"]),
+            "margin_sleeve": float(first["margin"]["sleeve"]), "margin_fall": float(first["margin"]["worst_fall_all"]),
+            "margin_lo": float(first["margin"]["growth_lo"]), "margin_hi": float(first["margin"]["growth_hi"])}
 
 
 # ------------------------------------------------------------------ report
 def write_report(d: dict | None = None) -> str:
     d = load() if d is None else d
     meta, s, ans, cv, f = d["meta"], d["meta"]["settings"], d["answers"], d["curve"], facts(d)
-    lo, hi = meta["mix_stock_share_range"]
     L = ["# Allocation questionnaire", "", f"*{meta['label']}.*", "",
-         f"Written by `python -m assetforecast.questionnaire`; origin {meta['origin']}. One mix of world stocks, "
-         "intermediate Treasuries, gold and managed futures, held with T-bills beside it or above 100% of capital, as far "
-         "as the goal's drawdown budget allows. Interactive page: `dashboard/questionnaire.html`.", "",
-         "Risk decides and returns do not. The mix is set by each holding's volatility, and how much of it to hold by the "
-         "fall the goal can sit through. Nothing is optimized on an expected return; expected growth is shown with its "
+         f"Written by `python -m assetforecast.questionnaire`; origin {meta['origin']}. Two dials: how much in world "
+         "stocks, and how much in the diversifiers (intermediate Treasuries, gold, managed futures). Interactive page: "
+         "`dashboard/questionnaire.html`.", "",
+         "Risk decides and returns do not. Nothing is chosen on an expected return; expected growth is shown with its "
          "interval and is not an input.", "",
-         "## The rule", "",
-         f"1. The mix: the four holdings by {s['mix_rule']}. Today {_mix(meta)}. (Its stock share has been between "
-         f"{lo:.0%} and {hi:.0%} at every month-end of the replay.)",
-         "2. Scale it. Each goal declares the largest fall from a previous high it can sit through. The mix is held at "
-         f"the largest multiple of capital, in steps of {s['step']:.0%}, whose worst fall in the replay stayed within "
-         "that: with T-bills beside it below 100%, and above 100% by the account's route.",
-         f"3. Routes. Stacked funds carry the extra exposure inside (no loan; the only route in a retirement account, the "
-         f"default in a taxable one). A margin loan costs T-bills + {100 * s['spreads']['margin']:.2f}% (taxable only).",
-         f"4. Where the account can carry no more. The mix reaches {f['stacked_cap']:.2f} times capital with stacked funds "
-         f"(they stack a diversifier only on top of stocks, and the mix holds few) and {f['margin_cap']:.0f} times on "
-         f"margin. Its worst fall there was {_pct(f['stacked_cap_fall'], 0)} and {_pct(f['margin_cap_fall'], 0)}. A goal "
-         "with budget left takes it by holding stocks in place of diversifiers at that limit, up to 100% stocks.",
-         "5. Money needed within 3 years has no budget: T-bills.", "",
+         "## The two dials", "",
+         "1. Stocks cause the large falls, so the goal's drawdown budget sets the stock share: the largest, in steps of "
+         f"{s['step']:.0%}, whose worst fall in the replay stayed within the budget. The fall is measured on the whole "
+         "portfolio, diversifiers included.",
+         f"2. The diversifiers held up when stocks fell, so they are held beside the stocks as far as the account can "
+         f"carry, always in the same proportions ({_sleeve(meta)}; {s['sleeve_rule_name'].lower()}). Stacked funds carry "
+         f"them inside, with no loan (the only way in a retirement account, the default in a taxable one). A margin "
+         f"loan, in a taxable account that chooses it, carries {s['max_leverage']:.0f} times capital in all at T-bills + "
+         f"{100 * s['spreads']['margin']:.2f}%.",
+         "3. Money needed within 3 years has no budget: T-bills.", "",
          "## Every answer", "",
          "Forecast vol is on the package's 12-month covariance forecast. Expected growth is over T-bills, with the 90% "
          "interval of the historical means. Tax-deferred and Roth accounts get the same answers.", "",
@@ -114,9 +101,10 @@ def write_report(d: dict | None = None) -> str:
                   f"{_pct(r['growth'])} ({_pct(r['growth_lo'])} to {_pct(r['growth_hi'])})" if r["cash"] < 1 else "",
                   _pct(r["fund_fees"], 2, False) if r["cash"] < 1 else "", _pct(r["loan_cost"], 2, False) if r["loan_cost"] > 0 else ""]
                  for _, r in ans[ans["account"] != "roth"].iterrows()]), "",
-         "## The path", "",
-         f"Replayed from {meta['first_holding_month'][:7]} to {meta['returns_through'][:7]}, rebalanced monthly, each row "
-         "at its own fixed shares.", "", "With stacked funds:", "", _path_md(cv, "stacked"), "",
+         "## Every stock share", "",
+         f"Each stock share with the most diversifiers the account can carry beside it, replayed from "
+         f"{meta['first_holding_month'][:7]} to {meta['returns_through'][:7]}, rebalanced monthly.", "",
+         "With stacked funds:", "", _path_md(cv, "stacked"), "",
          f"On a margin loan at T-bills + {100 * s['spreads']['margin']:.2f}%:", "", _path_md(cv, "margin"), "",
          "## What risk and expected growth are measured on", "",
          _table(["Holding", "Forecast vol", "Expected return over T-bills", "90% interval", "History from", "Read from"],
@@ -139,10 +127,9 @@ def write_report(d: dict | None = None) -> str:
                   + (f". Stocks held: {100 * r['stocks_held']:.0f}% of capital" if abs(r["stocks_held"] - r["stocks"]) > 5e-4 else "")
                   + ".", ""]
     L += ["## Caveats", "",
-          "- The drawdown budgets are judgements, and the answers follow from them. The path shows what any other budget would give.",
-          "- Every goal beyond 3 years ends where the account can carry no more, because the mix scaled that far still fell less than the budget. The budget then sets the stock share, and the diversifiers fill whatever the account can hold.",
-          f"- On margin that limit is Regulation T's for opening a position, {s['max_leverage']:.0f} times capital. The broker's maintenance requirement, which is not modelled, decides how far the position can fall before it is called.",
-          f"- On margin the lower end of expected growth falls as the mix is levered, from {_pct(f['margin_lo_at_1'])} at 100% of capital to {_pct(f['margin_lo_at_cap'])} at {f['margin_cap']:.0f} times: the diversifiers' return over the loan's cost is not established.",
+          "- The drawdown budgets are judgements, and the stock shares follow from them. The tables show what any other budget would give.",
+          f"- The diversifiers fall too. With no stocks at all, {f['stacked_sleeve']:.0%} of capital in them fell {_pct(f['stacked_fall'], 0)} in the replay, and {f['margin_sleeve']:.0%} on margin fell {_pct(f['margin_fall'], 0)}.",
+          f"- A margin loan is {s['max_leverage'] - 1:.0%} of capital at every goal. That is Regulation T's limit for opening a position; the broker's maintenance requirement, which is not modelled, decides how far it can fall before it is called. Whether the diversifiers earn more than the loan costs is not established: {f['margin_sleeve']:.0%} of them on margin has expected growth of {_pct(f['margin_lo'])} to {_pct(f['margin_hi'])}.",
           "- The replay is the allocation study's: every year had been seen, the diversifiers were chosen on the same years, and managed futures before 2007-03 are a paper factor. A worst fall in the past is not a bound on the next one.",
           "- Month-end values miss falls inside a month.",
           "- Taxes, trading costs and fund fees are not charged.",
@@ -154,7 +141,7 @@ def write_report(d: dict | None = None) -> str:
 
 # ------------------------------------------------------------------ page
 EXTRA_CSS = """
-/* layout: the questions, then the answer they pick (headline, what to hold, its place on the path), then how it was decided */
+/* layout: the questions, then the answer as two dials (stocks, diversifiers), then every stock share, then how to hold it */
 [hidden] { display: none !important; }
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 legend { padding: 0; font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
@@ -168,7 +155,11 @@ legend { padding: 0; font-size: .75rem; color: var(--muted); text-transform: upp
 .opt:has(input:focus-visible) { outline: 2px solid var(--s1); outline-offset: 2px; }
 .answer { border-top: 2px solid var(--fg); padding-top: 14px; gap: 16px; }
 .answer .q { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-.answer .verdict { font-family: var(--serif); font-size: 1.75rem; line-height: 1.15; text-wrap: balance; }
+.dials { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px 32px; }
+.dials > div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.dials .big { font-family: var(--serif); font-size: 2.25rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.dials .big small { font-family: var(--sans); font-size: .9375rem; color: var(--muted); margin-left: 6px; }
+.dials p { font-size: .875rem; color: var(--muted); }
 .figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px 24px; margin: 0; }
 .figs div { min-width: 0; }
 .figs dt { font-size: .75rem; color: var(--muted); }
@@ -194,7 +185,6 @@ JS = r"""
     const t = Math.abs(100 * v).toFixed(d), z = Number(t) === 0;      // no signed zero
     return (z ? '' : v < 0 ? '−' : sign ? '+' : '') + t + '%';
   };
-  const times = (k) => String(Math.round(k * 100) / 100) + ' times capital';
   const el = (tag, attrs = {}, text) => {
     const e = document.createElementNS(NS, tag);
     for (const k in attrs) e.setAttribute(k, attrs[k]);
@@ -227,12 +217,23 @@ JS = r"""
   const route = () => { const rs = D.meta.accounts[picked('qn-account')].routes; return rs.length > 1 && rs.includes(picked('qn-route')) ? picked('qn-route') : rs[0]; };
   const answer = () => D.answers.find((r) => r.account === picked('qn-account') && r.route === route() && r.goal === picked('qn-goal'));
   const path = (r) => D.curve.filter((p) => p.route === r.route);
-  const same = (p, r) => p.i === r.i;
   const above = (rt) => (rt === 'margin' ? 'borrowed on margin' : 'carried inside stacked funds');
-  const mixName = (p) => `${pct(p.stocks, 0, false)} stocks, ${pct(p.sleeve, 0, false)} diversifiers` +
-    (p.cash > 0.0005 ? `, ${pct(p.cash, 0, false)} T-bills` : p.borrowed > 0.0005 ? `, ${pct(p.borrowed, 0, false)} ${above(p.route)}` : '');
+  const mixName = (p) => `${pct(p.stocks, 0, false)} stocks, ${pct(p.sleeve, 0, false)} diversifiers`;
   const mixTip = (p) => `Forecast volatility ${pct(p.vol, 1, false)}<br>Worst fall in the replay ${pct(p.worst_fall_all, 0)}<br>` +
     `Expected growth ${pct(p.growth)} (${pct(p.growth_lo)} to ${pct(p.growth_hi)})`;
+
+  // ---- the two dials
+  function dials(r) {
+    const cash = r.cash >= 1, g = D.meta.goals[r.goal];
+    $('qn-dials').hidden = cash; $('qn-cash').hidden = !cash;
+    if (cash) { $('qn-cash').textContent = r.reason; return; }
+    $('qn-stocks').innerHTML = `${pct(r.stocks, 0, false)}<small>of capital in stocks</small>`;
+    $('qn-stocks-why').textContent = `The most whose worst fall stayed within the ${pct(g.loss_limit, 0, false)} this goal can sit through. ` +
+      `Replayed with the diversifiers beside it, this fell ${pct(Math.abs(r.worst_fall_all), 0, false)}.`;
+    $('qn-div').innerHTML = `${pct(r.sleeve, 0, false)}<small>of capital in diversifiers</small>`;
+    $('qn-div-why').textContent = (r.route === 'margin' ? `The most a margin loan can carry beside those stocks: ${pct(r.exposure, 0, false)} of capital in all, ${pct(r.borrowed, 0, false)} of it borrowed.` :
+      `The most stacked funds can carry beside those stocks, with no loan. ${pct(r.borrowed, 0, false)} of capital rides inside the funds.`);
+  }
 
   // ---- what to hold: one bar, shares of capital
   function bar(r) {
@@ -257,16 +258,15 @@ JS = r"""
     $('qn-barleg').innerHTML = parts.map(([name, w, fill]) => `<span><span class="sw" style="background:${fill}"></span>${name} ${pct(w, 1, false)}</span>`).join('');
   }
 
-  // ---- where it sits: forecast risk across, expected growth (and how little is known of it) up
+  // ---- every stock share: forecast risk across, expected growth (and how little is known of it) up
   function chart(r) {
-    const pts = path(r), scaled = pts.filter((p) => p.segment === 'scaled'), tilted = pts.filter((p) => p.segment === 'tilted');
-    const zero = { vol: 0, growth: 0, growth_lo: 0, growth_hi: 0 }, cash = r.cash >= 1;
+    const pts = path(r), cash = r.cash >= 1;
     const W = 760, H = 440, m = { l: 46, r: 24, t: 20, b: 40 };
     const xmax = Math.ceil(Math.max(...pts.map((p) => p.vol), ...D.inputs.map((p) => p.vol)) * 20) / 20;
     const ymax = Math.ceil(Math.max(...pts.map((p) => p.growth_hi)) * 50) / 50;
     const ymin = Math.floor(Math.min(0, ...pts.map((p) => p.growth_lo)) * 50) / 50;
     const x = (v) => m.l + v / xmax * (W - m.l - m.r), y = (v) => H - m.b - (v - ymin) / (ymax - ymin) * (H - m.t - m.b);
-    const s = svg($('qn-chart'), W, H, 'Forecast volatility against expected growth along the path: the mix scaled, then stocks in place of diversifiers, with this answer marked');
+    const s = svg($('qn-chart'), W, H, 'Forecast volatility against expected growth for every stock share, with this answer marked');
     for (let t = ymin; t <= ymax + 1e-9; t += 0.02) {
       s.appendChild(el('line', { x1: m.l, x2: W - m.r, y1: y(t), y2: y(t), class: Math.abs(t) < 1e-9 ? 'zero' : 'grid' }));
       s.appendChild(el('text', { x: m.l - 6, y: y(t) + 4, 'text-anchor': 'end' }, pct(t, 0, false)));
@@ -274,12 +274,11 @@ JS = r"""
     for (let t = 0; t <= xmax + 1e-9; t += 0.05) s.appendChild(el('text', { x: x(t), y: H - m.b + 16, 'text-anchor': 'middle' }, pct(t, 0, false)));
     s.appendChild(el('text', { x: (m.l + W - m.r) / 2, y: H - 4, 'text-anchor': 'middle' }, 'Forecast volatility, next 12 months'));
     s.appendChild(el('text', { x: m.l, y: 11 }, 'Expected growth over T-bills, a year'));
-    const xy = (p, k) => `${x(p.vol).toFixed(1)},${y(p[k]).toFixed(1)}`, run = [zero, ...pts];
+    const xy = (p, k) => `${x(p.vol).toFixed(1)},${y(p[k]).toFixed(1)}`;
+    const run = pts.slice(pts.findIndex((p) => Math.abs(p.stocks - D.meta.least_risk_stocks[r.route]) < 1e-6));   // the band from the least risky share on
     s.appendChild(el('path', { d: 'M' + run.map((p) => xy(p, 'growth_hi')).join('L') + 'L' + run.slice().reverse().map((p) => xy(p, 'growth_lo')).join('L') + 'Z',
       fill: 'var(--fg)', opacity: 0.07 }));
-    const line = (ps, attrs) => s.appendChild(el('path', { d: 'M' + ps.map((p) => xy(p, 'growth')).join('L'), fill: 'none', stroke: 'var(--fg)', 'stroke-width': 2, 'stroke-linecap': 'round', ...attrs }));
-    line([zero, ...scaled], {});
-    if (tilted.length) line([scaled[scaled.length - 1], ...tilted], { 'stroke-dasharray': '1 6' });
+    s.appendChild(el('path', { d: 'M' + pts.map((p) => xy(p, 'growth')).join('L'), fill: 'none', stroke: 'var(--fg)', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
     const side = { world_stocks: [9, 4, 'start'], ust_int: [-9, 4, 'end'], gold: [-9, 4, 'end'], mf: [9, 4, 'start'] };
     D.inputs.forEach((p) => {
       const c = el('circle', { cx: x(p.vol), cy: y(p.mean_12m), r: 5, fill: `var(${COL[p.asset]})`, stroke: 'var(--bg)', 'stroke-width': 2 });
@@ -288,14 +287,10 @@ JS = r"""
       s.appendChild(el('text', { x: x(p.vol) + dx, y: y(p.mean_12m) + dy, 'text-anchor': anchor }, D.short[p.asset]));
       s.appendChild(c);
     });
-    const mark = (p, text) => {
+    pts.filter((p) => [0, 0.5, 1].some((t) => Math.abs(p.stocks - t) < 1e-6)).forEach((p) => {
       s.appendChild(el('circle', { cx: x(p.vol), cy: y(p.growth), r: 2.5, fill: 'var(--fg)' }));
-      s.appendChild(el('text', { x: x(p.vol) + 7, y: y(p.growth) + 15 }, text));
-    };
-    const one = scaled.find((p) => Math.abs(p.exposure - 1) < 1e-6), end = scaled[scaled.length - 1];
-    if (one) mark(one, 'the mix, 100% of capital');
-    if (end.exposure > 1.3) mark(end, 'the mix at ' + times(end.exposure));
-    tilted.filter((p) => Math.abs(p.stocks - 0.5) < 1e-6 || p === tilted[tilted.length - 1]).forEach((p) => mark(p, pct(p.stocks, 0, false) + ' stocks'));
+      s.appendChild(el('text', { x: x(p.vol) + 7, y: y(p.growth) + 15 }, pct(p.stocks, 0, false) + ' stocks'));
+    });
     pts.forEach((p) => {
       const c = el('circle', { cx: x(p.vol), cy: y(p.growth), r: 7, fill: 'transparent' });
       bind(c, `<b>${mixName(p)}</b>${mixTip(p)}`);
@@ -337,25 +332,20 @@ JS = r"""
   }
 
   function table(r) {
-    const round = (v) => Math.abs(v * 10 - Math.round(v * 10)) < 1e-6, pts = path(r);
-    const last = pts.filter((p) => p.segment === 'scaled').length - 1;
-    const rows = pts.filter((p) => (p.segment === 'scaled' ? round(p.exposure) || p.i === last : round(p.stocks)) || same(p, r));
-    $('qn-curve').innerHTML = `<thead><tr><th class="l"></th><th>Stocks</th><th>Diversifiers</th><th>T-bills</th><th>${r.route === 'margin' ? 'Borrowed' : 'Inside funds'}</th><th>Forecast volatility</th>` +
+    const rows = path(r).filter((p) => Math.abs(p.stocks * 10 - Math.round(p.stocks * 10)) < 1e-6 || p.i === r.i);
+    $('qn-curve').innerHTML = `<thead><tr><th>Stocks</th><th>Diversifiers</th><th>${r.route === 'margin' ? 'Borrowed' : 'Inside funds'}</th><th>Forecast volatility</th>` +
       '<th>Worst fall in the replay</th><th>Growth in the replay</th><th>Expected growth (90% interval)</th></tr></thead><tbody>' +
-      rows.map((p) => `<tr${r.cash < 1 && same(p, r) ? ' class="pick"' : ''}><td class="l">${p.segment === 'scaled' ? 'the mix at ' + pct(p.exposure, 0, false) : 'more stocks'}</td>` +
-        `<td>${pct(p.stocks, 0, false)}</td><td>${pct(p.sleeve, 0, false)}</td><td>${p.cash > 0.0005 ? pct(p.cash, 0, false) : ''}</td><td>${p.borrowed > 0.0005 ? pct(p.borrowed, 0, false) : ''}</td>` +
+      rows.map((p) => `<tr${r.cash < 1 && p.i === r.i ? ' class="pick"' : ''}><td>${pct(p.stocks, 0, false)}</td><td>${pct(p.sleeve, 0, false)}</td><td>${p.borrowed > 0.0005 ? pct(p.borrowed, 0, false) : ''}</td>` +
         `<td>${pct(p.vol, 1, false)}</td><td>${pct(p.worst_fall_all, 1)}</td><td>${pct(p.growth_all)}</td><td>${pct(p.growth)} (${pct(p.growth_lo)} to ${pct(p.growth_hi)})</td></tr>`).join('') + '</tbody>';
   }
 
   function draw() {
     const acc = D.meta.accounts[picked('qn-account')];
     $('qn-route-set').hidden = acc.routes.length < 2;
-    const r = answer(), cap = D.meta.caps[r.route];
-    $('qn-headline').textContent = r.headline;
-    $('qn-reason').textContent = r.reason;
-    $('qn-context').textContent = [acc.name, acc.routes.length > 1 ? D.meta.routes[r.route].name : null, D.meta.goals[r.goal].name].filter(Boolean).join(' · ');
-    $('qn-how').textContent = (r.route === 'margin' ? 'on a margin loan' : 'inside stacked funds') + `, as far as ${times(cap.exposure)}`;
-    bar(r); figures(r); chart(r); funds(r); table(r);
+    const r = answer();
+    $('qn-context').textContent = [D.meta.goals[r.goal].name, acc.name, acc.routes.length > 1 ? D.meta.routes[r.route].name : null].filter(Boolean).join(' · ');
+    $('qn-how').textContent = r.route === 'margin' ? 'a margin loan' : 'stacked funds';
+    dials(r); bar(r); figures(r); chart(r); funds(r); table(r);
     try { localStorage.setItem('qn', JSON.stringify([r.account, r.goal, picked('qn-route')])); } catch (e) { /* storage is a convenience */ }
   }
   try {
@@ -391,10 +381,10 @@ def fragment(d: dict) -> str:
 <style>{TOKENS}{CSS}{EXTRA_CSS}</style>
 <main>
 <header style="display:flex;flex-direction:column;gap:12px">
-<h1>One mix, sized to the fall you can sit through</h1>
-<p>Stocks, intermediate Treasuries, gold and managed futures, each weighted by its risk: {_mix(meta)}. The goal's
-drawdown budget decides how much of that mix to hold, with T-bills beside it or above 100% of capital. Expected returns
-decide nothing. Forecast origin {meta['origin']}.</p>
+<h1>Two dials: stocks, then diversifiers</h1>
+<p>Stocks cause the big falls, so the fall your goal can sit through sets how much goes in stocks. Intermediate Treasuries,
+gold and managed futures held up when stocks fell, so they are held beside the stocks as far as the account can carry.
+Expected returns decide nothing. Forecast origin {meta['origin']}.</p>
 <p class="label">{meta['label']}.</p>
 </header>
 
@@ -405,24 +395,26 @@ decide nothing. Forecast origin {meta['origin']}.</p>
 </section>
 
 <section class="answer" aria-live="polite">
-<div><div class="q" id="qn-context"></div><div class="verdict" id="qn-headline"></div></div>
-<p id="qn-reason"></p>
+<div class="q" id="qn-context"></div>
+<div class="dials" id="qn-dials">
+<div><div class="big" id="qn-stocks"></div><p id="qn-stocks-why"></p></div>
+<div><div class="big" id="qn-div"></div><p id="qn-div-why"></p></div>
+</div>
+<p id="qn-cash" hidden></p>
 <div id="qn-bar"></div>
 <div class="legend" id="qn-barleg"></div>
 <dl class="figs" id="qn-figs"></dl>
 </section>
 
-<section><h2>The path, and where yours sits</h2>
-<p>Left to right is forecast risk, which the package can measure. The solid line is the mix held at more and more of the
-capital: with T-bills beside it at first, then above 100% <span id="qn-how"></span>. Where the account can carry no more,
-the dotted line takes more risk the only way left, with stocks in place of diversifiers. The goal's drawdown budget picks
-the point.</p>
+<section><h2>Every stock share, and where yours sits</h2>
+<p>The line is every stock share from 0% to 100%, each with as many diversifiers as this account can carry through
+<span id="qn-how"></span>. Left to right is forecast risk, which the package can measure. The drawdown budget picks the
+stock share.</p>
 <p>The shaded band is the 90% interval of each point's expected growth. It is wide, which is why no point is chosen on it.</p>
 <div class="legend">
 <span><span class="sw" style="background:var(--fg);border-radius:50%"></span>your mix</span>
 <span><span class="ring"></span>the other goals</span>
-<span><span class="ln" style="background:var(--fg)"></span>the mix, scaled</span>
-<span><span class="ln" style="background:repeating-linear-gradient(90deg,var(--fg) 0 2px,transparent 2px 6px)"></span>stocks in place of diversifiers</span>
+<span><span class="ln" style="background:var(--fg)"></span>every stock share, with the diversifiers beside it</span>
 <span><span class="band"></span>90% interval of expected growth</span>
 </div>
 <div class="scroll"><div id="qn-chart" style="min-width:560px"></div></div>
@@ -442,29 +434,24 @@ bold is this answer.</p>
 funds that fit. Confirm on the issuer's page. No stock fund's fee is recorded.</p>
 </section>
 
-<section><h2>How the point is picked</h2>
+<section><h2>The two dials</h2>
 <ol>
-<li>One mix: the four holdings weighted by 1/volatility on the whole past.</li>
-<li>Scale it to the goal's drawdown budget: the largest multiple of capital whose worst fall in the replay stayed within
-the budget. Below 100% the rest is T-bills. Above 100% it is carried inside stacked funds, or on a margin loan in a taxable
-account that chooses one.</li>
-<li>If the account can carry no more before the budget is used, stocks take the place of diversifiers at that limit, up to
-100% stocks. Stacked funds reach {f['stacked_cap']:.2f} times capital with this mix and a margin loan {f['margin_cap']:.0f} times.</li>
+<li>Stocks: the largest share, in steps of {s['step']:.0%}, whose worst fall in the replay stayed within the goal's
+drawdown budget. The fall is measured on the whole portfolio, diversifiers included.</li>
+<li>Diversifiers: as much as the account can carry beside those stocks, always {_sleeve(meta)}. Stacked funds carry them
+inside, with no loan. A margin loan carries {s['max_leverage']:.0f} times capital in all.</li>
 <li>Money needed within 3 years has no budget and stays in T-bills.</li>
 </ol>
 </section>
 
 <section><h2>What this does not show</h2>
 <ul>
-<li>The drawdown budgets are judgements, and the answers follow from them. The table above shows what any other budget would give.</li>
-<li>Every goal beyond 3 years ends where the account can carry no more: the mix scaled that far fell only
-{_pct(f['stacked_cap_fall'], 0)} with stacked funds and {_pct(f['margin_cap_fall'], 0)} on margin. So in practice the budget
-sets the stock share and the diversifiers fill whatever the account can hold.</li>
-<li>On margin that limit is Regulation T's for opening a position, {s['max_leverage']:.0f} times capital. The broker's
-maintenance requirement is not modelled, and it decides how far the position can fall before it is called.</li>
-<li>On margin the lower end of expected growth falls as the mix is levered, from {_pct(f['margin_lo_at_1'])} at 100% of
-capital to {_pct(f['margin_lo_at_cap'])} at {f['margin_cap']:.0f} times. Whether the diversifiers earn more than the loan
-costs is not established.</li>
+<li>The drawdown budgets are judgements, and the stock shares follow from them. The table above shows what any other budget would give.</li>
+<li>The diversifiers fall too. With no stocks at all, {f['stacked_sleeve']:.0%} of capital in them fell
+{_pct(f['stacked_fall'], 0)} in the replay, and {f['margin_sleeve']:.0%} on margin fell {_pct(f['margin_fall'], 0)}.</li>
+<li>A margin loan is {s['max_leverage'] - 1:.0%} of capital at every goal. That is Regulation T's limit for opening a
+position. The broker's maintenance requirement is not modelled, and it decides how far the position can fall before it is
+called. Whether the diversifiers earn more than the loan costs is not established.</li>
 <li>Every year in the replay had been seen before the rule was written, the diversifiers were chosen on the same years,
 and managed futures before {meta['live_from'][:7]} are a paper factor. A worst fall in the past does not bound the next one.</li>
 <li>Month-end values miss falls inside a month. Taxes, trading costs and fund fees are not charged, so tax-deferred and

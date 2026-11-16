@@ -1,4 +1,4 @@
-"""The allocation questionnaire: one balanced mix, scaled with T-bills or leverage to a drawdown budget.
+"""The allocation questionnaire: stocks sized to a drawdown budget, diversifiers as far as the account carries.
 
     python -m assetforecast.questionnaire
 
@@ -14,48 +14,42 @@ Risk decides, returns do not
 ----------------------------
 The allocation study's reading: risk carries over from one period to the next and can
 be forecast; returns cannot, and rules that optimized on them did not beat fixed
-weights. So the mix is set by risk alone, and how much of it to hold by the fall the
-goal can sit through. Expected growth is shown beside each point with its interval,
-and is not an input.
+weights. So nothing here is chosen on an expected return. Expected growth is shown
+beside each point with its interval, and is not an input.
 
-The mix
--------
-World stocks, intermediate Treasuries, gold and managed futures, each weighted by
-1/volatility on the whole past (:func:`balanced`; the allocation study's reading for
-weights, applied to all four). Its three diversifiers are in the proportions of the
-allocation study's sleeve (``SLEEVE_RULE``), so every portfolio here is two numbers:
-a share of capital in stocks and a share in that sleeve.
+The two dials
+-------------
+Stocks        World stocks cause the large falls, so the goal's drawdown budget sets the
+              stock share: the largest, in steps of ``STEP``, whose worst fall in the
+              whole replay is no deeper than the budget. The fall is measured on the
+              whole portfolio, diversifiers included, so the budget holds for what is
+              actually held.
+Diversifiers  The sleeve the diversifier study left (intermediate Treasuries, gold and
+              managed futures, in the fixed proportions of ``SLEEVE_RULE``: 1/volatility
+              on the whole past) has held up when stocks fell, so it is held beside the
+              stocks as far as the account can carry (:func:`carries`).
+
+So every portfolio is two numbers, a share of capital in stocks and a share in the
+sleeve, and each route has one path (``curve.csv``): every stock share from 0 to 100%
+with the most sleeve that route can carry beside it.
 
 The questions
 -------------
 ``GOALS``     what the money is for. Each goal declares ``loss_limit``, its drawdown
               budget: the largest fall from a previous high it can sit through.
-              ``near`` (spent within 3 years) has none and is answered with T-bills.
+              ``near`` (spent within 3 years) has none and is answered with T-bills,
+              as is any goal whose budget no point of the path fits.
 ``ACCOUNTS``  the account's tax treatment. It decides which ``ROUTES`` can carry
               exposure above 100% of capital, and the tax notes shown. Taxes themselves
               are not modelled.
 ``ROUTES``    ``stacked``: funds that hold stocks and add a diversifier with futures,
               so the financing is inside the fund (counted at the T-bill rate; their
               fees are shown, not charged). The only route in a retirement account,
-              which cannot borrow, and the default in a taxable one. ``margin``: a
-              margin loan (the published frontier's, ``frontier.borrow_terms``), in a
-              taxable account only.
-
-The path (``curve.csv``, one per route)
----------------------------------------
-``scaled``  the mix at ``STEP``, 2 ``STEP``, ... times capital. Below 1 the rest is
-            T-bills; above 1 the route carries it. It stops at the most the route can
-            carry: ``frontier.MAX_LEVERAGE`` times capital on margin; with stacked
-            funds, where the funds of the lookup no longer fit in the capital
-            (:func:`stacked_plan`; they stack a diversifier only on top of stocks, and
-            the mix holds few stocks).
-``tilted``  at that limit there is one way left to take more risk: stocks in place of
-            diversifiers. Stocks rise in steps of ``STEP`` to 100% of capital, each
-            with the most sleeve the route can still carry. Borrowing is never used to
-            hold more stocks than the capital.
-
-The rule: the point furthest along the route's path whose worst fall in the whole
-replay is no deeper than the goal's ``loss_limit``.
+              which cannot borrow, and the default in a taxable one. It carries what
+              the funds of the lookup fit into the capital (:func:`stacked_plan`).
+              ``margin``: a margin loan (the published frontier's,
+              ``frontier.borrow_terms``), in a taxable account only; it carries
+              ``frontier.MAX_LEVERAGE`` times capital in all.
 
 Per point: ``vol``, its volatility on the allocation study's ``fcst`` matrix at the
 last origin (the package's 12-month forecast for stocks, Treasuries and gold; managed
@@ -72,10 +66,8 @@ The replay is the allocation study's: the sleeve's walk-forward return (weights 
 at each month-end from returns through it, held over the next month, from ``BURN``
 months after the common start), beside stocks, rebalanced monthly, borrowing at
 T-bills plus the spread. Each point is replayed at its own fixed shares of stocks and
-sleeve; for ``scaled`` points those are today's mix, whose stock share has moved
-little over the replay (``meta.json``: ``mix_stock_share_range``). Same series, same
-statistics (``diversifiers._path_stats``); ``menu.csv`` of the allocation study is
-reproduced where the two share a mix.
+sleeve. Same series, same statistics (``diversifiers._path_stats``); ``menu.csv`` of
+the allocation study is reproduced where the two share a mix.
 
 Funds
 -----
@@ -142,8 +134,8 @@ NOTES = {   # shown with the answer; statements about tax treatment, not modelle
         "that carry it inside.",
         "Qualified withdrawals are untaxed. No holding is tax-favoured over another, and rebalancing costs no tax."],
 }
-SLEEVE_RULE = "invvol_hist"          # the allocation study's rule whose proportions the mix's three diversifiers have
-STEP = 0.05                          # steps along the path: of exposure when scaling, of the stock share when tilting
+SLEEVE_RULE = "invvol_hist"          # the weights of the three diversifiers among themselves
+STEP = 0.05                          # steps of the stock share, and of the sleeve beside it
 STOCK_TOL = STEP / 2                 # how far short of its stock target a stacked-fund plan may fall
 EXPOSURE = {"ust_int": "intermediate Treasuries", "gold": "gold", "mf": "managed futures"}   # names in the fund lookup
 STOCK_FUND = "A world stock fund"
@@ -155,12 +147,7 @@ OUT = paths.ROOT / "results" / ("dev/questionnaire" if _DEV else "questionnaire"
 REPORT = paths.REPORTS / ("questionnaire_dev.md" if _DEV else "questionnaire.md")
 
 
-# ------------------------------------------------------------------ the mix and the replay
-def balanced(cov: pd.DataFrame) -> pd.Series:
-    """The mix: the four holdings by 1/volatility on ``cov`` (the whole past's covariance)."""
-    return A.inv_vol(cov.loc[ASSETS, ASSETS])
-
-
+# ------------------------------------------------------------------ the replay
 def sleeve_replay(x: pd.DataFrame, rule: str = SLEEVE_RULE) -> pd.Series:
     """The sleeve's monthly simple excess return, weights set at each month-end from returns through it."""
     S, out = np.expm1(x), {}
@@ -293,20 +280,12 @@ def _fees(rows: list[dict]) -> float:
 
 
 # ------------------------------------------------------------------ the path
-def path(route: str, w_stocks: float, ws: pd.Series, veh: dict) -> list[tuple[str, float, float]]:
-    """(segment, stocks, sleeve) along a route: the mix scaled as far as the route carries it, then tilted to stocks."""
+def path(route: str, ws: pd.Series, veh: dict) -> list[tuple[float, float]]:
+    """(stocks, sleeve) along a route: every stock share with the most sleeve the route can carry beside it."""
     pts = []
-    for k in _grid(STEP, frontier.MAX_LEVERAGE):
-        s, d = float(k * w_stocks), float(k * (1.0 - w_stocks))
-        if not carries(route, s, d, ws, veh):
-            break
-        pts.append(("scaled", s, d))
-    for s in _grid(STEP, 1.0):
-        if s <= pts[-1][1] + 1e-9:
-            continue
-        most = next((d for d in _grid(STEP, frontier.MAX_LEVERAGE - s)[::-1] if carries(route, s, d, ws, veh)), None)
-        if most is not None:
-            pts.append(("tilted", float(s), float(most)))
+    for s in _grid(0.0, 1.0):
+        most = next((d for d in _grid(STEP, frontier.MAX_LEVERAGE - s)[::-1] if carries(route, s, d, ws, veh)), 0.0)
+        pts.append((float(s), float(most)))
     return pts
 
 
@@ -315,11 +294,11 @@ def curve(inp: frontier.Inputs, ws: pd.Series, stocks: pd.Series, sleeve: pd.Ser
     """Every point an answer can be, per route, in order (``i``), with its forecast risk, its replay and its growth."""
     rows = []
     for route, pts in routes.items():
-        for i, (segment, a, b) in enumerate(pts):
+        for i, (a, b) in enumerate(pts):
             sp = spreads[route] if a + b > 1.0 + 1e-9 else 0.0
             w = weights(a, b, ws)
             fs = frontier.stats(inp, w, sp)
-            rows.append({"route": route, "i": i, "segment": segment, "exposure": a + b, "stocks": a, "sleeve": b,
+            rows.append({"route": route, "i": i, "exposure": a + b, "stocks": a, "sleeve": b,
                          "cash": max(1.0 - a - b, 0.0), "borrowed": max(a + b - 1.0, 0.0), "spread": sp, "vol": fs["vol"],
                          "growth": fs["growth"], "growth_lo": fs["growth_lo"], "growth_hi": fs["growth_hi"],
                          **{f"w_{k}": float(v) for k, v in zip(ASSETS, w)}, **mix_stats(stocks, sleeve, cash, a, b, sp)})
@@ -327,9 +306,9 @@ def curve(inp: frontier.Inputs, ws: pd.Series, stocks: pd.Series, sleeve: pd.Ser
 
 
 def decide(route: str, goal: str, cv: pd.DataFrame) -> dict:
-    """The point of ``route``'s path for a goal: the furthest whose worst fall is within the goal's limit."""
+    """The point of ``route``'s path for a goal: the largest stock share whose worst fall is within the goal's limit."""
     limit = GOALS[goal]["loss_limit"]
-    none = {"segment": "cash", "i": -1, "stocks": 0.0, "sleeve": 0.0, "cash": 1.0, "borrowed": 0.0, "financing": "none"}
+    none = {"i": -1, "stocks": 0.0, "sleeve": 0.0, "cash": 1.0, "borrowed": 0.0, "financing": "none"}
     if limit is None:
         return none
     p = cv[cv["route"] == route]
@@ -337,7 +316,7 @@ def decide(route: str, goal: str, cv: pd.DataFrame) -> dict:
     if ok.empty:
         return none
     r = ok.loc[ok["i"].idxmax()]
-    return {"segment": r["segment"], "i": int(r["i"]), "stocks": float(r["stocks"]), "sleeve": float(r["sleeve"]),
+    return {"i": int(r["i"]), "stocks": float(r["stocks"]), "sleeve": float(r["sleeve"]),
             "cash": float(r["cash"]), "borrowed": float(r["borrowed"]), "financing": route if r["borrowed"] > 1e-9 else "none"}
 
 
@@ -362,19 +341,18 @@ def headline(d: dict) -> str:
     return s
 
 
-def reason(goal: str, d: dict, row: dict, cap: dict) -> str:
-    """Why this point. ``cap``: the end of the route's scaled segment (its exposure and its worst fall)."""
+def reason(goal: str, d: dict, row: dict) -> str:
+    """Why this point: one sentence per dial."""
     limit = GOALS[goal]["loss_limit"]
     if limit is None:
         return "Money needed within 3 years has no room for a fall, so it stays in T-bills."
-    s, fall = f"The goal can sit through a fall of {_p(limit)}. ", f"{100 * row['worst_fall_all']:.0f}%"
-    if d["segment"] == "tilted":
-        return (s + f"Scaled to the most this account can carry, {_times(cap['exposure'])}, the mix's worst fall in the "
-                f"replay was {100 * cap['worst_fall_all']:.0f}%, still inside the budget. From there stocks take the place of diversifiers "
-                f"until the budget is used: {_p(d['stocks'])} stocks, with a worst fall of {fall}.")
-    k = d["stocks"] + d["sleeve"]
-    how = f"at {_p(k)} of capital with the rest in T-bills" if k < 1 - 1e-9 else f"at {_times(k)}"
-    return s + f"The mix is held {how}, the most whose worst fall in the replay stayed within that ({fall})."
+    if d["cash"] >= 1.0:
+        return f"The goal can sit through a fall of {_p(limit)}, and no mix this account can hold stayed within that."
+    how = {"margin": f"the most a margin loan can carry beside them ({_times(d['stocks'] + d['sleeve'])} in all)",
+           "stacked": "the most stacked funds can carry beside them", "none": "the rest of the capital"}[d["financing"]]
+    return (f"The goal can sit through a fall of {_p(limit)}. Stocks: {_p(d['stocks'])}, the most whose worst fall in the "
+            f"replay stayed within that ({100 * row['worst_fall_all']:.0f}%, measured with the diversifiers). "
+            f"Diversifiers: {_p(d['sleeve'])} of capital, {how}.")
 
 
 # ------------------------------------------------------------------ run
@@ -385,20 +363,14 @@ def build() -> dict:
     est = A.estimates(S, len(x) - 1, A.forecast_cov([origin]).get(origin))
     if "fcst" not in est:
         raise ValueError(f"no covariance forecast at {origin.date()}")
-    cov, mix = est["fcst"][1].loc[ASSETS, ASSETS], balanced(est["hist"][1])
-    ws = A.sleeve_weights(SLEEVE_RULE, est)
-    if not np.allclose(mix[SLEEVE] / mix[SLEEVE].sum(), ws[SLEEVE]):
-        raise ValueError("the mix's diversifiers are not in the sleeve's proportions")
-    past = [float(balanced(A.estimates(S, i, None)["hist"][1])[STOCKS]) for i in range(A.BURN - 1, len(x) - 1)]
+    cov, ws = est["fcst"][1].loc[ASSETS, ASSETS], A.sleeve_weights(SLEEVE_RULE, est)
     borrow = frontier.borrow_terms(origin)
     spreads = {"margin": float(borrow["spread"]), "stacked": 0.0}
     exp = expected_four(diversifiers.load_inputs()[1]["mf_funds"], origin)
     inp = frontier.Inputs(cov, exp, {}, spreads["margin"])      # used for its arithmetic (stats); nothing is optimized
     veh = vehicles()
     cv = curve(inp, ws, S[STOCKS], sleeve_replay(x), cash, spreads,
-               {r: path(r, float(mix[STOCKS]), ws, veh) for r in ROUTES})
-    caps = {r: cv[(cv["route"] == r) & (cv["segment"] == "scaled")].iloc[-1][["exposure", "worst_fall_all", "vol"]].to_dict()
-            for r in ROUTES}
+               {r: path(r, ws, veh) for r in ROUTES})
 
     keep = ["exposure", "spread", "vol", "growth", "growth_lo", "growth_hi", *[f"w_{a}" for a in ASSETS],
             *[c for c in cv.columns if c.endswith(("_all", "_live"))]]
@@ -416,17 +388,17 @@ def build() -> dict:
                 plan = fund_plan(d, ws, veh)
                 row.update(fund_fees=_fees(plan), loan_cost=row["spread"] * d["borrowed"],
                            stocks_held=sum(r["stocks"] for r in plan))
-                row.update(headline=headline(d), reason=reason(goal, d, row, caps[route]))
+                row.update(headline=headline(d), reason=reason(goal, d, row))
                 answers.append(row)
                 funds += [{"account": acc, "route": route, "goal": goal, **r} for r in plan]
 
     meta = {"label": LABEL, "origin": str(origin.date()), "returns_through": str(origin.date()),
             "first_holding_month": str(x.index[A.BURN].date()), "live_from": A.LIVE, "assets": ASSETS, "names": NAMES,
             "accounts": ACCOUNTS, "routes": ROUTES, "goals": GOALS, "notes": NOTES,
-            "settings": {"mix_rule": "1/volatility, whole past", "step": STEP, "stock_tol": STOCK_TOL,
+            "settings": {"sleeve_rule": SLEEVE_RULE, "sleeve_rule_name": A.RULE_NAMES[SLEEVE_RULE], "step": STEP, "stock_tol": STOCK_TOL,
                          "max_leverage": frontier.MAX_LEVERAGE, "spreads": spreads, "recent": A.RECENT},
-            "mix": {a: float(mix[a]) for a in ASSETS}, "sleeve_weights": {a: float(ws[a]) for a in SLEEVE},
-            "mix_stock_share_range": [min(past), max(past)], "caps": caps, "borrow": borrow,
+            "sleeve_weights": {a: float(ws[a]) for a in SLEEVE}, "borrow": borrow,
+            "least_risk_stocks": {r: float(p.loc[p["vol"].idxmin(), "stocks"]) for r, p in cv.groupby("route")},
             "vehicles_retrieved": veh["retrieved"],
             "covariance": {"model": A.covhistory.PRIMARY, "bridge": A.covhistory.BRIDGE}}
     inputs = exp.assign(name=[NAMES[a] for a in exp.index], vol=np.sqrt(np.diag(cov))).rename_axis("asset").reset_index()
@@ -454,7 +426,7 @@ def main(argv=None) -> int:
     res = run()
     print(LABEL)
     pd.set_option("display.width", 220)
-    print(res["answers"][["account", "route", "goal", "segment", "stocks", "sleeve", "cash", "borrowed", "vol",
+    print(res["answers"][["account", "route", "goal", "stocks", "sleeve", "cash", "borrowed", "vol",
                           "worst_fall_all", "growth"]].round(3).to_string(index=False))
     if not _DEV:
         from . import questionnaire_page

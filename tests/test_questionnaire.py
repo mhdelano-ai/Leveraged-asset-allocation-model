@@ -1,4 +1,4 @@
-"""The questionnaire: the path, the drawdown rule, the fund arithmetic, and that the committed tables and page agree."""
+"""The questionnaire: the two dials, the fund arithmetic, and that the committed tables and page agree."""
 import numpy as np
 import pandas as pd
 import pytest
@@ -10,40 +10,34 @@ WS = pd.Series({"ust_int": 0.5, "gold": 0.2, "mf": 0.3})
 
 def _curve(falls, route="stacked"):
     n = len(falls)
-    return pd.DataFrame({"route": route, "i": range(n), "segment": ["scaled"] * (n - 2) + ["tilted"] * 2,
+    return pd.DataFrame({"route": route, "i": range(n),
                          "stocks": np.linspace(0.1, 1.0, n), "sleeve": 1.0, "cash": [0.5] + [0.0] * (n - 1),
                          "borrowed": [0.0] + list(np.linspace(0.2, 1.0, n - 1)), "worst_fall_all": falls})
 
 
-def test_decide_takes_the_furthest_point_within_the_budget():
+def test_decide_takes_the_largest_stock_share_within_the_budget():
     cv = _curve([-0.03, -0.08, -0.15, -0.30, -0.50])
     assert q.decide("stacked", "near", cv)["cash"] == 1.0                      # no budget: T-bills
     d = q.decide("stacked", "medium", cv)                                      # 20%: the third point
-    assert (d["i"], d["segment"], d["financing"]) == (2, "scaled", "stacked")
+    assert (d["i"], d["financing"]) == (2, "stacked") and d["stocks"] == pytest.approx(0.55)
     assert q.decide("stacked", "income", cv)["i"] == 3 and q.decide("stacked", "growth", cv)["i"] == 4
-    assert q.decide("stacked", "medium", _curve([-0.03, -0.25, -0.15, -0.30, -0.50]))["i"] == 2   # furthest, not first break
+    assert q.decide("stacked", "medium", _curve([-0.03, -0.25, -0.15, -0.30, -0.50]))["i"] == 2   # the largest, not the first break
     d = q.decide("stacked", "medium", _curve([-0.03, -0.25, -0.30, -0.40, -0.50]))
     assert (d["i"], d["financing"], d["cash"]) == (0, "none", 0.5)             # below 100%: T-bills beside it, nothing carried
     assert q.decide("stacked", "medium", _curve([-0.25, -0.30, -0.35, -0.40, -0.50]))["cash"] == 1.0
 
 
-def test_path_scales_the_mix_then_tilts_to_stocks_within_what_the_route_carries():
-    veh, w = q.vehicles(), 0.2
+def test_path_is_every_stock_share_with_the_most_sleeve_the_route_carries():
+    veh = q.vehicles()
     for route in q.ROUTES:
-        pts = q.path(route, w, WS, veh)
-        scaled, tilted = [p for p in pts if p[0] == "scaled"], [p for p in pts if p[0] == "tilted"]
-        assert pts == scaled + tilted and scaled and tilted
-        for _, s, d in scaled:
-            assert s / (s + d) == pytest.approx(w)                             # the mix, only scaled
-        assert all(q.carries(route, s, d, WS, veh) for _, s, d in pts)
-        k = scaled[-1][1] + scaled[-1][2]
-        assert not q.carries(route, (k + q.STEP) * w, (k + q.STEP) * (1 - w), WS, veh)   # one step more does not fit
-        stocks = [s for _, s, _ in tilted]
-        assert stocks == sorted(stocks) and stocks[0] > scaled[-1][1] and stocks[-1] == pytest.approx(1.0)
-        for _, s, d in tilted:
-            assert not q.carries(route, s, d + q.STEP, WS, veh)                # each with the most sleeve that fits
-    margin = q.path("margin", w, WS, veh)
-    assert all(s + d == pytest.approx(q.frontier.MAX_LEVERAGE) for seg, s, d in margin if seg == "tilted")
+        pts = q.path(route, WS, veh)
+        assert [s for s, _ in pts] == pytest.approx(list(np.arange(0, 1.0001, q.STEP)))
+        for s, d in pts:
+            assert q.carries(route, s, d, WS, veh) and not q.carries(route, s, d + q.STEP, WS, veh)
+    assert all(s + d == pytest.approx(q.frontier.MAX_LEVERAGE) for s, d in q.path("margin", WS, veh))
+    stacked = dict(q.path("stacked", WS, veh))
+    assert stacked[0.0] == pytest.approx(1.0)                                  # with no stocks to stack on, the capital itself
+    assert all(d <= 1.0 + 1e-9 for d in stacked.values())                      # no loan: never more diversifiers than capital
     assert q.carries("margin", 0.3, 0.6, WS, veh) and q.carries("stacked", 0.3, 0.6, WS, veh)   # nothing above 100%
     assert not q.carries("margin", 1.2, 1.0, WS, veh)
 
@@ -90,13 +84,12 @@ def test_committed_tables_and_page_agree():
     d = pg.load()
     ans, cv, meta = d["answers"], d["curve"], d["meta"]
     assert len(ans) == sum(len(a["routes"]) for a in q.ACCOUNTS.values()) * len(q.GOALS)
-    assert set(cv["route"]) == set(q.ROUTES) and sum(meta["mix"].values()) == pytest.approx(1.0)
+    assert set(cv["route"]) == set(q.ROUTES) and sum(meta["sleeve_weights"].values()) == pytest.approx(1.0)
     for route, p in cv.groupby("route"):
-        sc = p[p["segment"] == "scaled"]
-        assert (sc["stocks"] / sc["exposure"]).to_numpy() == pytest.approx(meta["mix"]["world_stocks"], abs=1e-4)
-        assert sc["exposure"].max() == pytest.approx(meta["caps"][route]["exposure"])
-        assert p["stocks"].max() == pytest.approx(1.0) and p["exposure"].max() <= meta["settings"]["max_leverage"] + 1e-9
-        assert (p["vol"].diff().dropna() > 0).all()                    # the path runs from less forecast risk to more
+        assert p["stocks"].to_numpy() == pytest.approx(np.arange(0, 1.0001, q.STEP))     # every stock share, in order
+        assert p["exposure"].max() <= meta["settings"]["max_leverage"] + 1e-9
+        assert p.loc[p["vol"].idxmin(), "stocks"] == pytest.approx(meta["least_risk_stocks"][route])
+    assert np.allclose(cv[cv["route"] == "margin"]["exposure"], meta["settings"]["max_leverage"])
     for _, r in ans.iterrows():
         limit = q.GOALS[r["goal"]]["loss_limit"]
         assert r["route"] in q.ACCOUNTS[r["account"]]["routes"]
@@ -104,7 +97,7 @@ def test_committed_tables_and_page_agree():
             assert r["cash"] == 1.0 and r["headline"] == "T-bills"
             continue
         p = cv[cv["route"] == r["route"]]
-        best = p[p["worst_fall_all"] >= -limit]["i"].max()             # the furthest point within the budget
+        best = p[p["worst_fall_all"] >= -limit]["i"].max()             # the largest stock share within the budget
         row = p[p["i"] == r["i"]].iloc[0]
         assert r["i"] == best and r["worst_fall_all"] >= -limit
         for c in ("stocks", "sleeve", "vol", "growth", "growth_lo", "growth_hi", "worst_fall_all", "growth_all"):

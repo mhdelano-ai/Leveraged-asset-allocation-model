@@ -2,17 +2,15 @@
 
 *Arithmetic under declared rules on the diversifier and allocation studies and the published forecast; the rules are judgements, not advice, and nothing here is out-of-sample evidence.*
 
-Written by `python -m assetforecast.questionnaire`; origin 2026-10-31. One mix of world stocks, intermediate Treasuries, gold and managed futures, held with T-bills beside it or above 100% of capital, as far as the goal's drawdown budget allows. Interactive page: `dashboard/questionnaire.html`.
+Written by `python -m assetforecast.questionnaire`; origin 2026-10-31. Two dials: how much in world stocks, and how much in the diversifiers (intermediate Treasuries, gold, managed futures). Interactive page: `dashboard/questionnaire.html`.
 
-Risk decides and returns do not. The mix is set by each holding's volatility, and how much of it to hold by the fall the goal can sit through. Nothing is optimized on an expected return; expected growth is shown with its interval and is not an input.
+Risk decides and returns do not. Nothing is chosen on an expected return; expected growth is shown with its interval and is not an input.
 
-## The rule
+## The two dials
 
-1. The mix: the four holdings by 1/volatility, whole past. Today 16% stocks, 37% Treasuries, 16% gold, 31% managed futures. (Its stock share has been between 16% and 18% at every month-end of the replay.)
-2. Scale it. Each goal declares the largest fall from a previous high it can sit through. The mix is held at the largest multiple of capital, in steps of 5%, whose worst fall in the replay stayed within that: with T-bills beside it below 100%, and above 100% by the account's route.
-3. Routes. Stacked funds carry the extra exposure inside (no loan; the only route in a retirement account, the default in a taxable one). A margin loan costs T-bills + 1.38% (taxable only).
-4. Where the account can carry no more. The mix reaches 1.15 times capital with stacked funds (they stack a diversifier only on top of stocks, and the mix holds few) and 2 times on margin. Its worst fall there was -10% and -18%. A goal with budget left takes it by holding stocks in place of diversifiers at that limit, up to 100% stocks.
-5. Money needed within 3 years has no budget: T-bills.
+1. Stocks cause the large falls, so the goal's drawdown budget sets the stock share: the largest, in steps of 5%, whose worst fall in the replay stayed within the budget. The fall is measured on the whole portfolio, diversifiers included.
+2. The diversifiers held up when stocks fell, so they are held beside the stocks as far as the account can carry, always in the same proportions (44% Treasuries, 19% gold, 37% managed futures; 1/volatility, whole past). Stacked funds carry them inside, with no loan (the only way in a retirement account, the default in a taxable one). A margin loan, in a taxable account that chooses it, carries 2 times capital in all at T-bills + 1.38%.
+3. Money needed within 3 years has no budget: T-bills.
 
 ## Every answer
 
@@ -33,67 +31,41 @@ Forecast vol is on the package's 12-month covariance forecast. Expected growth i
 | Tax-deferred | stacked funds | Retirement income, drawn now | 70% stocks and 100% diversifiers, 70% of capital carried inside stacked funds | 70% / 44% / 19% / 37% | 12.7% | -33% | +8.1% | +7.4% (+2.5% to +12.3%) | 0.48% |  |
 | Tax-deferred | stacked funds | Growth, untouched for 10 years or more | 100% stocks and 95% diversifiers, 95% of capital carried inside stacked funds | 100% / 42% / 18% / 36% | 17.0% | -47% | +9.5% | +8.9% (+3.1% to +14.7%) | 0.56% |  |
 
-## The path
+## Every stock share
 
-Replayed from 1990-01 to 2026-10, rebalanced monthly, each row at its own fixed shares.
+Each stock share with the most diversifiers the account can carry beside it, replayed from 1990-01 to 2026-10, rebalanced monthly.
 
 With stacked funds:
 
-|  | Stocks | Diversifiers | T-bills | Above 100% | Forecast vol | Replay worst fall | Replay growth over T-bills | Expected growth (90%) |
-|---|---|---|---|---|---|---|---|---|
-| the mix, scaled | 2% | 8% | 90% | 0% | 0.6% | -0.6% | +0.4% | +0.4% (+0.1% to +0.6%) |
-| the mix, scaled | 3% | 17% | 80% | 0% | 1.1% | -1.3% | +0.9% | +0.7% (+0.2% to +1.2%) |
-| the mix, scaled | 5% | 25% | 70% | 0% | 1.7% | -2.0% | +1.3% | +1.1% (+0.3% to +1.9%) |
-| the mix, scaled | 7% | 33% | 60% | 0% | 2.3% | -2.8% | +1.8% | +1.4% (+0.4% to +2.5%) |
-| the mix, scaled | 8% | 42% | 50% | 0% | 2.8% | -3.8% | +2.2% | +1.8% (+0.5% to +3.1%) |
-| the mix, scaled | 10% | 50% | 40% | 0% | 3.4% | -4.7% | +2.6% | +2.1% (+0.5% to +3.7%) |
-| the mix, scaled | 11% | 59% | 30% | 0% | 3.9% | -5.7% | +3.0% | +2.5% (+0.6% to +4.3%) |
-| the mix, scaled | 13% | 67% | 20% | 0% | 4.5% | -6.7% | +3.5% | +2.8% (+0.7% to +4.9%) |
-| the mix, scaled | 15% | 75% | 10% | 0% | 5.1% | -7.6% | +3.9% | +3.1% (+0.8% to +5.5%) |
-| the mix, scaled | 16% | 84% | 0% | 0% | 5.6% | -8.6% | +4.3% | +3.5% (+0.8% to +6.1%) |
-| the mix, scaled | 18% | 92% | 0% | 10% | 6.2% | -9.5% | +4.7% | +3.8% (+0.9% to +6.7%) |
-| the mix, scaled | 19% | 96% | 0% | 15% | 6.5% | -10.0% | +4.9% | +4.0% (+0.9% to +7.0%) |
-| more stocks | 20% | 100% | 0% | 20% | 6.8% | -10.5% | +5.1% | +4.2% (+1.0% to +7.3%) |
-| more stocks | 30% | 100% | 0% | 30% | 7.7% | -13.7% | +5.8% | +4.8% (+1.3% to +8.4%) |
-| more stocks | 40% | 100% | 0% | 40% | 8.8% | -17.8% | +6.4% | +5.5% (+1.6% to +9.4%) |
-| more stocks | 50% | 100% | 0% | 50% | 10.0% | -23.2% | +7.0% | +6.2% (+1.9% to +10.4%) |
-| more stocks | 60% | 100% | 0% | 60% | 11.3% | -28.3% | +7.6% | +6.8% (+2.2% to +11.3%) |
-| more stocks | 70% | 100% | 0% | 70% | 12.7% | -33.1% | +8.1% | +7.4% (+2.5% to +12.3%) |
-| more stocks | 80% | 100% | 0% | 80% | 14.1% | -37.7% | +8.7% | +7.9% (+2.7% to +13.2%) |
-| more stocks | 90% | 95% | 0% | 85% | 15.5% | -42.3% | +9.0% | +8.4% (+2.9% to +13.8%) |
-| more stocks | 100% | 95% | 0% | 95% | 17.0% | -46.9% | +9.5% | +8.9% (+3.1% to +14.7%) |
+| Stocks | Diversifiers | Above 100% of capital | Forecast vol | Replay worst fall | Replay growth over T-bills | Expected growth (90%) |
+|---|---|---|---|---|---|---|
+| 0% | 100% | 0% | 5.9% | -9.1% | +3.8% | +2.7% (+0.2% to +5.2%) |
+| 10% | 100% | 10% | 6.2% | -7.9% | +4.5% | +3.4% (+0.6% to +6.3%) |
+| 20% | 100% | 20% | 6.8% | -10.5% | +5.1% | +4.2% (+1.0% to +7.3%) |
+| 30% | 100% | 30% | 7.7% | -13.7% | +5.8% | +4.8% (+1.3% to +8.4%) |
+| 40% | 100% | 40% | 8.8% | -17.8% | +6.4% | +5.5% (+1.6% to +9.4%) |
+| 50% | 100% | 50% | 10.0% | -23.2% | +7.0% | +6.2% (+1.9% to +10.4%) |
+| 60% | 100% | 60% | 11.3% | -28.3% | +7.6% | +6.8% (+2.2% to +11.3%) |
+| 70% | 100% | 70% | 12.7% | -33.1% | +8.1% | +7.4% (+2.5% to +12.3%) |
+| 80% | 100% | 80% | 14.1% | -37.7% | +8.7% | +7.9% (+2.7% to +13.2%) |
+| 90% | 95% | 85% | 15.5% | -42.3% | +9.0% | +8.4% (+2.9% to +13.8%) |
+| 100% | 95% | 95% | 17.0% | -46.9% | +9.5% | +8.9% (+3.1% to +14.7%) |
 
 On a margin loan at T-bills + 1.38%:
 
-|  | Stocks | Diversifiers | T-bills | Above 100% | Forecast vol | Replay worst fall | Replay growth over T-bills | Expected growth (90%) |
-|---|---|---|---|---|---|---|---|---|
-| the mix, scaled | 2% | 8% | 90% | 0% | 0.6% | -0.6% | +0.4% | +0.4% (+0.1% to +0.6%) |
-| the mix, scaled | 3% | 17% | 80% | 0% | 1.1% | -1.3% | +0.9% | +0.7% (+0.2% to +1.2%) |
-| the mix, scaled | 5% | 25% | 70% | 0% | 1.7% | -2.0% | +1.3% | +1.1% (+0.3% to +1.9%) |
-| the mix, scaled | 7% | 33% | 60% | 0% | 2.3% | -2.8% | +1.8% | +1.4% (+0.4% to +2.5%) |
-| the mix, scaled | 8% | 42% | 50% | 0% | 2.8% | -3.8% | +2.2% | +1.8% (+0.5% to +3.1%) |
-| the mix, scaled | 10% | 50% | 40% | 0% | 3.4% | -4.7% | +2.6% | +2.1% (+0.5% to +3.7%) |
-| the mix, scaled | 11% | 59% | 30% | 0% | 3.9% | -5.7% | +3.0% | +2.5% (+0.6% to +4.3%) |
-| the mix, scaled | 13% | 67% | 20% | 0% | 4.5% | -6.7% | +3.5% | +2.8% (+0.7% to +4.9%) |
-| the mix, scaled | 15% | 75% | 10% | 0% | 5.1% | -7.6% | +3.9% | +3.1% (+0.8% to +5.5%) |
-| the mix, scaled | 16% | 84% | 0% | 0% | 5.6% | -8.6% | +4.3% | +3.5% (+0.8% to +6.1%) |
-| the mix, scaled | 18% | 92% | 0% | 10% | 6.2% | -9.6% | +4.6% | +3.7% (+0.8% to +6.6%) |
-| the mix, scaled | 20% | 100% | 0% | 20% | 6.8% | -10.6% | +4.8% | +3.9% (+0.7% to +7.0%) |
-| the mix, scaled | 21% | 109% | 0% | 30% | 7.3% | -11.6% | +5.1% | +4.0% (+0.6% to +7.5%) |
-| the mix, scaled | 23% | 117% | 0% | 40% | 7.9% | -12.6% | +5.4% | +4.2% (+0.5% to +7.9%) |
-| the mix, scaled | 25% | 125% | 0% | 50% | 8.5% | -13.6% | +5.6% | +4.4% (+0.4% to +8.4%) |
-| the mix, scaled | 26% | 134% | 0% | 60% | 9.0% | -14.5% | +5.9% | +4.6% (+0.3% to +8.8%) |
-| the mix, scaled | 28% | 142% | 0% | 70% | 9.6% | -15.5% | +6.2% | +4.8% (+0.3% to +9.2%) |
-| the mix, scaled | 29% | 151% | 0% | 80% | 10.1% | -16.5% | +6.4% | +4.9% (+0.2% to +9.7%) |
-| the mix, scaled | 31% | 159% | 0% | 90% | 10.7% | -17.4% | +6.7% | +5.1% (+0.1% to +10.1%) |
-| the mix, scaled | 33% | 167% | 0% | 100% | 11.3% | -18.3% | +6.9% | +5.3% (0.0% to +10.5%) |
-| more stocks | 40% | 160% | 0% | 100% | 11.5% | -20.2% | +7.1% | +5.6% (+0.2% to +10.9%) |
-| more stocks | 50% | 150% | 0% | 100% | 12.0% | -22.8% | +7.4% | +6.0% (+0.5% to +11.4%) |
-| more stocks | 60% | 140% | 0% | 100% | 12.8% | -27.7% | +7.6% | +6.4% (+0.8% to +11.9%) |
-| more stocks | 70% | 130% | 0% | 100% | 13.7% | -32.7% | +7.8% | +6.7% (+1.1% to +12.4%) |
-| more stocks | 80% | 120% | 0% | 100% | 14.7% | -37.6% | +8.0% | +7.1% (+1.3% to +12.8%) |
-| more stocks | 90% | 110% | 0% | 100% | 15.9% | -42.3% | +8.2% | +7.4% (+1.5% to +13.2%) |
-| more stocks | 100% | 100% | 0% | 100% | 17.1% | -47.5% | +8.3% | +7.6% (+1.7% to +13.6%) |
+| Stocks | Diversifiers | Above 100% of capital | Forecast vol | Replay worst fall | Replay growth over T-bills | Expected growth (90%) |
+|---|---|---|---|---|---|---|
+| 0% | 200% | 100% | 11.8% | -21.4% | +5.8% | +3.6% (-1.3% to +8.6%) |
+| 10% | 190% | 100% | 11.4% | -18.7% | +6.2% | +4.2% (-0.9% to +9.2%) |
+| 20% | 180% | 100% | 11.2% | -16.0% | +6.5% | +4.7% (-0.5% to +9.8%) |
+| 30% | 170% | 100% | 11.2% | -17.7% | +6.8% | +5.1% (-0.1% to +10.4%) |
+| 40% | 160% | 100% | 11.5% | -20.2% | +7.1% | +5.6% (+0.2% to +10.9%) |
+| 50% | 150% | 100% | 12.0% | -22.8% | +7.4% | +6.0% (+0.5% to +11.4%) |
+| 60% | 140% | 100% | 12.8% | -27.7% | +7.6% | +6.4% (+0.8% to +11.9%) |
+| 70% | 130% | 100% | 13.7% | -32.7% | +7.8% | +6.7% (+1.1% to +12.4%) |
+| 80% | 120% | 100% | 14.7% | -37.6% | +8.0% | +7.1% (+1.3% to +12.8%) |
+| 90% | 110% | 100% | 15.9% | -42.3% | +8.2% | +7.4% (+1.5% to +13.2%) |
+| 100% | 100% | 100% | 17.1% | -47.5% | +8.3% | +7.6% (+1.7% to +13.6%) |
 
 ## What risk and expected growth are measured on
 
@@ -178,10 +150,9 @@ Recorded fund fees: 0.11% of capital a year; loan: 1.38%.
 
 ## Caveats
 
-- The drawdown budgets are judgements, and the answers follow from them. The path shows what any other budget would give.
-- Every goal beyond 3 years ends where the account can carry no more, because the mix scaled that far still fell less than the budget. The budget then sets the stock share, and the diversifiers fill whatever the account can hold.
-- On margin that limit is Regulation T's for opening a position, 2 times capital. The broker's maintenance requirement, which is not modelled, decides how far the position can fall before it is called.
-- On margin the lower end of expected growth falls as the mix is levered, from +0.8% at 100% of capital to 0.0% at 2 times: the diversifiers' return over the loan's cost is not established.
+- The drawdown budgets are judgements, and the stock shares follow from them. The tables show what any other budget would give.
+- The diversifiers fall too. With no stocks at all, 100% of capital in them fell -9% in the replay, and 200% on margin fell -21%.
+- A margin loan is 100% of capital at every goal. That is Regulation T's limit for opening a position; the broker's maintenance requirement, which is not modelled, decides how far it can fall before it is called. Whether the diversifiers earn more than the loan costs is not established: 200% of them on margin has expected growth of -1.3% to +8.6%.
 - The replay is the allocation study's: every year had been seen, the diversifiers were chosen on the same years, and managed futures before 2007-03 are a paper factor. A worst fall in the past is not a bound on the next one.
 - Month-end values miss falls inside a month.
 - Taxes, trading costs and fund fees are not charged.

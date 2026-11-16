@@ -88,7 +88,8 @@
   ]
  },
  "settings": {
-  "mix_rule": "1/volatility, whole past",
+  "sleeve_rule": "invvol_hist",
+  "sleeve_rule_name": "1/volatility, whole past",
   "step": 0.05,
   "stock_tol": 0.025,
   "max_leverage": 2.0,
@@ -98,32 +99,10 @@
   },
   "recent": 60
  },
- "mix": {
-  "world_stocks": 0.1634623555464444,
-  "ust_int": 0.3654442479076918,
-  "gold": 0.15791454307741587,
-  "mf": 0.31317885346844776
- },
  "sleeve_weights": {
   "ust_int": 0.4368533207449474,
   "gold": 0.18877159219842293,
   "mf": 0.37437508705662975
- },
- "mix_stock_share_range": [
-  0.155626441270134,
-  0.17522265528061398
- ],
- "caps": {
-  "stacked": {
-   "exposure": 1.15,
-   "worst_fall_all": -0.09951023967506221,
-   "vol": 0.06482853509633908
-  },
-  "margin": {
-   "exposure": 2.0,
-   "worst_fall_all": -0.1834216454319589,
-   "vol": 0.11274527842841581
-  }
  },
  "borrow": {
   "lender": "Robinhood Financial (margin investing)",
@@ -163,6 +142,10 @@
     "rate": 0.042
    }
   ]
+ },
+ "least_risk_stocks": {
+  "margin": 0.25,
+  "stacked": 0.0
  },
  "vehicles_retrieved": "2026-11-16",
  "covariance": {
