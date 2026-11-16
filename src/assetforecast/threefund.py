@@ -6,7 +6,7 @@ Reads a published forecast folder (default ``forecasts/latest``) and writes
 ``forecasts/three_fund/<origin>/`` and ``forecasts/three_fund/latest/``:
 ``weights.csv``, ``cov_annual.csv``, ``cov_21d.csv``, ``vols.csv``,
 ``expected_returns.csv`` (with the sensitivity column described below),
-``mixes.csv``, ``forecast.json`` and the frontier files of
+``mixes.csv``, ``loss_options.csv``, ``forecast.json`` and the frontier files of
 ``assetforecast.frontier`` (cash below full investment, borrowing above it).
 
 Nothing is forecast here. The two composites are fixed-weight mixes of the 12
@@ -55,6 +55,9 @@ over them (the convention of the package's policy portfolios). Before 1975
 corporates and bills only. ``mean_12m_full_mix`` is the same mean over the months in
 which every component exists: a sensitivity, shown beside it.
 
+``loss_options.csv``: for each fall in ``LOSS_LIMITS``, the mixes whose worst
+past fall stayed inside it (see :func:`loss_options`).
+
 ``mixes.csv``: the mix with the most expected growth at each volatility of
 ``MIX_VOLS``, as shares of capital in stocks, bonds, cash and borrowing, into
 the borrowed range, and the growth-optimal mix (see :func:`mixes`).
@@ -81,6 +84,7 @@ NAMES = {"world_stocks": "World stocks (composite)", "world_bonds": "World bonds
 POLICIES = {"100/0": {"world_stocks": 1.0}, "80/20": {"world_stocks": 0.8, "world_bonds": 0.2},
             "60/40": {"world_stocks": 0.6, "world_bonds": 0.4},
             "40/60": {"world_stocks": 0.4, "world_bonds": 0.6}, "0/100": {"world_bonds": 1.0}}
+LOSS_LIMITS = (0.35, 0.55)     # the falls from a previous high the loss options are built for
 MIX_VOLS = (0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.30)
 OUT = paths.FORECASTS_OUT / "three_fund"
 LABEL = ("Arithmetic on the published forecast for two declared composites and cash; not a model, "
@@ -211,6 +215,57 @@ def mixes(d: Path) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def loss_options(d: Path, limits=LOSS_LIMITS, step: float = 0.01) -> pd.DataFrame:
+    """For each loss limit, the mixes whose worst past fall stayed inside it.
+
+    A mix "stays inside" a limit when its deepest month-end fall from a
+    previous high (:func:`past_losses`) is no deeper than the limit. Per limit:
+
+    ``most_growth``         the mix with the most expected growth among those inside the
+                            limit since every component of both composites exists
+    ``stocks_and_cash``     the same without bonds: the largest stock weight inside it
+    ``most_growth_1926``    as the first, with the limit applied to the whole return
+                            panel, which includes 1929 to 1932 (when "world stocks"
+                            is US stocks only)
+
+    The search is a grid over long-only weights in steps of ``step`` up to
+    ``frontier.MAX_LEVERAGE``. The limit is fitted to the past: nothing says the
+    next fall will be no deeper.
+    """
+    from .returns import inputs
+    inp = frontier.load_inputs(d)
+    origin = json.loads((d / "forecast.json").read_text())["origin"]
+    panel = inputs.load_return_panel()
+    simple = panel.monthly.loc[:pd.Timestamp(origin)]
+    cash = panel.cash_monthly
+    eras = {"full_mix": composite_simple(simple, cash, full_mix=True).dropna(),
+            "all": composite_simple(simple, cash).dropna()}
+    X, _, gr = _grid(inp, step)
+    cost = inp.spread / 12.0 * np.maximum(X.sum(axis=1) - 1.0, 0.0)
+    dd = {}
+    for k, c in eras.items():
+        rf = cash.reindex(c.index).to_numpy()
+        ex = c.to_numpy() - rf[:, None]
+        v = np.cumprod(1.0 + np.clip(rf[:, None] + ex @ X.T - cost[None, :], -1.0, None), axis=0)
+        dd[k] = (v / np.maximum.accumulate(v, axis=0) - 1.0).min(axis=0)
+    rows = []
+    for lim in limits:
+        picks = {"most_growth": dd["full_mix"] >= -lim,
+                 "stocks_and_cash": (dd["full_mix"] >= -lim) & (X[:, 1] == 0),
+                 "most_growth_1926": dd["all"] >= -lim}
+        for name, ok in picks.items():
+            i = np.flatnonzero(ok)[gr[ok].argmax()]
+            s = frontier.stats(inp, X[i])
+            inv = float(X[i].sum())
+            rows.append({"limit": lim, "option": name, **{a: float(w) for a, w in zip(inp.assets, X[i])},
+                         "cash": max(1 - inv, 0.0), "borrowed": max(inv - 1, 0.0), "vol": s["vol"],
+                         "growth": s["growth"], "growth_lo": s["growth_lo"], "growth_hi": s["growth_hi"],
+                         "max_drawdown_full_mix": float(dd["full_mix"][i]),
+                         "max_drawdown_all": float(dd["all"][i]),
+                         "worst_12m_full_mix": past_losses(X[i], eras["full_mix"], cash, inp.spread)["worst_12m"]})
+    return pd.DataFrame(rows)
+
+
 def publish(src: Path | None = None) -> Path:
     src = Path(src) if src else paths.FORECASTS_OUT / "latest"
     meta = json.loads((src / "forecast.json").read_text())
@@ -238,6 +293,7 @@ def publish(src: Path | None = None) -> Path:
         "note": LABEL, "composites": COMPOSITES, "portfolio_weights": POLICIES}, indent=1))
     frontier.publish(d)
     mixes(d).round(5).to_csv(d / "mixes.csv", index=False)
+    loss_options(d).round(5).to_csv(d / "loss_options.csv", index=False)
     latest = OUT / "latest"
     if latest.exists():
         shutil.rmtree(latest)
