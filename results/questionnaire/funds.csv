@@ -1,0 +1,40 @@
+account,goal,symbol,name,role,weight,stocks,exposure,fee,note
+taxable,near,,T-bills or a money-market fund,cash,1,0,0,,outside the model
+taxable,medium,,A world stock fund,world_stocks,0.4,0.4,0,,no stock fund's fee is in the lookup
+taxable,medium,VGIT,Vanguard Intermediate-Term Treasury ETF,ust_int,0.262112,0,0.262112,0.0003,SCHR and SPTI charge the same; shorter than the panel's IEF (7 to 10 years)
+taxable,medium,IAUM,iShares Gold Trust Micro,gold,0.113263,0,0.113263,0.0009,cheapest gold fund found
+taxable,medium,SDMF,Simplify DBi CTA Managed Futures Index ETF,mf,0.224625,0,0.224625,0.0021,"launched 2026-02-17, about $52M; several aggregators still show 0.35%; not in the study's fund composite"
+taxable,income,,A world stock fund,world_stocks,0.65,0.65,0,,no stock fund's fee is in the lookup
+taxable,income,VGIT,Vanguard Intermediate-Term Treasury ETF,ust_int,0.152899,0,0.152899,0.0003,SCHR and SPTI charge the same; shorter than the panel's IEF (7 to 10 years)
+taxable,income,IAUM,iShares Gold Trust Micro,gold,0.0660701,0,0.0660701,0.0009,cheapest gold fund found
+taxable,income,SDMF,Simplify DBi CTA Managed Futures Index ETF,mf,0.131031,0,0.131031,0.0021,"launched 2026-02-17, about $52M; several aggregators still show 0.35%; not in the study's fund composite"
+taxable,growth,,A world stock fund,world_stocks,1,1,0,,no stock fund's fee is in the lookup
+taxable,growth,VGIT,Vanguard Intermediate-Term Treasury ETF,ust_int,0.218427,0,0.218427,0.0003,SCHR and SPTI charge the same; shorter than the panel's IEF (7 to 10 years)
+taxable,growth,IAUM,iShares Gold Trust Micro,gold,0.0943858,0,0.0943858,0.0009,cheapest gold fund found
+taxable,growth,SDMF,Simplify DBi CTA Managed Futures Index ETF,mf,0.187188,0,0.187188,0.0021,"launched 2026-02-17, about $52M; several aggregators still show 0.35%; not in the study's fund composite"
+traditional,near,,T-bills or a money-market fund,cash,1,0,0,,outside the model
+traditional,medium,,A world stock fund,world_stocks,0.4,0.4,0,,no stock fund's fee is in the lookup
+traditional,medium,VGIT,Vanguard Intermediate-Term Treasury ETF,ust_int,0.262112,0,0.262112,0.0003,SCHR and SPTI charge the same; shorter than the panel's IEF (7 to 10 years)
+traditional,medium,IAUM,iShares Gold Trust Micro,gold,0.113263,0,0.113263,0.0009,cheapest gold fund found
+traditional,medium,SDMF,Simplify DBi CTA Managed Futures Index ETF,mf,0.224625,0,0.224625,0.0021,"launched 2026-02-17, about $52M; several aggregators still show 0.35%; not in the study's fund composite"
+traditional,income,,A world stock fund,world_stocks,0.65,0.65,0,,no stock fund's fee is in the lookup
+traditional,income,VGIT,Vanguard Intermediate-Term Treasury ETF,ust_int,0.152899,0,0.152899,0.0003,SCHR and SPTI charge the same; shorter than the panel's IEF (7 to 10 years)
+traditional,income,IAUM,iShares Gold Trust Micro,gold,0.0660701,0,0.0660701,0.0009,cheapest gold fund found
+traditional,income,SDMF,Simplify DBi CTA Managed Futures Index ETF,mf,0.131031,0,0.131031,0.0021,"launched 2026-02-17, about $52M; several aggregators still show 0.35%; not in the study's fund composite"
+traditional,growth,,A world stock fund,world_stocks,0.489513,0.489513,0,,no stock fund's fee is in the lookup
+traditional,growth,RSSB,Return Stacked Global Stocks & Bonds ETF,ust_int,0.218427,0.218427,0.218427,0.004,100% global stocks + 100% Treasury futures
+traditional,growth,GDE,WisdomTree Efficient Gold Plus Equity Strategy Fund,gold,0.104873,0.0943858,0.0943858,0.002,90% US stocks + 90% gold futures
+traditional,growth,RSST,Return Stacked U.S. Stocks & Managed Futures ETF,mf,0.187188,0.187188,0.187188,0.0099,100% US stocks + 100% managed futures
+roth,near,,T-bills or a money-market fund,cash,1,0,0,,outside the model
+roth,medium,,A world stock fund,world_stocks,0.4,0.4,0,,no stock fund's fee is in the lookup
+roth,medium,VGIT,Vanguard Intermediate-Term Treasury ETF,ust_int,0.262112,0,0.262112,0.0003,SCHR and SPTI charge the same; shorter than the panel's IEF (7 to 10 years)
+roth,medium,IAUM,iShares Gold Trust Micro,gold,0.113263,0,0.113263,0.0009,cheapest gold fund found
+roth,medium,SDMF,Simplify DBi CTA Managed Futures Index ETF,mf,0.224625,0,0.224625,0.0021,"launched 2026-02-17, about $52M; several aggregators still show 0.35%; not in the study's fund composite"
+roth,income,,A world stock fund,world_stocks,0.65,0.65,0,,no stock fund's fee is in the lookup
+roth,income,VGIT,Vanguard Intermediate-Term Treasury ETF,ust_int,0.152899,0,0.152899,0.0003,SCHR and SPTI charge the same; shorter than the panel's IEF (7 to 10 years)
+roth,income,IAUM,iShares Gold Trust Micro,gold,0.0660701,0,0.0660701,0.0009,cheapest gold fund found
+roth,income,SDMF,Simplify DBi CTA Managed Futures Index ETF,mf,0.131031,0,0.131031,0.0021,"launched 2026-02-17, about $52M; several aggregators still show 0.35%; not in the study's fund composite"
+roth,growth,,A world stock fund,world_stocks,0.489513,0.489513,0,,no stock fund's fee is in the lookup
+roth,growth,RSSB,Return Stacked Global Stocks & Bonds ETF,ust_int,0.218427,0.218427,0.218427,0.004,100% global stocks + 100% Treasury futures
+roth,growth,GDE,WisdomTree Efficient Gold Plus Equity Strategy Fund,gold,0.104873,0.0943858,0.0943858,0.002,90% US stocks + 90% gold futures
+roth,growth,RSST,Return Stacked U.S. Stocks & Managed Futures ETF,mf,0.187188,0.187188,0.187188,0.0099,100% US stocks + 100% managed futures
