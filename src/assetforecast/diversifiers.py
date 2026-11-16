@@ -3,7 +3,7 @@
     python -m assetforecast.diversifiers
 
 Writes ``results/diversifiers/`` (``summary.csv``, ``episodes.csv``,
-``rolling_corr.csv``, ``mixes.csv``, ``meta.json``), ``reports/diversifiers.md``
+``rolling_corr.csv``, ``mixes.csv``, ``sleeve.csv``, ``sleeve_corr.csv``, ``meta.json``), ``reports/diversifiers.md``
 and ``reports/figures/diversifiers/``. A DESCRIPTIVE study (``LABEL``): it
 measures the past, forecasts nothing, selects nothing and changes neither the
 frozen models nor the published forecast.
@@ -57,6 +57,22 @@ was computed. They are judgements, not estimates:
 (``swap``), or adding 20% on borrowed money at the T-bill rate (``overlay``),
 did to growth, volatility and the worst fall, on common windows.
 
+The sleeve (``sleeve.csv``, ``sleeve_corr.csv``)
+------------------------------------------------
+``SLEEVE`` holds the three assets the verdicts leave standing (intermediate
+Treasuries, gold, managed futures), rebalanced monthly to equal weights, or to
+weights proportional to 1/volatility measured over the same window (so those
+are in-sample). The members were picked on the history the sleeve is then
+measured on, which flatters every number. ``sleeve_table`` gives the sleeve
+alone, mixes of stocks and sleeve at ``SLEEVE_STOCKS``, and all stocks plus
+``OVERLAY`` of the sleeve on borrowed money at T-bills plus each spread of
+``SPREADS`` and the spread of the published frontier (``frontier.borrow_terms``,
+a margin loan). Margin calls and forced selling are not modelled.
+
+``vehicles()`` reads ``data/processed/diversifier_vehicles.json``: funds that
+give these exposures and their fees, a hand-recorded outside lookup with its
+date and sources (not reproducible from a loader, like ``threefund.CHECK``).
+
 ``mf_tsmom_net`` in the tables is ``mf_tsmom`` less ``drag``: the gap, measured
 on the months both exist, between the paper factor scaled to the funds'
 volatility and the funds themselves, scaled back to the factor's volatility.
@@ -95,6 +111,11 @@ MAX_ROLL = 0.50
 MAX_CAPTURE = 0.20
 T_SIG = 1.645
 MIX_SHARE = 0.20
+SLEEVE = {"since_1985": ["ust_int", "gold", "mf_tsmom_net"], "since_2007": ["ust_int", "gold", "mf_funds"]}
+SLEEVE_STOCKS = (1.0, 0.8, 0.6, 0.4)   # stock shares of the stocks-and-sleeve mixes
+OVERLAY = 0.50                         # sleeve added to 100% stocks on borrowed money
+SPREADS = (0.0, 0.005, 0.015, 0.025)   # borrowing cost over T-bills, a year
+VEHICLES = paths.PROCESSED / "diversifier_vehicles.json"
 
 _DEV = bool(os.environ.get("ASSETFORECAST_MAX_DATE"))
 OUT = paths.ROOT / "results" / ("dev/diversifiers" if _DEV else "diversifiers")
@@ -269,6 +290,128 @@ def mixes(stocks: pd.Series, cands: pd.DataFrame, cash: pd.Series, share: float 
     return pd.DataFrame(rows)
 
 
+# ------------------------------------------------------------------ the sleeve
+def sleeve_weights(x: pd.DataFrame, scheme: str) -> pd.Series:
+    """Constant weights over the columns of ``x`` (log excess returns): equal, or 1/volatility."""
+    if scheme == "equal":
+        return pd.Series(1.0 / x.shape[1], index=x.columns)
+    if scheme == "inv_vol":
+        w = 1.0 / x.std()
+        return w / w.sum()
+    raise KeyError(scheme)
+
+
+def published_spread(origin) -> float:
+    """The borrowing spread over T-bills the published frontier uses at ``origin``."""
+    from . import frontier
+    return float(frontier.borrow_terms(origin)["spread"])
+
+
+def sleeve_table(stocks: pd.Series, cands: pd.DataFrame, cash: pd.Series,
+                 spreads=SPREADS) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(rows, correlations) of the sleeve on each window of ``SLEEVE``; see the module docstring.
+
+    Row kinds: ``sleeve`` (the sleeve alone, with its correlation with stocks, its weights and
+    its return in the window's bear markets), ``mix`` (stocks and sleeve, no borrowing) and
+    ``overlay`` (100% stocks plus ``OVERLAY`` of the sleeve, borrowed at T-bills + ``spread``)."""
+    ep_all = bear_markets(stocks)
+    rows, corr = [], []
+    for w, cols in SLEEVE.items():
+        j = pd.concat([stocks.rename(STOCKS), cands[cols]], axis=1, sort=True).loc[WINDOWS[w]:].dropna()
+        rf, S = cash.reindex(j.index), np.expm1(j)             # S: simple excess returns
+        base = {"window": w, "start": str(j.index[0].date()), "end": str(j.index[-1].date()), "n": len(j)}
+        c = j.corr()
+        corr += [{"window": w, "a": a, "b": b, "corr": float(c.loc[a, b])} for a in c.index for b in c.columns]
+        ep = ep_all[ep_all["peak"] >= j.index[0] - pd.offsets.MonthEnd(1)]
+        tot = lambda xs: (1 + xs) * (1 + rf) - 1               # noqa: E731  simple total return
+        for scheme in ("equal", "inv_vol"):
+            wt = sleeve_weights(j[cols], scheme)
+            sl = S[cols] @ wt
+            lx = np.log1p(sl)
+            bears = [float(np.expm1(lx.loc[p + pd.offsets.MonthEnd(1):t].sum())) for p, t in zip(ep["peak"], ep["trough"])]
+            head = {**base, "scheme": scheme}
+            rows.append({**head, "kind": "sleeve", "stocks": 0.0, "sleeve": 1.0, "spread": 0.0, **_path_stats(tot(sl), rf),
+                         "corr_stocks": float(lx.corr(j[STOCKS])), "bears": len(bears),
+                         "bears_down": int(sum(b < 0 for b in bears)), "worst_bear": min(bears) if bears else np.nan,
+                         "weights": json.dumps({k: round(float(v), 4) for k, v in wt.items()})})
+            for ws in SLEEVE_STOCKS:
+                rows.append({**head, "kind": "mix", "stocks": ws, "sleeve": 1 - ws, "spread": 0.0,
+                             **_path_stats(tot(ws * S[STOCKS] + (1 - ws) * sl), rf)})
+            for sp in spreads:
+                rows.append({**head, "kind": "overlay", "stocks": 1.0, "sleeve": OVERLAY, "spread": float(sp),
+                             **_path_stats(tot(S[STOCKS] + OVERLAY * sl - OVERLAY * sp / 12), rf)})
+    return pd.DataFrame(rows), pd.DataFrame(corr)
+
+
+def vehicles(path=None) -> dict:
+    v = json.loads((VEHICLES if path is None else path).read_text())
+    for r in v["vehicles"]:
+        if r["kind"] not in ("outright", "stacked") or not 0 < r["fee"] < 0.03:
+            raise ValueError(f"vehicle {r.get('symbol')}: bad kind or fee")
+    return v
+
+
+def _sleeve_report(sv: pd.DataFrame, sc: pd.DataFrame, meta: dict) -> list[str]:
+    pub = meta["published_spread"]
+    L = ["## An equal-weight sleeve of the three that passed", "",
+         "Intermediate Treasuries, gold and managed futures, a third each, rebalanced monthly; the stock share is then "
+         "chosen separately. From 1985 managed futures are the paper factor less the measured drag; from March 2007 "
+         "they are the live funds, which is the window to trust. The three were picked on this same history, so "
+         "every number below is flattered by that choice.", ""]
+    for w in SLEEVE:
+        d = sv[sv["window"] == w]
+        e = d[d["scheme"] == "equal"]
+        c = sc[sc["window"] == w].pivot(index="a", columns="b", values="corr")
+        names = [STOCKS, *SLEEVE[w]]
+        lab = {STOCKS: "Stocks", "ust_int": "Treasuries", "gold": "Gold", "mf_tsmom_net": "Managed futures",
+               "mf_funds": "Managed futures"}
+        b = e.iloc[0]
+        L += [f"### {b['start'][:7]} to {b['end'][:7]} ({b['n']} months)", "",
+              _table(["Correlation", *[lab[n] for n in names]],
+                     [[lab[a], *[_num(c.loc[a, x]) for x in names]] for a in names]), ""]
+        rows = []
+        for scheme, title in (("equal", "a third each"), ("inv_vol", "by 1/volatility")):
+            s = d[(d["scheme"] == scheme) & (d["kind"] == "sleeve")].iloc[0]
+            wt = json.loads(s["weights"])
+            rows.append([f"Sleeve, {title}", " / ".join(f"{100 * wt[k]:.0f}%" for k in SLEEVE[w]), _pct(s["growth"]),
+                         _pct(s["vol"], 1, False), _num(s["sharpe"]), _num(s["corr_stocks"]),
+                         f"{s['bears_down']:.0f} of {s['bears']:.0f} (worst {_pct(s['worst_bear'], 0)})"])
+        L += [_table(["", "Treasuries / gold / managed futures", "Growth", "Vol", "Sharpe", "Corr with stocks",
+                      "Stock bear markets it fell in"], rows), ""]
+        rows = []
+        for _, r in e[e["kind"] == "mix"].iterrows():
+            rows.append([f"{r['stocks']:.0%} stocks / {r['sleeve']:.0%} sleeve", _pct(r["growth"]),
+                         _pct(r["vol"], 1, False), _num(r["sharpe"]), _pct(r["worst_fall"], 0)])
+        for _, r in e[e["kind"] == "overlay"].sort_values("spread").iterrows():
+            tag = " (the published frontier's margin loan)" if abs(r["spread"] - pub) < 1e-9 else ""
+            rows.append([f"100% stocks + {OVERLAY:.0%} sleeve, borrowing at T-bills + {100 * r['spread']:.2f}%{tag}",
+                         _pct(r["growth"]), _pct(r["vol"], 1, False), _num(r["sharpe"]), _pct(r["worst_fall"], 0)])
+        L += [_table(["Equal-weight sleeve", "Growth over T-bills", "Vol", "Sharpe", "Worst fall"], rows), ""]
+    L += [f"Each point of borrowing spread costs {OVERLAY:.1f} points of growth a year, because {OVERLAY:.0%} of capital is "
+          "borrowed. Without borrowing the sleeve lowers growth as well as risk: it earned less than stocks. "
+          "The 1/volatility weights use each window's own volatility. Margin calls are not modelled: the rows assume "
+          "the position is held and rebalanced through every fall.", ""]
+    return L
+
+
+def _vehicle_report(v: dict) -> list[str]:
+    rows = lambda kind: [[r["symbol"], r["name"], r["exposure"], r["holds"], f"{100 * r['fee']:.2f}%", r["checked"],  # noqa: E731
+                          r["note"]] for r in v["vehicles"] if r["kind"] == kind]
+    head = ["Fund", "Name", "Exposure", "Holds", "Fee a year", "Fee read from", "Note"]
+    fee = {r["symbol"]: r["fee"] for r in v["vehicles"]}
+    cheap, tried = np.mean([fee["IAUM"], fee["VGIT"], fee["SDMF"]]), np.mean([fee["IAUM"], fee["VGIT"], fee["DBMF"]])
+    return ["## What it costs to hold", "",
+            f"Expense ratios looked up on {v['retrieved']} (`data/processed/diversifier_vehicles.json`): a hand-recorded "
+            "outside lookup, mostly from secondary sites. Confirm on the issuer's page before use.", "",
+            "Held outright:", "", _table(head, rows("outright")), "",
+            f"A third each in IAUM, VGIT and SDMF costs {100 * cheap:.2f}% a year; with DBMF, which has a record since "
+            f"2019, {100 * tried:.2f}%.", "",
+            "Stacked on stocks (the fund holds stocks and adds the diversifier with futures, so the financing is inside "
+            "the fund at close to the T-bill rate instead of a margin loan's spread):", "", _table(head, rows("stacked")), "",
+            "Gold and Treasuries are cheap to stack; managed futures are not. None of these funds is in the panel, and "
+            "the study's returns are not theirs.", ""]
+
+
 # ------------------------------------------------------------------ report
 def _pct(v, d=1, sign=True):
     return "" if v is None or not np.isfinite(v) else f"{100 * v:{'+' if sign else ''}.{d}f}%"
@@ -310,7 +453,8 @@ def figure(rc: pd.DataFrame) -> str:
     return p.name
 
 
-def write_report(sm: pd.DataFrame, ep: pd.DataFrame, mx: pd.DataFrame, meta: dict, fig: str) -> str:
+def write_report(sm: pd.DataFrame, ep: pd.DataFrame, mx: pd.DataFrame, meta: dict, fig: str,
+                 sv: pd.DataFrame, sc: pd.DataFrame) -> str:
     own = sm[sm["window"] == "own"].set_index("asset")
     L = [f"# Which assets have diversified stocks?", "", f"*{LABEL}.*", "",
          f"Written by `python -m assetforecast.diversifiers`; returns through {meta['returns_through']}. "
@@ -383,6 +527,7 @@ def write_report(sm: pd.DataFrame, ep: pd.DataFrame, mx: pd.DataFrame, meta: dic
           f"risen {BEAR:.0%} from the low). Each cell is that asset's return over T-bills across the same months; "
           "blank where the asset's history does not cover it.", "",
           _table(["Peak to trough", "Stocks", *[short[c] for c in cols]], rows), "",
+          *_sleeve_report(sv, sc, meta), *_vehicle_report(vehicles()),
           "## Caveats", "",
           "- The paper trend factor is a backtest of rules published in 2012. Its 1985-2011 return is what the rules "
           "would have earned before costs, not what anyone earned. The drag is estimated on one "
@@ -402,17 +547,24 @@ def run() -> dict:
     stocks, cands, cash, drag = load_inputs()
     sm, ep = summary(stocks, cands), episode_returns(stocks, cands)
     rc, mx = rolling_corr(stocks, cands), mixes(stocks, cands, cash)
+    pub = published_spread(stocks.dropna().index[-1])
+    sv, sc = sleeve_table(stocks, cands, cash, sorted({*SPREADS, pub}))
     OUT.mkdir(parents=True, exist_ok=True)
     sm.to_csv(OUT / "summary.csv", index=False, float_format="%.6g")
     ep.to_csv(OUT / "episodes.csv", index=False, float_format="%.6g")
     rc.to_csv(OUT / "rolling_corr.csv", float_format="%.4f")
     mx.to_csv(OUT / "mixes.csv", index=False, float_format="%.6g")
+    sv.to_csv(OUT / "sleeve.csv", index=False, float_format="%.6g")
+    sc.to_csv(OUT / "sleeve_corr.csv", index=False, float_format="%.4f")
     meta = {"label": LABEL, "returns_through": str(stocks.dropna().index[-1].date()), "stocks": STOCKS,
             "thresholds": {"low_corr": LOW_CORR, "max_roll": MAX_ROLL, "max_capture": MAX_CAPTURE, "t_sig": T_SIG,
                            "roll_months": ROLL, "worst_share": WORST, "bear_depth": BEAR, "mix_share": MIX_SHARE},
+            "sleeve": {"members": SLEEVE, "stock_shares": list(SLEEVE_STOCKS), "overlay": OVERLAY,
+                       "spreads": sorted({*SPREADS, pub})},
+            "published_spread": pub, "vehicles_retrieved": vehicles()["retrieved"],
             "drag": drag, "managed_futures": json.loads(managed_futures.META.read_text())}
     (OUT / "meta.json").write_text(json.dumps(meta, indent=1))
-    meta["report"] = write_report(sm, ep, mx, meta, figure(rc))
+    meta["report"] = write_report(sm, ep, mx, meta, figure(rc), sv, sc)
     return meta
 
 

@@ -12,6 +12,36 @@
   "bear_depth": 0.2,
   "mix_share": 0.2
  },
+ "sleeve": {
+  "members": {
+   "since_1985": [
+    "ust_int",
+    "gold",
+    "mf_tsmom_net"
+   ],
+   "since_2007": [
+    "ust_int",
+    "gold",
+    "mf_funds"
+   ]
+  },
+  "stock_shares": [
+   1.0,
+   0.8,
+   0.6,
+   0.4
+  ],
+  "overlay": 0.5,
+  "spreads": [
+   0.0,
+   0.005,
+   0.013798,
+   0.015,
+   0.025
+  ]
+ },
+ "published_spread": 0.013798,
+ "vehicles_retrieved": "2026-11-16",
  "drag": {
   "months": 231,
   "vol_ratio_funds_to_factor": 0.6288655362318338,

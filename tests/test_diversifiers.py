@@ -104,3 +104,59 @@ def test_committed_tables_match_the_study():
     for c in ("corr_1m", "corr_12m", "capture", "alpha"):
         np.testing.assert_allclose(got[c], want[c], rtol=1e-4, atol=1e-6)
     assert (got["verdict"].fillna("") == want["verdict"].fillna("")).all()
+
+
+def _sleeve_inputs(n=240):
+    rng = np.random.default_rng(4)
+    idx = _idx(n, "2007-03-31")
+    x = pd.Series(rng.normal(0.005, 0.045, n), index=idx)
+    cands = pd.DataFrame({c: rng.normal(0.002, v, n) for c, v in
+                          (("ust_int", 0.02), ("gold", 0.045), ("mf_funds", 0.025))}, index=idx)
+    return x, cands, pd.Series(0.002, index=idx)
+
+
+def test_sleeve_weights():
+    _, c, _ = _sleeve_inputs()
+    assert dv.sleeve_weights(c, "equal").tolist() == pytest.approx([1 / 3] * 3)
+    w = dv.sleeve_weights(c, "inv_vol")
+    assert w.sum() == pytest.approx(1.0) and w["ust_int"] > w["mf_funds"] > w["gold"]
+    assert (w * c.std()).std() == pytest.approx(0.0, abs=1e-12)
+
+
+def test_sleeve_table_mixes_and_borrowing_cost(monkeypatch):
+    x, c, cash = _sleeve_inputs()
+    monkeypatch.setattr(dv, "SLEEVE", {"since_2007": ["ust_int", "gold", "mf_funds"]})
+    sv, sc = dv.sleeve_table(x, c, cash, spreads=(0.0, 0.02))
+    e = sv[sv["scheme"] == "equal"]
+    full = e[(e["kind"] == "mix") & (e["stocks"] == 1.0)].iloc[0]
+    assert full["growth"] == pytest.approx(12 * x.mean()) and full["vol"] == pytest.approx(x.std() * np.sqrt(12))
+    mix = e[e["kind"] == "mix"].sort_values("stocks")
+    assert mix["vol"].is_monotonic_increasing              # more stocks, more risk
+    o = e[e["kind"] == "overlay"].set_index("spread")
+    # a 2-point spread on a 50% loan costs about 1 point of growth and leaves risk alone
+    assert o.loc[0.0, "growth"] - o.loc[0.02, "growth"] == pytest.approx(dv.OVERLAY * 0.02, rel=0.02)
+    assert o.loc[0.02, "vol"] == pytest.approx(o.loc[0.0, "vol"], rel=1e-3)
+    s = e[e["kind"] == "sleeve"].iloc[0]
+    assert s["vol"] < c.std().mean() * np.sqrt(12)         # three uncorrelated parts diversify each other
+    assert sc.set_index(["a", "b"]).loc[("gold", "gold"), "corr"] == pytest.approx(1.0)
+
+
+def test_vehicle_file_is_well_formed():
+    v = dv.vehicles()
+    syms = [r["symbol"] for r in v["vehicles"]]
+    assert len(syms) == len(set(syms)) and {"IAUM", "VGIT", "SDMF", "DBMF"} <= set(syms)
+    assert pd.Timestamp(v["retrieved"]) and all(r["source"].startswith("https://") for r in v["vehicles"])
+    assert {r["exposure"] for r in v["vehicles"]} == {"gold", "intermediate Treasuries", "managed futures"}
+
+
+@pytest.mark.realdata
+def test_committed_sleeve_matches_the_study():
+    if not (dv.OUT / "sleeve.csv").exists() or not mfs.OUT.exists():
+        pytest.skip("study not run")
+    meta = __import__("json").loads((dv.OUT / "meta.json").read_text())
+    stocks, cands, cash, _ = dv.load_inputs()
+    got, _ = dv.sleeve_table(stocks, cands, cash, meta["sleeve"]["spreads"])
+    want = pd.read_csv(dv.OUT / "sleeve.csv")
+    assert len(got) == len(want)
+    for col in ("growth", "vol", "worst_fall"):
+        np.testing.assert_allclose(got[col], want[col], rtol=1e-4, atol=1e-6)

@@ -130,6 +130,94 @@ Month-end peak to trough of stocks over T-bills, falls of 20% or more (a fall en
 | 2019-12 to 2020-03 | -22% | +10% | +22% | +1% | -3% | -12% | -24% | +3% | -24% | +12% | +3% |
 | 2021-12 to 2022-09 | -26% | -16% | -30% | -14% | -22% | -16% | -30% | -10% | +13% | +34% | +28% |
 
+## An equal-weight sleeve of the three that passed
+
+Intermediate Treasuries, gold and managed futures, a third each, rebalanced monthly; the stock share is then chosen separately. From 1985 managed futures are the paper factor less the measured drag; from March 2007 they are the live funds, which is the window to trust. The three were picked on this same history, so every number below is flattered by that choice.
+
+### 1985-01 to 2026-05 (497 months)
+
+| Correlation | Stocks | Treasuries | Gold | Managed futures |
+|---|---|---|---|---|
+| Stocks | +1.00 | +0.00 | +0.08 | -0.08 |
+| Treasuries | +0.00 | +1.00 | +0.15 | +0.20 |
+| Gold | +0.08 | +0.15 | +1.00 | +0.06 |
+| Managed futures | -0.08 | +0.20 | +0.06 | +1.00 |
+
+|  | Treasuries / gold / managed futures | Growth | Vol | Sharpe | Corr with stocks | Stock bear markets it fell in |
+|---|---|---|---|---|---|---|
+| Sleeve, a third each | 33% / 33% / 33% | +5.4% | 7.6% | +0.71 | +0.00 | 0 of 7 (worst +0%) |
+| Sleeve, by 1/volatility | 51% / 22% / 27% | +5.0% | 6.6% | +0.75 | -0.00 | 1 of 7 (worst -3%) |
+
+| Equal-weight sleeve | Growth over T-bills | Vol | Sharpe | Worst fall |
+|---|---|---|---|---|
+| 100% stocks / 0% sleeve | +7.2% | 15.2% | +0.47 | -54% |
+| 80% stocks / 20% sleeve | +7.1% | 12.2% | +0.58 | -43% |
+| 60% stocks / 40% sleeve | +6.8% | 9.6% | +0.72 | -30% |
+| 40% stocks / 60% sleeve | +6.5% | 7.6% | +0.86 | -17% |
+| 100% stocks + 50% sleeve, borrowing at T-bills + 0.00% | +10.0% | 15.7% | +0.64 | -49% |
+| 100% stocks + 50% sleeve, borrowing at T-bills + 0.50% | +9.7% | 15.7% | +0.62 | -49% |
+| 100% stocks + 50% sleeve, borrowing at T-bills + 1.38% (the published frontier's margin loan) | +9.3% | 15.7% | +0.59 | -49% |
+| 100% stocks + 50% sleeve, borrowing at T-bills + 1.50% | +9.2% | 15.7% | +0.59 | -49% |
+| 100% stocks + 50% sleeve, borrowing at T-bills + 2.50% | +8.8% | 15.7% | +0.56 | -50% |
+
+### 2007-03 to 2026-10 (236 months)
+
+| Correlation | Stocks | Treasuries | Gold | Managed futures |
+|---|---|---|---|---|
+| Stocks | +1.00 | -0.05 | +0.16 | -0.13 |
+| Treasuries | -0.05 | +1.00 | +0.33 | -0.15 |
+| Gold | +0.16 | +0.33 | +1.00 | +0.09 |
+| Managed futures | -0.13 | -0.15 | +0.09 | +1.00 |
+
+|  | Treasuries / gold / managed futures | Growth | Vol | Sharpe | Corr with stocks | Stock bear markets it fell in |
+|---|---|---|---|---|---|---|
+| Sleeve, a third each | 33% / 33% / 33% | +3.8% | 7.5% | +0.51 | +0.05 | 1 of 4 (worst -1%) |
+| Sleeve, by 1/volatility | 46% / 18% / 37% | +2.9% | 5.8% | +0.50 | -0.02 | 1 of 4 (worst -0%) |
+
+| Equal-weight sleeve | Growth over T-bills | Vol | Sharpe | Worst fall |
+|---|---|---|---|---|
+| 100% stocks / 0% sleeve | +6.6% | 16.1% | +0.41 | -54% |
+| 80% stocks / 20% sleeve | +6.3% | 13.0% | +0.49 | -44% |
+| 60% stocks / 40% sleeve | +5.9% | 10.2% | +0.57 | -32% |
+| 40% stocks / 60% sleeve | +5.3% | 8.0% | +0.66 | -20% |
+| 100% stocks + 50% sleeve, borrowing at T-bills + 0.00% | +8.6% | 16.7% | +0.51 | -50% |
+| 100% stocks + 50% sleeve, borrowing at T-bills + 0.50% | +8.3% | 16.7% | +0.50 | -50% |
+| 100% stocks + 50% sleeve, borrowing at T-bills + 1.38% (the published frontier's margin loan) | +7.9% | 16.7% | +0.47 | -51% |
+| 100% stocks + 50% sleeve, borrowing at T-bills + 1.50% | +7.8% | 16.7% | +0.47 | -51% |
+| 100% stocks + 50% sleeve, borrowing at T-bills + 2.50% | +7.3% | 16.7% | +0.44 | -51% |
+
+Each point of borrowing spread costs 0.5 points of growth a year, because 50% of capital is borrowed. Without borrowing the sleeve lowers growth as well as risk: it earned less than stocks. The 1/volatility weights use each window's own volatility. Margin calls are not modelled: the rows assume the position is held and rebalanced through every fall.
+
+## What it costs to hold
+
+Expense ratios looked up on 2026-11-16 (`data/processed/diversifier_vehicles.json`): a hand-recorded outside lookup, mostly from secondary sites. Confirm on the issuer's page before use.
+
+Held outright:
+
+| Fund | Name | Exposure | Holds | Fee a year | Fee read from | Note |
+|---|---|---|---|---|---|---|
+| IAUM | iShares Gold Trust Micro | gold | physical gold | 0.09% | secondary sites | cheapest gold fund found |
+| GLDM | SPDR Gold MiniShares | gold | physical gold | 0.10% | secondary sites | much larger than IAUM, so easier to trade |
+| GLD | SPDR Gold Shares | gold | physical gold | 0.40% | secondary sites | the panel's gold series |
+| VGIT | Vanguard Intermediate-Term Treasury ETF | intermediate Treasuries | Treasuries, about 3 to 10 years | 0.03% | secondary sites | SCHR and SPTI charge the same; shorter than the panel's IEF (7 to 10 years) |
+| SDMF | Simplify DBi CTA Managed Futures Index ETF | managed futures | futures and swaps tracking the DBi CTA Managed Futures Index | 0.21% | issuer page | launched 2026-02-17, about $52M; several aggregators still show 0.35%; not in the study's fund composite |
+| WTMF | WisdomTree Managed Futures Strategy Fund | managed futures | futures | 0.66% | secondary sites | in the study's composite; the least volatile of its funds, and it lost money in 2022 |
+| DBMF | iMGP DBi Managed Futures Strategy ETF | managed futures | futures replicating large managed-futures funds | 0.85% | secondary sites | since 2019; in the study's composite |
+| KMLM | KraneShares Mount Lucas Managed Futures Index Strategy ETF | managed futures | futures | 0.90% | secondary sites | in the study's composite |
+
+A third each in IAUM, VGIT and SDMF costs 0.11% a year; with DBMF, which has a record since 2019, 0.32%.
+
+Stacked on stocks (the fund holds stocks and adds the diversifier with futures, so the financing is inside the fund at close to the T-bill rate instead of a margin loan's spread):
+
+| Fund | Name | Exposure | Holds | Fee a year | Fee read from | Note |
+|---|---|---|---|---|---|---|
+| GDE | WisdomTree Efficient Gold Plus Equity Strategy Fund | gold | 90% US stocks + 90% gold futures | 0.20% | secondary sites |  |
+| NTSX | WisdomTree U.S. Efficient Core Fund | intermediate Treasuries | 90% US stocks + 60% Treasury futures | 0.22% | Alpha Vantage ETF profile |  |
+| RSSB | Return Stacked Global Stocks & Bonds ETF | intermediate Treasuries | 100% global stocks + 100% Treasury futures | 0.40% | secondary sites | sources give 0.39% to 0.40% |
+| RSST | Return Stacked U.S. Stocks & Managed Futures ETF | managed futures | 100% US stocks + 100% managed futures | 0.99% | secondary sites |  |
+
+Gold and Treasuries are cheap to stack; managed futures are not. None of these funds is in the panel, and the study's returns are not theirs.
+
 ## Caveats
 
 - The paper trend factor is a backtest of rules published in 2012. Its 1985-2011 return is what the rules would have earned before costs, not what anyone earned. The drag is estimated on one 231-month stretch and applied to all of it.
