@@ -1,0 +1,80 @@
+{
+ "label": "Descriptive diversifier study; it measures the past on data that were all seen before it was designed, selects nothing and is not out-of-sample evidence",
+ "returns_through": "2026-10-31",
+ "stocks": "world_stocks",
+ "thresholds": {
+  "low_corr": 0.3,
+  "max_roll": 0.5,
+  "max_capture": 0.2,
+  "t_sig": 1.645,
+  "roll_months": 120,
+  "worst_share": 0.1,
+  "bear_depth": 0.2,
+  "mix_share": 0.2
+ },
+ "drag": {
+  "months": 231,
+  "vol_ratio_funds_to_factor": 0.6288655362318338,
+  "gap_at_fund_vol": 0.01668884807629183,
+  "drag": 0.02653802301886586
+ },
+ "managed_futures": {
+  "tsmom": {
+   "source": "https://www.aqr.com/-/media/AQR/Documents/Insights/Data-Sets/Time-Series-Momentum-Factors-Monthly.xlsx",
+   "start": "1985-01-31",
+   "end": "2026-05-31",
+   "months": 497,
+   "kind": "hypothetical, simple excess return, before fees and costs"
+  },
+  "funds": {
+   "RYMFX": {
+    "name": "Guggenheim Managed Futures Strategy P",
+    "start": "2007-03-31",
+    "end": "2026-10-31"
+   },
+   "AQMIX": {
+    "name": "AQR Managed Futures Strategy I",
+    "start": "2010-02-28",
+    "end": "2026-10-31"
+   },
+   "ASFYX": {
+    "name": "Virtus AlphaSimplex Managed Futures Strategy I",
+    "start": "2010-09-30",
+    "end": "2026-10-31"
+   },
+   "WTMF": {
+    "name": "WisdomTree Managed Futures Strategy Fund",
+    "start": "2011-02-28",
+    "end": "2026-10-31"
+   },
+   "PQTIX": {
+    "name": "PIMCO TRENDS Managed Futures Strategy Institutional",
+    "start": "2014-02-28",
+    "end": "2026-10-31"
+   },
+   "ABYIX": {
+    "name": "Abbey Capital Futures Strategy I",
+    "start": "2014-08-31",
+    "end": "2026-10-31"
+   },
+   "DBMF": {
+    "name": "iMGP DBi Managed Futures Strategy ETF",
+    "start": "2019-06-30",
+    "end": "2026-10-31"
+   },
+   "KMLM": {
+    "name": "KraneShares Mount Lucas Managed Futures Index Strategy ETF",
+    "start": "2021-01-31",
+    "end": "2026-10-31"
+   },
+   "CTA": {
+    "name": "Simplify Managed Futures Strategy ETF",
+    "start": "2022-04-30",
+    "end": "2026-10-31"
+   }
+  },
+  "funds_kind": "live, simple total return after fees, Yahoo adjusted close; survivor list",
+  "overlap_months": 231,
+  "overlap_corr_monthly": 0.6602186090207893
+ }
+}
