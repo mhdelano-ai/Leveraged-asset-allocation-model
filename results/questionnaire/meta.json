@@ -40,16 +40,6 @@
    ]
   }
  },
- "routes": {
-  "stacked": {
-   "name": "Stacked funds",
-   "detail": "Funds that hold stocks and add a diversifier with futures. No loan and no margin call."
-  },
-  "margin": {
-   "name": "Margin loan",
-   "detail": "Borrowed from the broker. It costs more and can be called."
-  }
- },
  "goals": {
   "near": {
    "name": "Spending within 3 years",
@@ -86,6 +76,26 @@
    "A retirement account cannot take a margin loan. Exposure above 100% of capital can only come from funds that carry it inside.",
    "Qualified withdrawals are untaxed. No holding is tax-favoured over another, and rebalancing costs no tax."
   ]
+ },
+ "routes": {
+  "stacked": {
+   "name": "Return-stacked funds",
+   "detail": "The leverage is inside the funds. You owe nothing and cannot get a margin call.",
+   "how": [
+    "You buy funds that each hold stocks and add a diversifier on top with futures.",
+    "The borrowing happens inside the fund, at close to the T-bill rate. You owe nothing, so there is no loan on your account for anyone to call, and the most you can lose is what you put in.",
+    "The price is higher fund fees and less choice: each fund fixes its own blend, and the stocks inside are US or global stocks."
+   ]
+  },
+  "margin": {
+   "name": "Margin loan",
+   "detail": "The leverage is a loan from your broker. It costs more and can be called.",
+   "how": [
+    "You buy plain funds, then borrow from the broker against them to buy more.",
+    "The loan costs T-bills + 1.38%. If the account falls far enough, the broker can demand cash or sell your holdings at the bottom.",
+    "You choose every fund and the loan reaches 2 times capital, but it is not allowed in a retirement account."
+   ]
+  }
  },
  "settings": {
   "sleeve_rule": "invvol_hist",

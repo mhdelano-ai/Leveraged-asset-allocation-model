@@ -18,18 +18,36 @@ Forecast vol is on the package's 12-month covariance forecast. Expected growth i
 
 | Account | Above 100% by | Goal | Answer | Stocks / Treasuries / gold / managed futures | Forecast vol | Replay worst fall | Replay growth | Expected growth (90%) | Fund fees | Loan |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Taxable brokerage | stacked funds | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |  |  |
-| Taxable brokerage | stacked funds | Spending in 3 to 10 years | 40% stocks and 100% diversifiers, 40% of capital carried inside stacked funds | 40% / 44% / 19% / 37% | 8.8% | -18% | +6.4% | +5.5% (+1.6% to +9.4%) | 0.26% |  |
-| Taxable brokerage | stacked funds | Retirement income, drawn now | 70% stocks and 100% diversifiers, 70% of capital carried inside stacked funds | 70% / 44% / 19% / 37% | 12.7% | -33% | +8.1% | +7.4% (+2.5% to +12.3%) | 0.48% |  |
-| Taxable brokerage | stacked funds | Growth, untouched for 10 years or more | 100% stocks and 95% diversifiers, 95% of capital carried inside stacked funds | 100% / 42% / 18% / 36% | 17.0% | -47% | +9.5% | +8.9% (+3.1% to +14.7%) | 0.56% |  |
+| Taxable brokerage | return-stacked funds | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |  |  |
+| Taxable brokerage | return-stacked funds | Spending in 3 to 10 years | 40% stocks and 100% diversifiers, 40% of capital carried inside stacked funds | 40% / 44% / 19% / 37% | 8.8% | -18% | +6.4% | +5.5% (+1.6% to +9.4%) | 0.26% |  |
+| Taxable brokerage | return-stacked funds | Retirement income, drawn now | 70% stocks and 100% diversifiers, 70% of capital carried inside stacked funds | 70% / 44% / 19% / 37% | 12.7% | -33% | +8.1% | +7.4% (+2.5% to +12.3%) | 0.48% |  |
+| Taxable brokerage | return-stacked funds | Growth, untouched for 10 years or more | 100% stocks and 95% diversifiers, 95% of capital carried inside stacked funds | 100% / 42% / 18% / 36% | 17.0% | -47% | +9.5% | +8.9% (+3.1% to +14.7%) | 0.56% |  |
 | Taxable brokerage | margin loan | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |  |  |
 | Taxable brokerage | margin loan | Spending in 3 to 10 years | 35% stocks and 165% diversifiers, on a margin loan of 100% of capital | 35% / 72% / 31% / 62% | 11.3% | -19% | +7.0% | +5.4% (0.0% to +10.7%) | 0.18% | 1.38% |
 | Taxable brokerage | margin loan | Retirement income, drawn now | 70% stocks and 130% diversifiers, on a margin loan of 100% of capital | 70% / 57% / 25% / 49% | 13.7% | -33% | +7.8% | +6.7% (+1.1% to +12.4%) | 0.14% | 1.38% |
 | Taxable brokerage | margin loan | Growth, untouched for 10 years or more | 100% stocks and 100% diversifiers, on a margin loan of 100% of capital | 100% / 44% / 19% / 37% | 17.1% | -48% | +8.3% | +7.6% (+1.7% to +13.6%) | 0.11% | 1.38% |
-| Tax-deferred | stacked funds | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |  |  |
-| Tax-deferred | stacked funds | Spending in 3 to 10 years | 40% stocks and 100% diversifiers, 40% of capital carried inside stacked funds | 40% / 44% / 19% / 37% | 8.8% | -18% | +6.4% | +5.5% (+1.6% to +9.4%) | 0.26% |  |
-| Tax-deferred | stacked funds | Retirement income, drawn now | 70% stocks and 100% diversifiers, 70% of capital carried inside stacked funds | 70% / 44% / 19% / 37% | 12.7% | -33% | +8.1% | +7.4% (+2.5% to +12.3%) | 0.48% |  |
-| Tax-deferred | stacked funds | Growth, untouched for 10 years or more | 100% stocks and 95% diversifiers, 95% of capital carried inside stacked funds | 100% / 42% / 18% / 36% | 17.0% | -47% | +9.5% | +8.9% (+3.1% to +14.7%) | 0.56% |  |
+| Tax-deferred | return-stacked funds | Spending within 3 years | T-bills | 0% / 0% / 0% / 0% | 0.0% |  |  |  |  |  |
+| Tax-deferred | return-stacked funds | Spending in 3 to 10 years | 40% stocks and 100% diversifiers, 40% of capital carried inside stacked funds | 40% / 44% / 19% / 37% | 8.8% | -18% | +6.4% | +5.5% (+1.6% to +9.4%) | 0.26% |  |
+| Tax-deferred | return-stacked funds | Retirement income, drawn now | 70% stocks and 100% diversifiers, 70% of capital carried inside stacked funds | 70% / 44% / 19% / 37% | 12.7% | -33% | +8.1% | +7.4% (+2.5% to +12.3%) | 0.48% |  |
+| Tax-deferred | return-stacked funds | Growth, untouched for 10 years or more | 100% stocks and 95% diversifiers, 95% of capital carried inside stacked funds | 100% / 42% / 18% / 36% | 17.0% | -47% | +9.5% | +8.9% (+3.1% to +14.7%) | 0.56% |  |
+
+## Return stacking and a margin loan
+
+Both hold more than 100% of capital; the difference is who borrows.
+
+- **Return-stacked funds.** You buy funds that each hold stocks and add a diversifier on top with futures. The borrowing happens inside the fund, at close to the T-bill rate. You owe nothing, so there is no loan on your account for anyone to call, and the most you can lose is what you put in. The price is higher fund fees and less choice: each fund fixes its own blend, and the stocks inside are US or global stocks.
+- **Margin loan.** You buy plain funds, then borrow from the broker against them to buy more. The loan costs T-bills + 1.38%. If the account falls far enough, the broker can demand cash or sell your holdings at the bottom. You choose every fund and the loan reaches 2 times capital, but it is not allowed in a retirement account.
+
+The same goal by each route. Cost is recorded fund fees plus, on margin, the loan's interest over T-bills. The replay charges the loan but no fund fees, so the last column takes each route's fees off.
+
+| Goal | Route | Stocks | Diversifiers | Above 100% of capital | Cost a year | Forecast vol | Replay worst fall | Replay growth after fund fees |
+|---|---|---|---|---|---|---|---|---|
+| Spending in 3 to 10 years | Return-stacked funds | 40% | 100% | 40% | 0.26% | 8.8% | -18% | +6.1% |
+| Spending in 3 to 10 years | Margin loan | 35% | 165% | 100% | 1.56% | 11.3% | -19% | +6.8% |
+| Retirement income, drawn now | Return-stacked funds | 70% | 100% | 70% | 0.48% | 12.7% | -33% | +7.7% |
+| Retirement income, drawn now | Margin loan | 70% | 130% | 100% | 1.52% | 13.7% | -33% | +7.7% |
+| Growth, untouched for 10 years or more | Return-stacked funds | 100% | 95% | 95% | 0.56% | 17.0% | -47% | +8.9% |
+| Growth, untouched for 10 years or more | Margin loan | 100% | 100% | 100% | 1.49% | 17.1% | -48% | +8.2% |
 
 ## Every stock share
 
@@ -82,7 +100,7 @@ Managed futures are not in the covariance forecast: their volatility and correla
 
 One way to hold each answer, from `data/processed/diversifier_vehicles.json` (hand-recorded on 2026-11-16; confirm fees on the issuer's page).
 
-Spending in 3 to 10 years, stacked funds: 40% stocks and 100% diversifiers, 40% of capital carried inside stacked funds.
+Spending in 3 to 10 years, return-stacked funds: 40% stocks and 100% diversifiers, 40% of capital carried inside stacked funds.
 
 | Fund | Name | Share of capital | Fee a year |
 |---|---|---|---|
@@ -93,7 +111,7 @@ Spending in 3 to 10 years, stacked funds: 40% stocks and 100% diversifiers, 40% 
 
 Recorded fund fees: 0.26% of capital a year.
 
-Retirement income, drawn now, stacked funds: 70% stocks and 100% diversifiers, 70% of capital carried inside stacked funds.
+Retirement income, drawn now, return-stacked funds: 70% stocks and 100% diversifiers, 70% of capital carried inside stacked funds.
 
 | Fund | Name | Share of capital | Fee a year |
 |---|---|---|---|
@@ -104,7 +122,7 @@ Retirement income, drawn now, stacked funds: 70% stocks and 100% diversifiers, 7
 
 Recorded fund fees: 0.48% of capital a year.
 
-Growth, untouched for 10 years or more, stacked funds: 100% stocks and 95% diversifiers, 95% of capital carried inside stacked funds.
+Growth, untouched for 10 years or more, return-stacked funds: 100% stocks and 95% diversifiers, 95% of capital carried inside stacked funds.
 
 | Fund | Name | Share of capital | Fee a year |
 |---|---|---|---|

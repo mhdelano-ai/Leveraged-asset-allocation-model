@@ -101,6 +101,17 @@ def write_report(d: dict | None = None) -> str:
                   f"{_pct(r['growth'])} ({_pct(r['growth_lo'])} to {_pct(r['growth_hi'])})" if r["cash"] < 1 else "",
                   _pct(r["fund_fees"], 2, False) if r["cash"] < 1 else "", _pct(r["loan_cost"], 2, False) if r["loan_cost"] > 0 else ""]
                  for _, r in ans[ans["account"] != "roth"].iterrows()]), "",
+         "## Return stacking and a margin loan", "",
+         "Both hold more than 100% of capital; the difference is who borrows.", "",
+         *[f"- **{r['name']}.** " + " ".join(r["how"]) for r in meta["routes"].values()], "",
+         "The same goal by each route. Cost is recorded fund fees plus, on margin, the loan's interest over T-bills. The "
+         "replay charges the loan but no fund fees, so the last column takes each route's fees off.", "",
+         _table(["Goal", "Route", "Stocks", "Diversifiers", "Above 100% of capital", "Cost a year", "Forecast vol",
+                 "Replay worst fall", "Replay growth after fund fees"],
+                [[meta["goals"][r["goal"]]["name"], meta["routes"][r["route"]]["name"], f"{r['stocks']:.0%}", f"{r['sleeve']:.0%}",
+                  f"{r['borrowed']:.0%}", _pct(r["cost"], 2, False), _pct(r["vol"], 1, False), _pct(r["worst_fall_all"], 0),
+                  _pct(r["growth_all_net"])]
+                 for g in meta["goals"] for _, r in ans[(ans["account"] == "taxable") & (ans["goal"] == g) & (ans["cash"] < 1)].iterrows()]), "",
          "## Every stock share", "",
          f"Each stock share with the most diversifiers the account can carry beside it, replayed from "
          f"{meta['first_holding_month'][:7]} to {meta['returns_through'][:7]}, rebalanced monthly.", "",
@@ -169,6 +180,19 @@ tr.pick td { font-weight: 600; background: color-mix(in srgb, var(--fg) 6%, tran
 td.l, th.l { text-align: left; }
 td.wrap { white-space: normal; min-width: 180px; }
 ol { margin: 0; padding-left: 22px; max-width: 72ch; }
+.routes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.route { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--panel); }
+.route.on { border-color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
+.route.off > :not(.head) { opacity: .55; }
+.route .head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; justify-content: space-between; }
+.route .tag { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.route.on .tag { color: var(--fg); font-weight: 600; }
+.route ul { font-size: .875rem; }
+#qn-routes td, #qn-routes th { white-space: normal; text-align: left; vertical-align: top; }
+#qn-routes th:first-child, #qn-routes td:first-child { color: var(--muted); width: 26%; min-width: 150px; }
+#qn-routes td { min-width: 170px; }
+#qn-routes .sel { font-weight: 600; }
 .ring { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--fg); vertical-align: -1px; margin-right: 6px; }
 .band { display: inline-block; width: 16px; height: 11px; border-radius: 2px; background: color-mix(in srgb, var(--fg) 12%, transparent);
   vertical-align: -1px; margin-right: 6px; }
@@ -307,6 +331,53 @@ JS = r"""
     s.appendChild(el('text', { x: x(r.vol) + (cash ? 13 : 0), y: y(r.growth) - (cash ? 10 : 15), 'text-anchor': cash ? 'start' : 'middle', class: 'lab', 'font-weight': 600 }, cash ? 'Your mix: T-bills' : 'Your mix'));
   }
 
+  // ---- return stacking against a margin loan, for this goal
+  function compare(r) {
+    const acc = D.meta.accounts[r.account], rts = Object.keys(D.meta.routes), cash = r.cash >= 1;
+    // the same goal by each route; a route this account lacks is read from an account that has it (the numbers do not depend on the account)
+    const ans = Object.fromEntries(rts.map((k) => [k, D.answers.find((a) => a.route === k && a.goal === r.goal)]));
+    $('qn-routes').hidden = cash; $('qn-routes-note').hidden = cash; $('qn-routes-none').hidden = !cash;
+    const top = Math.max(1, ...rts.map((k) => ans[k].exposure));
+    rts.forEach((k) => {
+      const a = ans[k], ok = acc.routes.includes(k), card = $('qn-card-' + k), host = $('qn-dia-' + k);
+      card.classList.toggle('on', ok && k === r.route && !cash); card.classList.toggle('off', !ok);
+      $('qn-tag-' + k).textContent = !ok ? 'not allowed in this account' : cash ? '' : k !== r.route ? '' : acc.routes.length > 1 ? 'selected' : 'the only way in this account';
+      host.hidden = cash;
+      if (cash) return;
+      const W = 360, H = 112, x = (v) => v / top * (W - 2) + 1, s = svg(host, W, H, `${D.meta.routes[k].name}: what you put in and what it holds`);
+      const b = a.borrowed;
+      s.appendChild(el('text', { x: 1, y: 11, class: 'lab' }, k === 'margin' ? `You put in 100% and borrow ${pct(b, 0, false)} from the broker` : `You put in 100%. Futures inside the funds add ${pct(b, 0, false)}`));
+      s.appendChild(el('rect', { x: x(0), y: 18, width: x(1) - x(0) - 2, height: 22, rx: 4, fill: 'var(--base)' }));
+      if (b > 0.0005) s.appendChild(el('rect', { x: x(1) + 1, y: 19, width: Math.max(x(1 + b) - x(1) - 3, 1), height: 20, rx: 4, fill: k === 'margin' ? 'var(--fg)' : 'none',
+        'fill-opacity': 0.14, stroke: 'var(--fg)', 'stroke-width': 1.5, 'stroke-dasharray': k === 'margin' ? 'none' : '4 3' }));
+      s.appendChild(el('text', { x: 1, y: 54 }, 'your capital' + (b > 0.0005 ? (k === 'margin' ? ', then the loan (yours to repay)' : ', then exposure the funds carry (no loan)') : '')));
+      s.appendChild(el('text', { x: 1, y: 79, class: 'lab' }, `You hold ${pct(a.stocks, 0, false)} stocks and ${pct(a.sleeve, 0, false)} diversifiers`));
+      let at = 0;
+      A.forEach((h) => {
+        const w = a['w_' + h]; if (w <= 0.0005) return;
+        const seg = el('rect', { x: x(at), y: 86, width: Math.max(x(at + w) - x(at) - 2, 1), height: 22, rx: 4, fill: `var(${COL[h]})` });
+        bind(seg, `<b>${D.meta.names[h]}</b>${pct(w, 1, false)} of capital`);
+        s.appendChild(seg); at += w;
+      });
+    });
+    if (cash) return;
+    const buy = (k) => D.funds.filter((f) => f.account === ans[k].account && f.route === k && f.goal === r.goal)
+      .map((f) => `${pct(f.weight, 0, false)} ${f.symbol || f.name.replace(/^A /, '').replace(/ fund$/, '')}`).join(', ');
+    const row = (label, f) => `<tr><td>${label}</td>` + rts.map((k) => `<td${k === r.route ? ' class="sel"' : ''}>${f(k, ans[k])}</td>`).join('') + '</tr>';
+    $('qn-routes').innerHTML = '<thead><tr><th></th>' + rts.map((k) => `<th${k === r.route ? ' class="sel"' : ''}>${D.meta.routes[k].name}</th>`).join('') + '</tr></thead><tbody>' +
+      row('Who borrows', (k) => (k === 'margin' ? 'You, from the broker' : 'The fund, inside itself')) +
+      row('What you hold for this goal', (k, a) => mixName(a) + (a.borrowed > 0.0005 ? `, ${pct(a.exposure, 0, false)} of capital in all` : '')) +
+      row('What you buy', (k, a) => buy(k) + (k === 'margin' && a.borrowed > 0.0005 ? `; ${pct(a.borrowed, 0, false)} of it with the loan` : '')) +
+      row('Cost a year, share of capital', (k, a) => (a.loan_cost > 0 ? `${pct(a.cost, 2, false)}: ${pct(a.loan_cost, 2, false)} loan interest over T-bills, ${pct(a.fund_fees, 2, false)} fund fees` : `${pct(a.cost, 2, false)}, all fund fees`)) +
+      row('Can you be forced to sell?', (k) => (k === 'margin' ? 'Yes. If the account falls far enough the broker calls the loan.' : 'No. There is no loan on your account.')) +
+      row('The most you can lose', (k) => (k === 'margin' ? 'More than you put in, in a fast enough fall' : 'What you put in')) +
+      row('Which stocks', (k) => (k === 'margin' ? 'Any stock fund you choose' : 'The US or global stocks inside the funds')) +
+      row('Allowed in', (k) => (k === 'margin' ? 'Taxable accounts only' : 'Any account')) +
+      row('Forecast volatility', (k, a) => pct(a.vol, 1, false)) +
+      row('Worst fall in the replay', (k, a) => pct(a.worst_fall_all, 0)) +
+      row('Growth in the replay, after recorded fund fees', (k, a) => `${pct(a.growth_all_net)} a year over T-bills`) + '</tbody>';
+  }
+
   function figures(r) {
     const cash = r.cash >= 1, f = (t, v, sub) => `<div><dt>${t}</dt><dd>${v}<small>${sub}</small></dd></div>`;
     $('qn-figs').innerHTML = cash ? f('Forecast volatility', '0%', 'T-bills are the yardstick everything here is measured against') :
@@ -345,7 +416,7 @@ JS = r"""
     const r = answer();
     $('qn-context').textContent = [D.meta.goals[r.goal].name, acc.name, acc.routes.length > 1 ? D.meta.routes[r.route].name : null].filter(Boolean).join(' · ');
     $('qn-how').textContent = r.route === 'margin' ? 'a margin loan' : 'stacked funds';
-    dials(r); bar(r); figures(r); chart(r); funds(r); table(r);
+    dials(r); bar(r); figures(r); compare(r); chart(r); funds(r); table(r);
     try { localStorage.setItem('qn', JSON.stringify([r.account, r.goal, picked('qn-route')])); } catch (e) { /* storage is a convenience */ }
   }
   try {
@@ -376,6 +447,10 @@ def fragment(d: dict) -> str:
                                           else f" Can sit through a fall of {g['loss_limit']:.0%}."))
     how = lambda k, r: r["detail"] + (f" T-bills + {100 * s['spreads']['margin']:.2f}%." if k == "margin" else "")   # noqa: E731
     routes = {k: meta["routes"][k] for k in meta["accounts"]["taxable"]["routes"]}
+    cards = "".join(
+        f'<div class="route" id="qn-card-{k}"><div class="head"><h3>{r["name"]}</h3><span class="tag" id="qn-tag-{k}"></span></div>'
+        f'<div id="qn-dia-{k}"></div><ul>' + "".join(f"<li>{t}</li>" for t in r["how"]) + "</ul></div>"
+        for k, r in routes.items())
     return f"""<title>Allocation Questionnaire</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>{TOKENS}{CSS}{EXTRA_CSS}</style>
@@ -404,6 +479,17 @@ Expected returns decide nothing. Forecast origin {meta['origin']}.</p>
 <div id="qn-bar"></div>
 <div class="legend" id="qn-barleg"></div>
 <dl class="figs" id="qn-figs"></dl>
+</section>
+
+<section><h2>Return stacking or a margin loan: who does the borrowing</h2>
+<p>Both put more than 100% of your capital to work. With return stacking the fund borrows, inside itself, and you only
+own the fund. With margin you borrow, from the broker, and the loan sits on your account.</p>
+<div class="routes">{cards}</div>
+<p id="qn-routes-none" hidden>This goal holds T-bills, so nothing is held above 100% of capital and the choice does not arise.</p>
+<div class="scroll"><table id="qn-routes"></table></div>
+<p class="note" id="qn-routes-note">The replay charges the margin loan's interest but no fund fees, and counts the
+financing inside stacked funds at the T-bill rate. The row "after recorded fund fees" takes each route's fees off, which
+puts the two on one footing. Taxes are not counted for either.</p>
 </section>
 
 <section><h2>Every stock share, and where yours sits</h2>

@@ -103,6 +103,9 @@ def test_committed_tables_and_page_agree():
         for c in ("stocks", "sleeve", "vol", "growth", "growth_lo", "growth_hi", "worst_fall_all", "growth_all"):
             assert r[c] == pytest.approx(row[c])
         assert sum(r[f"w_{a}"] for a in q.SLEEVE) == pytest.approx(r["sleeve"], abs=1e-5)
+        assert r["cost"] == pytest.approx(r["fund_fees"] + r["loan_cost"], abs=1e-6)       # what each route costs, on one footing
+        assert r["growth_all_net"] == pytest.approx(r["growth_all"] - r["fund_fees"], abs=1e-6)
+        assert (r["loan_cost"] > 0) == (r["financing"] == "margin")
         f = d["funds"][(d["funds"]["account"] == r["account"]) & (d["funds"]["route"] == r["route"]) & (d["funds"]["goal"] == r["goal"])]
         assert f["exposure"].sum() == pytest.approx(r["sleeve"], abs=1e-4)
         assert r["stocks"] - q.STOCK_TOL - 1e-6 <= f["stocks"].sum() <= r["stocks"] + 1e-6
@@ -123,4 +126,7 @@ def test_committed_tables_and_page_agree():
     assert meta["label"] in html and "qn-data" in html
     for k in (*q.ACCOUNTS, *q.GOALS, *q.ROUTES):
         assert f'value="{k}"' in html
+    for k in q.ROUTES:                                                 # the two routes are explained side by side
+        assert f'id="qn-card-{k}"' in html and q.ROUTES[k]["how"][0] in html
+    assert "{spread}" not in html and "{times}" not in html
     assert (q.REPORT).read_text().count("| Taxable brokerage |") == 2 * len(q.GOALS)

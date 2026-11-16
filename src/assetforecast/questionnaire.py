@@ -71,6 +71,11 @@ the allocation study is reproduced where the two share a mix.
 
 Funds
 -----
+``answers.csv`` also carries what the two routes cost: ``fund_fees`` (recorded expense
+ratios times shares of capital), ``loan_cost`` (the spread times what is borrowed),
+``cost`` (their sum) and ``growth_all_net`` (the replay's growth less ``fund_fees``;
+the replay already charges the loan, so this puts the routes on one footing).
+
 ``funds.csv``: one way to hold each answer with the funds of
 ``data/processed/diversifier_vehicles.json`` (a hand-recorded fee lookup). With
 nothing above 100%, or on margin: a stock fund and the cheapest recorded fund per
@@ -95,10 +100,21 @@ from .returns.expected import expected_from_xr
 
 LABEL = ("Arithmetic under declared rules on the diversifier and allocation studies and the published "
          "forecast; the rules are judgements, not advice, and nothing here is out-of-sample evidence")
-ROUTES = {   # how exposure above 100% of capital is carried
-    "stacked": {"name": "Stacked funds",
-                "detail": "Funds that hold stocks and add a diversifier with futures. No loan and no margin call."},
-    "margin": {"name": "Margin loan", "detail": "Borrowed from the broker. It costs more and can be called."},
+ROUTES = {   # how exposure above 100% of capital is carried; "how" is shown beside the comparison ({spread}, {times} filled in)
+    "stacked": {"name": "Return-stacked funds",
+                "detail": "The leverage is inside the funds. You owe nothing and cannot get a margin call.",
+                "how": ["You buy funds that each hold stocks and add a diversifier on top with futures.",
+                        "The borrowing happens inside the fund, at close to the T-bill rate. You owe nothing, so there is "
+                        "no loan on your account for anyone to call, and the most you can lose is what you put in.",
+                        "The price is higher fund fees and less choice: each fund fixes its own blend, and the stocks "
+                        "inside are US or global stocks."]},
+    "margin": {"name": "Margin loan",
+               "detail": "The leverage is a loan from your broker. It costs more and can be called.",
+               "how": ["You buy plain funds, then borrow from the broker against them to buy more.",
+                       "The loan costs T-bills + {spread}. If the account falls far enough, the broker can demand cash or "
+                       "sell your holdings at the bottom.",
+                       "You choose every fund and the loan reaches {times} times capital, but it is not allowed in a "
+                       "retirement account."]},
 }
 ACCOUNTS = {   # routes: the ways this account can carry more than 100%, the default first
     "taxable": {"name": "Taxable brokerage", "detail": "Gains, interest and distributions are taxed as they come.",
@@ -388,13 +404,18 @@ def build() -> dict:
                 plan = fund_plan(d, ws, veh)
                 row.update(fund_fees=_fees(plan), loan_cost=row["spread"] * d["borrowed"],
                            stocks_held=sum(r["stocks"] for r in plan))
+                row["cost"] = row["fund_fees"] + row["loan_cost"]              # recorded fund fees, and the loan's spread
+                if d["cash"] < 1.0:                # the replay charges the loan and not the fees: take the fees off too
+                    row["growth_all_net"] = row["growth_all"] - row["fund_fees"]
                 row.update(headline=headline(d), reason=reason(goal, d, row))
                 answers.append(row)
                 funds += [{"account": acc, "route": route, "goal": goal, **r} for r in plan]
 
     meta = {"label": LABEL, "origin": str(origin.date()), "returns_through": str(origin.date()),
             "first_holding_month": str(x.index[A.BURN].date()), "live_from": A.LIVE, "assets": ASSETS, "names": NAMES,
-            "accounts": ACCOUNTS, "routes": ROUTES, "goals": GOALS, "notes": NOTES,
+            "accounts": ACCOUNTS, "goals": GOALS, "notes": NOTES,
+            "routes": {k: {**r, "how": [t.format(spread=f"{100 * spreads['margin']:.2f}%", times=f"{frontier.MAX_LEVERAGE:.0f}")
+                                        for t in r["how"]]} for k, r in ROUTES.items()},
             "settings": {"sleeve_rule": SLEEVE_RULE, "sleeve_rule_name": A.RULE_NAMES[SLEEVE_RULE], "step": STEP, "stock_tol": STOCK_TOL,
                          "max_leverage": frontier.MAX_LEVERAGE, "spreads": spreads, "recent": A.RECENT},
             "sleeve_weights": {a: float(ws[a]) for a in SLEEVE}, "borrow": borrow,
