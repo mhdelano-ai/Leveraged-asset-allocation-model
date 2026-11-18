@@ -254,7 +254,7 @@ def sleeve_weights(rule: str, est: dict) -> pd.Series:
     if kind == "minvar":
         return min_var(sub(src))
     if kind == "maxsharpe":
-        m, c = ("hist", "fcst") if src == "mix" else (src, src)
+        m, c = RULE_INPUTS[rule]
         return max_sharpe(est[m][0][SLEEVE], sub(c))
     raise KeyError(rule)
 
@@ -281,7 +281,7 @@ def portfolio_weights(rule: str, est: dict) -> pd.Series:
     if rule == "riskonly_fcst":
         return _scaled(inv_vol(est["fcst"][1].loc[ASSETS, ASSETS]), est["fcst"][1])
     if kind == "opt":
-        m, c = ("hist", "fcst") if src == "mix" else (src, src)
+        m, c = RULE_INPUTS[rule]
         return _scaled(max_sharpe(est[m][0][ASSETS], est[c][1].loc[ASSETS, ASSETS]), est[c][1])
     raise KeyError(rule)
 
@@ -347,6 +347,16 @@ def rule_table(rets: pd.DataFrame, weights: pd.DataFrame, cash: pd.Series, rules
             row.update(sharpe_diff(lx[r], lx[base]) if r != base else {"sharpe_diff": 0.0, "diff_lo": np.nan, "diff_hi": np.nan})
             rows.append(row)
     return pd.DataFrame(rows)
+
+
+def period_stats(r: pd.Series, cash: pd.Series) -> dict:
+    """``diversifiers._path_stats`` of the monthly simple excess return ``r`` on each of ``PERIODS``, keys suffixed."""
+    row = {}
+    for p, start in PERIODS.items():
+        rp = r.loc[start:] if start else r
+        rf = cash.reindex(rp.index)
+        row.update({f"{k}_{p}": v for k, v in diversifiers._path_stats((1 + rp) * (1 + rf) - 1, rf).items()})
+    return row
 
 
 # ------------------------------------------------------------------ what the inputs are worth
@@ -421,8 +431,7 @@ def persistence(full: dict, block: int = PERSIST) -> pd.DataFrame:
 def means_table(x: pd.DataFrame) -> pd.DataFrame:
     """Each holding's historical mean on the common window with the package's 90% interval, and by half."""
     e = expected_from_xr(x, x.index[-1])
-    lo, hi = [c for c in e.columns if c.startswith("ci") and c.endswith("_lo")][0], \
-             [c for c in e.columns if c.startswith("ci") and c.endswith("_hi")][0]
+    lo, hi = (next(c for c in e.columns if c.startswith("ci") and c.endswith(s)) for s in ("_lo", "_hi"))
     vol = x.std() * np.sqrt(12)
     h = len(x) // 2
     sh = lambda d: 12 * d.mean() / (d.std() * np.sqrt(12))            # noqa: E731
@@ -465,15 +474,9 @@ def menu(x: pd.DataFrame, rets: pd.DataFrame, cash: pd.Series, fc: dict) -> pd.D
         ws = sleeve_weights(sl, est)
         for a, b in MENU:
             w = pd.Series({STOCKS: a, **(b * ws).to_dict()})[ASSETS]
-            r = a * S[STOCKS].reindex(rets.index) + b * rets[sl]
-            row = {"sleeve_rule": sl, "stocks": a, "sleeve": b, "cash": max(1 - a - b, 0.0),
-                   **{f"w_{k}": float(v) for k, v in w.items()}, "vol_fcst": float(np.sqrt(w @ C @ w))}
-            for p, start in PERIODS.items():
-                rp = r.loc[start:] if start else r
-                rf = cash.reindex(rp.index)
-                st = diversifiers._path_stats((1 + rp) * (1 + rf) - 1, rf)
-                row.update({f"{k}_{p}": v for k, v in st.items()})
-            rows.append(row)
+            rows.append({"sleeve_rule": sl, "stocks": a, "sleeve": b, "cash": max(1 - a - b, 0.0),
+                         **{f"w_{k}": float(v) for k, v in w.items()}, "vol_fcst": float(np.sqrt(w @ C @ w)),
+                         **period_stats(a * S[STOCKS].reindex(rets.index) + b * rets[sl], cash)})
     return pd.DataFrame(rows)
 
 
@@ -489,13 +492,9 @@ def run() -> dict:
     mn = menu(x, rets, cash, fc)
     lvl = np.log1p(rets).cumsum()
     OUT.mkdir(parents=True, exist_ok=True)
-    sl.to_csv(OUT / "sleeve_rules.csv", index=False, float_format="%.6g")
-    pf.to_csv(OUT / "portfolio_rules.csv", index=False, float_format="%.6g")
-    ra.to_csv(OUT / "risk_accuracy.csv", index=False, float_format="%.6g")
-    ps.to_csv(OUT / "persistence.csv", index=False, float_format="%.6g")
-    mt.to_csv(OUT / "means.csv", index=False, float_format="%.6g")
-    td.to_csv(OUT / "today.csv", index=False, float_format="%.6g")
-    mn.to_csv(OUT / "menu.csv", index=False, float_format="%.6g")
+    for f, d in (("sleeve_rules", sl), ("portfolio_rules", pf), ("risk_accuracy", ra), ("persistence", ps),
+                 ("means", mt), ("today", td), ("menu", mn)):
+        d.to_csv(OUT / f"{f}.csv", index=False, float_format="%.6g")
     weights.to_csv(OUT / "weights.csv", index=False, float_format="%.4f", date_format="%Y-%m-%d")
     lvl.rename_axis("date").to_csv(OUT / "paths.csv", float_format="%.5f", date_format="%Y-%m-%d")
     meta = {"label": LABEL, "returns_through": str(x.index[-1].date()), "common_start": str(x.index[0].date()),

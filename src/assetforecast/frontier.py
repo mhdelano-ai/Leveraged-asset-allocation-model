@@ -76,7 +76,6 @@ __all__ = ["N_POINTS", "METHOD", "CURVES", "Inputs", "load_inputs", "drift", "st
 N_POINTS = 41            # portfolios per frontier
 CURVES = ("fully_invested", "with_cash")
 FRONTIER_FILE, POINTS_FILE = "frontier.csv", "frontier_points.csv"
-_TOL = 1e-9
 
 METHOD = (
     "Arithmetic on the published forecast, not a model and not a tested strategy. Weights x are shares of "
@@ -146,8 +145,7 @@ def _solve(fun, jac, x0, bounds, constraints) -> np.ndarray:
 
 
 def _clean(x: np.ndarray) -> np.ndarray:
-    x = np.where(x < 1e-7, 0.0, x)
-    return x
+    return np.where(x < 1e-7, 0.0, x)
 
 
 def _min_var(inp: Inputs, cons: list, x0: np.ndarray, extra: int = 0) -> np.ndarray:
@@ -166,9 +164,9 @@ def _min_var(inp: Inputs, cons: list, x0: np.ndarray, extra: int = 0) -> np.ndar
 
 def min_variance(inp: Inputs) -> np.ndarray:
     n = len(inp.assets)
-    x = _min_var(inp, [{"type": "eq", "fun": lambda z: z.sum() - 1, "jac": lambda z: np.ones(n)}],
-                 np.full(n, 1 / n))
-    return _clean(x) / _clean(x).sum()
+    x = _clean(_min_var(inp, [{"type": "eq", "fun": lambda z: z.sum() - 1, "jac": lambda z: np.ones(n)}],
+                        np.full(n, 1 / n)))
+    return x / x.sum()
 
 
 def max_sharpe(inp: Inputs) -> np.ndarray:

@@ -15,9 +15,9 @@ import json
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
+from ..pagekit import document
 from . import HORIZONS, LABEL, MIN_INDEP, PAGE
 from . import report as R
 
@@ -236,17 +236,14 @@ def _records(df: pd.DataFrame, cols: list) -> list:
     d = df[df["period"].isin(list(R.PER))][cols].copy()
     d["thin"] = d["thin"].astype(bool)
     d = d.astype(object).where(d.notna(), None)
-    out = []
-    for r in d.to_dict("records"):
-        out.append({k: (round(v, 5) if isinstance(v, float) else v) for k, v in r.items()})
-    return out
+    return [{k: (round(v, 5) if isinstance(v, float) else v) for k, v in r.items()} for r in d.to_dict("records")]
 
 
 def answers(t: dict) -> list[tuple[str, str, str]]:
     """(quantity, verdict, one sentence with numbers from the tables)."""
     rs, vs, cs, sl = t["return_scores"], t["vol_scores"], t["corr_scores"], t["sleeves"]
-    f = R._fmt
-    rm = [m for m in ("sig_combo", "hz_ridge", "hz_gbm", "hz_ens") if m in set(rs["model"])]
+    f, span = R._fmt, R.span
+    rm =[m for m in ("sig_combo", "hz_ridge", "hz_gbm", "hz_ens") if m in set(rs["model"])]
     pr = {p: R.by_h(rs, "r2", "model", asset="pooled", period=p, model=rm) for p in R.PER}
     pv = {p: R.by_h(vs, "skill", "model", k=1, asset="pooled", period=p).loc["half"] for p in R.PER}
     pw = R.by_h(vs, "win", "model", k=1, asset="pooled", period="after").loc["half"]
@@ -256,22 +253,20 @@ def answers(t: dict) -> list[tuple[str, str, str]]:
     sh = [1, 3, 6, 12]
     return [
         ("Returns", "Nothing reliable at any horizon",
-         f"Up to 12 months the pooled R squared against the historical mean is {f(pr['dev'][sh].min().min(), 'pct')} to "
-         f"{f(pr['dev'][sh].max().max(), 'pct')} in 1990 to 2014 and {f(pr['after'][sh].min().min(), 'pct')} to "
-         f"{f(pr['after'][sh].max().max(), 'pct')} after 2015. It reaches {f(pr['dev'][[36, 60]].max().max(), 'pct')} at 3 to 5 "
+         f"Up to 12 months the pooled R squared against the historical mean is {span(pr['dev'][sh], 'pct')} in 1990 to "
+         f"2014 and {span(pr['after'][sh], 'pct')} after 2015. It reaches {f(pr['dev'][[36, 60]].max().max(), 'pct')} at 3 to 5 "
          "years before 2015, on about five independent windows that the later years cannot confirm."),
         ("Volatility", "Predictable out to about a year",
-         f"The blended forecast removed {f(pv['dev'][sh].min(), 'pct0')} to {f(pv['dev'][sh].max(), 'pct0')} of the "
-         f"naive loss at 1 to 12 months in 1990 to 2014. After 2015 the average is {f(pv['after'][sh].min(), 'pct0')} "
-         f"to {f(pv['after'][sh].max(), 'pct0')} because of the March 2020 crash, though it was closer in "
-         f"{f(pw[sh].min(), 'pct0')} to {f(pw[sh].max(), 'pct0')} of months."),
+         f"The blended forecast removed {span(pv['dev'][sh], 'pct0')} of the naive loss at 1 to 12 months in 1990 to "
+         f"2014. After 2015 the average is {span(pv['after'][sh], 'pct0')} because of the March 2020 crash, though it "
+         f"was closer in {span(pw[sh], 'pct0')} of months."),
         ("Correlations", "Modestly predictable, and it held up",
-         f"The blended forecast removed {f(pc['dev'].min(), 'pct0')} to {f(pc['dev'].max(), 'pct0')} of the naive "
-         f"squared error in 1990 to 2014 and {f(pc['after'].min(), 'pct0')} to {f(pc['after'].max(), 'pct0')} after 2015."),
+         f"The blended forecast removed {span(pc['dev'], 'pct0')} of the naive squared error in 1990 to 2014 and "
+         f"{span(pc['after'], 'pct0')} after 2015."),
         ("Combined", "No reliable gain for the whole model",
          f"Sizing positions with both forecasts changed the certainty-equivalent return by "
-         f"{f(sd['dev'].min(), 'pct')} to {f(sd['dev'].max(), 'pct')} a year in 1990 to 2014 and "
-         f"{f(sd['after'].min(), 'pct')} to {f(sd['after'].max(), 'pct')} after 2015, depending on the horizon."),
+         f"{span(sd['dev'], 'pct')} a year in 1990 to 2014 and {span(sd['after'], 'pct')} after 2015, depending on "
+         "the horizon."),
     ]
 
 
@@ -341,17 +336,11 @@ def body(t: dict) -> str:
 <script>{JS}</script>"""
 
 
-TITLE = "Horizon Map"
-
-
 def build(fragment: str | Path | None = None) -> str:
-    t = R.load()
-    b = body(t)
-    head = (f'<title>{TITLE}</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n'
+    b = body(R.load())
+    head = (f'<title>Horizon Map</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n'
             f"<style>{TOKENS}{CSS}</style>\n")
-    PAGE.write_text('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
-                    '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-                    f"{head}</head>\n<body>\n{b}\n</body>\n</html>\n")
+    PAGE.write_text(document(b, head, viewport="width=device-width, initial-scale=1"))
     if fragment:
         Path(fragment).write_text(head + b + "\n")
     return str(PAGE)

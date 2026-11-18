@@ -11,7 +11,6 @@ supply their own).
 """
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from pathlib import Path
@@ -19,12 +18,12 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from . import paths
+from . import pagekit, paths
 from . import questionnaire as Q
-from .allocation_page import CSS, TOKENS, _records, _table
+from .allocation_page import SHORT
+from .pagekit import CSS, EL_JS, TIP_JS, TOKENS, inline_json, md_table, records
 
 PAGE = paths.ROOT / "dashboard" / "questionnaire.html"
-SHORT = {"world_stocks": "Stocks", "ust_int": "Treasuries", "gold": "Gold", "mf": "Managed futures"}
 LOWER = {"ust_int": "Treasuries", "gold": "gold", "mf": "managed futures"}
 
 
@@ -55,7 +54,7 @@ def _sleeve(meta: dict) -> str:
 def _path_md(cv: pd.DataFrame, every: float = 0.10) -> str:
     """The path at every tenth of the stock share."""
     keep = cv[np.isclose(cv["stocks"] / every, np.round(cv["stocks"] / every))]
-    return _table(["Stocks", "Diversifiers", "Forecast vol", "Replay worst fall", "Replay growth over T-bills",
+    return md_table(["Stocks", "Diversifiers", "Forecast vol", "Replay worst fall", "Replay growth over T-bills",
                    "Expected growth (90%)"],
                   [[f"{r['stocks']:.0%}", f"{r['sleeve']:.0%}", _pct(r["vol"], 1, False), _pct(r["worst_fall_all"], 1),
                     _pct(r["growth_all"]), f"{_pct(r['growth'])} ({_pct(r['growth_lo'])} to {_pct(r['growth_hi'])})"]
@@ -89,7 +88,7 @@ def write_report(d: dict | None = None) -> str:
          "Forecast vol is on the package's 12-month covariance forecast. Expected growth is over T-bills, with the 90% "
          "interval of the historical means. The account's tax treatment does not change the mix; it changes the notes "
          "below.", "",
-         _table(["Goal", "Drawdown budget", "Answer", "Stocks / Treasuries / gold / managed futures", "Forecast vol",
+         md_table(["Goal", "Drawdown budget", "Answer", "Stocks / Treasuries / gold / managed futures", "Forecast vol",
                  "Replay worst fall", "Replay growth", "Expected growth (90%)", "Fund fees"],
                 [[meta["goals"][r["goal"]]["name"], "" if pd.isna(r["loss_limit"]) else f"{r['loss_limit']:.0%}",
                   r["headline"], _held(r), _pct(r["vol"], 1, False), _pct(r["worst_fall_all"], 0), _pct(r["growth_all"]),
@@ -102,7 +101,7 @@ def write_report(d: dict | None = None) -> str:
          f"{meta['first_holding_month'][:7]} to {meta['returns_through'][:7]}, rebalanced monthly.", "",
          _path_md(cv), "",
          "## What risk and expected growth are measured on", "",
-         _table(["Holding", "Forecast vol", "Expected return over T-bills", "90% interval", "History from", "Read from"],
+         md_table(["Holding", "Forecast vol", "Expected return over T-bills", "90% interval", "History from", "Read from"],
                 [[r["name"], _pct(r["vol"], 1, False), _pct(r["mean_12m"]), f"{_pct(r['ci90_lo'])} to {_pct(r['ci90_hi'])}",
                   str(r["first_month"]), r["source"]] for _, r in d["inputs"].iterrows()]), "",
          f"Managed futures are not in the covariance forecast: their volatility and correlations are the last "
@@ -114,7 +113,7 @@ def write_report(d: dict | None = None) -> str:
         r = ans[ans["goal"] == goal].iloc[0]
         fd = d["funds"][d["funds"]["goal"] == goal]
         L += [f"{meta['goals'][goal]['name']}: {r['headline']}.", "",
-              _table(["Fund", "Name", "Share of capital", "Fee a year"],
+              md_table(["Fund", "Name", "Share of capital", "Fee a year"],
                      [[x["symbol"], x["name"], f"{100 * x['weight']:.1f}%", _pct(x["fee"], 2, False)] for _, x in fd.iterrows()]),
               "", f"Recorded fund fees: {_pct(r['fund_fees'], 2, False)} of capital a year"
               + ("; no stock fund's fee is recorded." if r["stocks"] > 0 else "."), ""]
@@ -175,34 +174,13 @@ JS = r"""
     const t = Math.abs(100 * v).toFixed(d), z = Number(t) === 0;      // no signed zero
     return (z ? '' : v < 0 ? '−' : sign ? '+' : '') + t + '%';
   };
-  const el = (tag, attrs = {}, text) => {
-    const e = document.createElementNS(NS, tag);
-    for (const k in attrs) e.setAttribute(k, attrs[k]);
-    if (text != null) e.textContent = text;
-    return e;
-  };
-  const svg = (host, w, h, label) => {
+""" + EL_JS + r"""  const svg = (host, w, h, label) => {
     host.innerHTML = '';
     const s = el('svg', { viewBox: `0 0 ${w} ${h}`, role: 'img', 'aria-label': label });
     host.appendChild(s);
     return s;
   };
-  const tip = $('tip');
-  const showAt = (x, y, html) => {
-    tip.innerHTML = html; tip.hidden = false;
-    const w = tip.offsetWidth, h = tip.offsetHeight;
-    let L = x - w / 2, T = y - h - 10;
-    L = Math.max(8, Math.min(L, innerWidth - w - 8)); if (T < 8) T = y + 14;
-    tip.style.left = L + 'px'; tip.style.top = T + 'px';
-  };
-  const hide = () => { tip.hidden = true; };
-  const bind = (node, html) => {
-    node.setAttribute('tabindex', '0');
-    const on = () => { const r = node.getBoundingClientRect(); showAt(r.left + r.width / 2, r.top, html); };
-    node.addEventListener('mouseenter', on); node.addEventListener('focus', on);
-    node.addEventListener('mouseleave', hide); node.addEventListener('blur', hide);
-  };
-  const picked = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
+""" + TIP_JS + r"""  const picked = (name) => document.querySelector(`input[name="${name}"]:checked`).value;
   const answer = () => D.answers.find((r) => r.goal === picked('qn-goal'));
   const mixName = (p) => `${pct(p.stocks, 0, false)} stocks, ${pct(p.sleeve, 0, false)} diversifiers`;
   const mixTip = (p) => `Forecast volatility ${pct(p.vol, 1, false)}<br>Worst fall in the replay ${pct(p.worst_fall_all, 0)}<br>` +
@@ -331,7 +309,7 @@ JS = r"""
 
 
 def payload(d: dict) -> dict:
-    return {"meta": d["meta"], "short": SHORT, **{t: _records(d[t]) for t in Q.TABLES}}
+    return {"meta": d["meta"], "short": SHORT, **{t: records(d[t]) for t in Q.TABLES}}
 
 
 def _options(name: str, items: dict, default: str, detail) -> str:
@@ -342,7 +320,7 @@ def _options(name: str, items: dict, default: str, detail) -> str:
 
 def fragment(d: dict) -> str:
     meta, s, f = d["meta"], d["meta"]["settings"], facts(d)
-    data = json.dumps(payload(d), separators=(",", ":"), allow_nan=False, default=lambda o: None).replace("</", "<\\/")
+    data = inline_json(payload(d))
     budget = lambda k, g: (g["detail"] + (" No room for a fall." if g["loss_limit"] is None                 # noqa: E731
                                           else f" Can sit through a fall of {g['loss_limit']:.0%}."))
     return f"""<title>Allocation Questionnaire</title>
@@ -426,23 +404,11 @@ and managed futures before {meta['live_from'][:7]} are a paper factor. A worst f
 
 
 def write_page(d: dict | None = None, fragment_path: Path | None = None) -> str:
-    d = load() if d is None else d
-    frag = fragment(d)
-    PAGE.write_text('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
-                    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n</head>\n<body>\n'
-                    + frag + "\n</body>\n</html>\n")
-    if fragment_path is not None:
-        Path(fragment_path).write_text(frag)
-    return str(PAGE)
+    return pagekit.write_page(PAGE, fragment(load() if d is None else d), fragment_path)
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="python -m assetforecast.questionnaire_page", description=__doc__.split("\n")[0])
-    ap.add_argument("--fragment", type=Path, default=None)
-    a = ap.parse_args(argv)
-    d = load()
-    print(write_report(d), write_page(d, a.fragment))
-    return 0
+    return pagekit.main(__doc__, "python -m assetforecast.questionnaire_page", load, write_report, write_page, argv)
 
 
 if __name__ == "__main__":

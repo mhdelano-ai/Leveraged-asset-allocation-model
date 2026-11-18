@@ -10,7 +10,6 @@ their own).
 """
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from pathlib import Path
@@ -19,7 +18,8 @@ import numpy as np
 import pandas as pd
 
 from . import allocation as A
-from . import paths
+from . import pagekit, paths
+from .pagekit import CSS, EL_JS, TIP_JS, TOKENS, inline_json, md_table, records
 
 PAGE = paths.ROOT / "dashboard" / "allocation.html"
 TABLES = ("sleeve_rules", "portfolio_rules", "risk_accuracy", "persistence", "means", "today", "menu")
@@ -28,6 +28,7 @@ SOURCE_NAMES = {"hist": "Whole past", "recent": "Last 5 years", "fcst": "Forecas
                 "fcst21": "Forecast, 21-day matrix"}
 ITEM_NAMES = {**A.NAMES, "mix": "60/40 mix", "world_stocks|ust_int": "Stocks and Treasuries",
               "world_stocks|gold": "Stocks and gold", "ust_int|gold": "Treasuries and gold"}
+SHORT = {"world_stocks": "Stocks", "ust_int": "Treasuries", "gold": "Gold", "mf": "Managed futures"}
 
 
 def load(out: Path | None = None) -> dict:
@@ -73,7 +74,7 @@ def answers(d: dict) -> list[tuple[str, str, str]]:
     g = m.loc["gold"]
     mf = m.loc["mf"]
     best_live = max((l["sleeve"][x]["sharpe_diff"] for x in ("maxsharpe_hist", "maxsharpe_recent", "maxsharpe_mix")))
-    ih_a, ih_l, eq_a, eq_l = a["sleeve"]["invvol_hist"], l["sleeve"]["invvol_hist"], a["sleeve"]["equal"], l["sleeve"]["equal"]
+    ih_a, ih_l, eq_a = a["sleeve"]["invvol_hist"], l["sleeve"]["invvol_hist"], a["sleeve"]["equal"]
     tf, fx, th = a["portfolio"]["target_fcst"], a["portfolio"]["fixed"], a["portfolio"]["target_hist"]
     opts = ("opt_hist", "opt_recent", "opt_mix")
     oa = max((a["portfolio"][x] for x in opts), key=lambda r: r["sharpe_diff"])
@@ -109,10 +110,6 @@ def answers(d: dict) -> list[tuple[str, str, str]]:
 
 
 # ------------------------------------------------------------------ report
-def _table(head, rows):
-    return "\n".join(["| " + " | ".join(head) + " |", "|" + "---|" * len(head)] + ["| " + " | ".join(r) + " |" for r in rows])
-
-
 def _rules_md(t: pd.DataFrame, period: str, sleeve: bool) -> str:
     t = t[t["period"] == period]
     rows = []
@@ -126,7 +123,7 @@ def _rules_md(t: pd.DataFrame, period: str, sleeve: bool) -> str:
                                                     "stocks / Treasuries / gold / managed futures"),
             *([] if sleeve else ["Average exposure"])]
     b = t.iloc[0]
-    return f"{b['start'][:7]} to {b['end'][:7]} ({b['n']} months):\n\n" + _table(head, rows)
+    return f"{b['start'][:7]} to {b['end'][:7]} ({b['n']} months):\n\n" + md_table(head, rows)
 
 
 def write_report(d: dict | None = None) -> str:
@@ -146,14 +143,14 @@ def write_report(d: dict | None = None) -> str:
     ps, mt = d["persistence"], d["means"]
     L += ["## Can each input be known in advance?", "",
           f"One block of {s['persist']} months against the next, non-overlapping, on each holding's whole history:", "",
-          _table(["Holding", "From", "Pairs of blocks", "Volatility", "Mean return", "Return per unit of risk"],
+          md_table(["Holding", "From", "Pairs of blocks", "Volatility", "Mean return", "Return per unit of risk"],
                  [[A.NAMES.get(r["asset"], "All four, pooled"), "" if pd.isna(r.get("start")) else str(r["start"])[:4],
                    f"{r['pairs']:.0f}", _num(r["corr_vol"]), _num(r["corr_mean"]), _num(r["corr_sharpe"])]
                   for _, r in ps.iterrows()]), "",
           "The pooled row removes each holding's own average first. Managed futures' return looks persistent because its "
           "blocks before 2007 are the paper factor.", "",
           f"Historical means on the common window ({meta['common_start'][:4]} on), with the package's 90% interval:", "",
-          _table(["Holding", "Mean a year", "90% interval", "Vol", "Return per unit of risk", "Its interval",
+          md_table(["Holding", "Mean a year", "90% interval", "Vol", "Return per unit of risk", "Its interval",
                   f"To {mt['first_half_end'].iloc[0][:7]}", "After"],
                  [[r["name"], _pct(r["mean"]), f"{_pct(r['mean_lo'])} to {_pct(r['mean_hi'])}", _pct(r["vol"], 1, False),
                    _num(r["sharpe"]), f"{_num(r['sharpe_lo'])} to {_num(r['sharpe_hi'])}", _num(r["sharpe_first_half"]),
@@ -165,13 +162,13 @@ def write_report(d: dict | None = None) -> str:
     L += ["## How well each source measured the next 12 months' risk", "",
           "Volatility: QLIKE loss (lower is better), the forecast's level over the realized level, and the correlation of "
           "forecast with realized.", "",
-          _table(["Source", *[f"{ITEM_NAMES[i]}: QLIKE" for i in ("world_stocks", "ust_int", "gold", "mix")],
+          md_table(["Source", *[f"{ITEM_NAMES[i]}: QLIKE" for i in ("world_stocks", "ust_int", "gold", "mix")],
                   "60/40 mix: level", "60/40 mix: correlation"],
                  [[SOURCE_NAMES[sname], *[_num(g.set_index("item").loc[i, "qlike"], 3, False) for i in ("world_stocks", "ust_int", "gold", "mix")],
                    _num(g.set_index("item").loc["mix", "ratio"], 2, False), _num(g.set_index("item").loc["mix", "corr_with_realized"])]
                   for sname, g in v.groupby("source", sort=False)]), "",
           "Correlations: mean squared error against the realized 12-month correlation.", "",
-          _table(["Source", *[ITEM_NAMES[i] for i in c["item"].unique()]],
+          md_table(["Source", *[ITEM_NAMES[i] for i in c["item"].unique()]],
                  [[SOURCE_NAMES[sname], *[_num(x, 3, False) for x in g["mse"]]] for sname, g in c.groupby("source", sort=False)]), "",
           "The forecast does not cover managed futures. The 21-day row was added after the first run showed the 12-month "
           "matrix standing above month-to-month volatility; no rule uses it.", ""]
@@ -192,7 +189,7 @@ def write_report(d: dict | None = None) -> str:
           "matrix; the replay columns are the whole replay and, in brackets, since the live funds began.", ""]
     for rule, g in mn.groupby("sleeve_rule", sort=False):
         L += [f"Sleeve: {A.RULE_NAMES[rule].lower()}.", "",
-              _table(["Stocks", "Treasuries", "Gold", "Managed futures", "Forecast vol", "Replay growth", "Replay vol",
+              md_table(["Stocks", "Treasuries", "Gold", "Managed futures", "Forecast vol", "Replay growth", "Replay vol",
                       "Replay worst fall"],
                      [[f"{r['w_world_stocks']:.0%}", f"{r['w_ust_int']:.0%}", f"{r['w_gold']:.0%}", f"{r['w_mf']:.0%}",
                        _pct(r["vol_fcst"], 1, False),
@@ -216,71 +213,6 @@ def write_report(d: dict | None = None) -> str:
 
 
 # ------------------------------------------------------------------ page
-TOKENS = """
-:root {
-  /* layout: one reading column; three answers on top, then evidence, the replay with its controls, and today's menu */
-  --bg: #f9f9f7; --panel: #fcfcfb; --fg: #0b0b0b; --muted: #52514e; --line: #e1e0d9; --border: #c3c2b7;
-  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --base: #8a897f;
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
-}
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  color-scheme: dark; --bg: #0d0d0d; --panel: #1a1a19; --fg: #f0efec; --muted: #c3c2b7; --line: #2c2c2a;
-  --border: #383835; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --base: #8a897f; } }
-:root[data-theme="dark"] {
-  color-scheme: dark; --bg: #0d0d0d; --panel: #1a1a19; --fg: #f0efec; --muted: #c3c2b7; --line: #2c2c2a;
-  --border: #383835; --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --base: #8a897f; }
-"""
-
-CSS = """
-*, *::before, *::after { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px;
-  line-height: 1.5; padding-block: 32px 64px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-main { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 36px; }
-section { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-h1 { font-family: var(--serif); font-size: 2rem; line-height: 1.15; margin: 0; font-weight: 600; text-wrap: balance; }
-h2 { font-size: 1.25rem; margin: 0; font-weight: 600; text-wrap: balance; }
-h3 { font-size: .9375rem; margin: 0; font-weight: 600; }
-p { margin: 0; max-width: 68ch; }
-.muted, .note { color: var(--muted); font-size: .8125rem; }
-.label { border-left: 3px solid var(--border); padding: 2px 0 2px 12px; color: var(--muted); font-size: .8125rem; max-width: 80ch; }
-.answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px 28px; }
-.answers > div { min-width: 0; border-top: 2px solid var(--fg); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
-.answers .q { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
-.answers .verdict { font-family: var(--serif); font-size: 1.25rem; line-height: 1.2; }
-.answers p { font-size: .875rem; color: var(--muted); }
-.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px 32px; }
-.two > div { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: end; }
-.controls label { display: flex; flex-direction: column; gap: 3px; font-size: .75rem; color: var(--muted);
-  text-transform: uppercase; letter-spacing: .04em; }
-select { font: inherit; font-size: .875rem; color: var(--fg); background: var(--panel); border: 1px solid var(--border);
-  border-radius: 6px; padding: 5px 8px; max-width: 100%; }
-select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--s1); outline-offset: 1px; }
-.scroll { overflow-x: auto; }
-table { border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .8125rem; width: 100%; }
-th { font-weight: 500; color: var(--muted); text-align: right; padding: 5px 8px; white-space: nowrap; border-bottom: 1px solid var(--border); }
-td { text-align: right; padding: 5px 8px; white-space: nowrap; border-bottom: 1px solid var(--line); }
-th:first-child, td:first-child { text-align: left; padding-left: 0; }
-tr.base td { font-weight: 600; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: .8125rem; color: var(--muted); }
-.sw { display: inline-block; width: 11px; height: 11px; border-radius: 2px; vertical-align: -1px; margin-right: 6px; }
-.ln { display: inline-block; width: 16px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
-svg { display: block; width: 100%; height: auto; overflow: visible; }
-svg text { fill: var(--muted); font-size: 11px; font-family: var(--sans); font-variant-numeric: tabular-nums; }
-svg .lab { fill: var(--fg); font-size: 12px; }
-svg .grid { stroke: var(--line); stroke-width: 1; }
-svg .zero { stroke: var(--border); stroke-width: 1; }
-#tip { position: fixed; pointer-events: none; background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
-  padding: 7px 10px; font-size: .8125rem; box-shadow: 0 4px 16px rgba(0,0,0,.18); max-width: 280px; z-index: 5;
-  font-variant-numeric: tabular-nums; }
-#tip b { display: block; }
-ul { margin: 0; padding-left: 20px; max-width: 72ch; }
-li { margin-bottom: 4px; }
-code { font-size: .875em; }
-"""
-
 JS = r"""
 (() => {
   const D = JSON.parse(document.getElementById('al-data').textContent);
@@ -291,34 +223,13 @@ JS = r"""
     (sign ? (v > 0 ? '+' : v < 0 ? '−' : '') : (v < 0 ? '−' : '')) + Math.abs(100 * v).toFixed(d) + '%');
   const num = (v, d = 2, sign = true) => (v == null || !isFinite(v) ? '' :
     (v < 0 ? '−' : sign && v > 0 ? '+' : '') + Math.abs(v).toFixed(d));
-  const el = (tag, attrs = {}, text) => {
-    const e = document.createElementNS(NS, tag);
-    for (const k in attrs) e.setAttribute(k, attrs[k]);
-    if (text != null) e.textContent = text;
-    return e;
-  };
-  const svg = (host, w, h) => {
+""" + EL_JS + r"""  const svg = (host, w, h) => {
     host.innerHTML = '';
     const s = el('svg', { viewBox: `0 0 ${w} ${h}`, role: 'img' });
     host.appendChild(s);
     return s;
   };
-  const tip = $('tip');
-  const showAt = (x, y, html) => {
-    tip.innerHTML = html; tip.hidden = false;
-    const w = tip.offsetWidth, h = tip.offsetHeight;
-    let L = x - w / 2, T = y - h - 10;
-    L = Math.max(8, Math.min(L, innerWidth - w - 8)); if (T < 8) T = y + 14;
-    tip.style.left = L + 'px'; tip.style.top = T + 'px';
-  };
-  const hide = () => { tip.hidden = true; };
-  const bind = (node, html) => {
-    node.setAttribute('tabindex', '0');
-    const on = () => { const r = node.getBoundingClientRect(); showAt(r.left + r.width / 2, r.top, html); };
-    node.addEventListener('mouseenter', on); node.addEventListener('focus', on);
-    node.addEventListener('mouseleave', hide); node.addEventListener('blur', hide);
-  };
-  const narrow = () => innerWidth < 560;
+""" + TIP_JS + r"""  const narrow = () => innerWidth < 560;
 
   // ---- does one block tell the next
   function persistence() {
@@ -535,22 +446,18 @@ JS = r"""
 """
 
 
-def _records(df: pd.DataFrame) -> list[dict]:
-    return json.loads(df.to_json(orient="records", double_precision=5))
-
-
 def payload(d: dict) -> dict:
     p = d["paths"]
     return {"meta": d["meta"], "names": A.NAMES, "sources": SOURCE_NAMES, "items": ITEM_NAMES,
-            "short": {"world_stocks": "Stocks", "ust_int": "Treasuries", "gold": "Gold", "mf": "Managed futures"},
-            **{t: _records(d[t]) for t in TABLES},
+            "short": SHORT,
+            **{t: records(d[t]) for t in TABLES},
             "paths": {"date": [x.strftime("%Y-%m-%d") for x in p.index], **{c: [round(float(v), 4) for v in p[c]] for c in p.columns}}}
 
 
 def fragment(d: dict) -> str:
     meta, s = d["meta"], d["meta"]["settings"]
     ans = "".join(f'<div><div class="q">{q}</div><div class="verdict">{v}</div><p>{e}</p></div>' for q, v, e in answers(d))
-    data = json.dumps(payload(d), separators=(",", ":"), allow_nan=False, default=lambda o: None).replace("</", "<\\/")
+    data = inline_json(payload(d))
     first = meta["first_holding_month"][:4]
     return f"""<title>Allocation Inputs Study</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -644,23 +551,11 @@ capital, when the package dropped borrowing.</li>
 
 
 def write_page(d: dict | None = None, fragment_path: Path | None = None) -> str:
-    d = load() if d is None else d
-    frag = fragment(d)
-    PAGE.write_text('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
-                    '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n</head>\n<body>\n'
-                    + frag + "\n</body>\n</html>\n")
-    if fragment_path is not None:
-        Path(fragment_path).write_text(frag)
-    return str(PAGE)
+    return pagekit.write_page(PAGE, fragment(load() if d is None else d), fragment_path)
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="python -m assetforecast.allocation_page", description=__doc__.split("\n")[0])
-    ap.add_argument("--fragment", type=Path, default=None)
-    a = ap.parse_args(argv)
-    d = load()
-    print(write_report(d), write_page(d, a.fragment))
-    return 0
+    return pagekit.main(__doc__, "python -m assetforecast.allocation_page", load, write_report, write_page, argv)
 
 
 if __name__ == "__main__":

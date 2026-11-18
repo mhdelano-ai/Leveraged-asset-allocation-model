@@ -176,9 +176,8 @@ STEP_NAMES = tuple(s.name for s in STEPS)
 def step_env(c: Config, base: dict | None = None) -> dict:
     """The environment every step runs in (see the module docstring)."""
     env = dict(os.environ if base is None else base)
-    for k in _CLEARED_ENV:
+    for k in (*_CLEARED_ENV, _MAX_ENV):
         env.pop(k, None)
-    env.pop(_MAX_ENV, None)
     if c.max_date:
         env[_MAX_ENV] = c.max_date
     env["OMP_NUM_THREADS"] = "1"
@@ -189,13 +188,7 @@ def step_env(c: Config, base: dict | None = None) -> dict:
 
 def plan(c: Config, skip=()) -> list[tuple[Step, list[str] | None, str | None]]:
     """(step, command or None, note) for every step, in order; skipped steps have no command."""
-    out = []
-    for s in STEPS:
-        if s.name in skip:
-            out.append((s, None, "skipped (--skip)"))
-        else:
-            out.append((s, s.command(c), s.note(c)))
-    return out
+    return [(s, None, "skipped (--skip)") if s.name in skip else (s, s.command(c), s.note(c)) for s in STEPS]
 
 
 def run(c: Config, skip=(), runner=subprocess.run, dry_run: bool = False, log=print) -> list[dict]:
@@ -207,8 +200,7 @@ def run(c: Config, skip=(), runner=subprocess.run, dry_run: bool = False, log=pr
     records = []
     steps = plan(c, skip)
     for i, (s, cmd, note) in enumerate(steps, 1):
-        head = f"[{i}/{len(steps)}] {s.name}: {s.what}"
-        log(head)
+        log(f"[{i}/{len(steps)}] {s.name}: {s.what}")
         if note:
             log(f"  {note}")
         if cmd is None:

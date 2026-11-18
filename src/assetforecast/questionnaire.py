@@ -137,21 +137,11 @@ def mix_stats(stocks: pd.Series, sleeve: pd.Series, cash: pd.Series, a: float, b
     ``a + b`` is at most 1; what it leaves of the capital is in T-bills."""
     if a + b > 1.0 + 1e-9:
         raise ValueError("nothing borrows: stocks and sleeve hold at most 100% of capital")
-    r = a * stocks.reindex(sleeve.index) + b * sleeve
-    row = {}
-    for p, start in A.PERIODS.items():
-        rp = r.loc[start:] if start else r
-        rf = cash.reindex(rp.index)
-        row.update({f"{k}_{p}": v for k, v in diversifiers._path_stats((1 + rp) * (1 + rf) - 1, rf).items()})
-    return row
+    return A.period_stats(a * stocks.reindex(sleeve.index) + b * sleeve, cash)
 
 
 def weights(stocks: float, sleeve: float, ws: pd.Series) -> np.ndarray:
     return pd.Series({STOCKS: stocks, **(sleeve * ws).to_dict()})[ASSETS].to_numpy(float)
-
-
-def _grid(lo: float, hi: float, step: float = STEP) -> np.ndarray:
-    return np.round(np.arange(lo, hi + 1e-9, step), 6)
 
 
 def expected_four(x_funds: pd.Series, origin: pd.Timestamp, forecast_dir=None) -> pd.DataFrame:
@@ -201,7 +191,7 @@ def _fees(rows: list[dict]) -> float:
 # ------------------------------------------------------------------ the path
 def path() -> list[tuple[float, float]]:
     """(stocks, sleeve): every stock share, with the sleeve in the rest of the capital."""
-    return [(float(s), float(round(1.0 - s, 6))) for s in _grid(0.0, 1.0)]
+    return [(float(s), float(round(1.0 - s, 6))) for s in np.round(np.arange(0.0, 1.0 + 1e-9, STEP), 6)]
 
 
 def curve(inp: frontier.Inputs, ws: pd.Series, stocks: pd.Series, sleeve: pd.Series, cash: pd.Series) -> pd.DataFrame:

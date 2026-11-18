@@ -92,15 +92,11 @@ DISTRIBUTION_METHOD = (
     "it and are not out-of-sample evidence.")
 
 
-def _family(model: str) -> str:
-    return model.split("_", 1)[0]
-
-
 def family_range(origin, assets, results_dir) -> pd.DataFrame:
     """10th/50th/90th percentile, across model families, of each family's mean vol forecast."""
     rows = {}
     for m in harness.stored_models("vol", results_dir):
-        fam = _family(m)
+        fam = m.split("_", 1)[0]
         if fam in ("combo", "scratch"):
             continue
         f = harness.load_forecasts("vol", m, results_dir).get(origin)
@@ -197,10 +193,8 @@ def return_side(origin, cov_annual: pd.DataFrame, cov_history_path: Path | None 
     exp = E.expected_returns(rpanel, o)
     var = pd.Series(np.diag(cov_annual.to_numpy(float)), index=cov_annual.index)
     exp["mean_12m_arith"] = np.exp(exp["mean_12m"] + 0.5 * var.reindex(exp.index)) - 1.0
-    names = {a: BY_ID[a].name for a in exp.index}
-    groups = {a: BY_ID[a].group for a in exp.index}
-    exp.insert(0, "group", exp.index.map(groups))
-    exp.insert(0, "name", exp.index.map(names))
+    exp.insert(0, "group", exp.index.map({a: BY_ID[a].group for a in exp.index}))
+    exp.insert(0, "name", exp.index.map({a: BY_ID[a].name for a in exp.index}))
 
     hist = covhistory.load("annual", cov_history_path)
     hist = {t: m for t, m in hist.items() if t <= o}
@@ -346,8 +340,8 @@ def write(result: dict, out: Path, latest: bool = True) -> Path:
     blocks = {k: meta.pop(k) for k in ("expected_returns", "distribution", "checks")}
     payload = {
         **meta,
-        "assets": json.loads(result["vols"].round(5).reset_index().to_json(orient="records")),
-        "portfolios": json.loads(result["portfolios"].round(5).reset_index().to_json(orient="records")),
+        "assets": _records(result["vols"].reset_index(), 5),
+        "portfolios": _records(result["portfolios"].reset_index(), 5),
         "portfolio_weights": json.loads(result["weights"].round(4).to_json(orient="index")),
         "corr": {"assets": list(result["corr"].index), "matrix": result["corr"].round(4).to_numpy().tolist()},
         "cov_annual": {"assets": list(result["cov_annual"].index),

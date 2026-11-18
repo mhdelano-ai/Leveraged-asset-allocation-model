@@ -165,6 +165,15 @@ def _grid(inp, step: float = 0.0025) -> tuple[np.ndarray, np.ndarray, np.ndarray
     return X, np.sqrt(var), X @ frontier.drift(inp) - 0.5 * var
 
 
+def _eras(d: Path) -> tuple[dict, pd.Series]:
+    """({"all", "full_mix"}: composite simple returns through the origin of the forecast in ``d``, monthly cash)."""
+    from .returns import inputs
+    origin = json.loads((d / "forecast.json").read_text())["origin"]
+    panel = inputs.load_return_panel()
+    simple, cash = panel.monthly.loc[:pd.Timestamp(origin)], panel.cash_monthly
+    return {"all": composite_simple(simple, cash), "full_mix": composite_simple(simple, cash, full_mix=True)}, cash
+
+
 def mixes(d: Path) -> pd.DataFrame:
     """The mix with the most growth at each volatility, and the mix with the most growth of all.
 
@@ -177,15 +186,10 @@ def mixes(d: Path) -> pd.DataFrame:
     return panel (``_all``) and over the months in which every component of both
     composites exists (``_full_mix``).
     """
-    from .returns import inputs
     inp = frontier.load_inputs(d)
     top = frontier.top_volatility(inp)
     X, _, gr = _grid(inp)
-    origin = json.loads((d / "forecast.json").read_text())["origin"]
-    panel = inputs.load_return_panel()
-    simple = panel.monthly.loc[:pd.Timestamp(origin)]
-    eras = {"all": composite_simple(simple, panel.cash_monthly),
-            "full_mix": composite_simple(simple, panel.cash_monthly, full_mix=True)}
+    eras, cash = _eras(d)
 
     def row(label, x):
         s = frontier.stats(inp, x)
@@ -194,14 +198,12 @@ def mixes(d: Path) -> pd.DataFrame:
                "cash": max(1 - inv, 0.0),
                "growth": s["growth"], "growth_lo": s["growth_lo"], "growth_hi": s["growth_hi"]}
         for k, comp in eras.items():
-            h = past_losses(x, comp, panel.cash_monthly)
+            h = past_losses(x, comp, cash)
             out.update({f"worst_12m_{k}": h["worst_12m"], f"max_drawdown_{k}": h["max_drawdown"],
                         f"from_{k}": h["from"]})
         return out
 
-    rows = []
-    for k, w in POLICIES.items():
-        rows.append(row(k, [w.get(a, 0.0) for a in inp.assets]))
+    rows = [row(k, [w.get(a, 0.0) for a in inp.assets]) for k, w in POLICIES.items()]
     for v in MIX_VOLS:
         if v <= top + 1e-9:
             rows.append(row(f"vol {v:.0%}", frontier.at_volatility(inp, v, True)))
@@ -226,14 +228,9 @@ def loss_options(d: Path, limits=LOSS_LIMITS, step: float = 0.01) -> pd.DataFram
     100% of capital. The limit is fitted to the past: nothing says the
     next fall will be no deeper.
     """
-    from .returns import inputs
     inp = frontier.load_inputs(d)
-    origin = json.loads((d / "forecast.json").read_text())["origin"]
-    panel = inputs.load_return_panel()
-    simple = panel.monthly.loc[:pd.Timestamp(origin)]
-    cash = panel.cash_monthly
-    eras = {"full_mix": composite_simple(simple, cash, full_mix=True).dropna(),
-            "all": composite_simple(simple, cash).dropna()}
+    eras, cash = _eras(d)
+    eras = {k: c.dropna() for k, c in eras.items()}
     X, _, gr = _grid(inp, step)
     dd = {}
     for k, c in eras.items():

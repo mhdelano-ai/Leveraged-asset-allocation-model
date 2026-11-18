@@ -13,6 +13,7 @@ import sys
 import numpy as np
 import pandas as pd
 
+from ..pagekit import md_table as _md
 from . import FIGURES, HORIZONS, LABEL, MIN_INDEP, REPORT, TABLES
 
 ASSET_ORDER = ["us_large", "us_small", "intl_dev", "em", "ust_int", "ust_long", "tips",
@@ -35,14 +36,16 @@ def _fmt(v, kind="f3"):
             "pct0": f"{100 * v:.0f}%", "bp": f"{1e4 * v:+.0f}", "r3": f"{v:.3f}"}[kind]
 
 
+def span(x, kind) -> str:
+    """"lo to hi" over a Series or a whole DataFrame, formatted by ``_fmt``."""
+    lo, hi = (x.min().min(), x.max().max()) if isinstance(x, pd.DataFrame) else (x.min(), x.max())
+    return f"{_fmt(lo, kind)} to {_fmt(hi, kind)}"
+
+
 def md_table(df: pd.DataFrame, kind="f3", index_name="") -> str:
-    cols = [HL.get(c, str(c)) for c in df.columns]
-    out = ["| " + " | ".join([index_name, *cols]) + " |", "|" + "---|" * (len(cols) + 1)]
-    for i, r in df.iterrows():
-        name = " / ".join(map(str, i)) if isinstance(i, tuple) else str(i)
-        out.append("| " + " | ".join([name, *[_fmt(x, kind) if not isinstance(x, str) else x
-                                              for x in r]]) + " |")
-    return "\n".join(out)
+    return _md([index_name, *[HL.get(c, str(c)) for c in df.columns]],
+               [[" / ".join(map(str, i)) if isinstance(i, tuple) else str(i),
+                 *[x if isinstance(x, str) else _fmt(x, kind) for x in r]] for i, r in df.iterrows()])
 
 
 def by_h(df, value, rows, **where) -> pd.DataFrame:
@@ -144,12 +147,11 @@ def build() -> str:
     s12 = [h for h in HORIZONS if h <= 12]
     lng = [h for h in (36, 60) if h in pooled["dev"].columns]
     ni = by_h(rs, "n_indep", "model", asset="pooled", period="dev", model=rmods)
-    rng = lambda d, hs: f"{_fmt(d[hs].min().min(), 'pct')} to {_fmt(d[hs].max().max(), 'pct')}"
     spool = sl[sl["asset"] == "pooled"]
     ens_money = by_h(spool, "d_cer", "period", mu="hz_ens", var="naive", period="dev").iloc[0]
     w("**Returns: nothing reliable at any horizon, and a hint at 3 to 5 years that cannot be "
       "checked.** Up to 12 months the pooled out-of-sample R squared against the historical mean "
-      f"is {rng(pooled['dev'], s12)} in 1990 to 2014 and {rng(pooled['after'], s12)} after 2015 "
+      f"is {span(pooled['dev'][s12], 'pct')} in 1990 to 2014 and {span(pooled['after'][s12], 'pct')} after 2015 "
       f"across the {len(rmods)} forecasters: noise around zero. In 1990 to 2014 it rises with the "
       "horizon for two of them ("
       + "; ".join(f"`{m}` " + ", ".join(f"{_fmt(pooled['dev'].loc[m, h], 'pct')} at {HL[h]}" for h in lng)
@@ -167,24 +169,17 @@ def build() -> str:
     sh = [h for h in (1, 3, 6, 12) if h in pv[1]["dev"].columns]
     lg = [h for h in (36, 60) if h in pv[1]["dev"].columns]
     w("**Volatility is predictable out to about a year, and much less beyond.** With daily data the "
-      f"blended forecast (`half`) removes {_fmt(pv[1]['dev'].loc['half', sh].min(), 'pct0')} to "
-      f"{_fmt(pv[1]['dev'].loc['half', sh].max(), 'pct0')} of the naive forecast's loss at 1 to 12 "
-      f"months in 1990 to 2014 and {_fmt(pv[1]['dev'].loc['half', lg].min(), 'pct0')} to "
-      f"{_fmt(pv[1]['dev'].loc['half', lg].max(), 'pct0')} at 3 to 5 years. After 2015 the average "
-      "gain disappears at most horizons "
-      f"({_fmt(pv[1]['after'].loc['half', sh].min(), 'pct0')} to "
-      f"{_fmt(pv[1]['after'].loc['half', sh].max(), 'pct0')} at 1 to 12 months), yet the forecast "
-      "still has the lower loss in "
-      f"{_fmt(pw[1]['after'].loc['half', sh].min(), 'pct0')} to "
-      f"{_fmt(pw[1]['after'].loc['half', sh].max(), 'pct0')} of months: the average is dominated by the "
+      f"blended forecast (`half`) removes {span(pv[1]['dev'].loc['half', sh], 'pct0')} of the naive forecast's "
+      f"loss at 1 to 12 months in 1990 to 2014 and {span(pv[1]['dev'].loc['half', lg], 'pct0')} at 3 to 5 years. "
+      "After 2015 the average gain disappears at most horizons "
+      f"({span(pv[1]['after'].loc['half', sh], 'pct0')} at 1 to 12 months), yet the forecast still has the "
+      f"lower loss in {span(pw[1]['after'].loc['half', sh], 'pct0')} of months: the average is dominated by the "
       "windows that contain the crash of March 2020, when every forecast built on recent calm was "
       "far too low.\n")
-    ch = [h for h in pc[1]["dev"].columns]
+    ch = list(pc[1]["dev"].columns)
     w("**Correlations are modestly predictable at every horizon up to about 3 years.** `half` "
-      f"removes {_fmt(pc[1]['dev'].loc['half', ch].min(), 'pct0')} to "
-      f"{_fmt(pc[1]['dev'].loc['half', ch].max(), 'pct0')} of the naive squared error in 1990 to 2014 "
-      f"and {_fmt(pc[1]['after'].loc['half', ch].min(), 'pct0')} to "
-      f"{_fmt(pc[1]['after'].loc['half', ch].max(), 'pct0')} after 2015 (daily measure), "
+      f"removes {span(pc[1]['dev'].loc['half', ch], 'pct0')} of the naive squared error in 1990 to 2014 "
+      f"and {span(pc[1]['after'].loc['half', ch], 'pct0')} after 2015 (daily measure), "
       "and unlike volatility this held up in both periods.\n")
     sp = sl[(sl["asset"] == "pooled")]
     def cer(mu, var, per):
@@ -192,16 +187,12 @@ def build() -> str:
     both_dev, both_aft = cer("sig_combo", "half", "dev"), cer("sig_combo", "half", "after")
     w("**Combining the two does not make the whole model better.** A sleeve that sizes each "
       "position with a return forecast and a volatility forecast gained "
-      f"{_fmt(both_dev.min(), 'pct')} to {_fmt(both_dev.max(), 'pct')} a year in certainty-equivalent "
-      f"return over the baseline in 1990 to 2014 and {_fmt(both_aft.min(), 'pct')} to "
-      f"{_fmt(both_aft.max(), 'pct')} after 2015, depending on the horizon (`sig_combo` with `half`): "
+      f"{span(both_dev, 'pct')} a year in certainty-equivalent return over the baseline in 1990 to 2014 "
+      f"and {span(both_aft, 'pct')} after 2015, depending on the horizon (`sig_combo` with `half`): "
       "small, and with the sign changing between periods and horizons. The volatility regression "
-      "`har` added "
-      f"{_fmt(cer('hist_mean', 'har', 'dev')[[h for h in HORIZONS if 3 <= h <= 60]].min(), 'pct')} to "
-      f"{_fmt(cer('hist_mean', 'har', 'dev')[[h for h in HORIZONS if 3 <= h <= 60]].max(), 'pct')} a year "
-      "at 3 months to 5 years in 1990 to 2014 and "
-      f"{_fmt(cer('hist_mean', 'har', 'after').min(), 'pct')} to "
-      f"{_fmt(cer('hist_mean', 'har', 'after').max(), 'pct')} after 2015. What the study supports "
+      f"`har` added {span(cer('hist_mean', 'har', 'dev')[[h for h in HORIZONS if 3 <= h <= 60]], 'pct')} a year "
+      f"at 3 months to 5 years in 1990 to 2014 and {span(cer('hist_mean', 'har', 'after'), 'pct')} after 2015. "
+      "What the study supports "
       "is a split: keep expected returns at the historical mean at every horizon, and treat risk "
       "as the forecastable part, mainly at short horizons.\n")
 
@@ -250,9 +241,7 @@ def build() -> str:
     w("Horizons at which a forecaster beat the historical mean in **both** periods, by asset "
       "(a description; with this many cells some agreement is expected by chance):\n")
     pl = pd.DataFrame({m: persist_list(r_dev[m], r_aft[m]) for m in rmods})
-    w("| asset | " + " | ".join(f"`{m}`" for m in rmods) + " |\n|" + "---|" * (len(rmods) + 1))
-    for a, r in pl.iterrows():
-        w(f"| {a} | " + " | ".join(r) + " |")
+    w(_md(["asset", *(f"`{m}`" for m in rmods)], [[a, *r] for a, r in pl.iterrows()]))
     w("")
     sig = rs[(rs["asset"] == "pooled") & rs["model"].str.startswith("sig_")
              & (rs["model"] != "sig_combo")]
@@ -319,9 +308,7 @@ def build() -> str:
         "volatility (`half`, 21-day)": persist_list(v_dev[21], v_aft[21]),
         "correlation (`half`, daily)": persist_list(c_dev[1], c_aft[1]),
         "correlation (`half`, 21-day)": persist_list(c_dev[21], c_aft[21])})
-    w("| asset | " + " | ".join(mp.columns) + " |\n|" + "---|" * (mp.shape[1] + 1))
-    for a, r in mp.iterrows():
-        w(f"| {a} | " + " | ".join(r) + " |")
+    w(_md(["asset", *mp.columns], [[a, *r] for a, r in mp.iterrows()]))
     w("")
 
     w("\n## Limits\n")
@@ -341,7 +328,7 @@ def build() -> str:
       "would trade more and could do better or worse.\n"
       "- The frozen models and the published 12-month forecast are unchanged. A model at a new "
       "horizon would have to be declared now and judged on forecasts made after "
-      f"`FROZEN_AT`; at 1 month that evidence accumulates 12 times faster than at 12.\n")
+      "`FROZEN_AT`; at 1 month that evidence accumulates 12 times faster than at 12.\n")
     REPORT.write_text("\n".join(L))
     return str(REPORT)
 

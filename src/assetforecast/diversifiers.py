@@ -334,19 +334,19 @@ def vehicles(path=None) -> dict:
     return v
 
 
-def _sleeve_report(sv: pd.DataFrame, sc: pd.DataFrame, meta: dict) -> list[str]:
+def _sleeve_report(sv: pd.DataFrame, sc: pd.DataFrame) -> list[str]:
     L = ["## An equal-weight sleeve of the three that passed", "",
          "Intermediate Treasuries, gold and managed futures, a third each, rebalanced monthly; the stock share is then "
          "chosen separately. From 1985 managed futures are the paper factor less the measured drag; from March 2007 "
          "they are the live funds, which is the window to trust. The three were picked on this same history, so "
          "every number below is flattered by that choice.", ""]
+    lab = {STOCKS: "Stocks", "ust_int": "Treasuries", "gold": "Gold", "mf_tsmom_net": "Managed futures",
+           "mf_funds": "Managed futures"}
     for w in SLEEVE:
         d = sv[sv["window"] == w]
         e = d[d["scheme"] == "equal"]
         c = sc[sc["window"] == w].pivot(index="a", columns="b", values="corr")
         names = [STOCKS, *SLEEVE[w]]
-        lab = {STOCKS: "Stocks", "ust_int": "Treasuries", "gold": "Gold", "mf_tsmom_net": "Managed futures",
-               "mf_funds": "Managed futures"}
         b = e.iloc[0]
         L += [f"### {b['start'][:7]} to {b['end'][:7]} ({b['n']} months)", "",
               _table(["Correlation", *[lab[n] for n in names]],
@@ -360,10 +360,9 @@ def _sleeve_report(sv: pd.DataFrame, sc: pd.DataFrame, meta: dict) -> list[str]:
                          f"{s['bears_down']:.0f} of {s['bears']:.0f} (worst {_pct(s['worst_bear'], 0)})"])
         L += [_table(["", "Treasuries / gold / managed futures", "Growth", "Vol", "Sharpe", "Corr with stocks",
                       "Stock bear markets it fell in"], rows), ""]
-        rows = []
-        for _, r in e[e["kind"] == "mix"].iterrows():
-            rows.append([f"{r['stocks']:.0%} stocks / {r['sleeve']:.0%} sleeve", _pct(r["growth"]),
-                         _pct(r["vol"], 1, False), _num(r["sharpe"]), _pct(r["worst_fall"], 0)])
+        rows = [[f"{r['stocks']:.0%} stocks / {r['sleeve']:.0%} sleeve", _pct(r["growth"]),
+                 _pct(r["vol"], 1, False), _num(r["sharpe"]), _pct(r["worst_fall"], 0)]
+                for _, r in e[e["kind"] == "mix"].iterrows()]
         L += [_table(["Equal-weight sleeve", "Growth over T-bills", "Vol", "Sharpe", "Worst fall"], rows), ""]
     L += ["The sleeve lowers growth as well as risk: it earned less than stocks. "
           "The 1/volatility weights use each window's own volatility.", ""]
@@ -429,7 +428,7 @@ def figure(rc: pd.DataFrame) -> str:
 def write_report(sm: pd.DataFrame, ep: pd.DataFrame, mx: pd.DataFrame, meta: dict, fig: str,
                  sv: pd.DataFrame, sc: pd.DataFrame) -> str:
     own = sm[sm["window"] == "own"].set_index("asset")
-    L = [f"# Which assets have diversified stocks?", "", f"*{LABEL}.*", "",
+    L = ["# Which assets have diversified stocks?", "", f"*{LABEL}.*", "",
          f"Written by `python -m assetforecast.diversifiers`; returns through {meta['returns_through']}. "
          "Stocks are the world-stock composite of the three-fund restatement (US stocks only before 1975). "
          "Returns are monthly, over T-bills. Managed futures are not one of the package's 12 assets; "
@@ -495,7 +494,7 @@ def write_report(sm: pd.DataFrame, ep: pd.DataFrame, mx: pd.DataFrame, meta: dic
           f"risen {BEAR:.0%} from the low). Each cell is that asset's return over T-bills across the same months; "
           "blank where the asset's history does not cover it.", "",
           _table(["Peak to trough", "Stocks", *[short[c] for c in cols]], rows), "",
-          *_sleeve_report(sv, sc, meta), *_vehicle_report(vehicles()),
+          *_sleeve_report(sv, sc), *_vehicle_report(vehicles()),
           "## Caveats", "",
           "- The paper trend factor is a backtest of rules published in 2012. Its 1985-2011 return is what the rules "
           "would have earned before costs, not what anyone earned. The drag is estimated on one "
@@ -517,11 +516,9 @@ def run() -> dict:
     rc, mx = rolling_corr(stocks, cands), mixes(stocks, cands, cash)
     sv, sc = sleeve_table(stocks, cands, cash)
     OUT.mkdir(parents=True, exist_ok=True)
-    sm.to_csv(OUT / "summary.csv", index=False, float_format="%.6g")
-    ep.to_csv(OUT / "episodes.csv", index=False, float_format="%.6g")
+    for f, d in (("summary", sm), ("episodes", ep), ("mixes", mx), ("sleeve", sv)):
+        d.to_csv(OUT / f"{f}.csv", index=False, float_format="%.6g")
     rc.to_csv(OUT / "rolling_corr.csv", float_format="%.4f")
-    mx.to_csv(OUT / "mixes.csv", index=False, float_format="%.6g")
-    sv.to_csv(OUT / "sleeve.csv", index=False, float_format="%.6g")
     sc.to_csv(OUT / "sleeve_corr.csv", index=False, float_format="%.4f")
     meta = {"label": LABEL, "returns_through": str(stocks.dropna().index[-1].date()), "stocks": STOCKS,
             "thresholds": {"low_corr": LOW_CORR, "max_roll": MAX_ROLL, "max_capture": MAX_CAPTURE, "t_sig": T_SIG,
