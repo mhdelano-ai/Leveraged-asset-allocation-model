@@ -59,7 +59,7 @@ import numpy as np
 import pandas as pd
 import requests
 
-from ...paths import ASSET_DIR, PREDICTOR_DIR, PROCESSED, RAW, REPORTS
+from ...paths import ASSET_DIR, PREDICTOR_DIR, PROCESSED, RAW
 from . import distributions as dist
 
 RAW_DIR = RAW / "treasuries"

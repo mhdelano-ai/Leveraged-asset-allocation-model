@@ -18,12 +18,11 @@ See reports/data/real_assets.md for sources, segments and diagnostics.
 """
 from __future__ import annotations
 
-import io
 import json
 import random
 import time
 import zipfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -77,12 +76,8 @@ YAHOO_URL = ("https://{host}.finance.yahoo.com/v8/finance/chart/{sym}"
              "?period1=-2208988800&period2={p2}&interval=1d&events=div%2Csplits")
 
 
-def yahoo_path(sym: str) -> Path:
-    return RAW_DIR / "yahoo" / (sym.replace("^", "_").replace("=", "_") + ".json")
-
-
 def fetch_yahoo(sym: str, refresh: bool = False) -> Path:
-    p = yahoo_path(sym)
+    p = RAW_DIR / "yahoo" / (sym.replace("^", "_").replace("=", "_") + ".json")
     if p.exists() and not refresh:
         return p
     p2 = int(time.time()) + 86400
@@ -93,25 +88,6 @@ def fetch_yahoo(sym: str, refresh: bool = False) -> Path:
         except RuntimeError:
             time.sleep(20 * (k + 1))
     raise RuntimeError(f"Yahoo download failed for {sym}")
-
-
-def read_yahoo(sym: str) -> pd.DataFrame:
-    """Daily close / adjclose (dividend- and split-adjusted) from cached chart JSON."""
-    j = json.loads(yahoo_path(sym).read_text())["chart"]["result"][0]
-    ts = j.get("timestamp") or []
-    q = j["indicators"]["quote"][0]
-    adj = j["indicators"].get("adjclose", [{}])[0].get("adjclose", q["close"])
-    tz = j["meta"].get("exchangeTimezoneName", "America/New_York")
-    idx = (pd.to_datetime(ts, unit="s", utc=True).tz_convert(tz)
-           .tz_localize(None).normalize())
-    df = pd.DataFrame({"close": q["close"], "adjclose": adj},
-                      index=pd.DatetimeIndex(idx, name="date"), dtype=float)
-    df = df[~df.index.duplicated(keep="last")].dropna(how="all")
-    return df
-
-
-def yahoo_meta(sym: str) -> dict:
-    return json.loads(yahoo_path(sym).read_text())["chart"]["result"][0]["meta"]
 
 
 # ---------------------------------------------------------------- FT markets (fallback / check)
@@ -350,14 +326,6 @@ def overlap_stats(a: pd.Series, b: pd.Series, freq: str) -> dict:
     }
 
 
-def fmt_stats(s: dict) -> str:
-    if s.get("n", 0) < 3:
-        return f"n={s.get('n', 0)}"
-    return (f"n={s['n']} {s['start']}..{s['end']}: vol {s['vol_a']:.3f} vs {s['vol_b']:.3f} "
-            f"(ratio {s['vol_ratio']:.3f}), corr {s['corr']:.3f}, TE {s['te']:.3f}, "
-            f"mean diff {s['mean_diff_ann']:+.3f}/yr")
-
-
 def _frame(r: pd.Series, source: str, tier: str, **extra) -> pd.DataFrame:
     df = pd.DataFrame({"ret": r.astype(float)})
     df["source"] = source
@@ -490,10 +458,8 @@ def _monthly_from_daily(daily: pd.DataFrame) -> pd.DataFrame:
     m["source"] = g["source"].last().reindex(m.index)
     m["tier"] = g["tier"].last().reindex(m.index)
     for c in daily.columns.difference(["ret", "source", "tier"]):
-        if c == "ret_excess_native":
-            m[c] = (1 + daily[c]).groupby(pd.Grouper(freq="ME")).prod(min_count=1).sub(1).reindex(m.index)
-        elif c == "cash_ret":
-            m[c] = (1 + daily[c]).groupby(pd.Grouper(freq="ME")).prod(min_count=1).sub(1).reindex(m.index)
+        if c in ("ret_excess_native", "cash_ret"):
+            m[c] =(1 + daily[c]).groupby(pd.Grouper(freq="ME")).prod(min_count=1).sub(1).reindex(m.index)
     m.index.name = "date"
     return m
 

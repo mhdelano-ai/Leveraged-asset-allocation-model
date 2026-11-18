@@ -507,7 +507,7 @@ def _vol_table(daily: pd.Series, others: dict, periods) -> pd.DataFrame:
     return pd.DataFrame(rows).T
 
 
-def write_report(daily, monthly, preds, extra, diag, data) -> str:
+def write_report(daily, monthly, preds, extra, diag) -> str:
     seg = segments_table(daily)
     L = ["# tips — broad US TIPS total return (TIP-like)", "",
          f"Built by `python -m assetforecast.data.sources.tips` on {pd.Timestamp.today().date()}.", "",
@@ -641,7 +641,7 @@ def build(refresh: bool = False, report: bool = True) -> dict:
     out = {"daily": daily, "monthly": monthly, "predictors": preds, "segments": segments_table(daily)}
     if report:
         diag = diagnostics(data, daily)
-        write_report(daily, monthly, preds, extra, diag, data)
+        write_report(daily, monthly, preds, extra, diag)
         out["diagnostics"] = diag
     return out
 

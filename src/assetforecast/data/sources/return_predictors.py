@@ -75,7 +75,6 @@ META_COLUMNS = ["name", "family", "scope", "asset", "source", "lag_months", "rea
 
 PREFIX = "rp_"
 TRACK = "returns"
-TRACK_FILE = PREDICTOR_DIR / f"{TRACK}.parquet"
 TRACK_META = PREDICTOR_DIR / f"{TRACK}_meta.csv"
 ARCHIVE_PANEL = ARCHIVE_AP / "data" / "predictors_assetpred.parquet"
 ARCHIVE_META = ARCHIVE_AP / "data" / "predictor_meta.csv"

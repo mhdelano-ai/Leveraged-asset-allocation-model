@@ -49,7 +49,7 @@ from pandas.tseries.holiday import (AbstractHolidayCalendar, GoodFriday, Holiday
                                     USThanksgivingDay, nearest_workday, sunday_to_monday)
 
 from ..paths import ASSET_DIR, PREDICTOR_DIR, PROCESSED, RAW, REPORTS
-from ..universe import ASSET_IDS, BY_ID
+from ..universe import ASSET_IDS
 
 TIER_ORDER = "ABCD"
 SEP = " ||| "
@@ -709,8 +709,7 @@ def cash_rate_check(pred: pd.DataFrame, cash_monthly: pd.Series) -> float:
 
 
 # ============================================================== validation
-def validate(A: Assembled, seg: pd.DataFrame, pred: pd.DataFrame, catalog: pd.DataFrame,
-             cal: pd.DatetimeIndex) -> dict:
+def validate(A: Assembled, seg: pd.DataFrame, pred: pd.DataFrame, cal: pd.DatetimeIndex) -> dict:
     v = {}
     d, m = A.daily, A.monthly
     v["daily_strictly_increasing"] = bool(d.index.is_monotonic_increasing and d.index.is_unique)
@@ -1124,7 +1123,6 @@ def write_panel_report(A: Assembled, seg: pd.DataFrame, catalog: pd.DataFrame, v
     for a in A.monthly.columns:
         st = v["starts"][a]
         tc = v["tier_counts"][a]
-        srcs = seg[(seg.asset == a)]
         rows.append(dict(asset=a, first_monthly=st["first_monthly"].date() if st["first_monthly"] is not None else "",
                          first_daily=st["first_daily"].date() if st["first_daily"] is not None else "",
                          first_daily_month=str(A.daily_months[a][0]) if len(A.daily_months[a]) else "",
@@ -1145,7 +1143,6 @@ def write_panel_report(A: Assembled, seg: pd.DataFrame, catalog: pd.DataFrame, v
           "NaN within the asset's span (the next return spans the gap).", ""]
     rows = []
     for a, c in v["calendar"].items():
-        mv = A.checks["monthly_vs_track"].get(a, {})
         rows.append(dict(asset=a, input_days=c["n_input"], folded=c["n_folded"],
                          folded_across_month=c["n_folded_across_month"],
                          dropped=c["n_dropped_after_end"], nan_days_in_span=c.get("n_nan_in_span", 0),
@@ -1354,7 +1351,7 @@ def build(write: bool = True, evidence: bool = True, verbose: bool = True,
     if write:
         pred.to_parquet(out_dir / "predictors.parquet", index=False)
         catalog.to_csv(out_dir / "predictors_catalog.csv", index=False)
-    v = validate(A, seg, pred, catalog, cash_d.index)
+    v = validate(A, seg, pred, cash_d.index)
     smoke = panel_asof_smoke(out_dir) if write else None
     out = dict(A=A, segments=seg, seg_issues=seg_issues, predictors=pred, catalog=catalog,
                pred_issues=pred_issues, conversions=conv, validation=v, smoke=smoke)
@@ -1373,13 +1370,13 @@ def build(write: bool = True, evidence: bool = True, verbose: bool = True,
         if write:
             ev = write_evidence_report(seg_t, jump_t, pair_t, se_t, noise, A, rep_dir / "horizon_evidence.md")
             out["evidence"] = ev
-            _insert_narrative(rep_dir / "horizon_evidence.md", ev, seg_t, jump_t, pair_t)
+            _insert_narrative(rep_dir / "horizon_evidence.md", ev)
     if verbose:
         _print_summary(out)
     return out
 
 
-def _insert_narrative(path: Path, ev: dict, seg_t, jump_t, pair_t) -> None:
+def _insert_narrative(path: Path, ev: dict) -> None:
     """Plain-language reading of the tables; every number is pulled from them."""
     vs, cs, se, big, pt, spread = ev["vol_sum"], ev["corr_sum"], ev["se"], ev["big"], ev["pt"], ev["spread"]
     lo1 = big.sort_values("r1").head(4)

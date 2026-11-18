@@ -299,12 +299,6 @@ def overlap_stats(a: pd.Series, b: pd.Series, freq: str = "D") -> dict:
                 mean_diff=(df["a"] - df["b"]).mean() * ann)
 
 
-def fmt_stats(s: dict) -> str:
-    return (f"{s['start']}..{s['end']} n={s['n']}: corr {s['corr']:.4f}, "
-            f"vol {s['vol_a']:.2%} vs {s['vol_b']:.2%} (ratio {s['vol_ratio']:.3f}), "
-            f"TE {s['te']:.2%}, mean diff {s['mean_diff']:+.2%}/yr")
-
-
 # ------------------------------------------------------------------ assemble
 @dataclass
 class Segment:

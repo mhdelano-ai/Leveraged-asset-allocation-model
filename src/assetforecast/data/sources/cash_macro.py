@@ -373,7 +373,7 @@ MARKET_LAG_BDAYS = 1   # H.15 rates (and the historical NBER compilations treate
 H10_LAG_BDAYS = 5      # H.10 broad dollar index: weekly release
 
 
-def build_macro(cash_monthly: pd.DataFrame, refresh: bool = False) -> tuple[pd.DataFrame, dict]:
+def build_macro(refresh: bool = False) -> tuple[pd.DataFrame, dict]:
     diag: dict = {}
     frames = []
 
@@ -616,7 +616,7 @@ def main(argv=None) -> None:
     args = ap.parse_args(argv)
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     daily, monthly, cdiag = build_cash(args.refresh)
-    macro, mdiag = build_macro(monthly, args.refresh)
+    macro, mdiag = build_macro(args.refresh)
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
     PREDICTOR_DIR.mkdir(parents=True, exist_ok=True)
     daily.to_parquet(ASSET_DIR / "cash_daily.parquet")

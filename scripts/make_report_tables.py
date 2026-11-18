@@ -13,7 +13,6 @@ cannot disagree; the covariance evaluation tables read ``results/final``.
 from __future__ import annotations
 
 import argparse
-import json
 from decimal import ROUND_HALF_UP, Decimal
 import re
 import sys
@@ -24,7 +23,6 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from assetforecast import paths  # noqa: E402
 from assetforecast.dashboard import data as dd  # noqa: E402
 from assetforecast.dashboard import glossary as gl  # noqa: E402
 from assetforecast.returns import config as rc  # noqa: E402
@@ -63,7 +61,7 @@ def build_blocks(f: dict[str, pd.DataFrame] | None = None) -> dict[str, str]:
     b: dict[str, str] = {}
     snap = f["snapshot"].iloc[0]
     v = f["verdicts"].set_index("question")
-    oa, op, fa = f["outlook_assets"].set_index("asset"), f["outlook_portfolios"], f["forecast_assets"].set_index("asset")
+    op, fa = f["outlook_portfolios"], f["forecast_assets"].set_index("asset")
     pub = op[op["shape"] == "portfolios"].set_index("portfolio")
     corr = f["forecast_corr"].set_index("pair")["corr"]
     vols = src.read("vols.csv").set_index("asset")
@@ -101,7 +99,7 @@ def build_blocks(f: dict[str, pd.DataFrame] | None = None) -> dict[str, str]:
     b["episodes_a"] = f"{snap.shape_a_episodes_q01} and {snap.shape_a_episodes_q05}"
     b["return_panel_from"] = snap.return_panel_from
     b["replication_label"] = rc.REPLICATION_LABEL
-    mr, mo = v.loc["mean_rep"], v.loc["mean_orig_h12"]
+    mr = v.loc["mean_rep"]
     b["mean_rep_line"] = (f"best pooled R² {s(mr.r2, 2, True)}% ({mr.best_label}), {mr.n_positive} of {mr.n_models} "
                           f"positive, about {s(mr.r2_detectable)}% needed to detect anything, family test p = {p(mr.spa_p)}")
     ca = v.loc["calib_assets"]

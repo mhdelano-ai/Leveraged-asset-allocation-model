@@ -329,11 +329,6 @@ def overlap_stats(a: pd.Series, b: pd.Series, freq: str = "M", start=None, end=N
             "vol_ratio": la.std() / lb.std(), "te": (la - lb).std() * np.sqrt(ann)}
 
 
-def fmt_stats(s: dict) -> str:
-    return (f"{s['freq']} {s['start']}..{s['end']} n={s['n']}: corr={s['corr']:.3f} "
-            f"vol {s['vol_a']:.3f}/{s['vol_b']:.3f} ratio={s['vol_ratio']:.2f} TE={s['te']:.3f}")
-
-
 def blend_returns(w: float, a: pd.Series, b: pd.Series) -> pd.Series:
     """Daily constant-mix blend w*a + (1-w)*b, rebalanced on the days both funds have a
     price. A day on which one fund has no price (e.g. a dropped bad print) is not a blend

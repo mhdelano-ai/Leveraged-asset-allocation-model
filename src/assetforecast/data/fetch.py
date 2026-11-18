@@ -24,10 +24,6 @@ MANIFEST = PROCESSED / "raw_manifest.json"
 _UA = {"User-Agent": "Mozilla/5.0 (compatible; research-data-fetch)"}
 
 
-def _load_manifest() -> dict:
-    return json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {}
-
-
 def fetch(url: str, name: str, *, refresh: bool = False, retries: int = 4, **kwargs) -> Path:
     """Download `url` to data/raw/`name` unless cached; return the local path."""
     path = RAW / name
@@ -51,7 +47,7 @@ def fetch(url: str, name: str, *, refresh: bool = False, retries: int = 4, **kwa
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
     with open(MANIFEST.with_suffix(".lock"), "w") as lock:  # several builders may fetch at once
         fcntl.flock(lock, fcntl.LOCK_EX)
-        manifest = _load_manifest()
+        manifest = json.loads(MANIFEST.read_text()) if MANIFEST.exists() else {}
         manifest[name] = {
             "url": url,
             "fetched_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
