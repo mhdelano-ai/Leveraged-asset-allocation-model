@@ -484,6 +484,13 @@ def build(panel, cov_hist: dict, policies=None, expected: pd.DataFrame | None = 
     origins = sorted(set(fa.index.get_level_values(0)) | set(fp.index.get_level_values(0)))
     fa_by = dict(tuple(fa.groupby(level=0)))
     fp_by = dict(tuple(fp.groupby(level=0)))
+
+    def add(out, frame, shape, name_col, t):
+        r = _rows(frame, shape, name_col)
+        if not r.empty:
+            r.insert(0, "date", t)
+            out.append(r)
+
     for t in origins:
         sa = shape_info(za, t)
         sp = shape_info(zp, t)
@@ -498,19 +505,10 @@ def build(panel, cov_hist: dict, policies=None, expected: pd.DataFrame | None = 
                     "episodes_q05": s["episodes_q05"], "first_origin": s["first_origin"],
                     "last_origin": s["last_origin"]})
         if t in fa_by:
-            r = _rows(fa_by[t], sa, "asset")
-            if not r.empty:
-                r.insert(0, "date", t)
-                out_a.append(r)
+            add(out_a, fa_by[t], sa, "asset", t)
         if t in fp_by:
-            r = _rows(fp_by[t], sp, "portfolio")
-            if not r.empty:
-                r.insert(0, "date", t)
-                out_p.append(r)
-            r = _rows(fp_by[t], sa, "portfolio")
-            if not r.empty:
-                r.insert(0, "date", t)
-                out_ps.append(r)
+            add(out_p, fp_by[t], sp, "portfolio", t)
+            add(out_ps, fp_by[t], sa, "portfolio", t)
 
     def cat(frames, name_col, model):
         if not frames:

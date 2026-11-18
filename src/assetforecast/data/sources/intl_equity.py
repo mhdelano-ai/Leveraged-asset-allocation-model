@@ -396,7 +396,7 @@ def us_link(r: pd.Series, us: pd.Series, lo=None, hi=None) -> dict:
     """Synchronous vs lagged correlation with the US market and the 1d/3d/monthly vol."""
     df = _align(r, us, lo=lo, hi=hi)
     x, u = df.iloc[:, 0], df.iloc[:, 1]
-    m = np.log1p((1 + r.loc[lo:hi]).groupby(pd.Grouper(freq="ME")).prod() - 1).iloc[1:-1]
+    m = np.log1p(_monthly_from_daily(r.loc[lo:hi]))
     return {"start": df.index[0].date(), "end": df.index[-1].date(),
             "corr_us_1d": x.corr(u), "corr_us_3d": x.rolling(3).sum().corr(u.rolling(3).sum()),
             "corr_us_lag1": x.corr(u.shift(1)), "autocorr_1d": x.autocorr(1),

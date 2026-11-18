@@ -75,6 +75,18 @@ def _dt_index(idx) -> pd.DatetimeIndex:
     return pd.DatetimeIndex(idx).as_unit("ns").normalize()
 
 
+def _by_month(x: pd.DataFrame | pd.Series) -> pd.DataFrame | pd.Series:
+    """A copy of ``x`` indexed by monthly period."""
+    x = x.copy()
+    x.index = x.index.to_period("M")
+    return x
+
+
+def _compound_monthly(r: pd.Series) -> pd.Series:
+    """Simple daily returns compounded within each calendar month (NaN for a month without one)."""
+    return np.expm1(np.log1p(r).groupby(r.index.to_period("M")).sum(min_count=1))
+
+
 def worst_tier(tiers) -> str | float:
     t = [x for x in tiers if isinstance(x, str) and x in TIER_ORDER]
     return max(t, key=TIER_ORDER.index) if t else np.nan
@@ -251,6 +263,7 @@ def assemble(cash_d: pd.DataFrame, cash_m: pd.DataFrame, assets: dict[str, Asset
     mcheck = {}
     for a in order:
         f = assets[a]
+        tm = _by_month(f.monthly) if f.monthly is not None else None
         dm = pd.PeriodIndex([], freq="M")
         if a in folds:
             fr = folds[a].frame
@@ -258,23 +271,20 @@ def assemble(cash_d: pd.DataFrame, cash_m: pd.DataFrame, assets: dict[str, Asset
             ok = (m_first >= fd) & (m_last <= ld)
             dm = ok.index[ok.values]
             dm = dm[(dm >= mper[0]) & (dm <= last_month)]
-            r = fr["ret"]
-            comp = np.expm1(np.log1p(r).groupby(r.index.to_period("M")).sum(min_count=1)).reindex(dm)
+            comp = _compound_monthly(fr["ret"]).reindex(dm)
             mt = fr["tier"].groupby(fr.index.to_period("M")).agg(worst_tier).reindex(dm)
             ms = fr["source"].groupby(fr.index.to_period("M")).last().reindex(dm)
             monthly.loc[dm, a] = comp.values
             tiers.loc[dm, a] = mt.values
             msrc.loc[dm, a] = ms.values
             # checks vs the track's own monthly file, and the effect of folding
-            raw = f.daily["ret"]
-            unf = np.expm1(np.log1p(raw).groupby(raw.index.to_period("M")).sum(min_count=1)).reindex(dm)
+            unf = _compound_monthly(f.daily["ret"]).reindex(dm)
             chk = {"n_daily_months": len(dm)}
-            if f.monthly is not None:
-                tm = f.monthly["ret"].copy()
-                tm.index = tm.index.to_period("M")
-                common = dm.intersection(tm.index)
-                d1 = (comp.reindex(common) - tm.reindex(common)).abs()
-                d2 = (unf.reindex(common) - tm.reindex(common)).abs()
+            if tm is not None:
+                tr = tm["ret"]
+                common = dm.intersection(tr.index)
+                d1 = (comp.reindex(common) - tr.reindex(common)).abs()
+                d2 = (unf.reindex(common) - tr.reindex(common)).abs()
                 chk.update(n_compared=len(common),
                            max_abs_vs_track=float(d1.max()) if len(d1) else np.nan,
                            worst_month_vs_track=str(d1.idxmax()) if len(d1) and d1.max() > 0 else "",
@@ -286,9 +296,7 @@ def assemble(cash_d: pd.DataFrame, cash_m: pd.DataFrame, assets: dict[str, Asset
                        worst_month_folding=str(fe.idxmax()) if len(fe) and fe.max() > 1e-12 else "")
             mcheck[a] = chk
         daily_months[a] = dm
-        if f.monthly is not None:
-            tm = f.monthly.copy()
-            tm.index = tm.index.to_period("M")
+        if tm is not None:
             first_d = dm[0] if len(dm) else None
             pre = tm.index[(tm.index >= mper[0]) & (tm.index <= last_month)]
             if first_d is not None:
@@ -303,8 +311,7 @@ def assemble(cash_d: pd.DataFrame, cash_m: pd.DataFrame, assets: dict[str, Asset
 
     # ---------------- cash
     cash_daily = cash_d["ret"].reindex(dcal).rename("cash")
-    cm = cash_m["ret"].copy()
-    cm.index = cm.index.to_period("M")
+    cm = _by_month(cash_m["ret"])
     cash_monthly = cm.reindex(mper).rename("cash")
     cash_monthly.index = midx
     cash_monthly.index.name = "date"
@@ -428,38 +435,28 @@ def build_segments(A: Assembled, assets: dict[str, AssetFiles], cash_d: pd.DataF
     issues = []
     derived = []
 
-    def add(asset, s, e, freq, src, tier):
-        derived.append(dict(asset=asset, start=s, end=e, freq=freq, source=src, tier=tier))
+    def add_runs(asset, df, freq):
+        """One segment per run of equal (source, tier) in ``df``."""
+        for l, s, e, n in _runs(df["source"] + SEP + df["tier"]):
+            src, tier = l.split(SEP)
+            derived.append(dict(asset=asset, start=s, end=e, freq=freq, source=src, tier=tier))
 
     for a in A.daily.columns:
         f = assets[a]
         dm = A.daily_months[a]
         if f.monthly is not None:
-            tm = f.monthly.copy()
-            tm.index = tm.index.to_period("M")
+            tm = _by_month(f.monthly)
             pre = tm.index[tm.index <= A.monthly.index[-1].to_period("M")]
             if len(dm):
                 pre = pre[pre < dm[0]]
-            lab = tm.loc[pre, "source"] + SEP + tm.loc[pre, "tier"]
-            lab.index = pre.to_timestamp(how="end").normalize()
-            for l, s, e, n in _runs(lab):
-                src, tier = l.split(SEP)
-                add(a, s, e, "M", src, tier)
+            tm = tm.loc[pre]
+            tm.index = pre.to_timestamp(how="end").normalize()
+            add_runs(a, tm, "M")
         if a in A.folds:
-            fr = A.folds[a].frame
-            lab = fr["source"] + SEP + fr["tier"]
-            for l, s, e, n in _runs(lab):
-                src, tier = l.split(SEP)
-                add(a, s, e, "D", src, tier)
+            add_runs(a, A.folds[a].frame, "D")
     # cash: monthly pre-daily runs and daily runs
-    lab = cash_m["source"] + SEP + cash_m["tier"]
-    lab = lab[lab.index < cash_d.index[0]]
-    for l, s, e, n in _runs(lab):
-        src, tier = l.split(SEP)
-        add("cash", s, e, "M", src, tier)
-    for l, s, e, n in _runs(cash_d["source"] + SEP + cash_d["tier"]):
-        src, tier = l.split(SEP)
-        add("cash", s, e, "D", src, tier)
+    add_runs("cash", cash_m[cash_m.index < cash_d.index[0]], "M")
+    add_runs("cash", cash_d, "D")
 
     seg = pd.DataFrame(derived)
     notes = []
@@ -914,6 +911,20 @@ def pair_corr_table(X, S, pairs=PAIRS, min_days: int = 252) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _sim_vol_corr(x: np.ndarray, y: np.ndarray) -> dict[int, tuple[np.ndarray, np.ndarray]]:
+    """Per k in ``HORIZONS``, the vol of ``x`` (per day) and the correlation of ``x`` and ``y``
+    from overlapping k-day sums of each simulated row (uncentered, as ``vol_k``/``corr_k``)."""
+    zero = np.zeros((len(x), 1))
+    c1 = np.concatenate([zero, np.cumsum(x, 1)], 1)
+    c2 = np.concatenate([zero, np.cumsum(y, 1)], 1)
+    out = {}
+    for k in HORIZONS:
+        s1, s2 = c1[:, k:] - c1[:, :-k], c2[:, k:] - c2[:, :-k]
+        out[k] = (np.sqrt(np.mean(s1 ** 2, 1) / k),
+                  np.sum(s1 * s2, 1) / np.sqrt(np.sum(s1 ** 2, 1) * np.sum(s2 ** 2, 1)))
+    return out
+
+
 def simulate_rv_se(n_days: int = 252, n_sims: int = 20000, rho: float = 0.5, seed: int = 0) -> pd.DataFrame:
     """Relative standard error of a 12-month realized vol (and abs SE of a correlation)
     from overlapping k-day sums fully inside a ``n_days`` window, iid returns."""
@@ -927,13 +938,7 @@ def simulate_rv_se(n_days: int = 252, n_sims: int = 20000, rho: float = 0.5, see
             e1 = rng.standard_t(5, (n_sims, n_days)) / np.sqrt(5 / 3)
             e2 = rng.standard_t(5, (n_sims, n_days)) / np.sqrt(5 / 3)
         y = rho * e1 + np.sqrt(1 - rho ** 2) * e2
-        c1 = np.concatenate([np.zeros((n_sims, 1)), np.cumsum(e1, 1)], 1)
-        c2 = np.concatenate([np.zeros((n_sims, 1)), np.cumsum(y, 1)], 1)
-        for k in HORIZONS:
-            s1 = c1[:, k:] - c1[:, :-k]
-            s2 = c2[:, k:] - c2[:, :-k]
-            vh = np.sqrt(np.mean(s1 ** 2, 1) / k)
-            ch = np.sum(s1 * s2, 1) / np.sqrt(np.sum(s1 ** 2, 1) * np.sum(s2 ** 2, 1))
+        for k, (vh, ch) in _sim_vol_corr(e1, y).items():
             N = n_days - k + 1
             formula = 0.5 * np.sqrt(2.0 / N * (2 * k * k + 1) / (3 * k)) if k > 1 else 0.5 * np.sqrt(2.0 / N)
             out.append(dict(dist=dist, k=k, n_sums=N, se_vol_rel=float(vh.std() / np.mean(vh)),
@@ -952,13 +957,9 @@ def simulate_ratio_noise(n_days: int = NOISE_N, n_sims: int = 1500, rho: float =
     rng = np.random.default_rng(seed)
     e1 = rng.standard_normal((n_sims, n_days))
     y = rho * e1 + np.sqrt(1 - rho ** 2) * rng.standard_normal((n_sims, n_days))
-    c1 = np.concatenate([np.zeros((n_sims, 1)), np.cumsum(e1, 1)], 1)
-    c2 = np.concatenate([np.zeros((n_sims, 1)), np.cumsum(y, 1)], 1)
-    v, c = {}, {}
-    for k in HORIZONS:
-        s1, s2 = c1[:, k:] - c1[:, :-k], c2[:, k:] - c2[:, :-k]
-        v[k] = np.sqrt(np.mean(s1 ** 2, 1) / k)
-        c[k] = np.sum(s1 * s2, 1) / np.sqrt(np.sum(s1 ** 2, 1) * np.sum(s2 ** 2, 1))
+    vc = _sim_vol_corr(e1, y)
+    v = {k: vk for k, (vk, _) in vc.items()}
+    c = {k: ck for k, (_, ck) in vc.items()}
     return {"n": n_days,
             "se_r": {k: float(np.std(v[k] / v[21])) for k in HORIZONS},
             "se_d63": {k: float(np.std(c[k] - c[63])) for k in HORIZONS},

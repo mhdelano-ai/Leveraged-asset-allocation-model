@@ -425,6 +425,14 @@ SRC = {
 TIER_D_MATURITIES = list(range(6, 31))
 
 
+def _moodys_eom_yield(refresh: bool = False) -> pd.Series:
+    """Average of Moody's Aaa and Baa yields (decimal) at month ends, from the daily H.15
+    series (1986-2016)."""
+    h = h15_series(["RIMLPAAAR_N.B", "RIMLPBAAR_N.B"], refresh)
+    yd = ((h["RIMLPAAAR_N.B"] + h["RIMLPBAAR_N.B"]) / 200).dropna()
+    return yd.resample("ME").last()
+
+
 def calibrate_recon_maturity(lqd_m: pd.Series, refresh: bool = False,
                              end: str = CALIBRATION_END) -> tuple[int, pd.DataFrame]:
     """Pick the par-bond maturity whose returns from END-of-month Moody's yields
@@ -432,9 +440,7 @@ def calibrate_recon_maturity(lqd_m: pd.Series, refresh: bool = False,
     calibration cutoff). The tier-D series then uses that maturity with
     month-AVERAGE yields (the only ones before 1986), so its residual vol damping is
     purely the averaging effect."""
-    h = h15_series(["RIMLPAAAR_N.B", "RIMLPBAAR_N.B"], refresh)
-    yd = ((h["RIMLPAAAR_N.B"] + h["RIMLPBAAR_N.B"]) / 200).dropna()
-    yeom = yd.resample("ME").last()
+    yeom = _moodys_eom_yield(refresh)
     rows = []
     for n in TIER_D_MATURITIES:
         s = overlap_stats(par_bond_returns(yeom, n), lqd_m, "M", "2002-08", end)
@@ -860,9 +866,7 @@ def distribution_report(diag: dict) -> str:
 def averaging_damping(diag: dict, refresh: bool = False) -> dict:
     """Tier-D effect of month-AVERAGE yields: same par bond, average vs end-of-month
     Moody's yields, 1986-2016 (the only period with daily Moody's data)."""
-    h = h15_series(["RIMLPAAAR_N.B", "RIMLPBAAR_N.B"], refresh)
-    yd = ((h["RIMLPAAAR_N.B"] + h["RIMLPBAAR_N.B"]) / 200).dropna()
-    yeom = yd.resample("ME").last()
+    yeom = _moodys_eom_yield(refresh)
     n = diag["n_star"]
     a = par_bond_returns(diag["yavg"], n)
     b = par_bond_returns(yeom, n)

@@ -127,6 +127,12 @@ def _ci_names(level: float) -> tuple[str, str]:
     return f"ci{k}_lo", f"ci{k}_hi"
 
 
+def _scaled(m: float, se: float, df: float, level: float, horizon: int) -> tuple[float, ...]:
+    """(mean, se, interval low, interval high) of the monthly mean ``m`` scaled to ``horizon`` months."""
+    c = stats.t.ppf(0.5 + level / 2.0, df)
+    return horizon * m, horizon * se, horizon * (m - c * se), horizon * (m + c * se)
+
+
 def expected_from_xr(xr: pd.DataFrame, origin=None, level: float = LEVEL,
                      horizon: int = HORIZON,
                      min_history: int = config.MIN_ASSET_HISTORY) -> pd.DataFrame:
@@ -144,9 +150,8 @@ def expected_from_xr(xr: pd.DataFrame, origin=None, level: float = LEVEL,
         if len(s) < min_history:
             continue
         m, se, df, n = mean_se(s.to_numpy())
-        c = stats.t.ppf(0.5 + level / 2.0, df)
-        rows[a] = {"mean_12m": horizon * m, "se_12m": horizon * se,
-                   lo_name: horizon * (m - c * se), hi_name: horizon * (m + c * se),
+        mean, se_h, lo, hi = _scaled(m, se, df, level, horizon)
+        rows[a] = {"mean_12m": mean, "se_12m": se_h, lo_name: lo, hi_name: hi,
                    "n_months": n, "first_month": s.index[0].strftime("%Y-%m")}
     cols = ["mean_12m", "se_12m", lo_name, hi_name, "n_months", "first_month"]
     out = pd.DataFrame.from_dict(rows, orient="index", columns=cols)
@@ -193,9 +198,8 @@ def history(xr, level: float = LEVEL, horizon: int = HORIZON,
             if start is not None and t < pd.Timestamp(start):
                 continue
             m, se, df, n = mean_se(v[:k])
-            c = stats.t.ppf(0.5 + level / 2.0, df)
-            recs.append((t, a, horizon * m, horizon * se, horizon * (m - c * se),
-                         horizon * (m + c * se), df, n, first))
+            mean, se_h, lo, hi = _scaled(m, se, df, level, horizon)
+            recs.append((t, a, mean, se_h, lo, hi, df, n, first))
     cols = ["origin", "asset", "mean_12m", "se_12m", lo_name, hi_name, "df", "n_months", "first_month"]
     out = pd.DataFrame(recs, columns=cols)
     order = {a: i for i, a in enumerate(xr.columns)}

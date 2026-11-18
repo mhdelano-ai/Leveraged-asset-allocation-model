@@ -415,6 +415,12 @@ def compare(rec: pd.Series, ref: pd.Series, start=None, end=None, freq: str = "D
         k = 252
     if len(df) < 10:
         return {}
+    return _pair_stats(df, k)
+
+
+def _pair_stats(df: pd.DataFrame, k: int) -> dict:
+    """The ``compare`` statistics of columns ``r`` (reconstruction) and ``e`` (reference),
+    annualized with ``k`` periods a year."""
     return {
         "start": str(df.index[0].date()), "end": str(df.index[-1].date()), "n": int(len(df)),
         "vol_rec": float(df.r.std() * np.sqrt(k)), "vol_ref": float(df.e.std() * np.sqrt(k)),
@@ -792,11 +798,7 @@ def compare_monthly(rec: pd.Series, ref: pd.Series, start, end) -> dict:
     df = pd.concat([rec.rename("r"), ref.rename("e")], axis=1, sort=True).dropna().loc[start:end]
     if len(df) < 12:
         return {}
-    return {"start": str(df.index[0].date()), "end": str(df.index[-1].date()), "n": int(len(df)),
-            "vol_rec": float(df.r.std() * np.sqrt(12)), "vol_ref": float(df.e.std() * np.sqrt(12)),
-            "vol_ratio": float(df.r.std() / df.e.std()), "corr": float(df.r.corr(df.e)),
-            "te": float((df.r - df.e).std() * np.sqrt(12)),
-            "ac1_rec": float(df.r.autocorr()), "ac1_ref": float(df.e.autocorr())}
+    return _pair_stats(df, 12)
 
 
 # ===================================================================== main
