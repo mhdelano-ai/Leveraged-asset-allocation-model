@@ -283,11 +283,8 @@ statement of method per block and the consistency checks).
 
 It also writes `frontier.csv` and `frontier_points.csv` (`assetforecast.frontier`,
 also `python -m assetforecast.frontier --dir <folder>`): the long-only efficient
-frontier those files imply, with cash below full investment and borrowing on
-Robinhood margin up to `MAX_LEVERAGE` above it (`data/processed/margin_rates.json`: the published
-rate schedule and its date, downloaded by `python -m assetforecast.data.sources.margin_rates --refresh`; the cost is the rate of tier `MARGIN_TIER` on a
-360-day year, less the T-bill rate of the origin month, recorded in the
-`frontier.borrow` block of `forecast.json`), in expected compound
+frontier those files imply, fully invested and with cash below full investment
+(nothing is borrowed: no portfolio holds more than 100% of capital), in expected compound
 growth against volatility, with a band from the 90% intervals of the means. It
 is arithmetic on the published covariance and expected returns, computed from the
 rounded files themselves; it is not a model, selects nothing and has no
@@ -308,11 +305,11 @@ out-of-sample evidence of its own. The dashboard's frontier section shows it.
 | `results/returns/strategy/` | `metrics.parquet`, `summary.csv`, `summary_by_period.csv`, `meta.json` (`returns.parquet`, `weights.parquet` regenerate in a minute and are not committed) | partly |
 | `results/archive/assetpred/` | the `assetpred` project's results and inputs as merged: its 1-, 3- and 12-month findings (`scores/`, `strategy/`; its HTML dashboard was removed, recoverable from git history), its development trial logs, and the fixtures the port is checked against | yes, never rewritten |
 | `results/horizons/` | score tables of the horizon study (`assetforecast.horizons`: returns, volatility and correlations at 1 month to 10 years, descriptive only); its report is `reports/horizon_study.md`, its page `dashboard/horizons.html` | yes |
-| `results/diversifiers/` | tables of the diversifier study (`assetforecast.diversifiers`: each non-stock asset and managed futures against world stocks, descriptive only), and of an equal-weight sleeve of intermediate Treasuries, gold and managed futures beside stocks, with and without borrowing (`sleeve.csv`); report `reports/diversifiers.md` | yes |
+| `results/diversifiers/` | tables of the diversifier study (`assetforecast.diversifiers`: each non-stock asset and managed futures against world stocks, descriptive only), and of an equal-weight sleeve of intermediate Treasuries, gold and managed futures beside stocks, with no borrowing (`sleeve.csv`); report `reports/diversifiers.md` | yes |
 | `results/allocation/` | tables of the allocation study (`assetforecast.allocation`: 10 sleeve rules and 8 portfolio rules replayed month by month on fixed, historical and forecast inputs, how well each input carried over, and today's weights; descriptive only); report `reports/allocation.md`, page `dashboard/allocation.html` (`assetforecast.allocation_page`) | yes |
-| `results/questionnaire/` | tables of the allocation questionnaire (`assetforecast.questionnaire`: per route above 100% of capital (stacked funds, margin loan), every share of world stocks with the most of the diversifier sleeve the route can carry beside it, each with its forecast risk and replay (`curve.csv`); per tax treatment, route and goal, the largest stock share whose replayed worst fall is within the goal's declared drawdown budget, and funds to hold it; arithmetic under declared rules); report `reports/questionnaire.md`, page `dashboard/questionnaire.html` (`assetforecast.questionnaire_page`) | yes |
+| `results/questionnaire/` | tables of the allocation questionnaire (`assetforecast.questionnaire`: every share of world stocks with the diversifier sleeve in the rest of the capital, nothing borrowed, each with its forecast risk and replay (`curve.csv`); per goal, the largest stock share whose replayed worst fall is within the goal's declared drawdown budget, and funds to hold it; the account's tax treatment selects the tax notes; arithmetic under declared rules); report `reports/questionnaire.md`, page `dashboard/questionnaire.html` (`assetforecast.questionnaire_page`) | yes |
 | `results/dev/` | every development run (and the horizon study's forecast caches, `results/dev/horizons/`) | no |
-| `forecasts/` | the published forecast per origin and `latest/`; `three_fund/` holds its restatement for two declared composites (world stocks, world bonds) and cash, with the mixes into the borrowed range (`python -m assetforecast.threefund`) | yes |
+| `forecasts/` | the published forecast per origin and `latest/`; `three_fund/` holds its restatement for two declared composites (world stocks, world bonds) and cash, with the best mix at each volatility up to all stocks, nothing borrowed (`python -m assetforecast.threefund`) | yes |
 | `dashboard/` | the published dashboard page, its data and the one-page summary (`summary.html`) | yes |
 
 Every output of the replication, the distribution scores and the strategy

@@ -6,11 +6,11 @@ Written by `python -m assetforecast.allocation`; returns through 2026-10-31. Fou
 
 ## The reading
 
-**Expected returns: do not forecast them, and do not optimize on them.** A holding's return in one five-year block said nothing about the next (correlation +0.01 over 47 pairs of blocks). Gold's return per unit of risk was -0.18 in the first half of the window and +0.45 in the second; managed futures went from +1.28 to +0.22. Since the live funds began, all three optimizers trailed a third each (best of them -0.09 in Sharpe ratio, none clearly different).
+**Expected returns: do not forecast them, and do not optimize on them.** A holding's return in one five-year block said nothing about the next (correlation +0.01 over 47 pairs of blocks). Gold's return per unit of risk was -0.18 in the first half of the window and +0.45 in the second; managed futures went from +1.28 to +0.22. Since the live funds began, all three optimizers trailed a third each (best of them -0.09 in Sharpe ratio, none clearly different). Over all four holdings, the optimizer that did best over the whole replay (optimized: past returns, forecast risk) had a Sharpe ratio +0.36 against the fixed 60/40 mix's (better), at 5.6% volatility against 9.5%; since the live funds began, -0.09 (no clear difference). Before 2007 the replay's managed futures are the paper factor.
 
 **Weights inside the sleeve: size by long-run risk, or simply a third each.** Risk does carry over: a block's volatility against the next, correlation +0.60. Weighting by 1/volatility on the whole past ran at 5.7% volatility against 6.8% for a third each, with a worst fall of -9% against -14%. Its Sharpe ratio was +0.10 higher over the whole replay (better) and -0.01 since the live funds began (no clear difference). The forecast gave the same weights for 12 times the trading.
 
-**How much risk in total: your choice; use the forecast to know what you chose.** No input picks the stock share: it is the risk you accept. Scaling the 60/40 mix to a 10% risk target with the forecast gave the same Sharpe ratio as leaving it fixed (0.57 against 0.57) with a worst fall of -25% against -32%; scaling with past volatility was worse than not scaling (-0.03, worse). The forecast's 12-month matrix stood +23% above month-to-month volatility, so a target set with it runs below the target.
+**How much risk in total: your choice; use the forecast to know what you chose.** No input picks the stock share: it is the risk you accept. Scaling the 60/40 mix to a 10% risk target with the forecast gave about the same Sharpe ratio as leaving it fixed (0.56 against 0.57, no clear difference) with a worst fall of -25% against -32%; scaling with past volatility made no clear difference (-0.00). The forecast's 12-month matrix stood +23% above month-to-month volatility, so a target set with it runs below the target.
 
 So the answer is a mix, split by input: nothing from return forecasts, long-run history for the weights inside the sleeve, and the covariance forecast for the size of the total risk. These verdicts are a reading of the tables below, on years that had all been seen.
 
@@ -93,33 +93,33 @@ The forecast does not cover managed futures. The 21-day row was added after the 
 
 ## The whole portfolio
 
-Scaled rules aim at 10% volatility, exposure capped at 2 times capital, borrowing at T-bills + 1.38%.
+Scaled rules aim at 10% volatility and never hold more than 100% of capital; when the target calls for more they stay fully invested, and when it calls for less the rest is in T-bills.
 
 1990-01 to 2026-10 (442 months):
 
 | Rule | Growth over T-bills | Vol | Sharpe | Worst fall | Sharpe against the first row (90% interval) | Turnover a year | Average held: stocks / Treasuries / gold / managed futures | Average exposure |
 |---|---|---|---|---|---|---|---|---|
 | Fixed 60% stocks / 40% sleeve | +5.4% | 9.5% | 0.57 | -32% |  | 0% | 60% / 13% / 13% / 13% | 100% |
-| 60/40 scaled to 10% risk, whole past | +5.6% | 10.3% | 0.55 | -35% | -0.03 (-0.04 to -0.01) | 2% | 65% / 14% / 14% / 14% | 108% |
-| 60/40 scaled to 10% risk, last 5 years | +5.4% | 10.7% | 0.51 | -39% | -0.06 (-0.11 to -0.01) | 9% | 67% / 15% / 15% / 15% | 112% |
-| 60/40 scaled to 10% risk, forecast | +4.7% | 8.3% | 0.57 | -25% | -0.00 (-0.05 to +0.05) | 14% | 55% / 12% / 12% / 12% | 92% |
-| 1/volatility over all four, forecast | +6.5% | 8.8% | 0.73 | -13% | +0.16 (-0.13 to +0.44) | 26% | 27% / 60% / 25% / 60% | 173% |
-| Optimized: past returns, past risk | +6.6% | 9.4% | 0.71 | -14% | +0.14 (-0.18 to +0.45) | 20% | 26% / 49% / 2% / 100% | 177% |
-| Optimized: last 5 years of both | +8.0% | 10.6% | 0.75 | -21% | +0.18 (-0.11 to +0.45) | 99% | 35% / 52% / 11% / 73% | 171% |
-| Optimized: past returns, forecast risk | +7.9% | 10.1% | 0.78 | -14% | +0.21 (-0.13 to +0.55) | 47% | 25% / 46% / 0% / 111% | 182% |
+| 60/40 scaled to 10% risk, whole past | +5.4% | 9.5% | 0.57 | -32% | -0.00 (-0.00 to +0.00) | 0% | 60% / 13% / 13% / 13% | 100% |
+| 60/40 scaled to 10% risk, last 5 years | +5.1% | 9.1% | 0.56 | -32% | -0.01 (-0.03 to +0.00) | 2% | 58% / 13% / 13% / 13% | 96% |
+| 60/40 scaled to 10% risk, forecast | +4.6% | 8.1% | 0.56 | -25% | -0.01 (-0.05 to +0.03) | 11% | 54% / 12% / 12% / 12% | 90% |
+| 1/volatility over all four, forecast | +4.4% | 5.1% | 0.86 | -6% | +0.29 (+0.00 to +0.56) | 12% | 16% / 35% / 15% / 35% | 100% |
+| Optimized: past returns, past risk | +4.6% | 5.3% | 0.86 | -8% | +0.29 (-0.03 to +0.60) | 12% | 14% / 27% / 1% / 57% | 100% |
+| Optimized: last 5 years of both | +5.3% | 6.3% | 0.84 | -11% | +0.27 (-0.01 to +0.54) | 59% | 20% / 29% / 7% / 44% | 100% |
+| Optimized: past returns, forecast risk | +5.2% | 5.6% | 0.93 | -8% | +0.36 (+0.02 to +0.68) | 26% | 14% / 24% / 0% / 62% | 100% |
 
 2007-03 to 2026-10 (236 months):
 
 | Rule | Growth over T-bills | Vol | Sharpe | Worst fall | Sharpe against the first row (90% interval) | Turnover a year | Average held: stocks / Treasuries / gold / managed futures | Average exposure |
 |---|---|---|---|---|---|---|---|---|
 | Fixed 60% stocks / 40% sleeve | +5.9% | 10.2% | 0.57 | -32% |  | 0% | 60% / 13% / 13% / 13% | 100% |
-| 60/40 scaled to 10% risk, whole past | +5.9% | 10.9% | 0.54 | -35% | -0.03 (-0.05 to -0.01) | 1% | 64% / 14% / 14% / 14% | 106% |
-| 60/40 scaled to 10% risk, last 5 years | +5.1% | 11.2% | 0.46 | -39% | -0.11 (-0.18 to -0.02) | 10% | 64% / 14% / 14% / 14% | 107% |
-| 60/40 scaled to 10% risk, forecast | +4.6% | 8.4% | 0.54 | -25% | -0.03 (-0.10 to +0.04) | 16% | 53% / 12% / 12% / 12% | 88% |
-| 1/volatility over all four, forecast | +5.0% | 9.1% | 0.54 | -13% | -0.03 (-0.41 to +0.31) | 27% | 27% / 63% / 24% / 59% | 173% |
-| Optimized: past returns, past risk | +3.3% | 9.4% | 0.35 | -14% | -0.22 (-0.63 to +0.14) | 16% | 30% / 61% / 3% / 93% | 187% |
-| Optimized: last 5 years of both | +4.5% | 10.5% | 0.43 | -21% | -0.14 (-0.45 to +0.13) | 102% | 45% / 75% / 18% / 32% | 169% |
-| Optimized: past returns, forecast risk | +3.2% | 9.6% | 0.34 | -14% | -0.24 (-0.71 to +0.21) | 52% | 25% / 71% / 0% / 94% | 191% |
+| 60/40 scaled to 10% risk, whole past | +5.9% | 10.2% | 0.57 | -32% | +0.00 (+0.00 to +0.00) | 0% | 60% / 13% / 13% / 13% | 100% |
+| 60/40 scaled to 10% risk, last 5 years | +5.3% | 9.7% | 0.55 | -32% | -0.03 (-0.05 to +0.01) | 2% | 56% / 12% / 12% / 12% | 94% |
+| 60/40 scaled to 10% risk, forecast | +4.5% | 8.3% | 0.55 | -25% | -0.03 (-0.09 to +0.03) | 13% | 52% / 12% / 12% / 12% | 87% |
+| 1/volatility over all four, forecast | +3.6% | 5.2% | 0.68 | -6% | +0.10 (-0.27 to +0.43) | 12% | 15% / 36% / 14% / 34% | 100% |
+| Optimized: past returns, past risk | +2.5% | 5.0% | 0.49 | -8% | -0.08 (-0.48 to +0.27) | 9% | 16% / 32% / 2% / 50% | 100% |
+| Optimized: last 5 years of both | +3.3% | 6.3% | 0.52 | -11% | -0.05 (-0.37 to +0.24) | 59% | 25% / 42% / 12% / 20% | 100% |
+| Optimized: past returns, forecast risk | +2.5% | 5.0% | 0.49 | -8% | -0.09 (-0.54 to +0.34) | 28% | 13% / 37% / 0% / 50% | 100% |
 
 ## The menu today
 
@@ -127,30 +127,26 @@ Stocks beside the sleeve at origin 2026-10-31. "Forecast vol" is on the forecast
 
 Sleeve: 1/volatility, whole past.
 
-| Stocks | Treasuries | Gold | Managed futures | Borrowed | Forecast vol | Replay growth | Replay vol | Replay worst fall |
-|---|---|---|---|---|---|---|---|---|
-| 40% | 26% | 11% | 22% | 0% | 7.4% | +4.9% (+4.8%) | 6.8% (7.3%) | -20% (-20%) |
-| 60% | 17% | 8% | 15% | 0% | 9.9% | +5.4% (+5.5%) | 9.2% (9.9%) | -32% (-32%) |
-| 80% | 9% | 4% | 7% | 0% | 12.8% | +5.7% (+6.1%) | 12.1% (12.9%) | -44% (-44%) |
-| 100% | 0% | 0% | 0% | 0% | 15.9% | +5.9% (+6.6%) | 15.1% (16.1%) | -54% (-54%) |
-| 100% | 22% | 9% | 19% | 50% | 16.3% | +7.1% (+7.5%) | 15.3% (16.4%) | -51% (-51%) |
-| 100% | 44% | 19% | 37% | 100% | 17.1% | +8.3% (+8.2%) | 16.0% (17.1%) | -48% (-48%) |
+| Stocks | Treasuries | Gold | Managed futures | Forecast vol | Replay growth | Replay vol | Replay worst fall |
+|---|---|---|---|---|---|---|---|
+| 40% | 26% | 11% | 22% | 7.4% | +4.9% (+4.8%) | 6.8% (7.3%) | -20% (-20%) |
+| 60% | 17% | 8% | 15% | 9.9% | +5.4% (+5.5%) | 9.2% (9.9%) | -32% (-32%) |
+| 80% | 9% | 4% | 7% | 12.8% | +5.7% (+6.1%) | 12.1% (12.9%) | -44% (-44%) |
+| 100% | 0% | 0% | 0% | 15.9% | +5.9% (+6.6%) | 15.1% (16.1%) | -54% (-54%) |
 
 Sleeve: a third each.
 
-| Stocks | Treasuries | Gold | Managed futures | Borrowed | Forecast vol | Replay growth | Replay vol | Replay worst fall |
-|---|---|---|---|---|---|---|---|---|
-| 40% | 20% | 20% | 20% | 0% | 8.7% | +5.0% (+5.3%) | 7.3% (8.0%) | -20% (-20%) |
-| 60% | 13% | 13% | 13% | 0% | 10.5% | +5.4% (+5.9%) | 9.5% (10.2%) | -32% (-32%) |
-| 80% | 7% | 7% | 7% | 0% | 13.0% | +5.7% (+6.3%) | 12.2% (13.0%) | -44% (-44%) |
-| 100% | 0% | 0% | 0% | 0% | 15.9% | +5.9% (+6.6%) | 15.1% (16.1%) | -54% (-54%) |
-| 100% | 17% | 17% | 17% | 50% | 16.9% | +7.2% (+7.9%) | 15.6% (16.7%) | -51% (-51%) |
-| 100% | 33% | 33% | 33% | 100% | 19.0% | +8.3% (+9.0%) | 16.7% (18.1%) | -47% (-47%) |
+| Stocks | Treasuries | Gold | Managed futures | Forecast vol | Replay growth | Replay vol | Replay worst fall |
+|---|---|---|---|---|---|---|---|
+| 40% | 20% | 20% | 20% | 8.7% | +5.0% (+5.3%) | 7.3% (8.0%) | -20% (-20%) |
+| 60% | 13% | 13% | 13% | 10.5% | +5.4% (+5.9%) | 9.5% (10.2%) | -32% (-32%) |
+| 80% | 7% | 7% | 7% | 13.0% | +5.7% (+6.3%) | 12.2% (13.0%) | -44% (-44%) |
+| 100% | 0% | 0% | 0% | 15.9% | +5.9% (+6.6%) | 15.1% (16.1%) | -54% (-54%) |
 
 ## Caveats
 
 - Every year in the replay had been seen before the rules were written, and the three sleeve assets were chosen on the same years. Nothing here is out-of-sample.
 - Managed futures before 2007-03 are a paper factor scaled to the live funds' volatility less a gap measured on 2007-2026. Rules that read managed futures' past return or risk before 2007 read numbers nobody had. The live-funds period is the one to trust, and it is short.
 - Differences in Sharpe ratio between rules are small beside their intervals. "No clear difference" is the common result, not a failure of the test.
-- No trading costs, fund fees or taxes. Borrowing is at today's spread in every year. Month-end values miss falls inside a month, and a margin loan can be called before a month ends.
-- The rules were run once as written. The one addition after seeing results is the 21-day row of the risk table.
+- No trading costs, fund fees or taxes. Month-end values miss falls inside a month.
+- The rules were run as written. Two changes came after seeing results: the 21-day row of the risk table, and a rerun of the scaled rules with exposure capped at 100% of capital instead of twice capital, when the package dropped borrowing.

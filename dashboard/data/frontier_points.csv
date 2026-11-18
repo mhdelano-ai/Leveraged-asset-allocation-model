@@ -7,7 +7,7 @@ max_sharpe,special,,Best return per unit of risk,6.6,3.85,1.11,6.59,100.0,14.3,3
 risk_parity,special,,Risk parity,7.79,2.86,0.23,5.49,100.0,0.0,64.3,0.0,35.7,0.0,0.0,0.0,0.0,64.3,0.0,0.0,0.0,0.0,0.0,10.5,25.2,"64% UST 7y, 25% Commod., 10% Gold",,,
 match_p6040,match,,Frontier at the volatility of 60/40,10.3,5.47,1.99,8.95,100.0,38.7,20.6,19.6,21.0,20.4,18.3,0.0,0.0,0.0,0.0,20.6,0.0,19.6,4.5,13.8,2.7,"21% TIPS, 20% US large, 20% High yield, 18% US small, 14% Gold, 4% REITs, 3% Commod.",0.64,-4.23,5.51
 match_p_balanced,match,,Frontier at the volatility of the balanced mix,10.75,5.64,2.08,9.2,100.0,41.2,18.7,17.3,22.8,21.6,19.5,0.0,0.0,0.0,0.0,18.7,0.0,17.3,5.4,14.7,2.7,"22% US large, 20% US small, 19% TIPS, 17% High yield, 15% Gold, 5% REITs, 3% Commod.",0.59,-3.14,4.32
-match_p_equity,match,,Frontier at the volatility of the equity mix,15.97,7.34,2.69,12.0,111.1,66.8,3.9,0.0,40.4,34.4,32.4,0.0,0.0,0.0,0.0,3.9,0.0,0.0,13.5,24.2,2.8,"34% US large, 32% US small, 24% Gold, 13% REITs, 4% TIPS, 3% Commod., 11% borrowed",1.05,-4.43,6.54
+match_p_equity,match,,Frontier at the volatility of the equity mix,15.97,7.3,2.86,11.73,100.0,67.0,0.0,0.0,33.0,18.5,48.5,0.0,0.0,0.0,0.0,0.0,0.0,0.0,9.2,23.8,0.0,"49% US small, 24% Gold, 18% US large, 9% REITs",1.0,-5.36,7.37
 us_large,asset,equity,US large-cap equity,15.87,6.45,2.99,9.92,100.0,100.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100% US large,,,
 us_small,asset,equity,US small-cap equity,21.54,7.65,3.27,12.03,100.0,100.0,0.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100% US small,,,
 intl_dev,asset,equity,International developed equity,16.82,4.73,0.01,9.45,100.0,100.0,0.0,0.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100% Intl dev,,,

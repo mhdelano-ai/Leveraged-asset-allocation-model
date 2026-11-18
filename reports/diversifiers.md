@@ -50,21 +50,21 @@ Stocks' own mean in their worst 10% of months: -8.3%.
 
 What a 20% holding did to an all-stock portfolio (growth is over T-bills, a year):
 
-|  | Swap: growth | vol | Sharpe | worst fall | Overlay: growth | vol | Sharpe | worst fall |
-|---|---|---|---|---|---|---|---|---|
-| All stocks | +7.2% | 15.2% | +0.47 | -54% |  |  |  |  |
-| Cash (T-bills) | +6.0% | 12.2% | +0.49 | -45% |  |  |  |  |
-| Intermediate Treasuries | +6.6% | 12.2% | +0.54 | -44% | +7.9% | 15.3% | +0.51 | -52% |
-| Long Treasuries | +6.8% | 12.4% | +0.55 | -43% | +8.1% | 15.4% | +0.52 | -52% |
-| Investment-grade corporates | +6.6% | 12.7% | +0.52 | -46% | +7.8% | 15.8% | +0.50 | -54% |
-| High-yield corporates | +6.6% | 13.3% | +0.49 | -49% | +7.8% | 16.4% | +0.48 | -57% |
-| US REITs | +7.2% | 14.8% | +0.48 | -56% | +8.3% | 17.8% | +0.47 | -63% |
-| Gold | +6.8% | 12.7% | +0.53 | -43% | +8.0% | 15.8% | +0.51 | -52% |
-| Broad commodities | +6.3% | 13.4% | +0.47 | -51% | +7.5% | 16.4% | +0.46 | -59% |
-| Managed futures: paper trend factor, before fees | +8.4% | 12.2% | +0.69 | -42% | +9.7% | 15.2% | +0.64 | -51% |
-| Managed futures: paper trend factor, less measured drag | +7.9% | 12.2% | +0.65 | -42% | +9.1% | 15.2% | +0.60 | -51% |
+|  | Growth | Vol | Sharpe | Worst fall |
+|---|---|---|---|---|
+| All stocks | +7.2% | 15.2% | +0.47 | -54% |
+| Cash (T-bills) | +6.0% | 12.2% | +0.49 | -45% |
+| Intermediate Treasuries | +6.6% | 12.2% | +0.54 | -44% |
+| Long Treasuries | +6.8% | 12.4% | +0.55 | -43% |
+| Investment-grade corporates | +6.6% | 12.7% | +0.52 | -46% |
+| High-yield corporates | +6.6% | 13.3% | +0.49 | -49% |
+| US REITs | +7.2% | 14.8% | +0.48 | -56% |
+| Gold | +6.8% | 12.7% | +0.53 | -43% |
+| Broad commodities | +6.3% | 13.4% | +0.47 | -51% |
+| Managed futures: paper trend factor, before fees | +8.4% | 12.2% | +0.69 | -42% |
+| Managed futures: paper trend factor, less measured drag | +7.9% | 12.2% | +0.65 | -42% |
 
-Swap: 80% stocks, 20% the asset. Overlay: 100% stocks plus 20% the asset, paid for by borrowing at the T-bill rate (no spread). Every row uses the same 497 months, 1985-01-31 to 2026-05-31.
+80% stocks, 20% the asset, rebalanced monthly. Every row uses the same 497 months, 1985-01-31 to 2026-05-31.
 
 ## Common window from March 2007 (live funds exist)
 
@@ -88,23 +88,23 @@ Stocks' own mean in their worst 10% of months: -9.0%.
 
 What a 20% holding did to an all-stock portfolio (growth is over T-bills, a year):
 
-|  | Swap: growth | vol | Sharpe | worst fall | Overlay: growth | vol | Sharpe | worst fall |
-|---|---|---|---|---|---|---|---|---|
-| All stocks | +6.9% | 16.3% | +0.42 | -54% |  |  |  |  |
-| Cash (T-bills) | +5.7% | 13.0% | +0.44 | -45% |  |  |  |  |
-| Intermediate Treasuries | +6.1% | 13.0% | +0.47 | -44% | +7.3% | 16.3% | +0.45 | -52% |
-| Long Treasuries | +6.2% | 13.1% | +0.47 | -43% | +7.4% | 16.3% | +0.45 | -52% |
-| TIPS | +6.1% | 13.5% | +0.45 | -45% | +7.3% | 16.8% | +0.43 | -54% |
-| Investment-grade corporates | +6.2% | 13.9% | +0.45 | -46% | +7.3% | 17.2% | +0.43 | -54% |
-| High-yield corporates | +6.3% | 14.7% | +0.43 | -49% | +7.4% | 18.0% | +0.41 | -57% |
-| US REITs | +6.4% | 16.8% | +0.38 | -56% | +7.5% | 20.1% | +0.37 | -63% |
-| Gold | +7.5% | 13.9% | +0.54 | -43% | +8.7% | 17.1% | +0.51 | -52% |
-| Broad commodities | +5.5% | 15.0% | +0.37 | -51% | +6.6% | 18.3% | +0.36 | -59% |
-| Managed futures: paper trend factor, before fees | +7.0% | 12.7% | +0.55 | -42% | +8.2% | 15.9% | +0.51 | -51% |
-| Managed futures: paper trend factor, less measured drag | +6.4% | 12.7% | +0.51 | -42% | +7.6% | 15.9% | +0.48 | -51% |
-| Managed futures: live funds, after fees | +6.1% | 12.8% | +0.48 | -44% | +7.3% | 16.1% | +0.45 | -52% |
+|  | Growth | Vol | Sharpe | Worst fall |
+|---|---|---|---|---|
+| All stocks | +6.9% | 16.3% | +0.42 | -54% |
+| Cash (T-bills) | +5.7% | 13.0% | +0.44 | -45% |
+| Intermediate Treasuries | +6.1% | 13.0% | +0.47 | -44% |
+| Long Treasuries | +6.2% | 13.1% | +0.47 | -43% |
+| TIPS | +6.1% | 13.5% | +0.45 | -45% |
+| Investment-grade corporates | +6.2% | 13.9% | +0.45 | -46% |
+| High-yield corporates | +6.3% | 14.7% | +0.43 | -49% |
+| US REITs | +6.4% | 16.8% | +0.38 | -56% |
+| Gold | +7.5% | 13.9% | +0.54 | -43% |
+| Broad commodities | +5.5% | 15.0% | +0.37 | -51% |
+| Managed futures: paper trend factor, before fees | +7.0% | 12.7% | +0.55 | -42% |
+| Managed futures: paper trend factor, less measured drag | +6.4% | 12.7% | +0.51 | -42% |
+| Managed futures: live funds, after fees | +6.1% | 12.8% | +0.48 | -44% |
 
-Swap: 80% stocks, 20% the asset. Overlay: 100% stocks plus 20% the asset, paid for by borrowing at the T-bill rate (no spread). Every row uses the same 231 months, 2007-03-31 to 2026-05-31.
+80% stocks, 20% the asset, rebalanced monthly. Every row uses the same 231 months, 2007-03-31 to 2026-05-31.
 
 ## Every bear market in stocks
 
@@ -154,11 +154,6 @@ Intermediate Treasuries, gold and managed futures, a third each, rebalanced mont
 | 80% stocks / 20% sleeve | +7.1% | 12.2% | +0.58 | -43% |
 | 60% stocks / 40% sleeve | +6.8% | 9.6% | +0.72 | -30% |
 | 40% stocks / 60% sleeve | +6.5% | 7.6% | +0.86 | -17% |
-| 100% stocks + 50% sleeve, borrowing at T-bills + 0.00% | +10.0% | 15.7% | +0.64 | -49% |
-| 100% stocks + 50% sleeve, borrowing at T-bills + 0.50% | +9.7% | 15.7% | +0.62 | -49% |
-| 100% stocks + 50% sleeve, borrowing at T-bills + 1.38% (the published frontier's margin loan) | +9.3% | 15.7% | +0.59 | -49% |
-| 100% stocks + 50% sleeve, borrowing at T-bills + 1.50% | +9.2% | 15.7% | +0.59 | -49% |
-| 100% stocks + 50% sleeve, borrowing at T-bills + 2.50% | +8.8% | 15.7% | +0.56 | -50% |
 
 ### 2007-03 to 2026-10 (236 months)
 
@@ -180,19 +175,12 @@ Intermediate Treasuries, gold and managed futures, a third each, rebalanced mont
 | 80% stocks / 20% sleeve | +6.3% | 13.0% | +0.49 | -44% |
 | 60% stocks / 40% sleeve | +5.9% | 10.2% | +0.57 | -32% |
 | 40% stocks / 60% sleeve | +5.3% | 8.0% | +0.66 | -20% |
-| 100% stocks + 50% sleeve, borrowing at T-bills + 0.00% | +8.6% | 16.7% | +0.51 | -50% |
-| 100% stocks + 50% sleeve, borrowing at T-bills + 0.50% | +8.3% | 16.7% | +0.50 | -50% |
-| 100% stocks + 50% sleeve, borrowing at T-bills + 1.38% (the published frontier's margin loan) | +7.9% | 16.7% | +0.47 | -51% |
-| 100% stocks + 50% sleeve, borrowing at T-bills + 1.50% | +7.8% | 16.7% | +0.47 | -51% |
-| 100% stocks + 50% sleeve, borrowing at T-bills + 2.50% | +7.3% | 16.7% | +0.44 | -51% |
 
-Each point of borrowing spread costs 0.5 points of growth a year, because 50% of capital is borrowed. Without borrowing the sleeve lowers growth as well as risk: it earned less than stocks. The 1/volatility weights use each window's own volatility. Margin calls are not modelled: the rows assume the position is held and rebalanced through every fall.
+The sleeve lowers growth as well as risk: it earned less than stocks. The 1/volatility weights use each window's own volatility.
 
 ## What it costs to hold
 
 Expense ratios looked up on 2026-11-16 (`data/processed/diversifier_vehicles.json`): a hand-recorded outside lookup, mostly from secondary sites. Confirm on the issuer's page before use.
-
-Held outright:
 
 | Fund | Name | Exposure | Holds | Fee a year | Fee read from | Note |
 |---|---|---|---|---|---|---|
@@ -207,16 +195,7 @@ Held outright:
 
 A third each in IAUM, VGIT and SDMF costs 0.11% a year; with DBMF, which has a record since 2019, 0.32%.
 
-Stacked on stocks (the fund holds stocks and adds the diversifier with futures, so the financing is inside the fund at close to the T-bill rate instead of a margin loan's spread):
-
-| Fund | Name | Exposure | Holds | Fee a year | Fee read from | Note |
-|---|---|---|---|---|---|---|
-| GDE | WisdomTree Efficient Gold Plus Equity Strategy Fund | gold | 90% US stocks + 90% gold futures | 0.20% | secondary sites |  |
-| NTSX | WisdomTree U.S. Efficient Core Fund | intermediate Treasuries | 90% US stocks + 60% Treasury futures | 0.22% | Alpha Vantage ETF profile |  |
-| RSSB | Return Stacked Global Stocks & Bonds ETF | intermediate Treasuries | 100% global stocks + 100% Treasury futures | 0.40% | secondary sites | sources give 0.39% to 0.40% |
-| RSST | Return Stacked U.S. Stocks & Managed Futures ETF | managed futures | 100% US stocks + 100% managed futures | 0.99% | secondary sites |  |
-
-Gold and Treasuries are cheap to stack; managed futures are not. None of these funds is in the panel, and the study's returns are not theirs.
+None of these funds is in the panel, and the study's returns are not theirs.
 
 ## Caveats
 

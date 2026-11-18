@@ -28,7 +28,7 @@ writes
                                                   shape="assets" a sensitivity check
     forecasts/<origin>/shape.csv                  the pooled standardized shapes behind the quantiles
     forecasts/<origin>/frontier.csv               the efficient frontier these numbers imply, long-only with
-                                                  cash and borrowing (``assetforecast.frontier``)
+                                                  cash and no borrowing (``assetforecast.frontier``)
     forecasts/<origin>/frontier_points.csv        the assets, policy portfolios and named portfolios on
                                                   the same axes
     forecasts/latest/                             a copy of the newest origin

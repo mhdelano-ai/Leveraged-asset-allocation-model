@@ -41,18 +41,20 @@ Sleeve rules (three assets, long-only, sum to 1)
 ``maxsharpe_recent``           the same on ``recent``
 ``maxsharpe_mix``              ``hist`` means, ``fcst`` covariance
 
-Portfolio rules (stocks and the three, plus cash or borrowing)
---------------------------------------------------------------
+Portfolio rules (stocks and the three, plus cash)
+-------------------------------------------------
 ``fixed``                      ``BASE_STOCKS`` stocks, the rest the equal sleeve; never changed
 ``target_{hist,recent,fcst}``  the same proportions, scaled each month to ``TARGET_VOL``
-                               on that covariance (exposure capped at ``frontier.MAX_LEVERAGE``)
+                               on that covariance (exposure capped at 100% of capital)
 ``riskonly_fcst``              1/volatility over all four on ``fcst``, scaled to ``TARGET_VOL``
 ``opt_hist``, ``opt_recent``   most mean/volatility over all four, scaled to ``TARGET_VOL``
 ``opt_mix``                    ``hist`` means, ``fcst`` covariance
 
-Exposure above 100% of capital is borrowed at T-bills plus the published
-frontier's spread at the last origin (today's terms applied to every year);
-below 100% the rest is in T-bills. Trading costs are not charged; ``turnover``
+Nothing borrows: a scaled rule never holds more than 100% of capital, and
+below 100% the rest is in T-bills. The scaled rules were first run with the
+cap at twice capital, borrowing at a margin loan's spread; when the package
+dropped leverage they were rerun once with the cap at 100%, and nothing else
+was changed. Trading costs are not charged; ``turnover``
 (one-way, a year, from the change in target weights) shows what they would
 scale with. ``sharpe_diff`` and its 90% interval compare each rule with the
 no-estimate rule of its table by a paired circular block bootstrap
@@ -69,8 +71,8 @@ What the inputs are worth
                        check added after the first run showed the 12-month
                        matrix standing above month-to-month volatility; no rule
                        uses it.
-``menu.csv``           stocks beside the sleeve at the mixes of ``MENU`` (the last
-                       two borrow), for the sleeves of ``MENU_SLEEVES``: today's
+``menu.csv``           stocks beside the sleeve at the mixes of ``MENU``, for the
+                       sleeves of ``MENU_SLEEVES``: today's
                        weights, forecast volatility, and the replay.
 ``persistence.csv``    over each holding's own full history: the correlation
                        between its volatility in one ``PERSIST``-month block and
@@ -96,7 +98,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-from . import covhistory, diversifiers, frontier, paths, threefund
+from . import covhistory, diversifiers, paths, threefund
 from .returns.expected import expected_from_xr
 
 LABEL = ("Descriptive allocation study; it replays weighting rules on a history that was all seen "
@@ -134,7 +136,7 @@ RULE_INPUTS = {   # (what sets the return input, what sets the risk input)
     "maxsharpe_hist": ("hist", "hist"), "maxsharpe_recent": ("recent", "recent"), "maxsharpe_mix": ("hist", "fcst"),
     "opt_hist": ("hist", "hist"), "opt_recent": ("recent", "recent"), "opt_mix": ("hist", "fcst")}
 PERIODS = {"all": None, "live": LIVE}
-MENU = ((0.4, 0.6), (0.6, 0.4), (0.8, 0.2), (1.0, 0.0), (1.0, 0.5), (1.0, 1.0))   # (stocks, sleeve) shares of capital
+MENU = ((0.4, 0.6), (0.6, 0.4), (0.8, 0.2), (1.0, 0.0))   # (stocks, sleeve) shares of capital
 MENU_SLEEVES = ("invvol_hist", "equal")
 
 _DEV = bool(os.environ.get("ASSETFORECAST_MAX_DATE"))
@@ -258,9 +260,9 @@ def sleeve_weights(rule: str, est: dict) -> pd.Series:
 
 
 def _scaled(w: pd.Series, cov: pd.DataFrame, target: float = TARGET_VOL) -> pd.Series:
-    """``w`` (summing to 1) scaled to ``target`` volatility on ``cov``, exposure capped at MAX_LEVERAGE."""
+    """``w`` (summing to 1) scaled to ``target`` volatility on ``cov``, never above 100% of capital."""
     vol = float(np.sqrt(w @ cov.loc[w.index, w.index] @ w))
-    return w * min(target / vol, frontier.MAX_LEVERAGE)
+    return w * min(target / vol, 1.0)
 
 
 def base_weights() -> pd.Series:
@@ -270,7 +272,7 @@ def base_weights() -> pd.Series:
 
 
 def portfolio_weights(rule: str, est: dict) -> pd.Series:
-    """Shares of capital in ``ASSETS``; the rest is T-bills (or borrowed when they sum above 1)."""
+    """Shares of capital in ``ASSETS``, summing to at most 1; the rest is T-bills."""
     kind, _, src = rule.partition("_")
     if rule == "fixed":
         return base_weights()
@@ -285,7 +287,7 @@ def portfolio_weights(rule: str, est: dict) -> pd.Series:
 
 
 # ------------------------------------------------------------------ walk-forward
-def walk_forward(x: pd.DataFrame, fc: dict, spread: float) -> tuple[pd.DataFrame, pd.DataFrame]:
+def walk_forward(x: pd.DataFrame, fc: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
     """(monthly simple excess return of every rule, the weights it held), by holding month.
 
     ``weights`` rows: rule, date (the holding month), one column per asset."""
@@ -302,7 +304,7 @@ def walk_forward(x: pd.DataFrame, fc: dict, spread: float) -> tuple[pd.DataFrame
             wrows.append({"rule": r, "date": nxt, **w.reindex(ASSETS).to_dict()})
         for r in PORTFOLIO_RULES:
             w = portfolio_weights(r, est)
-            rets[r][nxt] = float(w @ S.loc[nxt, ASSETS]) - spread / 12 * max(float(w.sum()) - 1.0, 0.0)
+            rets[r][nxt] = float(w @ S.loc[nxt, ASSETS])
             wrows.append({"rule": r, "date": nxt, **w.to_dict()})
     return pd.DataFrame(rets), pd.DataFrame(wrows)
 
@@ -440,8 +442,7 @@ def today(x: pd.DataFrame, fc: dict) -> pd.DataFrame:
         for r in rules:
             w = fn(r, est).reindex(ASSETS).fillna(0.0)
             rows.append({"table": table, "rule": r, "name": RULE_NAMES[r], "origin": str(t.date()), **w.to_dict(),
-                         "cash": max(1 - float(w.sum()), 0.0), "borrowed": max(float(w.sum()) - 1, 0.0),
-                         "vol_fcst": float(np.sqrt(w @ C @ w))})
+                         "cash": max(1 - float(w.sum()), 0.0), "vol_fcst": float(np.sqrt(w @ C @ w))})
     vol = {s: np.sqrt(np.diag(est[s][1].loc[ASSETS, ASSETS])) for s in SOURCES}
     for j, a in enumerate(ASSETS):
         rows.append({"table": "inputs", "rule": a, "name": NAMES[a], "origin": str(t.date()),
@@ -450,12 +451,12 @@ def today(x: pd.DataFrame, fc: dict) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def menu(x: pd.DataFrame, rets: pd.DataFrame, cash: pd.Series, fc: dict, spread: float) -> pd.DataFrame:
+def menu(x: pd.DataFrame, rets: pd.DataFrame, cash: pd.Series, fc: dict) -> pd.DataFrame:
     """Stocks beside the sleeve at each mix of ``MENU``, for each sleeve of ``MENU_SLEEVES``.
 
     Per mix: what it holds at the last origin, its volatility there on the forecast
-    covariance, and what the replay did (the sleeve's walk-forward return, stocks,
-    borrowing above 100% at T-bills plus ``spread``) on each period."""
+    covariance, and what the replay did (the sleeve's walk-forward return beside
+    stocks, the rest in T-bills) on each period."""
     S = np.expm1(x)
     est = estimates(S, len(x) - 1, fc.get(x.index[-1]))
     C = est["fcst"][1].loc[ASSETS, ASSETS]
@@ -464,8 +465,8 @@ def menu(x: pd.DataFrame, rets: pd.DataFrame, cash: pd.Series, fc: dict, spread:
         ws = sleeve_weights(sl, est)
         for a, b in MENU:
             w = pd.Series({STOCKS: a, **(b * ws).to_dict()})[ASSETS]
-            r = a * S[STOCKS].reindex(rets.index) + b * rets[sl] - spread / 12 * max(a + b - 1.0, 0.0)
-            row = {"sleeve_rule": sl, "stocks": a, "sleeve": b, "cash": max(1 - a - b, 0.0), "borrowed": max(a + b - 1, 0.0),
+            r = a * S[STOCKS].reindex(rets.index) + b * rets[sl]
+            row = {"sleeve_rule": sl, "stocks": a, "sleeve": b, "cash": max(1 - a - b, 0.0),
                    **{f"w_{k}": float(v) for k, v in w.items()}, "vol_fcst": float(np.sqrt(w @ C @ w))}
             for p, start in PERIODS.items():
                 rp = r.loc[start:] if start else r
@@ -480,13 +481,12 @@ def menu(x: pd.DataFrame, rets: pd.DataFrame, cash: pd.Series, fc: dict, spread:
 def run() -> dict:
     x, cash, drag, full = load_inputs()
     fc = forecast_cov(x.index)
-    spread = diversifiers.published_spread(x.index[-1])
-    rets, weights = walk_forward(x, fc, spread)
+    rets, weights = walk_forward(x, fc)
     sl = rule_table(rets, weights, cash, SLEEVE_RULES, "equal")
     pf = rule_table(rets, weights, cash, PORTFOLIO_RULES, "fixed")
     fc21 = forecast_cov(x.index, covhistory.load("21d"))
     ra, ps, mt, td = risk_accuracy(x, fc, fc21), persistence(full), means_table(x), today(x, fc)
-    mn = menu(x, rets, cash, fc, spread)
+    mn = menu(x, rets, cash, fc)
     lvl = np.log1p(rets).cumsum()
     OUT.mkdir(parents=True, exist_ok=True)
     sl.to_csv(OUT / "sleeve_rules.csv", index=False, float_format="%.6g")
@@ -501,7 +501,7 @@ def run() -> dict:
     meta = {"label": LABEL, "returns_through": str(x.index[-1].date()), "common_start": str(x.index[0].date()),
             "first_holding_month": str(rets.index[0].date()), "live_from": LIVE, "assets": ASSETS, "names": NAMES,
             "settings": {"burn": BURN, "recent": RECENT, "persist": PERSIST, "target_vol": TARGET_VOL,
-                         "base_stocks": BASE_STOCKS, "max_leverage": frontier.MAX_LEVERAGE, "spread": spread,
+                         "base_stocks": BASE_STOCKS, "max_exposure": 1.0,
                          "boot": {"n": BOOT_N, "block": BOOT_BLOCK, "seed": BOOT_SEED}},
             "covariance": {"model": covhistory.PRIMARY, "bridge": covhistory.BRIDGE},
             "sleeve_rules": SLEEVE_RULES, "portfolio_rules": PORTFOLIO_RULES, "rule_names": RULE_NAMES,

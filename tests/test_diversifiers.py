@@ -71,7 +71,7 @@ def test_mixes_cash_swap_scales_stocks():
     cands = pd.DataFrame({"a": rng.normal(0.002, 0.02, n)}, index=idx)
     m = dv.mixes(x, cands, cash).query("window == 'since_2007'").set_index(["asset", "kind"])
     assert m.loc[("cash", "swap"), "vol"] == pytest.approx(0.8 * m.loc[("stocks only", "base"), "vol"], rel=0.03)
-    assert m.loc[("a", "overlay"), "vol"] > m.loc[("a", "swap"), "vol"]
+    assert set(m.index.get_level_values("kind")) == {"base", "swap"}         # nothing borrows
     assert set(m["n"]) == {n}
 
 
@@ -123,19 +123,16 @@ def test_sleeve_weights():
     assert (w * c.std()).std() == pytest.approx(0.0, abs=1e-12)
 
 
-def test_sleeve_table_mixes_and_borrowing_cost(monkeypatch):
+def test_sleeve_table_mixes(monkeypatch):
     x, c, cash = _sleeve_inputs()
     monkeypatch.setattr(dv, "SLEEVE", {"since_2007": ["ust_int", "gold", "mf_funds"]})
-    sv, sc = dv.sleeve_table(x, c, cash, spreads=(0.0, 0.02))
+    sv, sc = dv.sleeve_table(x, c, cash)
+    assert set(sv["kind"]) == {"sleeve", "mix"} and (sv["stocks"] + sv["sleeve"] <= 1 + 1e-12).all()
     e = sv[sv["scheme"] == "equal"]
     full = e[(e["kind"] == "mix") & (e["stocks"] == 1.0)].iloc[0]
     assert full["growth"] == pytest.approx(12 * x.mean()) and full["vol"] == pytest.approx(x.std() * np.sqrt(12))
     mix = e[e["kind"] == "mix"].sort_values("stocks")
     assert mix["vol"].is_monotonic_increasing              # more stocks, more risk
-    o = e[e["kind"] == "overlay"].set_index("spread")
-    # a 2-point spread on a 50% loan costs about 1 point of growth and leaves risk alone
-    assert o.loc[0.0, "growth"] - o.loc[0.02, "growth"] == pytest.approx(dv.OVERLAY * 0.02, rel=0.02)
-    assert o.loc[0.02, "vol"] == pytest.approx(o.loc[0.0, "vol"], rel=1e-3)
     s = e[e["kind"] == "sleeve"].iloc[0]
     assert s["vol"] < c.std().mean() * np.sqrt(12)         # three uncorrelated parts diversify each other
     assert sc.set_index(["a", "b"]).loc[("gold", "gold"), "corr"] == pytest.approx(1.0)
@@ -147,6 +144,7 @@ def test_vehicle_file_is_well_formed():
     assert len(syms) == len(set(syms)) and {"IAUM", "VGIT", "SDMF", "DBMF"} <= set(syms)
     assert pd.Timestamp(v["retrieved"]) and all(r["source"].startswith("https://") for r in v["vehicles"])
     assert {r["exposure"] for r in v["vehicles"]} == {"gold", "intermediate Treasuries", "managed futures"}
+    assert {r["kind"] for r in v["vehicles"]} == {"outright"}
 
 
 @pytest.mark.realdata
@@ -155,7 +153,7 @@ def test_committed_sleeve_matches_the_study():
         pytest.skip("study not run")
     meta = __import__("json").loads((dv.OUT / "meta.json").read_text())
     stocks, cands, cash, _ = dv.load_inputs()
-    got, _ = dv.sleeve_table(stocks, cands, cash, meta["sleeve"]["spreads"])
+    got, _ = dv.sleeve_table(stocks, cands, cash)
     want = pd.read_csv(dv.OUT / "sleeve.csv")
     assert len(got) == len(want)
     for col in ("growth", "vol", "worst_fall"):

@@ -4493,12 +4493,6 @@
     "sha256": "32e54b08df4cbc2954c3b89970008a7a3a2f2e94ed4184135908248e4d01cd83",
     "url": "https://www.matteoiacoviello.com/gpr_files/data_gpr_export.xls"
   },
-  "margin/robinhood_margin_rates.html": {
-    "bytes": 172750,
-    "fetched_utc": "2026-11-15T00:52:52+00:00",
-    "sha256": "12d61fc53b9a93edf8d8dc37d7505522d546c6cc362e7e829ada166eaddf4e18",
-    "url": "https://robinhood.com/us/en/support/articles/margin-rates/"
-  },
   "msci/891800_GRTR_DAILY.json": {
     "bytes": 361327,
     "fetched_utc": "2026-11-14T15:04:09+00:00",

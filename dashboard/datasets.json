@@ -32,7 +32,7 @@
   "id": "frontier",
   "file": "data/frontier.csv",
   "title": "Efficient frontier",
-  "description": "Portfolios along the long-only frontier with and without cash and borrowing: volatility, expected compound growth with its range, share invested and weights, in percent.",
+  "description": "Portfolios along the long-only frontier, fully invested and with cash (nothing borrowed): volatility, expected compound growth with its range, share invested and weights, in percent.",
   "sources": [
    "forecasts/latest/frontier.csv"
   ]
@@ -50,7 +50,7 @@
   "id": "frontier_settings",
   "file": "data/frontier_settings.csv",
   "title": "Frontier settings",
-  "description": "One row: the borrowing terms (Robinhood's margin rate for the balance tier used, the T-bill rate and the spread between them), the leverage limit and counts quoted beside the frontier.",
+  "description": "One row: the interval level, the top of the frontier and the counts quoted beside it.",
   "sources": [
    "forecasts/latest/forecast.json",
    "forecasts/latest/frontier.csv",

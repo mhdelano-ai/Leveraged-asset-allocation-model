@@ -63,16 +63,16 @@ def test_portfolio_rows(facts):
     assert rows["p6040"]["detail"] == "60% stocks, 40% bonds" and rows["p_equity"]["detail"] == "100% stocks"
 
 
-def test_borrowing(facts):
-    b = facts["borrow"]
-    fr = json.loads((LATEST / "forecast.json").read_text())["frontier"]
-    assert b["spread"] == fr["borrow_spread"] and b["margin_rate"] == fr["borrow"]["margin_rate"]
-    lev = pd.read_csv(LATEST / "frontier.csv").query("curve == 'levered'").sort_values("i")
-    assert len(b["curve"]) == len(lev)
-    assert [c["avg"] for c in b["curve"]] == pytest.approx(list(np.expm1(lev.drift)))
+def test_frontier(facts):
+    b = facts["frontier"]
+    wc = pd.read_csv(LATEST / "frontier.csv").query("curve == 'with_cash'").sort_values("i")
+    assert len(b["curve"]) == len(wc)
+    assert [c["avg"] for c in b["curve"]] == pytest.approx(list(np.expm1(wc.drift)))
     assert all(c["lo"] <= c["avg"] <= c["hi"] for c in b["curve"])
-    assert b["top"]["invested"] == pytest.approx(lev.invested.iloc[-1]) and b["top"]["invested"] <= b["max_leverage"]
-    assert b["borrow_from_vol"] == pytest.approx(lev[lev.invested <= 1 + 1e-6].vol.max())
+    assert max(c["invested"] for c in b["curve"]) <= 1 + 1e-6                   # nothing is borrowed
+    origin = json.loads((LATEST / "forecast.json").read_text())["origin"]
+    cash = pd.read_parquet(paths.PROCESSED / "cash_monthly.parquet")["cash"]
+    assert facts["cash_rate"] == pytest.approx(12 * cash.loc[pd.Timestamp(origin)])
     ps = pd.read_csv(F / "portfolio_summary.csv")
     ratio = ps.query("model == 'combo_cov_main' and portfolio == 'gmv' and metric == 'var_ratio' and period == 'dev'")["mean"].item()
     assert b["swing_excess"] == pytest.approx(math.sqrt(ratio) - 1) and b["haircut_swing"] == pytest.approx(math.sqrt(1.5) - 1)
@@ -84,10 +84,9 @@ def test_borrowing(facts):
 
 
 def test_recommended_mixes_are_rows_of_the_published_frontier(facts, page):
-    mixes = facts["borrow"]["mixes"]
-    lev = pd.read_csv(LATEST / "frontier.csv").query("curve == 'levered'").sort_values("i").reset_index(drop=True)
+    mixes = facts["frontier"]["mixes"]
+    lev = pd.read_csv(LATEST / "frontier.csv").query("curve == 'with_cash'").sort_values("i").reset_index(drop=True)
     e = pd.read_csv(LATEST / "expected_returns.csv").set_index("asset")
-    spread = json.loads((LATEST / "forecast.json").read_text())["frontier"]["borrow_spread"]
     z05 = pd.read_csv(LATEST / "shape.csv").set_index("tau").z_assets[0.05]
     assert [m["name"] for m in mixes] == list(sm.MIX_NAMES) and len(mixes) == 4
     top = lev.vol.iloc[-1]
@@ -97,8 +96,8 @@ def test_recommended_mixes_are_rows_of_the_published_frontier(facts, page):
         assert m["vol"] == pytest.approx(row.vol) and m["avg"] == pytest.approx(math.expm1(row.drift))
         assert m["weights"] == pytest.approx(w.to_dict()) and sum(m["weights"].values()) == pytest.approx(m["invested"], abs=1e-4)
         assert sum(m["groups"].values()) == pytest.approx(m["invested"], abs=1e-4)
-        assert m["cash"] == pytest.approx(max(1 - row.invested, 0)) and m["borrowed"] == pytest.approx(max(row.invested - 1, 0))
-        center = float(w @ e.mean_12m[w.index]) - spread * max(row.invested - 1, 0)
+        assert m["cash"] == pytest.approx(max(1 - row.invested, 0)) and m["invested"] <= 1 + 1e-6
+        center = float(w @ e.mean_12m[w.index])
         scale = math.sqrt(1.5 * row.vol ** 2 + float(w.abs() @ e.se_12m[w.index]) ** 2)
         assert m["bad"] == pytest.approx(math.expm1(center + scale * z05))
         assert m["bad"] < 0 < m["avg"]
@@ -109,7 +108,6 @@ def test_recommended_mixes_are_rows_of_the_published_frontier(facts, page):
     assert [m["vol"] for m in mixes] == sorted(m["vol"] for m in mixes)
     assert [m["bad"] for m in mixes] == sorted((m["bad"] for m in mixes), reverse=True)   # more swing, worse bad year
     assert sm._funding({"invested": 0.741}) == "74% invested, 26% cash" and sm._funding({"invested": 1.0}) == "fully invested"
-    assert sm._funding({"invested": 1.361}) == "136% invested, 36% borrowed"
 
 
 def test_trust(facts):
@@ -134,9 +132,9 @@ def test_page_shows_the_facts(facts, page):
     text = re.sub(r"\s+", " ", page)
     for r in facts["outlook"]:
         assert f'{sm.pct(r["avg"])}</span><span class="rng-s">{sm.pct(r["lo"])} to {sm.pct(r["hi"])}' in text
-    b, t, m = facts["borrow"], facts["trust"], facts["machine"]
-    for s in (sm.pct(b["margin_rate"], 2, sign=False), f'{sm.num(100 * b["spread"])} points more than cash', facts["window"],
-              f'>{round(100 * b["top"]["invested"])}%</text>', f'{sm.num(t["vol_skill"])}% lower than',
+    t, m = facts["trust"], facts["machine"]
+    for s in (f'Cash itself yields about {sm.pct(facts["cash_rate"], 1, sign=False)} today', facts["window"],
+              "None of them borrows.", f'{sm.num(t["vol_skill"])}% lower than',
               f'For {t["n_zero"]} of the {t["n_assets"]} assets', f'>{m["n_models"]}</b>', f'>{m["since"]}</b>'):
         assert s in text, s
 

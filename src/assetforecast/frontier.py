@@ -1,13 +1,11 @@
-"""The efficient frontier the published forecast implies: long-only portfolios, cash and borrowing.
+"""The efficient frontier the published forecast implies: long-only portfolios and cash.
 
     python -m assetforecast.frontier [--dir DIR]
 
 (without ``--dir``: ``forecasts/latest`` and the dated folder it is a copy of)
 
 Reads a published forecast folder (``cov_annual.csv``, ``expected_returns.csv`` and the
-policy weights and origin in ``forecast.json``), the T-bill return of the origin month
-(``data/processed/cash_monthly.parquet``) and Robinhood's margin rates
-(``data/processed/margin_rates.json``), and writes, into the same folder,
+policy weights and origin in ``forecast.json``) and writes, into the same folder,
 
     frontier.csv          portfolios along two frontiers, with their weights
     frontier_points.csv   the reference points: the assets, the policy portfolios, minimum
@@ -15,23 +13,22 @@ policy weights and origin in ``forecast.json``), the T-bill return of the origin
                           frontier portfolio at each policy portfolio's volatility with its
                           growth advantage over that portfolio (``gap``)
 
-and a ``frontier`` block (method, settings and the borrowing terms) in ``forecast.json``.
+and a ``frontier`` block (method and settings) in ``forecast.json``.
 ``assetforecast.forecast.write`` calls :func:`publish` on every forecast it writes, so the
 frontier always belongs to the covariance and expected returns beside it.
 
 This is arithmetic on the published forecast, not a model and not a tested strategy: it
 shows what a mean-variance optimizer makes of the historical means and the covariance
-forecast. Nothing here has out-of-sample evidence of its own.
+forecast. Nothing here has out-of-sample evidence of its own. There is no borrowing:
+every portfolio holds at most 100% of capital, and the rest is cash.
 
 Definitions (everything is a 12-month figure in excess of T-bills; x are weights as a
-share of capital, the rest is cash when they sum to less than one and borrowing when more)
+share of capital, the rest is cash when they sum to less than one)
 -----------------------------------------------------------------------------------------
 drift       ``a_i = mean_12m_i + 0.5 cov_annual_ii``: the expected simple-return rate of an
             asset whose expected log return is ``mean_12m_i``.
-cost        ``borrow_spread * max(sum(x) - 1, 0)``: borrowing costs T-bills plus the spread
-            (see Borrowing).
 volatility  ``sqrt(x' cov_annual x)``.
-growth      ``x'a - cost - 0.5 x' cov_annual x``: the expected log return of the portfolio
+growth      ``x'a - 0.5 x' cov_annual x``: the expected log return of the portfolio
             rebalanced to x (the expected compound growth rate). For a single asset it is
             ``mean_12m`` exactly. For a mix it exceeds ``x'mean_12m``, the approximation the
             published portfolio rows use, by the diversification term
@@ -47,34 +44,18 @@ gap         for a frontier portfolio x matched to a policy portfolio w at the sa
 
 Frontiers
 ---------
-``unlevered``  least variance for each level of drift, long-only and fully invested
-               (``x >= 0, sum(x) = 1``), from the minimum-variance portfolio to the asset
-               with the highest drift.
-``levered``    the same with cash and borrowing allowed (``x >= 0, sum(x) <= MAX_LEVERAGE``)
-               and drift counted net of the borrowing cost, from all cash up to the
-               volatility of the most volatile asset. Below full investment it is the best
-               return-per-risk portfolio mixed with cash; the spread makes it bend at 100%.
+``fully_invested``  least variance for each level of drift, long-only and fully invested
+                    (``x >= 0, sum(x) = 1``), from the minimum-variance portfolio to the asset
+                    with the highest drift.
+``with_cash``       the same with cash allowed (``x >= 0, sum(x) <= 1``), from all cash to the
+                    asset with the highest drift. Up to the volatility of the best
+                    return-per-risk portfolio it is that portfolio mixed with cash; above it,
+                    it is the fully invested frontier.
 
 At a given volatility the variance term of growth is fixed, so the portfolio with the most
-net drift is also the one with the most growth: these are frontiers in growth as well.
-
-Borrowing
----------
-Borrowed money is a Robinhood margin loan. ``data/processed/margin_rates.json`` holds
-Robinhood's published schedule (one rate on the whole balance, set by the size of the
-balance; the date it is stated as of; the day count of its interest, a 360-day year),
-downloaded by ``python -m assetforecast.data.sources.margin_rates --refresh``, and
-``MARGIN_TIER`` is the balance tier the frontier uses. Returns here are in excess of T-bills, so what enters is the spread
-
-    borrow_spread = margin rate x 365/day_count - 12 x the T-bill return of the origin month
-
-(:func:`borrow_terms`), held for the 12 months: Robinhood's rate floats with the federal
-funds target, and T-bills with it. Not counted: the first $1,000 that a Gold subscription
-lends free, the compounding of interest charged every 30 days, and a change of tier or of
-schedule. ``MAX_LEVERAGE`` is Regulation T's 50% initial margin; Robinhood's maintenance
-requirements vary by security and can bind sooner. For an origin before the schedule's date
-(development runs) the spread is measured in the schedule's month: today's terms, not the
-terms of that day.
+drift is also the one with the most growth: these are frontiers in growth as well. A policy
+portfolio more volatile than the top of ``with_cash`` is matched at the top (``match`` rows):
+no portfolio within 100% of capital has more drift, and none at that volatility more growth.
 """
 from __future__ import annotations
 
@@ -89,37 +70,28 @@ from scipy.optimize import minimize
 from . import paths
 from .universe import BY_ID
 
-__all__ = ["MARGIN_FILE", "MARGIN_TIER", "margin_schedule", "MAX_LEVERAGE", "N_POINTS", "METHOD", "Inputs", "borrow_terms",
-           "load_inputs", "drift",
-           "stats", "min_variance", "max_sharpe", "risk_parity", "frontier_point", "at_volatility",
-           "curve", "build", "publish"]
+__all__ = ["N_POINTS", "METHOD", "CURVES", "Inputs", "load_inputs", "drift", "stats", "min_variance", "max_sharpe",
+           "risk_parity", "frontier_point", "at_volatility", "top_volatility", "curve", "build", "publish"]
 
-MARGIN_TIER = 0          # the tier the frontier borrows at: a balance up to $50,000, the dearest
-MAX_LEVERAGE = 2.0       # total exposure as a multiple of capital (Regulation T: 50% initial margin)
-CASH_FILE = paths.PROCESSED / "cash_monthly.parquet"
-MARGIN_FILE = paths.PROCESSED / "margin_rates.json"       # written by assetforecast.data.sources.margin_rates
 N_POINTS = 41            # portfolios per frontier
+CURVES = ("fully_invested", "with_cash")
 FRONTIER_FILE, POINTS_FILE = "frontier.csv", "frontier_points.csv"
 _TOL = 1e-9
 
 METHOD = (
     "Arithmetic on the published forecast, not a model and not a tested strategy. Weights x are shares of "
-    "capital, long-only; the rest is cash, or borrowing at T-bills plus borrow_spread when sum(x) > 1, up to "
-    "max_leverage. Borrowing is a Robinhood margin loan (block 'borrow'): borrow_spread = margin_rate x "
-    "365/day_count - tbill_rate, with margin_rate the published rate of the balance tier used, charged on the "
-    "whole balance, and tbill_rate 12 x the T-bill return of tbill_month, the origin month (the schedule's "
-    "month for an earlier origin); the spread is held for the 12 months. Not counted: the first $1,000 a Gold "
-    "subscription lends free, compounding of the interest charged every 30 days, changes of tier or schedule, "
-    "and maintenance requirements tighter than max_leverage. drift_i = mean_12m_i + 0.5 cov_annual_ii. volatility = sqrt(x'cov_annual x). growth = "
-    "x'drift - borrow_spread x max(sum(x) - 1, 0) - 0.5 x'cov_annual x, the expected log excess return of the "
+    "capital, long-only, at most 100% of capital in all; the rest is cash. There is no borrowing. "
+    "drift_i = mean_12m_i + 0.5 cov_annual_ii. volatility = sqrt(x'cov_annual x). growth = "
+    "x'drift - 0.5 x'cov_annual x, the expected log excess return of the "
     "portfolio rebalanced to x; for one asset it equals mean_12m, for a mix it exceeds x'mean_12m (the "
     "approximation of the published portfolio rows) by 0.5 (sum x_i cov_ii - x'cov x). growth_lo/growth_hi = "
     "growth -/+ sum_i x_i (ci90_hi_i - ci90_lo_i)/2: the 90% intervals of the means added as if perfectly "
-    "correlated; sampling error of the means only. Curve 'unlevered': least variance per level of drift with "
-    "sum(x) = 1. Curve 'levered': the same with sum(x) <= max_leverage and drift net of the borrowing cost, "
-    "from all cash to the volatility of the most volatile asset. Points: min_variance and max_sharpe "
+    "correlated; sampling error of the means only. Curve 'fully_invested': least variance per level of drift with "
+    "sum(x) = 1. Curve 'with_cash': the same with sum(x) <= 1, from all cash to the asset with the highest drift. "
+    "Points: min_variance and max_sharpe "
     "(most drift per unit of volatility) are long-only and fully invested; risk_parity gives every asset the "
-    "same share of portfolio variance; 'match' rows are the levered frontier at a policy portfolio's volatility, "
+    "same share of portfolio variance; 'match' rows are the with_cash frontier at a policy portfolio's volatility "
+    "(at its top when the policy portfolio is more volatile), "
     "with gap = its growth minus the policy portfolio's and gap_lo/gap_hi = gap -/+ sum_i |x_i - w_i| "
     "(ci90_hi_i - ci90_lo_i)/2, the widest the 90% intervals of the means allow.")
 
@@ -127,8 +99,7 @@ METHOD = (
 class Inputs:
     """The published numbers the frontier is made of, aligned on one asset order."""
 
-    def __init__(self, cov: pd.DataFrame, expected: pd.DataFrame, policies: dict[str, dict[str, float]],
-                 spread: float, borrow: dict | None = None):
+    def __init__(self, cov: pd.DataFrame, expected: pd.DataFrame, policies: dict[str, dict[str, float]]):
         assets = [a for a in cov.index if a in expected.index]
         if assets != list(cov.index) or list(cov.columns) != assets:
             raise ValueError("cov_annual and expected_returns do not cover the same assets in the same order")
@@ -136,46 +107,10 @@ class Inputs:
         self.cov = cov.to_numpy(float)
         self.mean = expected.loc[assets, "mean_12m"].to_numpy(float)
         self.half = ((expected["ci90_hi"] - expected["ci90_lo"]) / 2).loc[assets].to_numpy(float)
-        self.spread, self.borrow = float(spread), borrow      # over T-bills, a year; and where it comes from
         self.policies = {k: np.array([float(w.get(a, 0.0)) for a in assets]) for k, w in policies.items()}
         if not (np.all(np.linalg.eigvalsh(self.cov) > 0) and np.isfinite(self.mean).all()
                 and np.isfinite(self.half).all()):
             raise ValueError("the covariance must be positive definite and every asset needs a mean and interval")
-        if not (np.isfinite(self.spread) and self.spread >= 0):
-            raise ValueError("the borrowing spread must be a non-negative number")
-
-
-def _tier_label(lo: float, hi: float | None) -> str:
-    return f"${lo:,.0f} or more" if hi is None else f"up to ${hi:,.0f}" if lo == 0 else f"${lo:,.0f} up to ${hi:,.0f}"
-
-
-def margin_schedule() -> dict:
-    """Robinhood's published margin rates as last downloaded (``assetforecast.data.sources.margin_rates``)."""
-    return json.loads(MARGIN_FILE.read_text())
-
-
-def borrow_terms(origin, tier: int = MARGIN_TIER, cash: pd.Series | None = None,
-                 schedule: dict | None = None) -> dict:
-    """The cost of a Robinhood margin loan at ``origin`` as a spread over T-bills (module docstring).
-
-    ``cash`` is the simple monthly T-bill return by month-end (default: the processed panel's);
-    ``schedule`` the margin rates (default: :func:`margin_schedule`).
-    """
-    MARGIN = margin_schedule() if schedule is None else schedule
-    t = MARGIN["tiers"][tier]
-    lo, hi, rate = t["from"], t["below"], t["rate"]
-    if cash is None:
-        cash = pd.read_parquet(CASH_FILE)["cash"]
-    month = max(pd.Timestamp(origin), pd.Timestamp(MARGIN["as_of"])) + pd.offsets.MonthEnd(0)
-    if month not in cash.index or not np.isfinite(cash.loc[month]):
-        raise ValueError(f"no T-bill return for {month.date()}: the borrowing spread cannot be measured")
-    tbill = round(12 * float(cash.loc[month]), 6)
-    cost = round(rate * 365 / MARGIN["day_count"], 6)
-    return {"lender": MARGIN["lender"], "source": MARGIN["source"], "as_of": MARGIN["as_of"],
-            "retrieved": MARGIN["retrieved"], "tier": _tier_label(lo, hi), "margin_rate": rate,
-            "day_count": MARGIN["day_count"], "annual_cost": cost, "tbill_rate": tbill,
-            "tbill_month": str(month.date()), "spread": round(cost - tbill, 6),
-            "schedule": [{"balance": _tier_label(t["from"], t["below"]), "rate": t["rate"]} for t in MARGIN["tiers"]]}
 
 
 def load_inputs(d: Path) -> Inputs:
@@ -183,23 +118,21 @@ def load_inputs(d: Path) -> Inputs:
     cov = pd.read_csv(d / "cov_annual.csv", index_col=0)
     exp = pd.read_csv(d / "expected_returns.csv", index_col=0)
     meta = json.loads((d / "forecast.json").read_text())
-    borrow = borrow_terms(meta["origin"])
-    return Inputs(cov, exp, meta["portfolio_weights"], borrow["spread"], borrow)
+    return Inputs(cov, exp, meta["portfolio_weights"])
 
 
 def drift(inp: Inputs) -> np.ndarray:
     return inp.mean + 0.5 * np.diag(inp.cov)
 
 
-def stats(inp: Inputs, x: np.ndarray, spread: float | None = None) -> dict:
-    """Volatility, growth and its band, drift net of cost, and total exposure of weights ``x``."""
+def stats(inp: Inputs, x: np.ndarray) -> dict:
+    """Volatility, growth and its band, drift, and the share of capital invested of weights ``x``."""
     x = np.asarray(x, float)
-    spread = inp.spread if spread is None else spread
     var = float(x @ inp.cov @ x)
-    net = float(x @ drift(inp)) - spread * max(float(x.sum()) - 1.0, 0.0)
-    g, band = net - 0.5 * var, float(x @ inp.half)
+    a = float(x @ drift(inp))
+    g, band = a - 0.5 * var, float(x @ inp.half)
     return {"vol": np.sqrt(var), "growth": g, "growth_lo": g - band, "growth_hi": g + band,
-            "drift": net, "invested": float(x.sum())}
+            "drift": a, "invested": float(x.sum())}
 
 
 # ------------------------------------------------------------------ small convex programs
@@ -266,104 +199,94 @@ def risk_parity(inp: Inputs) -> np.ndarray:
     return x / x.sum()
 
 
-def frontier_point(inp: Inputs, target: float, levered: bool, spread: float | None = None,
-                   max_leverage: float = MAX_LEVERAGE) -> np.ndarray:
-    """Least-variance weights with (net) drift at least ``target``.
-
-    ``levered=False``: ``sum(x) = 1``. ``levered=True``: ``sum(x) <= max_leverage`` and the drift
-    is net of ``spread`` on the borrowed share, which enters as a slack variable ``b >= sum(x) - 1``.
-    """
+def frontier_point(inp: Inputs, target: float, cash: bool) -> np.ndarray:
+    """Least-variance weights with drift at least ``target``: ``sum(x) = 1``, or ``sum(x) <= 1`` with ``cash``."""
     a, n = drift(inp), len(inp.assets)
-    spread = inp.spread if spread is None else spread
     one, k = np.ones(n), float(np.abs(a).max())      # k scales the drift constraint to order one
-    if not levered:
-        cons = [{"type": "eq", "fun": lambda z: z.sum() - 1, "jac": lambda z: one},
-                {"type": "ineq", "fun": lambda z: (z @ a - target) / k, "jac": lambda z: a / k}]
-        return _clean(_min_var(inp, cons, np.full(n, 1 / n)))
-    e = np.concatenate([one, [0.0]])
-    cons = [{"type": "ineq", "fun": lambda z: z[n] - z[:n].sum() + 1, "jac": lambda z: np.concatenate([-one, [1.0]])},
-            {"type": "ineq", "fun": lambda z: max_leverage - z[:n].sum(), "jac": lambda z: -e},
-            {"type": "ineq", "fun": lambda z: (z[:n] @ a - spread * z[n] - target) / k,
-             "jac": lambda z: np.concatenate([a, [-spread]]) / k}]
-    start = np.concatenate([np.full(n, 1 / n), [0.5]])
-    return _clean(_min_var(inp, cons, start, extra=1)[:n])
+    budget = ({"type": "ineq", "fun": lambda z: 1 - z.sum(), "jac": lambda z: -one} if cash else
+              {"type": "eq", "fun": lambda z: z.sum() - 1, "jac": lambda z: one})
+    cons = [budget, {"type": "ineq", "fun": lambda z: (z @ a - target) / k, "jac": lambda z: a / k}]
+    return _clean(_min_var(inp, cons, np.full(n, (0.9 if cash else 1.0) / n)))    # inside sum(x) <= 1
 
 
-def _max_target(inp: Inputs, levered: bool, spread: float | None, max_leverage: float) -> float:
+def _top(inp: Inputs) -> np.ndarray:
+    """All capital in the asset with the highest drift: the end of both frontiers."""
     a = drift(inp)
-    spread = inp.spread if spread is None else spread
-    top = float(a.max())
-    return max(top, max_leverage * top - spread * (max_leverage - 1)) if levered else top
+    if a.max() <= 0:
+        raise ValueError("no asset has a positive drift")
+    x = np.zeros(len(inp.assets))
+    x[int(a.argmax())] = 1.0
+    return x
 
 
-def at_volatility(inp: Inputs, vol: float, levered: bool = True, spread: float | None = None,
-                  max_leverage: float = MAX_LEVERAGE) -> np.ndarray:
-    """The frontier portfolio whose volatility is ``vol`` (bisection on the drift target)."""
-    lo = 0.0 if levered else float(drift(inp) @ min_variance(inp))
-    hi = _max_target(inp, levered, spread, max_leverage)
+def top_volatility(inp: Inputs) -> float:
+    """The volatility at the end of both frontiers (the asset with the highest drift)."""
+    x = _top(inp)
+    return float(np.sqrt(x @ inp.cov @ x))
+
+
+def at_volatility(inp: Inputs, vol: float, cash: bool = True) -> np.ndarray:
+    """The frontier portfolio whose volatility is ``vol`` (bisection on the drift target).
+
+    Above :func:`top_volatility` it is the top of the frontier."""
+    lo = 0.0 if cash else float(drift(inp) @ min_variance(inp))
+    hi = float(drift(inp).max())
     for _ in range(50):
         mid = 0.5 * (lo + hi)
-        x = frontier_point(inp, mid, levered, spread, max_leverage)
+        x = frontier_point(inp, mid, cash)
         if np.sqrt(x @ inp.cov @ x) < vol:
             lo = mid
         else:
             hi = mid
         if hi - lo < 1e-9:
             break
-    return frontier_point(inp, 0.5 * (lo + hi), levered, spread, max_leverage)
+    return frontier_point(inp, 0.5 * (lo + hi), cash)
 
 
-def curve(inp: Inputs, levered: bool, n_points: int = N_POINTS, spread: float | None = None,
-          max_leverage: float = MAX_LEVERAGE) -> list[np.ndarray]:
+def curve(inp: Inputs, cash: bool, n_points: int = N_POINTS) -> list[np.ndarray]:
     """Weights along a frontier, evenly spaced in volatility."""
-    top_vol = float(np.sqrt(np.diag(inp.cov)).max())
-    if levered:
-        vols = np.linspace(0.0, top_vol, n_points)
-        return [np.zeros(len(inp.assets))] + [at_volatility(inp, v, True, spread, max_leverage) for v in vols[1:]]
+    x_top = _top(inp)
+    v1 = top_volatility(inp)
+    if cash:
+        vols = np.linspace(0.0, v1, n_points)
+        return [np.zeros(len(inp.assets))] + [at_volatility(inp, v, True) for v in vols[1:-1]] + [x_top]
     x_min = min_variance(inp)
-    k = int(drift(inp).argmax())
-    x_top = np.zeros(len(inp.assets))
-    x_top[k] = 1.0
-    v0, v1 = np.sqrt(x_min @ inp.cov @ x_min), np.sqrt(inp.cov[k, k])
-    vols = np.linspace(v0, v1, n_points)
+    vols = np.linspace(np.sqrt(x_min @ inp.cov @ x_min), v1, n_points)
     return [x_min] + [at_volatility(inp, v, False) for v in vols[1:-1]] + [x_top]
 
 
 # ------------------------------------------------------------------ tables
-def _row(inp: Inputs, x: np.ndarray, spread: float | None, **head) -> dict:
-    return {**head, **stats(inp, x, spread), **{f"w_{a}": float(w) for a, w in zip(inp.assets, x)}}
+def _row(inp: Inputs, x: np.ndarray, **head) -> dict:
+    return {**head, **stats(inp, x), **{f"w_{a}": float(w) for a, w in zip(inp.assets, x)}}
 
 
-def build(inp: Inputs, spread: float | None = None, max_leverage: float = MAX_LEVERAGE,
-          n_points: int = N_POINTS) -> dict:
+def build(inp: Inputs, n_points: int = N_POINTS) -> dict:
     """``{"frontier": DataFrame, "points": DataFrame, "meta": dict}`` for one forecast."""
-    spread = inp.spread if spread is None else spread
     rows = []
-    for name, lev in (("unlevered", False), ("levered", True)):
-        for i, x in enumerate(curve(inp, lev, n_points, spread, max_leverage)):
-            rows.append(_row(inp, x, spread, curve=name, i=i))
+    for name in CURVES:
+        for i, x in enumerate(curve(inp, name == "with_cash", n_points)):
+            rows.append(_row(inp, x, curve=name, i=i))
     frontier = pd.DataFrame(rows)
 
     n = len(inp.assets)
-    pts = [_row(inp, np.eye(n)[i], spread, point=a, kind="asset", name=BY_ID[a].name if a in BY_ID else a)
+    pts = [_row(inp, np.eye(n)[i], point=a, kind="asset", name=BY_ID[a].name if a in BY_ID else a)
            for i, a in enumerate(inp.assets)]
     for k, w in inp.policies.items():
-        pts.append(_row(inp, w, spread, point=k, kind="policy", name=k))
+        pts.append(_row(inp, w, point=k, kind="policy", name=k))
     specials = {"min_variance": min_variance(inp), "max_sharpe": max_sharpe(inp), "risk_parity": risk_parity(inp)}
     for k, w in specials.items():
-        pts.append(_row(inp, w, spread, point=k, kind="special", name=k))
+        pts.append(_row(inp, w, point=k, kind="special", name=k))
+    top = top_volatility(inp)
     for k, w in inp.policies.items():
-        x = at_volatility(inp, float(np.sqrt(w @ inp.cov @ w)), True, spread, max_leverage)
-        row = _row(inp, x, spread, point=f"match_{k}", kind="match", name=k)
-        gap, band = row["growth"] - stats(inp, w, spread)["growth"], float(np.abs(x - w) @ inp.half)
+        x = at_volatility(inp, min(float(np.sqrt(w @ inp.cov @ w)), top), True)
+        row = _row(inp, x, point=f"match_{k}", kind="match", name=k)
+        gap, band = row["growth"] - stats(inp, w)["growth"], float(np.abs(x - w) @ inp.half)
         pts.append({**row, "gap": gap, "gap_lo": gap - band, "gap_hi": gap + band})
     points = pd.DataFrame(pts)
-    head = ["point", "kind", "name", *stats(inp, np.zeros(n), spread), "gap", "gap_lo", "gap_hi"]
+    head = ["point", "kind", "name", *stats(inp, np.zeros(n)), "gap", "gap_lo", "gap_hi"]
     points = points[head + [c for c in points.columns if c.startswith("w_")]]
-    meta = {"method": METHOD, "borrow_spread": spread, "max_leverage": max_leverage, "n_points": n_points,
-            "interval_level": 0.90, "files": [FRONTIER_FILE, POINTS_FILE]}
-    if inp.borrow is not None and spread == inp.spread:
-        meta["borrow"] = inp.borrow
+    meta = {"method": METHOD, "curves": list(CURVES), "n_points": n_points, "interval_level": 0.90,
+            "files": [FRONTIER_FILE, POINTS_FILE]}
     return {"frontier": frontier, "points": points, "meta": meta}
 
 
@@ -394,9 +317,6 @@ def main(argv=None) -> None:
     pd.set_option("display.width", 200)
     cols = ["point", "kind", "vol", "growth", "growth_lo", "growth_hi", "invested"]
     print(f"frontier of {a.dir} -> {FRONTIER_FILE}, {POINTS_FILE}")
-    b = res["meta"]["borrow"]
-    print(f"borrowing: {b['lender']}, balance {b['tier']}, {b['margin_rate']:.2%} as of {b['as_of']} "
-          f"= T-bills ({b['tbill_rate']:.2%}, {b['tbill_month']}) + {b['spread']:.2%}")
     print(res["points"][cols].round(4).to_string(index=False))
 
 

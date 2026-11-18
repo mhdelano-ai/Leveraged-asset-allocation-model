@@ -19,25 +19,15 @@
  "accounts": {
   "taxable": {
    "name": "Taxable brokerage",
-   "detail": "Gains, interest and distributions are taxed as they come.",
-   "routes": [
-    "stacked",
-    "margin"
-   ]
+   "detail": "Gains, interest and distributions are taxed as they come."
   },
   "traditional": {
    "name": "Tax-deferred",
-   "detail": "Traditional IRA or 401(k): taxed as income on withdrawal.",
-   "routes": [
-    "stacked"
-   ]
+   "detail": "Traditional IRA or 401(k): taxed as income on withdrawal."
   },
   "roth": {
    "name": "Roth",
-   "detail": "Roth IRA or Roth 401(k): qualified withdrawals are untaxed.",
-   "routes": [
-    "stacked"
-   ]
+   "detail": "Roth IRA or Roth 401(k): qualified withdrawals are untaxed."
   }
  },
  "goals": {
@@ -64,49 +54,20 @@
  },
  "notes": {
   "taxable": [
-   "Both ways of holding more than 100% of capital are open in this account: funds that carry the exposure inside, or a margin loan.",
    "Taxes are not modelled. Stock index funds defer most of their gain until sold. The diversifiers are taxed harder: Treasury interest is ordinary income (free of state tax), funds holding gold bullion are taxed as collectibles, and funds that use futures pay out most of their return as taxable distributions.",
    "The replay rebalances every month. In this account a sale can realise a gain."
   ],
   "traditional": [
-   "A retirement account cannot take a margin loan. Exposure above 100% of capital can only come from funds that carry it inside.",
    "Nothing is taxed until withdrawal, and withdrawals are taxed as ordinary income whatever was held. No holding is tax-favoured over another, and rebalancing costs no tax."
   ],
   "roth": [
-   "A retirement account cannot take a margin loan. Exposure above 100% of capital can only come from funds that carry it inside.",
    "Qualified withdrawals are untaxed. No holding is tax-favoured over another, and rebalancing costs no tax."
   ]
- },
- "routes": {
-  "stacked": {
-   "name": "Return-stacked funds",
-   "detail": "The leverage is inside the funds. You owe nothing and cannot get a margin call.",
-   "how": [
-    "You buy funds that each hold stocks and add a diversifier on top with futures.",
-    "The borrowing happens inside the fund, at close to the T-bill rate. You owe nothing, so there is no loan on your account for anyone to call, and the most you can lose is what you put in.",
-    "The price is higher fund fees and less choice: each fund fixes its own blend, and the stocks inside are US or global stocks."
-   ]
-  },
-  "margin": {
-   "name": "Margin loan",
-   "detail": "The leverage is a loan from your broker. It costs more and can be called.",
-   "how": [
-    "You buy plain funds, then borrow from the broker against them to buy more.",
-    "The loan costs T-bills + 1.38%. If the account falls far enough, the broker can demand cash or sell your holdings at the bottom.",
-    "You choose every fund and the loan reaches 2 times capital, but it is not allowed in a retirement account."
-   ]
-  }
  },
  "settings": {
   "sleeve_rule": "invvol_hist",
   "sleeve_rule_name": "1/volatility, whole past",
   "step": 0.05,
-  "stock_tol": 0.025,
-  "max_leverage": 2.0,
-  "spreads": {
-   "margin": 0.013798,
-   "stacked": 0.0
-  },
   "recent": 60
  },
  "sleeve_weights": {
@@ -114,49 +75,7 @@
   "gold": 0.18877159219842293,
   "mf": 0.37437508705662975
  },
- "borrow": {
-  "lender": "Robinhood Financial (margin investing)",
-  "source": "https://robinhood.com/us/en/support/articles/margin-rates/",
-  "as_of": "2026-09-17",
-  "retrieved": "2026-11-15",
-  "tier": "up to $50,000",
-  "margin_rate": 0.0525,
-  "day_count": 360,
-  "annual_cost": 0.053229,
-  "tbill_rate": 0.039431,
-  "tbill_month": "2026-10-31",
-  "spread": 0.013798,
-  "schedule": [
-   {
-    "balance": "up to $50,000",
-    "rate": 0.0525
-   },
-   {
-    "balance": "$50,000 up to $100,000",
-    "rate": 0.0505
-   },
-   {
-    "balance": "$100,000 up to $1,000,000",
-    "rate": 0.0475
-   },
-   {
-    "balance": "$1,000,000 up to $10,000,000",
-    "rate": 0.045
-   },
-   {
-    "balance": "$10,000,000 up to $50,000,000",
-    "rate": 0.0445
-   },
-   {
-    "balance": "$50,000,000 or more",
-    "rate": 0.042
-   }
-  ]
- },
- "least_risk_stocks": {
-  "margin": 0.25,
-  "stacked": 0.0
- },
+ "least_risk_stocks": 0.1,
  "vehicles_retrieved": "2026-11-16",
  "covariance": {
   "model": "combo_cov_main",

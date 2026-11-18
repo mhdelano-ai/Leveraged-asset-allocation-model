@@ -48,7 +48,7 @@ The short version, as the results stand: **the volatilities are the tested part*
 - **The volatility is a forecast of the mean of next year's variance.** Variance is right-skewed: most years are calmer than the forecast and a few are far worse.
   - Over 1922–2025 the median year's realized volatility came in about 16% below the forecast (about 13% below over the last 30 years).
   - Yet the forecast was right on average in variance: realized ÷ forecast variance was 1.11 in development and 1.05 on the holdout.
-  - This is deliberate. An allocation model that sizes leverage on variance needs the mean, not the typical year.
+  - This is deliberate. An allocation model that sizes positions on variance needs the mean, not the typical year.
 - **Expected returns and quantiles are of the 12-month log excess return**, and the quantiles include the mean. `expected_returns.csv` also gives the arithmetic (simple-return) equivalent, `exp(mean + variance/2) − 1`.
 
 ### 1.2 Volatility and correlation
@@ -165,7 +165,7 @@ Sources: `forecasts/latest/distribution_portfolios.csv` (rows with `shape = port
 
 ## 2. How to use the three outputs together
 
-The package does **no position sizing**. It publishes inputs; the leverage decision belongs to the allocation model. These are the ways of using them that the evidence supports.
+The package does **no position sizing**. It publishes inputs; the sizing decision belongs to the allocation model. These are the ways of using them that the evidence supports.
 
 **Which file.**
 
@@ -176,15 +176,15 @@ The package does **no position sizing**. It publishes inputs; the leverage decis
 
 **Treat the expected returns as a weak prior, not a signal.** No model beat them, but that does not show them to be accurate: sections 4 and 5 compare models with the historical mean, not the historical mean with the truth. Their intervals are wide relative to the differences between many assets, which an optimizer fed point means will treat as real. Shrink the means toward each other, constrain the weights, or check that the allocation survives means drawn from inside the intervals.
 
-**Haircut the risk of optimized and leveraged portfolios.**
+**Haircut the risk of optimized portfolios.**
 
 - **Fixed-weight portfolios were predicted about right.** Realized ÷ predicted variance was 0.97–1.11 in development and 1.05–1.29 on the holdout, with intervals that include 1.
 - **An optimizer is different.** It seeks out the directions in which the matrix understates risk. In development, the minimum-variance portfolio built from this matrix realized **1.43 times** its predicted variance (2.40 times in 2000–13); long-only minimum variance realized 1.27 times.
 - **The holdout does not overturn this.** The excess disappeared there (0.83 and 1.08), but the intervals were [0.10, 1.57] and [0.29, 1.87].
-- **Practical rule (from the development data).** For an optimized, leveraged or long–short portfolio, scale predicted variance up by about 1.5, or constrain the optimizer with long-only or gross-exposure limits.
+- **Practical rule (from the development data).** For an optimized or long–short portfolio, scale predicted variance up by about 1.5, or constrain the optimizer with long-only or gross-exposure limits.
 - **Optimized weights churn.** Unconstrained minimum variance turned over 6.6% a month one-way in development and 8.6% on the holdout. Smooth the weights or rebalance on a band.
 
-**Use the distribution for the downside, with the sensitivity row.** For a leverage limit set on a bad-year loss, read the 5% and 1% quantiles of the portfolio actually held. For the policy mixes, use the more severe of the published and asset-shape rows; the published row is the narrower of the two (section 1.4). **For any other portfolio, and for anything levered or optimized, use the asset-pooled shape** (`shape.csv`, column `z_assets`) on the covariance-implied scale: `w'mean + sqrt(k·w'Σw + (Σ|w|·se)²) × z_assets`, with `k` the variance haircut above (about 1.5 for optimized or leveraged portfolios, 1 for a fixed mix). Do not use `z_portfolios` for such portfolios: it carries the narrower spread of three past policy mixes. The package does not publish quantiles for arbitrary weights. The financing cost of leverage is not in these excess returns, and the log-return approximation weakens as leverage grows.
+**Use the distribution for the downside, with the sensitivity row.** For a risk limit set on a bad-year loss, read the 5% and 1% quantiles of the portfolio actually held. For the policy mixes, use the more severe of the published and asset-shape rows; the published row is the narrower of the two (section 1.4). **For any other portfolio, and for anything optimized, use the asset-pooled shape** (`shape.csv`, column `z_assets`) on the covariance-implied scale: `w'mean + sqrt(k·w'Σw + (Σ|w|·se)²) × z_assets`, with `k` the variance haircut above (about 1.5 for optimized portfolios, 1 for a fixed mix). Do not use `z_portfolios` for such portfolios: it carries the narrower spread of three past policy mixes. The package does not publish quantiles for arbitrary weights.
 
 **The one decision that is yours: how your model treats expected bond returns.** The 12-month variances assume expected returns are constant over the long run, which is exactly what the published expected returns are. The bridge found that most of the extra 12-month variance of bonds (and gold) comes from decade-long drifts in returns that follow interest rates.
 
@@ -519,7 +519,7 @@ These findings use the covariance side's development data (1926–2013) unless s
 - **Much about the portfolio tails.** The published portfolio shape's 1% point rests on a handful of episodes; the asset-shape row is the check.
 - **Much about the short-history assets.** TIPS, emerging markets and high yield rest on a few cycles, for both risk and return.
 - **A 1926–45 kind of regime.** Every averaged or slow volatility model did badly in the Depression. If volatility moves far outside recent history, the forecast will follow slowly.
-- **How much to lever.** No position sizing is done here.
+- **How much to hold of each asset.** No position sizing is done here.
 
 ## 9. Reproducing and updating
 
@@ -532,7 +532,6 @@ for t in cash_macro us_equity intl_equity treasuries tips credit reits real_asse
 done
 python -m assetforecast.data.sources.return_predictors --from-committed   # the return side's 73 series, offline
 python -m assetforecast.data.assemble
-python -m assetforecast.data.sources.margin_rates --refresh   # Robinhood's margin rates, which the frontier borrows at
 
 # Everything else, in order (python -m assetforecast.pipeline --list shows the steps):
 python -m assetforecast.pipeline --jobs 4
