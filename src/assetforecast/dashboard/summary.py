@@ -55,7 +55,6 @@ from __future__ import annotations
 
 import argparse
 import html
-import json
 import math
 from pathlib import Path
 
@@ -134,26 +133,27 @@ def _mix(weights: dict) -> str:
     return ", ".join(f"{round(100 * w):d}% {GROUP_WORD[g]}" for g, w in share.items() if round(100 * w) > 0)
 
 
+def _ranges(q: pd.Series) -> dict:
+    """The 9-in-10 and half-of-all-years ranges of one row of published quantiles, as simple returns."""
+    return {"lo": simple(q.q05), "hi": simple(q.q95), "mid_lo": simple(q.q25), "mid_hi": simple(q.q75)}
+
+
 def outlook(s: dd.Sources) -> list[dict]:
     """One row per asset and policy portfolio: average, the two ranges, all as simple returns."""
     e = s.read("expected_returns.csv").set_index("asset")
     d = s.read("distribution_assets.csv").set_index("asset")
     rows = []
     for a in ASSETS:
-        q = d.loc[a.id]
         rows.append({"id": a.id, "kind": "asset", "group": GROUP_OF[a.group], "name": ASSET_NAMES[a.id], "detail": "",
-                     "avg": float(e.loc[a.id, "mean_12m_arith"]),
-                     "lo": simple(q.q05), "hi": simple(q.q95), "mid_lo": simple(q.q25), "mid_hi": simple(q.q75)})
+                     "avg": float(e.loc[a.id, "mean_12m_arith"]), **_ranges(d.loc[a.id])})
     dp = s.read("distribution_portfolios.csv")
     dp = dp[dp["shape"] == "portfolios"].set_index("portfolio")
     pts = s.read("frontier_points.csv")
     drift = pts[pts.kind == "policy"].set_index("point").drift
     weights = s.json("forecast.json")["portfolio_weights"]
     for p, name in PORTFOLIO_NAMES.items():
-        q = dp.loc[p]
         rows.append({"id": p, "kind": "portfolio", "group": PORTFOLIO_GROUP, "name": name, "detail": _mix(weights[p]),
-                     "avg": simple(drift[p]),
-                     "lo": simple(q.q05), "hi": simple(q.q95), "mid_lo": simple(q.q25), "mid_hi": simple(q.q75)})
+                     "avg": simple(drift[p]), **_ranges(dp.loc[p])})
     return rows
 
 
@@ -206,9 +206,14 @@ def cash_rate(s: dd.Sources, origin: str) -> float:
     return float(12 * c.loc[pd.Timestamp(origin)])
 
 
-def frontier(s: dd.Sources) -> dict:
+def _with_cash(s: dd.Sources) -> pd.DataFrame:
+    """The published frontier with cash (nothing borrowed), in order from all cash."""
     wc = s.read("frontier.csv")
-    wc = wc[wc.curve == "with_cash"].sort_values("i")
+    return wc[wc.curve == "with_cash"].sort_values("i").reset_index(drop=True)
+
+
+def frontier(s: dd.Sources) -> dict:
+    wc = _with_cash(s)
     half_lo, half_hi = wc.growth - wc.growth_lo, wc.growth_hi - wc.growth
     curve = [{"vol": float(r.vol), "avg": simple(r.drift), "lo": simple(r.drift - lo), "hi": simple(r.drift + hi),
               "invested": float(r.invested)}
@@ -234,8 +239,7 @@ def frontier(s: dd.Sources) -> dict:
 
 def mixes(s: dd.Sources) -> list[dict]:
     """The recommended mixes: evenly spaced rows of the published frontier with cash (module docstring)."""
-    wc = s.read("frontier.csv")
-    wc = wc[wc.curve == "with_cash"].sort_values("i").reset_index(drop=True)
+    wc = _with_cash(s)
     e = s.read("expected_returns.csv").set_index("asset")
     shape = s.read("shape.csv")
     z = float(shape[(shape.tau - MIX_TAU).abs() < 1e-9].z_assets.iloc[0])
@@ -293,6 +297,8 @@ def range_chart(rows: list[dict]) -> str:
     """The outlook rows: one bar per asset on a shared percent axis (HTML, so it reflows on a phone)."""
     lo, hi = _nice_span(100 * min(r["lo"] for r in rows), 100 * max(r["hi"] for r in rows), 20)
     pos = lambda x: f"{(100 * x - lo) / (hi - lo) * 100:.2f}"            # noqa: E731
+    bar = lambda cls, a, b: (f'<i class="{cls}" style="left:{pos(a)}%;'  # noqa: E731
+                             f'width:{float(pos(b)) - float(pos(a)):.2f}%"></i>')
     ticks = _ticks(lo, hi, 20)
     axis = "".join(f'<span style="left:{(t - lo) / (hi - lo) * 100:.2f}%">{pct(t / 100, 0)}</span>' for t in ticks)
     grid = f"background-size:{100 / (len(ticks) - 1):.4f}% 100%"
@@ -313,8 +319,7 @@ def range_chart(rows: list[dict]) -> str:
             f'<span class="rng-g">{esc(r["group"]) if first else ""}</span>'
             f'<span class="rng-n">{esc(r["name"])}</span>'
             f'<div class="rng-plot" style="{grid}"><i class="rng-zero" style="left:{pos(0)}%"></i>'
-            f'<i class="rng-out" style="left:{pos(r["lo"])}%;width:{float(pos(r["hi"])) - float(pos(r["lo"])):.2f}%"></i>'
-            f'<i class="rng-in" style="left:{pos(r["mid_lo"])}%;width:{float(pos(r["mid_hi"])) - float(pos(r["mid_lo"])):.2f}%"></i>'
+            f'{bar("rng-out", r["lo"], r["hi"])}{bar("rng-in", r["mid_lo"], r["mid_hi"])}'
             f'<i class="rng-dot" style="left:{pos(r["avg"])}%"></i></div>'
             f'<span class="rng-a">{pct(r["avg"])}</span><span class="rng-s">{span}</span></div>')
     out.append("</div>")
@@ -404,17 +409,14 @@ def _funding(m: dict) -> str:
 
 def mix_table(b: dict) -> str:
     """The recommended mixes: what each holds (a bar by asset group and a list), its average, swing and bad year."""
-    rows = b["mixes"]
-    full = 1.0                                                          # the bar's full width: all of the capital
-    own = f"{100 / full:.2f}%"
     out = ['<div class="mixes">',
            '<div class="mix mix-top"><div class="legend" aria-hidden="true">'
            '<span><i class="k-sq k-stocks"></i>stocks</span><span><i class="k-sq k-bonds"></i>bonds</span>'
            '<span><i class="k-sq k-real"></i>real assets</span><span><i class="k-line"></i>100% of your money</span></div>'
            '<span class="mix-k">Average</span><span class="mix-k">Swing</span><span class="mix-k">Bad year</span></div>']
     seg = {"Stocks": "seg-stocks", "Bonds": "seg-bonds", "Real assets": "seg-real"}
-    for m in rows:
-        bar = "".join(f'<i class="{seg[g]}" style="width:{100 * x / full:.2f}%"></i>' for g, x in m["groups"].items() if x >= MIX_MIN_WEIGHT)
+    for m in b["mixes"]:
+        bar = "".join(f'<i class="{seg[g]}" style="width:{100 * x:.2f}%"></i>' for g, x in m["groups"].items() if x >= MIX_MIN_WEIGHT)
         hold = ", ".join(f"{round(100 * x)}% {n}" for n, x in m["holdings"])
         tip = f'{m["name"]}: {_funding(m)}. {hold}.'
         out.append(
@@ -422,7 +424,7 @@ def mix_table(b: dict) -> str:
             f'<div class="mix-name"><b class="mix-no">{m["no"]}</b><h3>{esc(m["name"])}</h3><small>{esc(_funding(m))}</small></div>'
             f'<span class="mix-v">{pct(m["avg"])}</span><span class="mix-v">{pct(m["vol"], 1, sign=False)}</span>'
             f'<span class="mix-v">{pct(m["bad"])}</span>'
-            f'<div class="mix-bar" style="--own:{own}">{bar}<b></b></div>'
+            f'<div class="mix-bar" style="--own:100.00%">{bar}<b></b></div>'
             f'<p class="mix-hold">{esc(hold)}</p></div>')
     out.append("</div>")
     return "\n".join(out)

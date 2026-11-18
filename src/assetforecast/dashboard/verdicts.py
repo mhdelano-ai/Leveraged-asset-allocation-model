@@ -54,8 +54,7 @@ def _index(scores: pd.DataFrame) -> dict:
     d = scores.assign(horizon=scores.horizon.astype(int))
     idx: dict = {}
     for key, v in zip(zip(*(d[c] for c in cols)), d["value"]):
-        base = key[:6]
-        idx.setdefault(base, []).append((key[6] if has_t else None, v))
+        idx.setdefault(key[:6], []).append((key[6] if has_t else None, v))
     _INDEX[id(scores)] = (scores, idx)
     return idx
 
@@ -69,6 +68,14 @@ def get(scores: pd.DataFrame, model, horizon, asset, period, benchmark, metric, 
     if len(hits) > 1:
         raise ValueError(f"{len(hits)} rows for {(model, horizon, asset, period, benchmark, metric, target)}")
     return float(hits[0][1]) if hits else float("nan")
+
+
+def _strategy_status(n: int, n_pos: int, n_q_pos: int, n_neg: int) -> str:
+    if n_q_pos:
+        return "pass"
+    if 2 * n_neg > n:
+        return "worse"
+    return "weak" if n_pos else "none"
 
 
 def _edge(point_favours: bool, test_p: float) -> str:
@@ -142,13 +149,7 @@ def strategy_verdict(summary: pd.DataFrame, models, rules, horizon: int, period:
     pos, neg = g[g.d_cer > 0], g[g.d_cer < 0]
     sig_q = pos[pos.d_cer_q_bh.notna() & (pos.d_cer_q_bh < ALPHA)]
     b, w = g.loc[g.d_cer.idxmax()], g.loc[g.d_cer.idxmin()]
-    if len(sig_q):
-        status = "pass"
-    elif 2 * len(neg) > n:
-        status = "worse"
-    else:
-        status = "weak" if len(pos) else "none"
-    return {"status": status, "n": n, "n_pos": len(pos), "n_sig_pos": int((pos.d_cer_p < ALPHA).sum()),
+    return {"status": _strategy_status(n, len(pos), len(sig_q), len(neg)), "n": n, "n_pos": len(pos), "n_sig_pos": int((pos.d_cer_p < ALPHA).sum()),
             "n_q_pos": len(sig_q), "n_neg": len(neg), "n_sig_neg": int((neg.d_cer_p < ALPHA).sum()),
             "best_d_cer": float(b.d_cer), "best_model": b.mean_model, "best_rule": b.rule,
             "worst_d_cer": float(w.d_cer), "worst_model": w.mean_model, "worst_rule": w.rule,
@@ -187,10 +188,5 @@ def combine_strategy(vs) -> dict:
     if not vs:
         return {"status": "na", "n": 0}
     tot = {k: sum(int(v[k]) for v in vs) for k in ("n", "n_pos", "n_sig_pos", "n_q_pos", "n_neg", "n_sig_neg")}
-    if tot["n_q_pos"]:
-        status = "pass"
-    elif 2 * tot["n_neg"] > tot["n"]:
-        status = "worse"
-    else:
-        status = "weak" if tot["n_pos"] else "none"
+    status = _strategy_status(tot["n"], tot["n_pos"], tot["n_q_pos"], tot["n_neg"])
     return {"status": status, "n_cells": len(vs), **tot}

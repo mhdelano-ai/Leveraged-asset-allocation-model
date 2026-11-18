@@ -44,6 +44,13 @@ def blank_thin(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def save(df: pd.DataFrame, name: str) -> pd.DataFrame:
+    """Blank the thin cells and write ``TABLES/<name>.csv``."""
+    df = blank_thin(df)
+    df.to_csv(TABLES / f"{name}.csv", index=False, float_format="%.6g")
+    return df
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="python -m assetforecast.horizons.run")
     ap.add_argument("--jobs", type=int, default=4)
@@ -63,23 +70,18 @@ def main(argv=None) -> int:
     TABLES.mkdir(parents=True, exist_ok=True)
     STORE.mkdir(parents=True, exist_ok=True)
 
-    sc = blank_thin(score.score(fc, xr))
-    sc.to_csv(TABLES / "return_scores.csv", index=False, float_format="%.6g")
+    sc = save(score.score(fc, xr), "return_scores")
 
     panel = load_panel()
     vol, corr = risk.run(panel)
     vol.to_parquet(STORE / "vol.parquet", index=False)
     corr.to_parquet(STORE / "corr.parquet", index=False)
-    sv, scr = blank_thin(risk.score_vol(vol)), blank_thin(risk.score_corr(corr))
-    sv.to_csv(TABLES / "vol_scores.csv", index=False, float_format="%.6g")
-    scr.to_csv(TABLES / "corr_scores.csv", index=False, float_format="%.6g")
+    sv, scr = save(risk.score_vol(vol), "vol_scores"), save(risk.score_corr(corr), "corr_scores")
 
     rp = inputs.load_return_panel()
     simple = rp.monthly.loc[:xr.index.max()]
-    sl = blank_thin(value.sleeves(fc, vol, simple, rp.cash_monthly))
-    sl.to_csv(TABLES / "sleeves.csv", index=False, float_format="%.6g")
-    mv = blank_thin(value.minvar(vol, corr))
-    mv.to_csv(TABLES / "minvar.csv", index=False, float_format="%.6g")
+    sl = save(value.sleeves(fc, vol, simple, rp.cash_monthly), "sleeves")
+    mv = save(value.minvar(vol, corr), "minvar")
 
     meta = {
         "label": LABEL, "horizons": list(HORIZONS),

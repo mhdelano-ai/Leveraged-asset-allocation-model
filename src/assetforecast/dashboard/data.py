@@ -34,6 +34,7 @@ from scipy.stats import norm
 
 from .. import paths
 from ..returns import config as rc
+from ..universe import BY_ID as ASSET
 from . import glossary as gl
 from . import verdicts as vd
 
@@ -393,10 +394,10 @@ def dist_calib(s: Sources) -> pd.DataFrame:
     sc = _dist_scores(s)
     rows = []
     for model, target in DIST_ROWS:
-        names = sc[(sc.model == model) & (sc.target == target)].asset.unique()
-        names = ["pooled"] + [a for a in (rc.ASSETS if target == "assets" else gl.PORTFOLIOS) if a in names]
-        if model in ("hist_mean", "vol_ewma"):
-            names = ["pooled"]
+        names = ["pooled"]
+        if model not in ("hist_mean", "vol_ewma"):
+            have = sc[(sc.model == model) & (sc.target == target)].asset.unique()
+            names += [a for a in (rc.ASSETS if target == "assets" else gl.PORTFOLIOS) if a in have]
         for a in names:
             for period in ("holdout", "full"):
                 g = lambda metric, bench="none": vd.get(sc, model, 12, a, period, bench, metric, target)  # noqa: E731
@@ -459,11 +460,9 @@ def strategy(s: Sources) -> pd.DataFrame:
 # --------------------------------------------------------------------------- verdicts
 
 VERDICT_UNITS = {  # field -> converter to display units
-    "r2": lambda x: pc(x, 2), "r2_detectable": lambda x: pc(x, 1), "skill": lambda x: pc(x, 2),
-    "cover90": lambda x: pc(x, 1), "hit_q05": lambda x: pc(x, 1), "hit_q01": lambda x: pc(x, 1),
-    "hit_q95": lambda x: pc(x, 1), "hit_q99": lambda x: pc(x, 1),
-    "best_d_cer": lambda x: pc(x, 2), "worst_d_cer": lambda x: pc(x, 2),
-    "spa_p": pv, "calib_p": pv, "kupiec_p_q05": pv, "kupiec_p_q01": pv, "p": pv, "min_q": pv,
+    **dict.fromkeys(("r2", "skill", "best_d_cer", "worst_d_cer"), lambda x: pc(x, 2)),
+    **dict.fromkeys(("r2_detectable", "cover90", "hit_q05", "hit_q01", "hit_q95", "hit_q99"), lambda x: pc(x, 1)),
+    **dict.fromkeys(("spa_p", "calib_p", "kupiec_p_q05", "kupiec_p_q01", "p", "min_q"), pv),
     "n_indep": lambda x: round(x, 1) if vd.ok(x) else np.nan,
 }
 
@@ -538,12 +537,10 @@ def verdict_rows(s: Sources) -> list[dict]:
         sp = span if period == "holdout" else _span(s.read("scores/replication_cumdsse.parquet", "returns"), 12,
                                                      "1900-01-31")
         suf = "" if period == "holdout" else "_full"
-        rows.append(_verdict_row(f"calib_assets{suf}", "replication", 12, period, sp,
-                                 vd.calib_verdict(d, "dist_hm_af", "pooled", period, target="assets")))
-        rows.append(_verdict_row(f"calib_ports{suf}", "replication", 12, period, sp,
-                                 vd.calib_verdict(d, "dist_hm_af", "pooled", period, target="portfolios")))
-        rows.append(_verdict_row(f"calib_ports_as{suf}", "replication", 12, period, sp,
-                                 vd.calib_verdict(d, "dist_hm_af.assetshape", "pooled", period, target="portfolios")))
+        for q, model, target in (("calib_assets", "dist_hm_af", "assets"), ("calib_ports", "dist_hm_af", "portfolios"),
+                                 ("calib_ports_as", "dist_hm_af.assetshape", "portfolios")):
+            rows.append(_verdict_row(q + suf, "replication", 12, period, sp,
+                                     vd.calib_verdict(d, model, "pooled", period, target=target)))
     for bench, q in (("vol_ewma", "dist_rep_vol"), ("hist_mean", "dist_rep_hm")):
         sk = vd.get(d, "dist_hm_af", 12, "pooled", "holdout", bench, "crps_skill", "assets")
         p = vd.get(d, "dist_hm_af", 12, "pooled", "holdout", bench, "dm_crps_p", "assets")
@@ -595,7 +592,6 @@ def weight_list(w: pd.Series) -> str:
 
 def _frontier_frame(f: pd.DataFrame) -> pd.DataFrame:
     """The columns the frontier line and the reference points share, in display units."""
-    from ..universe import BY_ID as ASSET
     w = _weights(f)
     out = pd.DataFrame({"vol": pc(f.vol, 2), "growth": pc(f.growth, 2), "growth_lo": pc(f.growth_lo, 2),
                         "growth_hi": pc(f.growth_hi, 2), "invested": pc(f.invested, 1)})
@@ -628,17 +624,12 @@ def frontier_points(s: Sources) -> pd.DataFrame:
     if pd.isna(label).any():
         raise ValueError("a frontier point has no label")
     out.insert(0, "label", label)
-    out.insert(0, "group", [gl_group(a) if k == "asset" else "" for a, k in zip(f.point, f.kind)])
+    out.insert(0, "group", [ASSET[a].group if k == "asset" else "" for a, k in zip(f.point, f.kind)])
     out.insert(0, "kind", f.kind)
     out.insert(0, "point", f.point)
     for c in ("gap", "gap_lo", "gap_hi"):
         out[c] = pc(f[c], 2)
     return out
-
-
-def gl_group(asset: str) -> str:
-    from ..universe import BY_ID as ASSET
-    return ASSET[asset].group
 
 
 def frontier_settings(s: Sources) -> pd.DataFrame:
@@ -758,8 +749,7 @@ def write(frames: dict[str, pd.DataFrame], out: Path = paths.DASHBOARD_DATA, man
         p = out / d.file
         frames[d.id].to_csv(p, index=False)
         written.append(p)
-    stale = sorted(set(out.glob("*.csv")) - set(written))
-    for p in stale:
+    for p in set(out.glob("*.csv")) - set(written):
         p.unlink()
     manifest_path.write_text(json.dumps(manifest(), indent=1) + "\n")
     return written

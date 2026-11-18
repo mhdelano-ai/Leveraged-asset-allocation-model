@@ -1,5 +1,5 @@
 """MC for MCS coverage and skill CI coverage. usage: python mc_mcs_skill.py REPS"""
-import sys, warnings, json
+import sys, warnings
 import numpy as np
 import pandas as pd
 from multiprocessing import Pool

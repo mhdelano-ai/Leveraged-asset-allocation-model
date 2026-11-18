@@ -104,12 +104,14 @@ class Daily:
         corr[~(full[:, :, None] & full[:, None, :])] = np.nan
         return var, corr, n
 
+    def _blank(self):
+        M, N = len(self.months), len(self.assets)
+        return np.full((M, N), np.nan), np.full((M, N, N), np.nan)
+
     def realized(self, h: int):
         """Realized variance and correlation for the window after each month end."""
-        M = len(self.months)
-        i = np.arange(M - h)
-        var = np.full((M, len(self.assets)), np.nan)
-        corr = np.full((M, len(self.assets), len(self.assets)), np.nan)
+        i = np.arange(len(self.months) - h)
+        var, corr = self._blank()
         lo, hi = self.pos[i] + self.k - 1, self.pos[i + h]
         v, c, n = self._stat(lo, hi)
         if self.k == 21 and h == 1:      # the monthly fallback of the target definition
@@ -120,10 +122,8 @@ class Daily:
         return var, corr
 
     def trailing(self, L: int):
-        M = len(self.months)
-        i = np.arange(L, M)
-        var = np.full((M, len(self.assets)), np.nan)
-        corr = np.full((M, len(self.assets), len(self.assets)), np.nan)
+        i = np.arange(L, len(self.months))
+        var, corr = self._blank()
         v, c, _ = self._stat(self.pos[i - L] + self.k - 1, self.pos[i])
         var[i], corr[i] = v, c
         return var, corr
@@ -190,6 +190,13 @@ def _published(months, assets):
     return var, corr
 
 
+def _frame(cols: dict, index: pd.MultiIndex, k: int, h: int) -> pd.DataFrame:
+    f = pd.DataFrame(cols, index=index).dropna(subset=["naive"]).reset_index()
+    f.insert(0, "horizon", h)
+    f.insert(0, "k", k)
+    return f
+
+
 def run(panel, horizons=HORIZONS, ks=K, start: str = EARLY_START):
     """(vol, corr): long frames with the realized value (``target``) and one
     column per forecaster. ``vol`` holds variances (annualized)."""
@@ -201,6 +208,7 @@ def run(panel, horizons=HORIZONS, ks=K, start: str = EARLY_START):
     assets = list(x.columns)
     N = len(assets)
     iu = np.triu_indices(N, 1)
+    pairs = [f"{assets[i]}|{assets[j]}" for i, j in zip(*iu)]
     keep = months >= pd.Timestamp(start)
     vols, corrs = [], []
     for k in ks:
@@ -223,28 +231,16 @@ def run(panel, horizons=HORIZONS, ks=K, start: str = EARLY_START):
             cols = {"target": rv, **fv, "har": har}
             if pub is not None and h == 12:
                 cols["published"] = pub[0]
-            f = pd.DataFrame({c: np.where(ready, v, np.nan)[keep].ravel() for c, v in cols.items()},
-                             index=pd.MultiIndex.from_product([months[keep], assets],
-                                                              names=["date", "asset"]))
-            f = f.dropna(subset=["naive"]).reset_index()
-            f.insert(0, "horizon", h)
-            f.insert(0, "k", k)
-            vols.append(f)
+            vols.append(_frame({c: np.where(ready, v, np.nan)[keep].ravel() for c, v in cols.items()},
+                               pd.MultiIndex.from_product([months[keep], assets], names=["date", "asset"]), k, h))
             if k == 21 and h == 1:
                 continue
             rp = ready[:, :, None] & ready[:, None, :]
             cols = {"target": rc, **fc}
             if pub is not None and h == 12:
                 cols["published"] = pub[1]
-            g = pd.DataFrame({c: np.where(rp, v, np.nan)[keep][:, iu[0], iu[1]].ravel()
-                              for c, v in cols.items()},
-                             index=pd.MultiIndex.from_product(
-                                 [months[keep], [f"{assets[i]}|{assets[j]}" for i, j in zip(*iu)]],
-                                 names=["date", "pair"]))
-            g = g.dropna(subset=["naive"]).reset_index()
-            g.insert(0, "horizon", h)
-            g.insert(0, "k", k)
-            corrs.append(g)
+            corrs.append(_frame({c: np.where(rp, v, np.nan)[keep][:, iu[0], iu[1]].ravel() for c, v in cols.items()},
+                                pd.MultiIndex.from_product([months[keep], pairs], names=["date", "pair"]), k, h))
     corr = pd.concat(corrs, ignore_index=True) if corrs else pd.DataFrame(
         columns=["k", "horizon", "date", "pair", "target", "naive"])
     return pd.concat(vols, ignore_index=True), corr

@@ -42,7 +42,7 @@ from ..eval.portfolio import gmv_long_only_weights, regularize
 from ..returns.evaluation import inference
 from ..returns.evaluation.strategy import COST_BP, FINANCING_SPREAD
 from ..returns.evaluation.strategy_rules import RuleSettings
-from . import AFTER_START, DEV_END, MIN_INDEP, ML_START, PERIODS
+from . import AFTER_START, DEV_END, MIN_INDEP, ML_START, PERIODS, period_mask
 
 GAMMA = RuleSettings().gamma
 CAP = RuleSettings().timing_cap
@@ -154,7 +154,6 @@ def _cube(g: pd.DataFrame, col: str, dates, assets) -> np.ndarray:
 
 
 def minvar(vol: pd.DataFrame, corr: pd.DataFrame, periods=PERIODS) -> pd.DataFrame:
-    from . import period_mask
     vol, corr = vol[vol["k"] == 21], corr[corr["k"] == 21]
     assets = list(pd.unique(vol["asset"]))
     combos = [("naive", "naive"), ("half", "naive"), ("naive", "half"), ("half", "half")]
@@ -162,11 +161,9 @@ def minvar(vol: pd.DataFrame, corr: pd.DataFrame, periods=PERIODS) -> pd.DataFra
     for h in sorted(set(corr["horizon"])):
         vh, ch = vol[vol["horizon"] == h], corr[corr["horizon"] == h]
         dates = pd.DatetimeIndex(sorted(set(ch["date"])))
-        V = {m: vh.pivot(index="date", columns="asset", values=m).reindex(
-                 index=dates, columns=assets).to_numpy()
-             for m in ("target", "naive", "half", *(["published"] if "published" in vh else []))}
-        C = {m: _cube(ch, m, dates, assets)
-             for m in ("target", "naive", "half", *(["published"] if "published" in ch else []))}
+        V = {m: vh.pivot(index="date", columns="asset", values=m).reindex(index=dates, columns=assets).to_numpy()
+             for m in ("target", "naive", "half", "published") if m in vh}
+        C = {m: _cube(ch, m, dates, assets) for m in ("target", "naive", "half", "published") if m in ch}
         use = combos + ([("published", "published")] if "published" in V and "published" in C else [])
         rv = {c: np.full(len(dates), np.nan) for c in use}
         nass = np.zeros(len(dates), dtype=int)

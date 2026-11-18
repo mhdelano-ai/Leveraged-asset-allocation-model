@@ -75,16 +75,9 @@ SHORT_ASSET: dict[str, str] = {
     "gold": "Gold", "commodities": "Commod.",
 }
 
-# assetpred's eleven asset ids (archived results) -> the package's ids.
-ARCHIVE_ASSET_IDS: dict[str, str] = {"us_eq": "us_large", "dev_eq": "intl_dev", "em_eq": "em"}
-
 
 def label(model: str) -> str:
     return MODELS.get(model, (model, ""))[0]
-
-
-def describe(model: str) -> str:
-    return MODELS.get(model, (model, "Model as registered in the repository."))[1]
 
 
 def rule_label(rule: str) -> str:
