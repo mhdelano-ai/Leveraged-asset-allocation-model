@@ -23,7 +23,7 @@ def inp():
     cov = pd.DataFrame(R * np.outer(sd, sd), assets, assets)
     mean = np.array([0.012, 0.02, 0.03, 0.05, 0.055, 0.04])
     exp = pd.DataFrame({"mean_12m": mean, "ci90_lo": mean - 0.03, "ci90_hi": mean + 0.03}, index=assets)
-    return F.Inputs(cov, exp, {"half": {"a0": 0.5, "a3": 0.5}}, spread=0.01)
+    return F.Inputs(cov, exp, {"half": {"a0": 0.5, "a3": 0.5}, "risky": {"a5": 1.0}})
 
 
 def random_long_only(rng, n, k):
@@ -39,14 +39,14 @@ def test_growth_of_one_asset_is_its_log_mean(inp):
         assert s["growth_hi"] - s["growth_lo"] == pytest.approx(0.06)
 
 
-def test_borrowing_cost_and_band_scale_with_leverage(inp):
+def test_band_and_drift_scale_with_the_share_invested(inp):
     x = np.full(len(inp.assets), 1 / len(inp.assets))
-    one, two = F.stats(inp, x, spread=0.01), F.stats(inp, 2 * x, spread=0.01)
-    assert two["drift"] == pytest.approx(2 * one["drift"] - 0.01)
-    assert two["vol"] == pytest.approx(2 * one["vol"])
-    assert two["growth"] == pytest.approx(two["drift"] - 0.5 * two["vol"] ** 2)
-    assert two["growth_hi"] - two["growth_lo"] == pytest.approx(2 * (one["growth_hi"] - one["growth_lo"]))
-    assert two["invested"] == pytest.approx(2.0)
+    one, half = F.stats(inp, x), F.stats(inp, 0.5 * x)
+    assert half["drift"] == pytest.approx(0.5 * one["drift"])
+    assert half["vol"] == pytest.approx(0.5 * one["vol"])
+    assert half["growth"] == pytest.approx(half["drift"] - 0.5 * half["vol"] ** 2)
+    assert half["growth_hi"] - half["growth_lo"] == pytest.approx(0.5 * (one["growth_hi"] - one["growth_lo"]))
+    assert half["invested"] == pytest.approx(0.5)
 
 
 def test_named_portfolios(inp):
@@ -64,96 +64,70 @@ def test_named_portfolios(inp):
 
 
 def test_nothing_long_only_beats_the_frontier(inp):
-    """No random portfolio within the limits has more growth than the frontier at its volatility."""
+    """No random portfolio within 100% of capital has more growth than the frontier at its volatility."""
     rng = np.random.default_rng(1)
     n = len(inp.assets)
-    for levered in (False, True):
-        xs = F.curve(inp, levered, n_points=25)
+    for cash in (False, True):
+        xs = F.curve(inp, cash, n_points=25)
         st = pd.DataFrame([F.stats(inp, x) for x in xs])
         assert (np.diff(st.vol) > 0).all()
         for x in xs:
-            assert (x >= 0).all() and x.sum() <= F.MAX_LEVERAGE + 1e-6
-            if not levered:
+            assert (x >= 0).all() and x.sum() <= 1 + 1e-6
+            if not cash:
                 assert x.sum() == pytest.approx(1, abs=1e-6)
         W = random_long_only(rng, n, 40)
-        if levered:
-            W = W * rng.uniform(0, F.MAX_LEVERAGE, size=(len(W), 1))
+        if cash:
+            W = W * rng.uniform(0, 1, size=(len(W), 1))
         for w in W:
             s = F.stats(inp, w)
             if st.vol.min() < s["vol"] < st.vol.max():
-                best = F.stats(inp, F.at_volatility(inp, s["vol"], levered))
+                best = F.stats(inp, F.at_volatility(inp, s["vol"], cash))
                 assert best["vol"] == pytest.approx(s["vol"], abs=1e-6)
                 assert s["growth"] <= best["growth"] + 1e-6
-    # the levered frontier is the fully invested one or better, and starts in cash
-    lev = pd.DataFrame([F.stats(inp, x) for x in F.curve(inp, True, n_points=25)])
-    unl = pd.DataFrame([F.stats(inp, x) for x in F.curve(inp, False, n_points=25)])
-    for _, u in unl.iloc[::6].iterrows():
+    # the frontier with cash is the fully invested one or better, starts in cash and ends in the top-drift asset
+    wc = pd.DataFrame([F.stats(inp, x) for x in F.curve(inp, True, n_points=25)])
+    fi = pd.DataFrame([F.stats(inp, x) for x in F.curve(inp, False, n_points=25)])
+    for _, u in fi.iloc[::6].iterrows():
         assert F.stats(inp, F.at_volatility(inp, u.vol, True))["growth"] >= u.growth - 1e-6
-    assert lev.vol.iloc[0] == 0 and lev.invested.iloc[0] == 0
+    assert wc.vol.iloc[0] == 0 and wc.invested.iloc[0] == 0
+    assert wc.vol.iloc[-1] == pytest.approx(F.top_volatility(inp)) == pytest.approx(fi.vol.iloc[-1])
 
 
-def test_borrowing_only_past_full_investment_and_spread_hurts(inp):
-    cheap = [F.stats(inp, F.at_volatility(inp, 0.15, True, spread=s), s) for s in (0.0, 0.01, 0.03)]
-    assert cheap[0]["growth"] > cheap[1]["growth"] > cheap[2]["growth"]
-    assert cheap[0]["invested"] >= cheap[1]["invested"] - 1e-9 >= cheap[2]["invested"] - 2e-9
-    low = F.at_volatility(inp, 0.02, True)
-    assert low.sum() < 1
+def test_cash_only_below_the_best_return_per_risk_mix(inp):
     ms = F.max_sharpe(inp)
+    v = float(np.sqrt(ms @ inp.cov @ ms))
+    low = F.at_volatility(inp, 0.5 * v, True)
+    assert low.sum() == pytest.approx(0.5, abs=2e-3)
     np.testing.assert_allclose(low / low.sum(), ms, atol=2e-3)      # cash plus the best return-per-risk mix
+    high = F.at_volatility(inp, 0.5 * (v + F.top_volatility(inp)), True)
+    assert high.sum() == pytest.approx(1, abs=1e-6)
+    # beyond the top-drift asset nothing more is reachable: the top of the frontier
+    np.testing.assert_allclose(F.at_volatility(inp, 2 * F.top_volatility(inp), True), F.curve(inp, True, 5)[-1],
+                               atol=1e-4)
 
 
 def test_match_points_and_gap(inp):
     res = F.build(inp, n_points=9)
     p = res["points"].set_index("point")
-    assert list(res["frontier"].curve.unique()) == ["unlevered", "levered"]
+    assert list(res["frontier"].curve.unique()) == list(F.CURVES) == ["fully_invested", "with_cash"]
+    assert res["frontier"].invested.max() <= 1 + 1e-6 and (res["points"].invested <= 1 + 1e-6).all()
     assert p.loc["match_half", "vol"] == pytest.approx(p.loc["half", "vol"], abs=1e-5)
-    assert p.loc["match_half", "gap"] == pytest.approx(p.loc["match_half", "growth"] - p.loc["half", "growth"])
-    assert p.loc["match_half", "gap"] >= -1e-9
-    assert p.loc["match_half", "gap_lo"] <= p.loc["match_half", "gap"] <= p.loc["match_half", "gap_hi"]
+    for k in ("half", "risky"):
+        assert p.loc[f"match_{k}", "gap"] == pytest.approx(p.loc[f"match_{k}", "growth"] - p.loc[k, "growth"])
+        assert p.loc[f"match_{k}", "gap"] >= -1e-9
+        assert p.loc[f"match_{k}", "gap_lo"] <= p.loc[f"match_{k}", "gap"] <= p.loc[f"match_{k}", "gap_hi"]
+    # a policy more volatile than the top of the frontier is matched at the top
+    assert p.loc["risky", "vol"] > F.top_volatility(inp)
+    assert p.loc["match_risky", "vol"] == pytest.approx(F.top_volatility(inp), abs=1e-5)
     assert p.loc[p.kind != "match", "gap"].isna().all()
-
-
-def test_borrow_terms_are_the_margin_rate_over_tbills():
-    cash = pd.Series({pd.Timestamp("2026-09-30"): 0.0030, pd.Timestamp("2026-10-31"): 0.0032,
-                      pd.Timestamp("2026-12-31"): 0.0025})
-    sched = {"lender": "L", "source": "S", "as_of": "2026-09-17", "retrieved": "2026-11-15", "day_count": 360,
-             "tiers": [{"from": 0.0, "below": 50_000.0, "rate": 0.0525}, {"from": 50_000.0, "below": 1e6, "rate": 0.05},
-                       {"from": 1e6, "below": None, "rate": 0.045}]}
-    terms = lambda origin, **k: F.borrow_terms(origin, **{"cash": cash, "schedule": sched, **k})
-    b = terms("2026-10-31")
-    rate = 0.0525
-    assert (b["margin_rate"], b["tbill_month"], b["tier"]) == (rate, "2026-10-31", "up to $50,000")
-    assert b["annual_cost"] == pytest.approx(rate * 365 / 360, abs=1e-6)
-    assert b["tbill_rate"] == pytest.approx(12 * 0.0032)
-    assert b["spread"] == pytest.approx(b["annual_cost"] - b["tbill_rate"], abs=1e-9)
-    # a bigger balance borrows cheaper; the T-bill rate is the origin month's and nothing later
-    assert [s["balance"] for s in b["schedule"]] == ["up to $50,000", "$50,000 up to $1,000,000", "$1,000,000 or more"]
-    assert terms("2026-10-31", tier=2)["spread"] == pytest.approx(b["spread"] - 0.0075 * 365 / 360, abs=2e-6)
-    assert terms("2026-10-31", cash=cash.iloc[:2]) == b
-    # a new schedule moves the spread by the change in its rate
-    cut = {**sched, "tiers": [{**sched["tiers"][0], "rate": 0.05}] + sched["tiers"][1:]}
-    assert terms("2026-10-31", schedule=cut)["spread"] == pytest.approx(b["spread"] - 0.0025 * 365 / 360, abs=2e-6)
-    # an origin before the schedule's date is measured in the schedule's month; a missing month is an error
-    assert terms("2020-01-31")["tbill_month"] == "2026-09-30"
-    with pytest.raises(ValueError, match="no T-bill return"):
-        terms("2026-11-30")
-
-
-def test_spread_defaults_to_the_inputs(inp):
-    x = np.full(len(inp.assets), 2 / len(inp.assets))
-    assert F.stats(inp, x) == F.stats(inp, x, spread=inp.spread)
-    assert F.stats(inp, x)["drift"] == pytest.approx(F.stats(inp, x, spread=0.0)["drift"] - inp.spread)
-    with pytest.raises(ValueError, match="spread"):
-        F.Inputs(pd.DataFrame(inp.cov, inp.assets, inp.assets),
-                 pd.DataFrame({"mean_12m": inp.mean, "ci90_lo": inp.mean, "ci90_hi": inp.mean}, index=inp.assets),
-                 {}, spread=float("nan"))
+    assert set(res["meta"]) == {"method", "curves", "n_points", "interval_level", "files"}
 
 
 def test_inputs_must_line_up(inp):
     cov = pd.DataFrame(inp.cov, inp.assets, inp.assets)
     exp = pd.DataFrame({"mean_12m": inp.mean, "ci90_lo": inp.mean, "ci90_hi": inp.mean}, index=inp.assets)
     with pytest.raises(ValueError, match="same assets"):
-        F.Inputs(cov, exp.iloc[1:], {}, spread=0.01)
+        F.Inputs(cov, exp.iloc[1:], {})
 
 
 # ------------------------------------------------------------------ the published files
@@ -185,12 +159,7 @@ def test_published_frontier_hangs_together(latest):
     cov = pd.read_csv(latest / "cov_annual.csv", index_col=0)
     ports = pd.read_csv(latest / "portfolios.csv", index_col=0)
     meta = json.loads((latest / "forecast.json").read_text())["frontier"]
-    origin = json.loads((latest / "forecast.json").read_text())["origin"]
-    assert meta["borrow"] == F.borrow_terms(origin) and meta["max_leverage"] == F.MAX_LEVERAGE
-    spread = meta["borrow_spread"]
-    assert spread == meta["borrow"]["spread"] > 0
-    assert meta["borrow"]["margin_rate"] == F.margin_schedule()["tiers"][F.MARGIN_TIER]["rate"]
-    assert meta["borrow"]["tbill_month"] == origin
+    assert meta["curves"] == list(F.CURVES) and "borrow" not in meta
     np.testing.assert_allclose(p.loc[er.index, "growth"], er["mean_12m"], atol=1e-5)
     np.testing.assert_allclose(p.loc[er.index, "growth_lo"], er["ci90_lo"], atol=2e-5)
     np.testing.assert_allclose(p.loc[er.index, "vol"], np.sqrt(np.diag(cov)), atol=1e-5)
@@ -199,16 +168,16 @@ def test_published_frontier_hangs_together(latest):
     w = f[[c for c in f.columns if c.startswith("w_")]]
     assert (w >= 0).all().all()
     np.testing.assert_allclose(w.sum(axis=1), f.invested, atol=1e-4)
-    assert f.invested.max() <= F.MAX_LEVERAGE + 1e-4
-    assert (f.loc[f.curve == "unlevered", "invested"].round(4) == 1).all()
+    assert f.invested.max() <= 1 + 1e-4 and p.invested.max() <= 1 + 1e-4
+    assert (f.loc[f.curve == "fully_invested", "invested"].round(4) == 1).all()
     drift = er["mean_12m"] + 0.5 * np.diag(cov.loc[er.index, er.index])
     x = w.to_numpy()
     var = np.einsum("pi,ij,pj->p", x, cov.to_numpy(), x)
-    g = x @ drift.to_numpy() - spread * np.clip(f.invested - 1, 0, None) - 0.5 * var
+    g = x @ drift.to_numpy() - 0.5 * var
     np.testing.assert_allclose(f.growth, g, atol=5e-5)
     np.testing.assert_allclose(f.vol, np.sqrt(var), atol=5e-5)
     # the policy portfolios do not sit above the frontier
-    lev = f[f.curve == "levered"]
+    wc = f[f.curve == "with_cash"]
     for k in ports.index:
-        assert p.loc[k, "growth"] <= np.interp(p.loc[k, "vol"], lev.vol, lev.growth) + 1e-4
+        assert p.loc[k, "growth"] <= np.interp(p.loc[k, "vol"], wc.vol, wc.growth) + 1e-4
         assert p.loc["match_" + k, "gap"] >= 0

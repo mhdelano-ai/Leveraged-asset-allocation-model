@@ -42,7 +42,7 @@ def test_inv_vol_and_scaling():
     assert al.inv_vol(C).round(4).tolist() == [0.1667, 0.3333, 0.1667, 0.3333]
     w = al._scaled(al.base_weights(), C)
     assert np.sqrt(w @ C @ w) == pytest.approx(al.TARGET_VOL)
-    assert al._scaled(al.base_weights(), C * 1e-4).sum() == pytest.approx(al.frontier.MAX_LEVERAGE)
+    assert al._scaled(al.base_weights(), C * 1e-4).sum() == pytest.approx(1.0)      # never above 100% of capital
 
 
 def test_spliced_mf_matches_the_funds_where_both_exist():
@@ -67,25 +67,24 @@ def test_forecast_row_for_managed_futures_is_the_recent_estimate():
     assert np.linalg.eigvalsh(C.to_numpy()).min() > 0
 
 
-def test_replay_has_no_look_ahead_and_charges_borrowing():
+def test_replay_has_no_look_ahead_and_never_borrows():
     x = _x()
-    r1, w1 = al.walk_forward(x, _fc(x), 0.0)
+    r1, w1 = al.walk_forward(x, _fc(x))
     y = x.copy()
     y.iloc[120:] = y.iloc[120:] * 3 + 0.01
-    r2, w2 = al.walk_forward(y, _fc(y), 0.0)
+    r2, w2 = al.walk_forward(y, _fc(y))
     cut = x.index[120]                                  # weights held in month 120 were set at the end of month 119
     a, b = w1[w1["date"] <= cut], w2[w2["date"] <= cut]
     pd.testing.assert_frame_equal(a.reset_index(drop=True), b.reset_index(drop=True))
     assert r1.loc[:x.index[119]].equals(r2.loc[:x.index[119]])
     assert r1.index[0] == x.index[al.BURN]
     assert set(r1.columns) == set(al.SLEEVE_RULES + al.PORTFOLIO_RULES) == set(al.RULE_NAMES) == set(al.RULE_INPUTS)
-    lev = _fc(x, 0.05)                                  # a tiny forecast risk: the target rule borrows to the cap
-    r0, _ = al.walk_forward(x, lev, 0.0)
-    r3, w3 = al.walk_forward(x, lev, 0.024)
-    borrowed = w3[w3["rule"] == "target_fcst"].set_index("date")[al.ASSETS].sum(axis=1) - 1
-    assert borrowed.min() > 0
-    assert (r0["target_fcst"] - r3["target_fcst"]).to_numpy() == pytest.approx(0.002 * borrowed.to_numpy())
-    assert r0["fixed"].equals(r3["fixed"])
+    low = _fc(x, 0.05)                                  # a tiny forecast risk: the target rule stops at 100%
+    r3, w3 = al.walk_forward(x, low)
+    held = w3[w3["rule"] == "target_fcst"].set_index("date")[al.ASSETS].sum(axis=1)
+    assert held.to_numpy() == pytest.approx(1.0)
+    assert (w3.groupby(["rule", "date"])[al.ASSETS].sum().sum(axis=1) <= 1 + 1e-12).all()
+    assert (w1.groupby(["rule", "date"])[al.ASSETS].sum().sum(axis=1) <= 1 + 1e-12).all()
 
 
 def test_sharpe_diff_and_persistence():

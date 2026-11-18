@@ -3,7 +3,7 @@
     python -m assetforecast.dashboard.summary        # also run by python -m assetforecast.dashboard
 
 Four takeaways for a reader who knows markets but not this project: what the next twelve
-months may look like, how far to trust it, what it means for borrowing, how the forecast
+months may look like, how far to trust it, what it means for a portfolio, how the forecast
 is made. One self-contained file (no scripts, no data fetched), light by default and dark
 when the viewer's device is; it prints on one Letter or A4 sheet in the light look.
 
@@ -14,6 +14,7 @@ converts units; :func:`render` prints them. Sources:
                          ``distribution_portfolios.csv``, ``frontier.csv``, ``frontier_points.csv``,
                          ``shape.csv``, ``forecast.json``
 * ``results/final/``     ``accuracy.csv``, ``portfolio_summary.csv``, ``summary.json`` (frozen)
+* ``data/processed/``   ``cash_monthly.parquet`` (the T-bill return of the origin month, a year)
 * the dashboard's own builders ``verdicts``, ``snapshot`` and ``history_vol`` (``data.py``)
 
 Units
@@ -25,8 +26,7 @@ the report's:
 average        ``exp(drift) - 1`` with ``drift = mean_12m + 0.5 variance``, the expected simple
                return of a lognormal. For one asset this is ``mean_12m_arith`` of
                ``expected_returns.csv``; for a portfolio the drift is the ``drift`` column of
-               ``frontier_points.csv`` and ``frontier.csv`` (weights times the assets' drifts,
-               less the borrowing cost).
+               ``frontier_points.csv`` and ``frontier.csv`` (weights times the assets' drifts).
 range          ``exp(q) - 1`` of the published quantiles ``q`` (a quantile of the simple return
                is that transform of the quantile of the log return). "9 years in 10" is the
                5% to 95% span, "half of all years" the 25% to 75% span. Portfolios use the
@@ -38,14 +38,15 @@ swing excess   the square root of a realized/predicted VARIANCE ratio (``portfol
 
 Recommended mixes
 -----------------
-The four mixes are rows of the published levered frontier (``frontier.csv``): the points one
-fifth, two fifths, three fifths and four fifths of the way, in volatility, from all cash to
-the most volatile asset. Nothing is optimized here. Their bad year (1 in 20) follows the
-report's rule for optimized and leveraged portfolios (``reports/REPORT.md``, section 2):
+The four mixes are rows of the published frontier with cash (``frontier.csv``, curve
+``with_cash``; nothing is borrowed): the points one fifth, two fifths, three fifths and four
+fifths of the way, in volatility, from all cash to the top of the frontier. Nothing is
+optimized here. Their bad year (1 in 20) follows the report's rule for optimized portfolios
+(``reports/REPORT.md``, section 2):
 
     exp(center + sqrt(k vol^2 + (sum_i |w_i| se_i)^2) z) - 1
 
-with ``center = sum_i w_i mean_12m_i - borrow_spread x max(sum(w) - 1, 0)``, ``k`` =
+with ``center = sum_i w_i mean_12m_i``, ``k`` =
 :data:`VARIANCE_HAIRCUT`, ``se`` the standard errors of the means and ``z`` the 5% point of the
 asset-pooled shape (``shape.csv``, column ``z_assets``). They are arithmetic on the forecast,
 not tested strategies, and the page says so beside them.
@@ -69,7 +70,7 @@ TITLE = "Asset Outlook Sheet"
 HISTORY_FROM = "1990-01"       # first forecast date of the forecast-against-actual chart
 HISTORY_ASSET = "us_large"
 PEAK_GAP_YEARS = 5             # the two labelled peaks of that chart are at least this far apart
-VARIANCE_HAIRCUT = 1.5         # reports/REPORT.md section 2: scale the predicted variance of optimized or leveraged portfolios
+VARIANCE_HAIRCUT = 1.5         # reports/REPORT.md section 2: scale the predicted variance of optimized portfolios
 HAIRCUT_MODEL, HAIRCUT_PORTFOLIO, HAIRCUT_PERIOD = "combo_cov_main", "gmv", "dev"
 
 # Plain-language names. Text about what a thing is, never a result.
@@ -199,16 +200,19 @@ def trust(s: dd.Sources) -> dict:
     }
 
 
-def borrowing(s: dd.Sources) -> dict:
-    fr = s.json("forecast.json")["frontier"]
-    b = fr["borrow"]
-    lev = s.read("frontier.csv")
-    lev = lev[lev.curve == "levered"].sort_values("i")
-    half_lo, half_hi = lev.growth - lev.growth_lo, lev.growth_hi - lev.growth
+def cash_rate(s: dd.Sources, origin: str) -> float:
+    """What T-bills earn at the origin: 12 times the month's T-bill return."""
+    c = s.read("cash_monthly.parquet", "processed")["cash"]
+    return float(12 * c.loc[pd.Timestamp(origin)])
+
+
+def frontier(s: dd.Sources) -> dict:
+    wc = s.read("frontier.csv")
+    wc = wc[wc.curve == "with_cash"].sort_values("i")
+    half_lo, half_hi = wc.growth - wc.growth_lo, wc.growth_hi - wc.growth
     curve = [{"vol": float(r.vol), "avg": simple(r.drift), "lo": simple(r.drift - lo), "hi": simple(r.drift + hi),
               "invested": float(r.invested)}
-             for r, lo, hi in zip(lev.itertuples(), half_lo, half_hi)]
-    unborrowed = [c for c in curve if c["invested"] <= 1.0 + 1e-6]
+             for r, lo, hi in zip(wc.itertuples(), half_lo, half_hi)]
     pts = s.read("frontier_points.csv").set_index("point")
     policies, gaps = [], []
     for p, name in PORTFOLIO_NAMES.items():
@@ -220,10 +224,7 @@ def borrowing(s: dd.Sources) -> dict:
     ratio = ps[(ps.model == HAIRCUT_MODEL) & (ps.portfolio == HAIRCUT_PORTFOLIO) & (ps.metric == "var_ratio")
                & (ps.period == HAIRCUT_PERIOD)]["mean"].iloc[0]
     return {
-        "margin_rate": float(b["margin_rate"]), "tier": str(b["tier"]), "as_of": str(b["as_of"]),
-        "cash_rate": float(b["tbill_rate"]), "spread": float(fr["borrow_spread"]), "max_leverage": float(fr["max_leverage"]),
-        "curve": curve, "borrow_from_vol": unborrowed[-1]["vol"], "top": curve[-1],
-        "policies": policies, "gaps": gaps, "mixes": mixes(s),
+        "curve": curve, "top": curve[-1], "policies": policies, "gaps": gaps, "mixes": mixes(s),
         "gap_min": min(g["gap"] for g in gaps), "gap_max": max(g["gap"] for g in gaps),
         "n_gap_zero": sum(g["includes_zero"] for g in gaps),
         "var_ratio": float(ratio), "swing_excess": math.sqrt(float(ratio)) - 1.0,
@@ -232,19 +233,18 @@ def borrowing(s: dd.Sources) -> dict:
 
 
 def mixes(s: dd.Sources) -> list[dict]:
-    """The recommended mixes: evenly spaced rows of the published levered frontier (module docstring)."""
-    spread = float(s.json("forecast.json")["frontier"]["borrow_spread"])
-    lev = s.read("frontier.csv")
-    lev = lev[lev.curve == "levered"].sort_values("i").reset_index(drop=True)
+    """The recommended mixes: evenly spaced rows of the published frontier with cash (module docstring)."""
+    wc = s.read("frontier.csv")
+    wc = wc[wc.curve == "with_cash"].sort_values("i").reset_index(drop=True)
     e = s.read("expected_returns.csv").set_index("asset")
     shape = s.read("shape.csv")
     z = float(shape[(shape.tau - MIX_TAU).abs() < 1e-9].z_assets.iloc[0])
     out = []
     for k, name in enumerate(MIX_NAMES, 1):
-        r = lev.iloc[round(k * (len(lev) - 1) / (len(MIX_NAMES) + 1))]
+        r = wc.iloc[round(k * (len(wc) - 1) / (len(MIX_NAMES) + 1))]
         w = {a.id: float(r[f"w_{a.id}"]) for a in ASSETS}
         invested = float(r.invested)
-        center = sum(w[a] * float(e.mean_12m[a]) for a in w) - spread * max(invested - 1.0, 0.0)
+        center = sum(w[a] * float(e.mean_12m[a]) for a in w)
         se = sum(abs(w[a]) * float(e.se_12m[a]) for a in w)
         scale = math.sqrt(VARIANCE_HAIRCUT * float(r.vol) ** 2 + se ** 2)
         groups: dict[str, float] = {g: 0.0 for g in GROUP_WORD}
@@ -252,7 +252,7 @@ def mixes(s: dd.Sources) -> list[dict]:
             groups[GROUP_OF[BY_ID[a].group]] += x
         held = sorted(((a, x) for a, x in w.items() if x >= MIX_MIN_WEIGHT), key=lambda t: -t[1])
         out.append({"no": k, "name": name, "vol": float(r.vol), "avg": simple(r.drift), "bad": simple(center + scale * z),
-                    "invested": invested, "cash": max(1.0 - invested, 0.0), "borrowed": max(invested - 1.0, 0.0),
+                    "invested": invested, "cash": max(1.0 - invested, 0.0),
                     "weights": w, "groups": groups, "holdings": [(HOLDING_NAMES[a], x) for a, x in held]})
     return out
 
@@ -272,9 +272,9 @@ def facts(s: dd.Sources | None = None) -> dict:
     snap = dd.snapshot(s).iloc[0]
     through = pd.Timestamp(snap.data_through)
     return {
-        "window": str(snap.window), "origin": str(snap.origin),
+        "window": str(snap.window), "origin": str(snap.origin), "cash_rate": cash_rate(s, str(snap.origin)),
         "data_through": f"{through.day} {through.strftime('%B %Y')}",
-        "outlook": outlook(s), "trust": trust(s), "borrow": borrowing(s), "machine": machine(s),
+        "outlook": outlook(s), "trust": trust(s), "frontier": frontier(s), "machine": machine(s),
     }
 
 
@@ -361,7 +361,7 @@ def history_chart(h: dict) -> str:
 
 
 def frontier_chart(b: dict) -> str:
-    """The best mix at each level of swing, with cash below full investment and borrowing above it."""
+    """The best mix at each level of swing, with cash below full investment and nothing borrowed."""
     W, H, L, R, T, B = 460, 190, 34, 60, 8, 34
     curve = b["curve"]
     xmax = math.ceil(100 * curve[-1]["vol"] / 5) * 5
@@ -369,7 +369,7 @@ def frontier_chart(b: dict) -> str:
     X = lambda v: L + 100 * v / xmax * (W - L - R)                       # noqa: E731
     Y = lambda v: T + (1 - 100 * v / ymax) * (H - T - B)                 # noqa: E731
     g = [f'<svg class="chart" viewBox="0 0 {W} {H}" role="img" aria-label="Expected gain above cash against the '
-         'size of yearly swings for the best mix at each level of risk, with and without borrowing">']
+         'size of yearly swings for the best mix at each level of risk, with cash and nothing borrowed">']
     for v in _ticks(0, ymax, 5):
         g.append(f'<line class="grid{" base" if v == 0 else ""}" x1="{L}" x2="{W - R}" y1="{Y(v / 100):.1f}" y2="{Y(v / 100):.1f}"/>'
                  f'<text class="tick" x="{L - 6}" y="{Y(v / 100) + 3.5:.1f}" text-anchor="end">{v:.0f}%</text>')
@@ -378,14 +378,7 @@ def frontier_chart(b: dict) -> str:
     g.append(f'<text class="axis" x="{W - R}" y="{H - 4}" text-anchor="end">Typical yearly swing →</text>')
     band = [(X(c["vol"]), Y(c["hi"])) for c in curve] + [(X(c["vol"]), Y(c["lo"])) for c in reversed(curve)]
     g.append(f'<path class="band" d="{_path(band)} Z"/>')
-    own = [c for c in curve if c["vol"] <= b["borrow_from_vol"] + 1e-9]
-    lent = [c for c in curve if c["vol"] >= b["borrow_from_vol"] - 1e-9]
-    g.append(f'<path class="line-a" d="{_path([(X(c["vol"]), Y(c["avg"])) for c in own])}"/>')
-    g.append(f'<path class="line-a dash" d="{_path([(X(c["vol"]), Y(c["avg"])) for c in lent])}"/>')
-    top = b["top"]
-    g.append(f'<circle class="dot-a" cx="{X(top["vol"]):.1f}" cy="{Y(top["avg"]):.1f}" r="4"/>'
-             f'<text class="lab" x="{X(top["vol"]) + 8:.1f}" y="{Y(top["avg"]) + 1:.1f}">{round(100 * top["invested"]):d}%</text>'
-             f'<text class="lab muted" x="{X(top["vol"]) + 8:.1f}" y="{Y(top["avg"]) + 13:.1f}">invested</text>')
+    g.append(f'<path class="line-a" d="{_path([(X(c["vol"]), Y(c["avg"])) for c in curve])}"/>')
     for m in b["mixes"]:                                                 # the recommended mixes, numbered as in the table
         x, y = X(m["vol"]), Y(m["avg"])
         g.append(f'<line class="lead" x1="{x:.1f}" x2="{x:.1f}" y1="{y - 4:.1f}" y2="{y - 10:.1f}"/>'
@@ -406,15 +399,13 @@ def frontier_chart(b: dict) -> str:
 
 def _funding(m: dict) -> str:
     inv = round(100 * m["invested"])
-    if inv < 100:
-        return f"{inv}% invested, {100 - inv}% cash"
-    return "fully invested" if inv == 100 else f"{inv}% invested, {inv - 100}% borrowed"
+    return f"{inv}% invested, {100 - inv}% cash" if inv < 100 else "fully invested"
 
 
 def mix_table(b: dict) -> str:
     """The recommended mixes: what each holds (a bar by asset group and a list), its average, swing and bad year."""
     rows = b["mixes"]
-    full = math.ceil(2 * max(m["invested"] for m in rows)) / 2              # the bar's full width, as a multiple of capital
+    full = 1.0                                                          # the bar's full width: all of the capital
     own = f"{100 / full:.2f}%"
     out = ['<div class="mixes">',
            '<div class="mix mix-top"><div class="legend" aria-hidden="true">'
@@ -498,7 +489,7 @@ def _tokens(t: dict) -> str:
 
 
 CSS = """
-/* Layout: one sheet. Masthead, a full-width range chart, two columns (trust | borrowing), a five-step strip. */
+/* Layout: one sheet. Masthead, a full-width range chart, two columns (trust | mixes), a five-step strip. */
 :root { color-scheme: light; /*LIGHT*/ }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark; /*DARK*/ } }
 :root[data-theme="dark"] { color-scheme: dark; /*DARK*/ }
@@ -671,7 +662,7 @@ footer p { font-size: 0.6875rem; color: var(--ink-3); max-width: none; }
 
 
 def render(f: dict) -> str:
-    t, b, m = f["trust"], f["borrow"], f["machine"]
+    t, b, m = f["trust"], f["frontier"], f["machine"]
     p6040 = next(r for r in f["outlook"] if r["id"] == "p6040")
     h = t["history"]
     items = "".join(f'<li><span class="chip {cls}">{esc(chip)}</span><div><h3>{esc(head)}</h3><p>{esc(text)}</p></div></li>'
@@ -703,7 +694,7 @@ def render(f: dict) -> str:
     <h2>Wide ranges around modest averages</h2>
     <div class="lede-row">
       <p class="lede">Gain or loss above cash over the 12 months, in ordinary percent. Cash itself yields about
-      {pct(b["cash_rate"], 1, sign=False)} today.</p>
+      {pct(f["cash_rate"], 1, sign=False)} today.</p>
       <div class="legend" aria-hidden="true">
         <span><i class="k-out"></i>9 years in 10</span>
         <span><i class="k-in"></i>half of all years</span>
@@ -729,22 +720,20 @@ def render(f: dict) -> str:
   </figure>
 </section>
 
-<section class="borrow">
+<section class="best">
   <div class="sec-head">
     <p class="eyebrow">Recommended mixes at four risk levels</p>
-    <h2>Four mixes, from cautious to borrowed</h2>
+    <h2>Four mixes, from cautious to aggressive</h2>
   </div>
   <figure class="screen-only">
-    <figcaption><b>Expected gain above cash for the best mix at each level of risk.</b> Dotted: with borrowed
-    money. Shaded: how far off the averages could be.</figcaption>
+    <figcaption><b>Expected gain above cash for the best mix at each level of risk,</b> with the rest in cash and
+    nothing borrowed. Shaded: how far off the averages could be.</figcaption>
     {frontier_chart(b)}
   </figure>
   {mix_table(b)}
   <p class="caution"><b>These are the forecast&rsquo;s best mixes, not tested strategies.</b> At equal risk their edge over
   the plain portfolios is {num(100 * b["gap_min"])} to {num(100 * b["gap_max"])} points a year, and {zero} it could be zero.
-  Borrowing costs {pct(b["margin_rate"], 2, sign=False)} a year (Robinhood margin, balances {esc(b["tier"])}),
-  {num(100 * b["spread"])} points more than cash earns; the legal limit is {num(b["max_leverage"], 0)}&times; your capital.
-  Optimizer-built portfolios swung {num(100 * b["swing_excess"], 0)}% more than forecast in back-tests, so each bad year
+  None of them borrows. Optimizer-built portfolios swung {num(100 * b["swing_excess"], 0)}% more than forecast in back-tests, so each bad year
   assumes swings {num(100 * b["haircut_swing"], 0)}% above the forecast.</p>
 </section>
 </div>

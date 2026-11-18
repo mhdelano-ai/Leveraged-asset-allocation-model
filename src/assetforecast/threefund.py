@@ -7,7 +7,7 @@ Reads a published forecast folder (default ``forecasts/latest``) and writes
 ``weights.csv``, ``cov_annual.csv``, ``cov_21d.csv``, ``vols.csv``,
 ``expected_returns.csv`` (with the sensitivity column described below),
 ``mixes.csv``, ``loss_options.csv``, ``forecast.json`` and the frontier files of
-``assetforecast.frontier`` (cash below full investment, borrowing above it).
+``assetforecast.frontier`` (cash below full investment; no borrowing).
 
 Nothing is forecast here. The two composites are fixed-weight mixes of the 12
 assets, so their covariance is ``W cov W'`` of the published matrix, exactly.
@@ -59,8 +59,9 @@ which every component exists: a sensitivity, shown beside it.
 past fall stayed inside it (see :func:`loss_options`).
 
 ``mixes.csv``: the mix with the most expected growth at each volatility of
-``MIX_VOLS``, as shares of capital in stocks, bonds, cash and borrowing, into
-the borrowed range, and the growth-optimal mix (see :func:`mixes`).
+``MIX_VOLS`` that a mix within 100% of capital can reach, as shares of capital
+in stocks, bonds and cash, and the growth-optimal mix (see :func:`mixes`).
+Nothing borrows: every mix holds at most 100% of capital.
 """
 from __future__ import annotations
 
@@ -85,7 +86,7 @@ POLICIES = {"100/0": {"world_stocks": 1.0}, "80/20": {"world_stocks": 0.8, "worl
             "60/40": {"world_stocks": 0.6, "world_bonds": 0.4},
             "40/60": {"world_stocks": 0.4, "world_bonds": 0.6}, "0/100": {"world_bonds": 1.0}}
 LOSS_LIMITS = (0.35, 0.55)     # the falls from a previous high the loss options are built for
-MIX_VOLS = (0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.30)
+MIX_VOLS = (0.04, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20)
 OUT = paths.FORECASTS_OUT / "three_fund"
 LABEL = ("Arithmetic on the published forecast for two declared composites and cash; not a model, "
          "selects nothing, no out-of-sample evidence of its own")
@@ -125,21 +126,20 @@ def composite_xr(simple: pd.DataFrame, cash: pd.Series, full_mix: bool = False) 
     return np.log1p(c).sub(np.log1p(cash.reindex(simple.index)), axis=0)
 
 
-def past_losses(x, comp: pd.DataFrame, cash: pd.Series, spread: float, start=None) -> dict:
-    """What holding ``x`` (rebalanced monthly, borrowing at T-bills plus ``spread``) did at its worst.
+def past_losses(x, comp: pd.DataFrame, cash: pd.Series, start=None) -> dict:
+    """What holding ``x`` (rebalanced monthly, the rest of the capital in T-bills) did at its worst.
 
     ``worst_12m``: the lowest 12-month total return; ``max_drawdown``: the
     deepest fall from a previous high, both from month-end values of
     ``comp`` (composite simple returns) since ``start``. Month-end values
-    miss falls inside a month, and a margin loan can be called before a
-    month ends, so a levered mix can do worse than this.
+    miss falls inside a month.
     """
     c = comp.dropna()
     if start is not None:
         c = c.loc[pd.Timestamp(start):]
     rf = cash.reindex(c.index)
     x = np.asarray(x, float)
-    r = rf + (c.sub(rf, axis=0) * x).sum(axis=1) - spread / 12.0 * max(float(x.sum()) - 1.0, 0.0)
+    r = rf + (c.sub(rf, axis=0) * x).sum(axis=1)
     v = (1.0 + r.clip(lower=-1.0)).cumprod()
     return {"worst_12m": float((v / v.shift(12) - 1.0).min()),
             "max_drawdown": float((v / v.cummax() - 1.0).min()), "from": c.index[0].strftime("%Y-%m")}
@@ -158,31 +158,29 @@ def expected(origin) -> pd.DataFrame:
 
 
 def _grid(inp, step: float = 0.0025) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Every long-only mix of the two composites up to ``frontier.MAX_LEVERAGE``: weights, volatility, growth."""
-    g = np.arange(0.0, frontier.MAX_LEVERAGE + step / 2, step)
-    X = np.array([(s, b) for s in g for b in g if s + b <= frontier.MAX_LEVERAGE + 1e-9])
+    """Every long-only mix of the two composites within 100% of capital: weights, volatility, growth."""
+    g = np.arange(0.0, 1.0 + step / 2, step)
+    X = np.array([(s, b) for s in g for b in g if s + b <= 1.0 + 1e-9])
     var = np.einsum("ni,ij,nj->n", X, inp.cov, X)
-    net = X @ frontier.drift(inp) - inp.spread * np.maximum(X.sum(axis=1) - 1.0, 0.0)
-    return X, np.sqrt(var), net - 0.5 * var
+    return X, np.sqrt(var), X @ frontier.drift(inp) - 0.5 * var
 
 
 def mixes(d: Path) -> pd.DataFrame:
     """The mix with the most growth at each volatility, and the mix with the most growth of all.
 
-    Up to the volatility of world stocks these are rows of the published
-    levered frontier (``frontier.at_volatility``). Above it, where the package's
-    frontier stops, they come from a grid over every long-only mix up to
-    ``frontier.MAX_LEVERAGE`` (weights in steps of 0.25%, volatility within
-    0.1 point of the target). ``most_growth`` is the grid's growth-optimal mix:
-    past it more borrowing lowers expected compound growth. Each row also
+    These are rows of the published frontier with cash (``frontier.at_volatility``)
+    up to the volatility of its top, the composite with the highest drift; a
+    volatility above it cannot be reached without borrowing and is left out.
+    ``most_growth`` is the growth-optimal mix on a grid over every long-only
+    mix within 100% of capital (weights in steps of 0.25%). Each row also
     carries what that mix did at its worst (:func:`past_losses`) over the whole
     return panel (``_all``) and over the months in which every component of both
     composites exists (``_full_mix``).
     """
     from .returns import inputs
     inp = frontier.load_inputs(d)
-    top = float(np.sqrt(np.diag(inp.cov)).max())
-    X, vol, gr = _grid(inp)
+    top = frontier.top_volatility(inp)
+    X, _, gr = _grid(inp)
     origin = json.loads((d / "forecast.json").read_text())["origin"]
     panel = inputs.load_return_panel()
     simple = panel.monthly.loc[:pd.Timestamp(origin)]
@@ -193,10 +191,10 @@ def mixes(d: Path) -> pd.DataFrame:
         s = frontier.stats(inp, x)
         inv = float(np.sum(x))
         out = {"mix": label, "vol": s["vol"], **{a: float(w) for a, w in zip(inp.assets, x)},
-               "cash": max(1 - inv, 0.0), "borrowed": max(inv - 1, 0.0),
+               "cash": max(1 - inv, 0.0),
                "growth": s["growth"], "growth_lo": s["growth_lo"], "growth_hi": s["growth_hi"]}
         for k, comp in eras.items():
-            h = past_losses(x, comp, panel.cash_monthly, inp.spread)
+            h = past_losses(x, comp, panel.cash_monthly)
             out.update({f"worst_12m_{k}": h["worst_12m"], f"max_drawdown_{k}": h["max_drawdown"],
                         f"from_{k}": h["from"]})
         return out
@@ -207,10 +205,6 @@ def mixes(d: Path) -> pd.DataFrame:
     for v in MIX_VOLS:
         if v <= top + 1e-9:
             rows.append(row(f"vol {v:.0%}", frontier.at_volatility(inp, v, True)))
-            continue
-        near = np.abs(vol - v) <= 0.001
-        if near.any():
-            rows.append(row(f"vol {v:.0%}", X[np.flatnonzero(near)[gr[near].argmax()]]))
     rows.append(row("most_growth", X[gr.argmax()]))
     return pd.DataFrame(rows)
 
@@ -228,8 +222,8 @@ def loss_options(d: Path, limits=LOSS_LIMITS, step: float = 0.01) -> pd.DataFram
                             panel, which includes 1929 to 1932 (when "world stocks"
                             is US stocks only)
 
-    The search is a grid over long-only weights in steps of ``step`` up to
-    ``frontier.MAX_LEVERAGE``. The limit is fitted to the past: nothing says the
+    The search is a grid over long-only weights in steps of ``step`` within
+    100% of capital. The limit is fitted to the past: nothing says the
     next fall will be no deeper.
     """
     from .returns import inputs
@@ -241,12 +235,11 @@ def loss_options(d: Path, limits=LOSS_LIMITS, step: float = 0.01) -> pd.DataFram
     eras = {"full_mix": composite_simple(simple, cash, full_mix=True).dropna(),
             "all": composite_simple(simple, cash).dropna()}
     X, _, gr = _grid(inp, step)
-    cost = inp.spread / 12.0 * np.maximum(X.sum(axis=1) - 1.0, 0.0)
     dd = {}
     for k, c in eras.items():
         rf = cash.reindex(c.index).to_numpy()
         ex = c.to_numpy() - rf[:, None]
-        v = np.cumprod(1.0 + np.clip(rf[:, None] + ex @ X.T - cost[None, :], -1.0, None), axis=0)
+        v = np.cumprod(1.0 + np.clip(rf[:, None] + ex @ X.T, -1.0, None), axis=0)
         dd[k] = (v / np.maximum.accumulate(v, axis=0) - 1.0).min(axis=0)
     rows = []
     for lim in limits:
@@ -258,11 +251,11 @@ def loss_options(d: Path, limits=LOSS_LIMITS, step: float = 0.01) -> pd.DataFram
             s = frontier.stats(inp, X[i])
             inv = float(X[i].sum())
             rows.append({"limit": lim, "option": name, **{a: float(w) for a, w in zip(inp.assets, X[i])},
-                         "cash": max(1 - inv, 0.0), "borrowed": max(inv - 1, 0.0), "vol": s["vol"],
+                         "cash": max(1 - inv, 0.0), "vol": s["vol"],
                          "growth": s["growth"], "growth_lo": s["growth_lo"], "growth_hi": s["growth_hi"],
                          "max_drawdown_full_mix": float(dd["full_mix"][i]),
                          "max_drawdown_all": float(dd["all"][i]),
-                         "worst_12m_full_mix": past_losses(X[i], eras["full_mix"], cash, inp.spread)["worst_12m"]})
+                         "worst_12m_full_mix": past_losses(X[i], eras["full_mix"], cash)["worst_12m"]})
     return pd.DataFrame(rows)
 
 
@@ -311,8 +304,6 @@ def main(argv=None) -> int:
     pts = pd.read_csv(d / "frontier_points.csv")
     print("\nfrontier_points.csv\n" + pts[["point", "kind", "vol", "growth", "growth_lo", "growth_hi", "invested",
                                           "w_world_stocks", "w_world_bonds", "gap"]].to_string(index=False))
-    b = json.loads((d / "forecast.json").read_text())["frontier"]["borrow"]
-    print(f"\nborrowing: {b['margin_rate']:.2%} = T-bills {b['tbill_rate']:.2%} + {b['spread']:.2%}")
     print(LABEL)
     return 0
 

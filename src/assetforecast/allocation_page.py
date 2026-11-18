@@ -75,13 +75,22 @@ def answers(d: dict) -> list[tuple[str, str, str]]:
     best_live = max((l["sleeve"][x]["sharpe_diff"] for x in ("maxsharpe_hist", "maxsharpe_recent", "maxsharpe_mix")))
     ih_a, ih_l, eq_a, eq_l = a["sleeve"]["invvol_hist"], l["sleeve"]["invvol_hist"], a["sleeve"]["equal"], l["sleeve"]["equal"]
     tf, fx, th = a["portfolio"]["target_fcst"], a["portfolio"]["fixed"], a["portfolio"]["target_hist"]
+    opts = ("opt_hist", "opt_recent", "opt_mix")
+    oa = max((a["portfolio"][x] for x in opts), key=lambda r: r["sharpe_diff"])
+    ol = l["portfolio"][oa["rule"]]                                    # the same rule, live funds only
+    scaled_hist = {"worse": "was worse than not scaling", "better": "was better than not scaling",
+                   "no clear difference": "made no clear difference"}[_clear(th)]
     return [
         ("Expected returns", "Do not forecast them, and do not optimize on them",
          f"A holding's return in one five-year block said nothing about the next (correlation {_num(po['corr_mean'])} "
          f"over {po['pairs']:.0f} pairs of blocks). Gold's return per unit of risk was {_num(g['sharpe_first_half'])} in the "
          f"first half of the window and {_num(g['sharpe_second_half'])} in the second; managed futures went from "
          f"{_num(mf['sharpe_first_half'])} to {_num(mf['sharpe_second_half'])}. Since the live funds began, all three "
-         f"optimizers trailed a third each (best of them {_num(best_live)} in Sharpe ratio, none clearly different)."),
+         f"optimizers trailed a third each (best of them {_num(best_live)} in Sharpe ratio, none clearly different). "
+         f"Over all four holdings, the optimizer that did best over the whole replay ({oa['name'].lower()}) had a Sharpe "
+         f"ratio {_num(oa['sharpe_diff'])} against the fixed 60/40 mix's ({_clear(oa)}), at {_pct(oa['vol'], 1, False)} "
+         f"volatility against {_pct(fx['vol'], 1, False)}; since the live funds began, {_num(ol['sharpe_diff'])} "
+         f"({_clear(ol)}). Before 2007 the replay's managed futures are the paper factor."),
         ("Weights inside the sleeve", "Size by long-run risk, or simply a third each",
          f"Risk does carry over: a block's volatility against the next, correlation {_num(po['corr_vol'])}. Weighting by "
          f"1/volatility on the whole past ran at {_pct(ih_a['vol'], 1, False)} volatility against {_pct(eq_a['vol'], 1, False)} "
@@ -91,9 +100,9 @@ def answers(d: dict) -> list[tuple[str, str, str]]:
          f"{a['sleeve']['invvol_fcst']['turnover'] / max(ih_a['turnover'], 1e-9):.0f} times the trading."),
         ("How much risk in total", "Your choice; use the forecast to know what you chose",
          f"No input picks the stock share: it is the risk you accept. Scaling the 60/40 mix to a 10% risk target with the "
-         f"forecast gave the same Sharpe ratio as leaving it fixed ({_num(tf['sharpe'], 2, False)} against "
-         f"{_num(fx['sharpe'], 2, False)}) with a worst fall of {_pct(tf['worst_fall'], 0)} against {_pct(fx['worst_fall'], 0)}; "
-         f"scaling with past volatility was worse than not scaling ({_num(th['sharpe_diff'])}, {_clear(th)}). The forecast's "
+         f"forecast gave about the same Sharpe ratio as leaving it fixed ({_num(tf['sharpe'], 2, False)} against "
+         f"{_num(fx['sharpe'], 2, False)}, {_clear(tf)}) with a worst fall of {_pct(tf['worst_fall'], 0)} against "
+         f"{_pct(fx['worst_fall'], 0)}; scaling with past volatility {scaled_hist} ({_num(th['sharpe_diff'])}). The forecast's "
          f"12-month matrix stood {_pct(f['acc']['fcst']['ratio'] - 1, 0)} above month-to-month volatility, so a target set "
          f"with it runs below the target."),
     ]
@@ -171,8 +180,9 @@ def write_report(d: dict | None = None) -> str:
     for p in A.PERIODS:
         L += [_rules_md(d["sleeve_rules"], p, True), ""]
     L += ["## The whole portfolio", "",
-          f"Scaled rules aim at {s['target_vol']:.0%} volatility, exposure capped at {s['max_leverage']:.0f} times capital, "
-          f"borrowing at T-bills + {100 * s['spread']:.2f}%.", ""]
+          f"Scaled rules aim at {s['target_vol']:.0%} volatility and never hold more than {s['max_exposure']:.0%} of "
+          "capital; when the target calls for more they stay fully invested, and when it calls for less the rest is in "
+          "T-bills.", ""]
     for p in A.PERIODS:
         L += [_rules_md(d["portfolio_rules"], p, False), ""]
 
@@ -182,10 +192,10 @@ def write_report(d: dict | None = None) -> str:
           "matrix; the replay columns are the whole replay and, in brackets, since the live funds began.", ""]
     for rule, g in mn.groupby("sleeve_rule", sort=False):
         L += [f"Sleeve: {A.RULE_NAMES[rule].lower()}.", "",
-              _table(["Stocks", "Treasuries", "Gold", "Managed futures", "Borrowed", "Forecast vol", "Replay growth", "Replay vol",
+              _table(["Stocks", "Treasuries", "Gold", "Managed futures", "Forecast vol", "Replay growth", "Replay vol",
                       "Replay worst fall"],
                      [[f"{r['w_world_stocks']:.0%}", f"{r['w_ust_int']:.0%}", f"{r['w_gold']:.0%}", f"{r['w_mf']:.0%}",
-                       f"{r['borrowed']:.0%}", _pct(r["vol_fcst"], 1, False),
+                       _pct(r["vol_fcst"], 1, False),
                        f"{_pct(r['growth_all'])} ({_pct(r['growth_live'])})", f"{_pct(r['vol_all'], 1, False)} ({_pct(r['vol_live'], 1, False)})",
                        f"{_pct(r['worst_fall_all'], 0)} ({_pct(r['worst_fall_live'], 0)})"] for _, r in g.iterrows()]), ""]
 
@@ -197,9 +207,10 @@ def write_report(d: dict | None = None) -> str:
           "had. The live-funds period is the one to trust, and it is short.",
           "- Differences in Sharpe ratio between rules are small beside their intervals. \"No clear difference\" is the "
           "common result, not a failure of the test.",
-          "- No trading costs, fund fees or taxes. Borrowing is at today's spread in every year. Month-end values miss "
-          "falls inside a month, and a margin loan can be called before a month ends.",
-          "- The rules were run once as written. The one addition after seeing results is the 21-day row of the risk table.", ""]
+          "- No trading costs, fund fees or taxes. Month-end values miss falls inside a month.",
+          "- The rules were run as written. Two changes came after seeing results: the 21-day row of the risk table, and "
+          "a rerun of the scaled rules with exposure capped at 100% of capital instead of twice capital, when the package "
+          "dropped borrowing.", ""]
     A.REPORT.write_text("\n".join(L))
     return str(A.REPORT)
 
@@ -488,14 +499,13 @@ JS = r"""
 
   function menu() {
     const rule = $('al-sleeve').value, rows = D.menu.filter((r) => r.sleeve_rule === rule);
-    const name = (r) => r.borrowed > 0 ? `100% stocks + ${pct(r.sleeve, 0, false)} sleeve` : `${pct(r.stocks, 0, false)} stocks / ${pct(r.sleeve, 0, false)} sleeve`;
-    stack($('al-menu'), rows.map((r) => ({ ...r, w: { world_stocks: r.w_world_stocks, ust_int: r.w_ust_int, gold: r.w_gold, mf: r.w_mf },
-      tail: r.borrowed > 0 ? 'borrows ' + pct(r.borrowed, 0, false) : '' })), name, 2,
-      (r) => `Forecast volatility ${pct(r.vol_fcst, 1, false)}`);
-    $('al-menut').innerHTML = '<thead><tr><th>Mix</th><th>Stocks</th><th>Treasuries</th><th>Gold</th><th>Managed futures</th><th>Borrowed</th>' +
+    const name = (r) => `${pct(r.stocks, 0, false)} stocks / ${pct(r.sleeve, 0, false)} sleeve`;
+    stack($('al-menu'), rows.map((r) => ({ ...r, w: { world_stocks: r.w_world_stocks, ust_int: r.w_ust_int, gold: r.w_gold, mf: r.w_mf } })),
+      name, 1, (r) => `Forecast volatility ${pct(r.vol_fcst, 1, false)}`);
+    $('al-menut').innerHTML = '<thead><tr><th>Mix</th><th>Stocks</th><th>Treasuries</th><th>Gold</th><th>Managed futures</th>' +
       '<th>Forecast vol</th><th>Replay growth</th><th>Replay vol</th><th>Replay worst fall</th><th>Since 2007: growth</th><th>Worst fall</th></tr></thead><tbody>' +
       rows.map((r) => `<tr><td>${name(r)}</td><td>${pct(r.w_world_stocks, 0, false)}</td><td>${pct(r.w_ust_int, 0, false)}</td><td>${pct(r.w_gold, 0, false)}</td>` +
-        `<td>${pct(r.w_mf, 0, false)}</td><td>${pct(r.borrowed, 0, false)}</td><td>${pct(r.vol_fcst, 1, false)}</td><td>${pct(r.growth_all)}</td>` +
+        `<td>${pct(r.w_mf, 0, false)}</td><td>${pct(r.vol_fcst, 1, false)}</td><td>${pct(r.growth_all)}</td>` +
         `<td>${pct(r.vol_all, 1, false)}</td><td>${pct(r.worst_fall_all, 0)}</td><td>${pct(r.growth_live)}</td><td>${pct(r.worst_fall_live, 0)}</td></tr>`).join('') + '</tbody>';
   }
 
@@ -583,8 +593,8 @@ window; the two outlined marks are the first and second half of it.</p>
 <h3>Sharpe ratio less that of the no-estimate rule, with its 90% interval</h3>
 <div class="scroll"><div id="al-diff" style="min-width:560px"></div></div>
 <p class="note">A filled dot means the interval excludes zero. <span id="al-span"></span> Whole-portfolio rules other than the
-fixed mix aim at {s['target_vol']:.0%} volatility and may borrow up to {s['max_leverage']:.0f} times capital at T-bills +
-{100 * s['spread']:.2f}%.</p>
+fixed mix aim at {s['target_vol']:.0%} volatility and never hold more than {s['max_exposure']:.0%} of capital; nothing
+borrows.</p>
 <div class="scroll"><table id="al-rules"></table></div>
 <div class="controls"><label>Growth of 1 over T-bills: compare with<select id="al-rule"></select></label></div>
 <div class="legend" id="al-pathleg"></div>
@@ -600,14 +610,14 @@ returns then showed.</p>
 </section>
 
 <section><h2>The menu today</h2>
-<p>The sleeve weights come from the rule chosen here; the stock share and any borrowing are the risk you choose.
+<p>The sleeve weights come from the rule chosen here; the stock share is the risk you choose.
 Weights at origin {meta['returns_through']}.</p>
 <div class="controls"><label>Sleeve weights<select id="al-sleeve"><option value="invvol_hist">1/volatility on the whole past</option><option value="equal">A third each</option></select></label></div>
 <div class="legend" id="al-menuleg"></div>
 <div class="scroll"><div id="al-menu" style="min-width:560px"></div></div>
 <div class="scroll"><table id="al-menut"></table></div>
 <p class="note">Forecast vol is on the forecast's 12-month matrix. Replay columns hold these stock and sleeve shares through the
-whole replay, borrowing at T-bills + {100 * s['spread']:.2f}%; margin calls are not modelled.</p>
+whole replay.</p>
 </section>
 
 <section><h2>What each sleeve rule would hold today</h2>
@@ -622,8 +632,10 @@ close together.</p>
 <li>Every year in the replay had been seen before the rules were written, and the three sleeve assets were chosen on the same years.</li>
 <li>Managed futures before {meta['live_from'][:7]} are a paper factor scaled to the live funds' volatility, less a gap measured
 on 2007 to 2026. The live-funds period is the one to trust, and it is short.</li>
-<li>No trading costs, fund fees or taxes. Borrowing is at today's spread in every year, and month-end values miss falls inside a month.</li>
+<li>No trading costs, fund fees or taxes, and month-end values miss falls inside a month.</li>
 <li>Most differences between rules are small beside their intervals.</li>
+<li>The scaled rules were rerun once after the first results, with exposure capped at 100% of capital instead of twice
+capital, when the package dropped borrowing.</li>
 </ul></section>
 </main>
 <div id="tip" hidden></div>

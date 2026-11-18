@@ -30,17 +30,8 @@
    0.8,
    0.6,
    0.4
-  ],
-  "overlay": 0.5,
-  "spreads": [
-   0.0,
-   0.005,
-   0.013798,
-   0.015,
-   0.025
   ]
  },
- "published_spread": 0.013798,
  "vehicles_retrieved": "2026-11-16",
  "drag": {
   "months": 231,

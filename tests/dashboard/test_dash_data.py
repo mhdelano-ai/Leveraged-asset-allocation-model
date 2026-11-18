@@ -249,18 +249,17 @@ def test_frontier_equals_published_forecast():
     assert set(q.kind) == {"asset", "policy", "special", "match"} and q.label.notna().all()
     assert (q.loc[q.kind == "asset", "group"] == [BY_ID[a].group for a in q.index[q.kind == "asset"]]).all()
     assert q.loc["p6040", "weights"] == "60% US large, 40% UST 7y"
-    assert d.loc[d.id == "levered~0", "weights"].iloc[0] == "100% cash"
-    assert "borrowed" in d.loc[d.invested.idxmax(), "weights"]
+    assert d.loc[d.id == "with_cash~0", "weights"].iloc[0] == "100% cash"
+    assert d.invested.max() <= 100 and not d.weights.str.contains("borrow").any()       # nothing is borrowed
     m = json.loads((LATEST / "forecast.json").read_text())["frontier"]
-    assert st.borrow_spread == round(100 * m["borrow_spread"], 1) and st.max_invested == 100 * m["max_leverage"]
-    assert st.margin_rate == 100 * m["borrow"]["margin_rate"] and st.margin_tier == m["borrow"]["tier"]
-    assert st.margin_as_of == m["borrow"]["as_of"] and st.tbill_rate == round(100 * m["borrow"]["tbill_rate"], 1)
+    assert st.level == round(100 * m["interval_level"])
+    assert not {"borrow_spread", "margin_rate", "max_invested", "tbill_rate"} & set(st.index)
     match = p[p.kind == "match"]
     assert st.n_match == len(match) == 3
     assert st.n_gap_incl_zero == ((match.gap_lo <= 0) & (match.gap_hi >= 0)).sum()
-    lev = f[f.curve == "levered"]
-    assert st.n_assets_held == (lev[wcols].max() >= 0.005).sum() and st.n_assets == len(wcols)
-    top = lev.loc[lev.vol.idxmax()]
+    wc = f[f.curve == "with_cash"]
+    assert st.n_assets_held == (wc[wcols].max() >= 0.005).sum() and st.n_assets == len(wcols)
+    top = wc.loc[wc.vol.idxmax()]
     assert st.top_vol == round(100 * top.vol, 1) and st.top_growth == round(100 * top.growth, 1)
 
 

@@ -22,8 +22,7 @@
   "persist": 60,
   "target_vol": 0.1,
   "base_stocks": 0.6,
-  "max_leverage": 2.0,
-  "spread": 0.013798,
+  "max_exposure": 1.0,
   "boot": {
    "n": 2000,
    "block": 12,

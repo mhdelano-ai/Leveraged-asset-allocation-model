@@ -36,11 +36,11 @@ def test_composite_renormalizes_over_present_components():
     assert tf.composite_simple(simple, cash, full_mix=True)["world_stocks"].isna().all()
 
 
-def test_past_losses_of_a_levered_fall():
+def test_past_losses_of_a_fall_and_of_half_in_cash():
     idx = pd.date_range("2000-01-31", periods=14, freq="ME")
     comp = pd.DataFrame({"world_stocks": [0.0] * 6 + [-0.2] + [0.0] * 7, "world_bonds": 0.0}, index=idx)
     cash = pd.Series(0.0, index=idx)
-    one = tf.past_losses([1.0, 0.0], comp, cash, 0.0)
-    two = tf.past_losses([2.0, 0.0], comp, cash, 0.012)
+    one = tf.past_losses([1.0, 0.0], comp, cash)
+    half = tf.past_losses([0.5, 0.0], comp, cash)
     assert one["max_drawdown"] == pytest.approx(-0.2) and one["worst_12m"] == pytest.approx(-0.2)
-    assert two["max_drawdown"] < -0.40                                  # twice the fall, plus interest
+    assert half["max_drawdown"] == pytest.approx(-0.1)                 # half the fall; the rest is cash

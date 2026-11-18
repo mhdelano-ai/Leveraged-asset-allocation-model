@@ -52,6 +52,7 @@ class Sources:
     final: Path = paths.RESULTS_FINAL
     returns: Path = paths.RESULTS_RETURNS
     archive: Path = paths.ARCHIVE_AP
+    processed: Path = paths.PROCESSED
     _cache: dict = field(default_factory=dict, repr=False)
 
     def read(self, rel: str, root: str = "latest") -> pd.DataFrame:
@@ -583,12 +584,12 @@ def _weights(f: pd.DataFrame) -> pd.DataFrame:
 
 
 def weight_list(w: pd.Series) -> str:
-    """'37% TIPS, 36% High yield, ...' for weights of at least half a percent, largest first, then cash or borrowing."""
+    """'37% TIPS, 36% High yield, ...' for weights of at least half a percent, largest first, then cash."""
     held = w[w >= 0.005].sort_values(ascending=False, kind="stable")
     parts = [f"{round(100 * v):g}% {gl.SHORT_ASSET.get(a, a)}" for a, v in held.items()]
     rest = round(100 * (1 - float(w.sum())))
-    if rest:
-        parts.append(f"{abs(rest):g}% {'cash' if rest > 0 else 'borrowed'}")
+    if rest > 0:
+        parts.append(f"{rest:g}% cash")
     return ", ".join(parts) if parts else "100% cash"
 
 
@@ -643,19 +644,15 @@ def gl_group(asset: str) -> str:
 def frontier_settings(s: Sources) -> pd.DataFrame:
     m = s.json("forecast.json")["frontier"]
     f, p = s.read("frontier.csv"), s.read("frontier_points.csv")
-    lev = f[f.curve == "levered"]
+    wc = f[f.curve == "with_cash"]
     match = p[p.kind == "match"]
-    top = lev.loc[lev.vol.idxmax()]
+    top = wc.loc[wc.vol.idxmax()]
     return pd.DataFrame([{
-        "key": "now", "borrow_spread": pc(m["borrow_spread"], 1),
-        "margin_rate": pc(m["borrow"]["margin_rate"], 2), "margin_tier": m["borrow"]["tier"],
-        "margin_as_of": m["borrow"]["as_of"], "tbill_rate": pc(m["borrow"]["tbill_rate"], 1),
-        "max_leverage": round(float(m["max_leverage"]), 1),
-        "max_invested": round(100 * float(m["max_leverage"])), "level": round(100 * m["interval_level"]),
+        "key": "now", "level": round(100 * m["interval_level"]),
         "top_vol": pc(top.vol, 1), "top_growth": pc(top.growth, 1),
         "top_growth_lo": pc(top.growth_lo, 1), "top_growth_hi": pc(top.growth_hi, 1),
         "n_match": len(match), "n_gap_incl_zero": int(((match.gap_lo <= 0) & (match.gap_hi >= 0)).sum()),
-        "n_assets_held": int((_weights(lev).max() >= 0.005).sum()), "n_assets": len(_weights(lev).columns),
+        "n_assets_held": int((_weights(wc).max() >= 0.005).sum()), "n_assets": len(_weights(wc).columns),
     }])
 
 
@@ -685,13 +682,13 @@ DATASETS: tuple[Dataset, ...] = (
             "Per policy portfolio and shape: expected 12-month log excess return, volatility and predictive quantiles; the asset-shape rows are a sensitivity check.",
             ("forecasts/latest/distribution_portfolios.csv",), outlook_portfolios),
     Dataset("frontier", "Efficient frontier",
-            "Portfolios along the long-only frontier with and without cash and borrowing: volatility, expected compound growth with its range, share invested and weights, in percent.",
+            "Portfolios along the long-only frontier, fully invested and with cash (nothing borrowed): volatility, expected compound growth with its range, share invested and weights, in percent.",
             ("forecasts/latest/frontier.csv",), frontier),
     Dataset("frontier_points", "Portfolios and assets beside the frontier",
             "The policy portfolios, minimum variance, best return per unit of risk, risk parity, the frontier portfolio at each policy portfolio's volatility, and the twelve assets, on the frontier's axes.",
             ("forecasts/latest/frontier_points.csv",), frontier_points),
     Dataset("frontier_settings", "Frontier settings",
-            "One row: the borrowing terms (Robinhood's margin rate for the balance tier used, the T-bill rate and the spread between them), the leverage limit and counts quoted beside the frontier.",
+            "One row: the interval level, the top of the frontier and the counts quoted beside it.",
             ("forecasts/latest/forecast.json", "forecasts/latest/frontier.csv", "forecasts/latest/frontier_points.csv"), frontier_settings),
     Dataset("shape", "Shape of the predictive distribution",
             "Quantiles of past standardized 12-month outcomes, pooled over assets and over portfolios, beside the normal.",
