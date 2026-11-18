@@ -1,12 +1,14 @@
-"""Pieces the study pages share: ``allocation_page`` and ``questionnaire_page`` (styles,
-browser helpers, the document wrapper, the command line) and ``horizons`` (the markdown
-table and the document wrapper). Formatting only; nothing here computes a number."""
+"""Pieces the study pages and reports share: ``allocation_page`` and ``questionnaire_page``
+(styles, browser helpers, inline JSON, the document wrapper, the command line), ``horizons``
+(the markdown table, the document wrapper) and ``diversifiers`` (number formats, the markdown
+table). Formatting only; nothing here computes a number."""
 from __future__ import annotations
 
 import argparse
 import json
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 TOKENS = """
@@ -100,6 +102,16 @@ TIP_JS = r"""  const tip = $('tip');
     node.addEventListener('mouseleave', hide); node.addEventListener('blur', hide);
   };
 """
+
+
+def pct(v, d=1, sign=True) -> str:
+    """A fraction as a percent, '+' on positives unless ``sign`` is false; blank when missing."""
+    return "" if v is None or not np.isfinite(v) else f"{100 * v:{'+' if sign else ''}.{d}f}%"
+
+
+def num(v, d=2, sign=True) -> str:
+    """A number to ``d`` places, '+' on positives unless ``sign`` is false; blank when missing."""
+    return "" if v is None or not np.isfinite(v) else f"{v:{'+' if sign else ''}.{d}f}"
 
 
 def records(df: pd.DataFrame) -> list[dict]:

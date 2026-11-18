@@ -86,6 +86,7 @@ import numpy as np
 import pandas as pd
 
 from . import paths, threefund
+from .pagekit import md_table, num, pct
 from .returns import inputs
 from .returns.expected import mean_se
 
@@ -349,21 +350,21 @@ def _sleeve_report(sv: pd.DataFrame, sc: pd.DataFrame) -> list[str]:
         names = [STOCKS, *SLEEVE[w]]
         b = e.iloc[0]
         L += [f"### {b['start'][:7]} to {b['end'][:7]} ({b['n']} months)", "",
-              _table(["Correlation", *[lab[n] for n in names]],
-                     [[lab[a], *[_num(c.loc[a, x]) for x in names]] for a in names]), ""]
+              md_table(["Correlation", *[lab[n] for n in names]],
+                     [[lab[a], *[num(c.loc[a, x]) for x in names]] for a in names]), ""]
         rows = []
         for scheme, title in (("equal", "a third each"), ("inv_vol", "by 1/volatility")):
             s = d[(d["scheme"] == scheme) & (d["kind"] == "sleeve")].iloc[0]
             wt = json.loads(s["weights"])
-            rows.append([f"Sleeve, {title}", " / ".join(f"{100 * wt[k]:.0f}%" for k in SLEEVE[w]), _pct(s["growth"]),
-                         _pct(s["vol"], 1, False), _num(s["sharpe"]), _num(s["corr_stocks"]),
-                         f"{s['bears_down']:.0f} of {s['bears']:.0f} (worst {_pct(s['worst_bear'], 0)})"])
-        L += [_table(["", "Treasuries / gold / managed futures", "Growth", "Vol", "Sharpe", "Corr with stocks",
+            rows.append([f"Sleeve, {title}", " / ".join(f"{100 * wt[k]:.0f}%" for k in SLEEVE[w]), pct(s["growth"]),
+                         pct(s["vol"], 1, False), num(s["sharpe"]), num(s["corr_stocks"]),
+                         f"{s['bears_down']:.0f} of {s['bears']:.0f} (worst {pct(s['worst_bear'], 0)})"])
+        L += [md_table(["", "Treasuries / gold / managed futures", "Growth", "Vol", "Sharpe", "Corr with stocks",
                       "Stock bear markets it fell in"], rows), ""]
-        rows = [[f"{r['stocks']:.0%} stocks / {r['sleeve']:.0%} sleeve", _pct(r["growth"]),
-                 _pct(r["vol"], 1, False), _num(r["sharpe"]), _pct(r["worst_fall"], 0)]
+        rows = [[f"{r['stocks']:.0%} stocks / {r['sleeve']:.0%} sleeve", pct(r["growth"]),
+                 pct(r["vol"], 1, False), num(r["sharpe"]), pct(r["worst_fall"], 0)]
                 for _, r in e[e["kind"] == "mix"].iterrows()]
-        L += [_table(["Equal-weight sleeve", "Growth over T-bills", "Vol", "Sharpe", "Worst fall"], rows), ""]
+        L += [md_table(["Equal-weight sleeve", "Growth over T-bills", "Vol", "Sharpe", "Worst fall"], rows), ""]
     L += ["The sleeve lowers growth as well as risk: it earned less than stocks. "
           "The 1/volatility weights use each window's own volatility.", ""]
     return L
@@ -378,26 +379,13 @@ def _vehicle_report(v: dict) -> list[str]:
     return ["## What it costs to hold", "",
             f"Expense ratios looked up on {v['retrieved']} (`data/processed/diversifier_vehicles.json`): a hand-recorded "
             "outside lookup, mostly from secondary sites. Confirm on the issuer's page before use.", "",
-            _table(head, rows("outright")), "",
+            md_table(head, rows("outright")), "",
             f"A third each in IAUM, VGIT and SDMF costs {100 * cheap:.2f}% a year; with DBMF, which has a record since "
             f"2019, {100 * tried:.2f}%.", "",
             "None of these funds is in the panel, and the study's returns are not theirs.", ""]
 
 
 # ------------------------------------------------------------------ report
-def _pct(v, d=1, sign=True):
-    return "" if v is None or not np.isfinite(v) else f"{100 * v:{'+' if sign else ''}.{d}f}%"
-
-
-def _num(v, d=2):
-    return "" if v is None or not np.isfinite(v) else f"{v:+.{d}f}"
-
-
-def _table(head: list[str], rows: list[list[str]]) -> str:
-    return "\n".join(["| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
-                     + ["| " + " | ".join(r) + " |" for r in rows])
-
-
 def figure(rc: pd.DataFrame) -> str:
     import matplotlib
     matplotlib.use("Agg")
@@ -440,11 +428,11 @@ def write_report(sm: pd.DataFrame, ep: pd.DataFrame, mx: pd.DataFrame, meta: dic
          f"never above {MAX_ROLL} over any {ROLL // 12} years; in stocks' bear markets (falls of {BEAR:.0%} or more) "
          f"the asset loses at most {MAX_CAPTURE:.0%} of what stocks lose; and a positive return of its own after "
          "its stock exposure is removed (alpha).", ""]
-    rows = [[NAMES[a], r["start"][:4], _num(r["corr_1m"]), _num(r["corr_12m"]),
-             f"{_num(r['roll_min'])} to {_num(r['roll_max'])}", _pct(r["capture"], 0),
-             f"{r['bears_down']:.0f} of {r['bears']:.0f} (worst {_pct(r['worst_bear'], 0)})",
-             f"{_pct(r['alpha'])} ({_num(r['alpha_t'], 1)})", f"**{r['verdict']}**"] for a, r in own.iterrows()]
-    L += [_table(["Asset", "From", "Corr 1m", "Corr 12m", f"Range over {ROLL // 12}y", "Share of stocks' bear-market loss",
+    rows = [[NAMES[a], r["start"][:4], num(r["corr_1m"]), num(r["corr_12m"]),
+             f"{num(r['roll_min'])} to {num(r['roll_max'])}", pct(r["capture"], 0),
+             f"{r['bears_down']:.0f} of {r['bears']:.0f} (worst {pct(r['worst_bear'], 0)})",
+             f"{pct(r['alpha'])} ({num(r['alpha_t'], 1)})", f"**{r['verdict']}**"] for a, r in own.iterrows()]
+    L += [md_table(["Asset", "From", "Corr 1m", "Corr 12m", f"Range over {ROLL // 12}y", "Share of stocks' bear-market loss",
                   "Bear markets it fell in", "Alpha a year (t)", "Verdict"], rows), "",
           "\"Share of stocks' bear-market loss\": the asset's summed return over all bear-market months in its "
           "history divided by stocks' summed return over the same months; negative means it rose while stocks fell. That sum lets a gain in one bear market offset a loss in another; "
@@ -455,8 +443,8 @@ def write_report(sm: pd.DataFrame, ep: pd.DataFrame, mx: pd.DataFrame, meta: dic
     d = meta["drag"]
     L += ["## Managed futures: paper against live", "",
           f"On the {d['months']} months both series exist, the live funds ran at {d['vol_ratio_funds_to_factor']:.2f} "
-          f"times the paper factor's volatility and earned {_pct(d['gap_at_fund_vol'], 1, False)} a year less than the "
-          f"factor scaled to that volatility. At the factor's own volatility that is a drag of {_pct(d['drag'], 1, False)} "
+          f"times the paper factor's volatility and earned {pct(d['gap_at_fund_vol'], 1, False)} a year less than the "
+          f"factor scaled to that volatility. At the factor's own volatility that is a drag of {pct(d['drag'], 1, False)} "
           "a year (fees, trading costs, and whatever the paper rules flatter). The \"less measured drag\" row subtracts "
           "it from every month of the paper factor. Their monthly correlation with each other is "
           f"{meta['managed_futures']['overlap_corr_monthly']:.2f}.", ""]
@@ -466,34 +454,34 @@ def write_report(sm: pd.DataFrame, ep: pd.DataFrame, mx: pd.DataFrame, meta: dic
         m = mx[mx["window"] == w]
         L += [f"## {title}", "", f"{t['n'].max()} months, to {t['end'].max()}"
               + (f" (the paper trend factor ends {t.loc['mf_tsmom', 'end']})." if t.loc["mf_tsmom", "end"] != t["end"].max() else "."), ""]
-        rows = [[NAMES[a], _num(r["corr_1m"]), _num(r["corr_12m"]), _num(r["down_corr"]),
-                 _pct(r["worst_mean"]), _pct(r["capture"], 0), _pct(r["mean"]), _pct(r["vol"], 1, False),
-                 f"{_pct(r['alpha'])} ({_num(r['alpha_t'], 1)})", r["verdict"]] for a, r in t.iterrows()]
-        L += [_table(["Asset", "Corr 1m", "Corr 12m", "Corr when stocks fall", "Mean month in stocks' worst 10%",
+        rows = [[NAMES[a], num(r["corr_1m"]), num(r["corr_12m"]), num(r["down_corr"]),
+                 pct(r["worst_mean"]), pct(r["capture"], 0), pct(r["mean"]), pct(r["vol"], 1, False),
+                 f"{pct(r['alpha'])} ({num(r['alpha_t'], 1)})", r["verdict"]] for a, r in t.iterrows()]
+        L += [md_table(["Asset", "Corr 1m", "Corr 12m", "Corr when stocks fall", "Mean month in stocks' worst 10%",
                       "Share of bear-market loss", "Return a year", "Vol", "Alpha a year (t)", "Verdict"], rows), "",
-              f"Stocks' own mean in their worst 10% of months: {_pct(t['worst_stocks'].iloc[0])}.", ""]
+              f"Stocks' own mean in their worst 10% of months: {pct(t['worst_stocks'].iloc[0])}.", ""]
         base = m[m["kind"] == "base"].iloc[0]
-        rows = [["All stocks", _pct(base["growth"]), _pct(base["vol"], 1, False), _num(base["sharpe"]),
-                 _pct(base["worst_fall"], 0)]]
+        rows = [["All stocks", pct(base["growth"]), pct(base["vol"], 1, False), num(base["sharpe"]),
+                 pct(base["worst_fall"], 0)]]
         for a in ["cash", *[c for c in CANDIDATES if c in set(m["asset"])]]:
             s = m[(m["asset"] == a) & (m["kind"] == "swap")].iloc[0]
-            rows.append([NAMES.get(a, "Cash (T-bills)"), _pct(s["growth"]), _pct(s["vol"], 1, False), _num(s["sharpe"]),
-                         _pct(s["worst_fall"], 0)])
+            rows.append([NAMES.get(a, "Cash (T-bills)"), pct(s["growth"]), pct(s["vol"], 1, False), num(s["sharpe"]),
+                         pct(s["worst_fall"], 0)])
         L += [f"What a {MIX_SHARE:.0%} holding did to an all-stock portfolio (growth is over T-bills, a year):", "",
-              _table(["", "Growth", "Vol", "Sharpe", "Worst fall"], rows), "",
+              md_table(["", "Growth", "Vol", "Sharpe", "Worst fall"], rows), "",
               f"{1 - MIX_SHARE:.0%} stocks, {MIX_SHARE:.0%} the asset, rebalanced monthly. "
               f"Every row uses the same {base['n']} months, {base['start']} to {base['end']}.", ""]
 
     cols = [c for c in CANDIDATES if c != "mf_tsmom_net"]
     short = {"ust_int": "Tsy 7y", "ust_long": "Tsy long", "tips": "TIPS", "ig_credit": "IG", "hy_credit": "HY",
              "reits": "REITs", "gold": "Gold", "commodities": "Cmdty", "mf_tsmom": "MF paper", "mf_funds": "MF funds"}
-    rows = [[f"{p:%Y-%m} to {t:%Y-%m}", _pct(s, 0), *[_pct(r[c], 0) for c in cols]]
+    rows = [[f"{p:%Y-%m} to {t:%Y-%m}", pct(s, 0), *[pct(r[c], 0) for c in cols]]
             for p, t, s, r in zip(ep["peak"], ep["trough"], ep["stocks"], ep.to_dict("records"))]
     L += ["## Every bear market in stocks", "",
           f"Month-end peak to trough of stocks over T-bills, falls of {BEAR:.0%} or more (a fall ends when stocks have "
           f"risen {BEAR:.0%} from the low). Each cell is that asset's return over T-bills across the same months; "
           "blank where the asset's history does not cover it.", "",
-          _table(["Peak to trough", "Stocks", *[short[c] for c in cols]], rows), "",
+          md_table(["Peak to trough", "Stocks", *[short[c] for c in cols]], rows), "",
           *_sleeve_report(sv, sc), *_vehicle_report(vehicles()),
           "## Caveats", "",
           "- The paper trend factor is a backtest of rules published in 2012. Its 1985-2011 return is what the rules "

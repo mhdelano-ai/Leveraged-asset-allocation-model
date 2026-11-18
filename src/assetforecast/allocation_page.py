@@ -19,7 +19,7 @@ import pandas as pd
 
 from . import allocation as A
 from . import pagekit, paths
-from .pagekit import CSS, EL_JS, TIP_JS, TOKENS, inline_json, md_table, records
+from .pagekit import CSS, EL_JS, TIP_JS, TOKENS, inline_json, md_table, num, pct, records
 
 PAGE = paths.ROOT / "dashboard" / "allocation.html"
 TABLES = ("sleeve_rules", "portfolio_rules", "risk_accuracy", "persistence", "means", "today", "menu")
@@ -37,14 +37,6 @@ def load(out: Path | None = None) -> dict:
     d["paths"] = pd.read_csv(out / "paths.csv", parse_dates=["date"]).set_index("date")
     d["meta"] = json.loads((out / "meta.json").read_text())
     return d
-
-
-def _pct(v, d=1, sign=True):
-    return "" if v is None or not np.isfinite(v) else f"{100 * v:{'+' if sign else ''}.{d}f}%"
-
-
-def _num(v, d=2, sign=True):
-    return "" if v is None or not np.isfinite(v) else f"{v:{'+' if sign else ''}.{d}f}"
 
 
 def facts(d: dict) -> dict:
@@ -83,28 +75,28 @@ def answers(d: dict) -> list[tuple[str, str, str]]:
                    "no clear difference": "made no clear difference"}[_clear(th)]
     return [
         ("Expected returns", "Do not forecast them, and do not optimize on them",
-         f"A holding's return in one five-year block said nothing about the next (correlation {_num(po['corr_mean'])} "
-         f"over {po['pairs']:.0f} pairs of blocks). Gold's return per unit of risk was {_num(g['sharpe_first_half'])} in the "
-         f"first half of the window and {_num(g['sharpe_second_half'])} in the second; managed futures went from "
-         f"{_num(mf['sharpe_first_half'])} to {_num(mf['sharpe_second_half'])}. Since the live funds began, all three "
-         f"optimizers trailed a third each (best of them {_num(best_live)} in Sharpe ratio, none clearly different). "
+         f"A holding's return in one five-year block said nothing about the next (correlation {num(po['corr_mean'])} "
+         f"over {po['pairs']:.0f} pairs of blocks). Gold's return per unit of risk was {num(g['sharpe_first_half'])} in the "
+         f"first half of the window and {num(g['sharpe_second_half'])} in the second; managed futures went from "
+         f"{num(mf['sharpe_first_half'])} to {num(mf['sharpe_second_half'])}. Since the live funds began, all three "
+         f"optimizers trailed a third each (best of them {num(best_live)} in Sharpe ratio, none clearly different). "
          f"Over all four holdings, the optimizer that did best over the whole replay ({oa['name'].lower()}) had a Sharpe "
-         f"ratio {_num(oa['sharpe_diff'])} against the fixed 60/40 mix's ({_clear(oa)}), at {_pct(oa['vol'], 1, False)} "
-         f"volatility against {_pct(fx['vol'], 1, False)}; since the live funds began, {_num(ol['sharpe_diff'])} "
+         f"ratio {num(oa['sharpe_diff'])} against the fixed 60/40 mix's ({_clear(oa)}), at {pct(oa['vol'], 1, False)} "
+         f"volatility against {pct(fx['vol'], 1, False)}; since the live funds began, {num(ol['sharpe_diff'])} "
          f"({_clear(ol)}). Before 2007 the replay's managed futures are the paper factor."),
         ("Weights inside the sleeve", "Size by long-run risk, or simply a third each",
-         f"Risk does carry over: a block's volatility against the next, correlation {_num(po['corr_vol'])}. Weighting by "
-         f"1/volatility on the whole past ran at {_pct(ih_a['vol'], 1, False)} volatility against {_pct(eq_a['vol'], 1, False)} "
-         f"for a third each, with a worst fall of {_pct(ih_a['worst_fall'], 0)} against {_pct(eq_a['worst_fall'], 0)}. Its Sharpe "
-         f"ratio was {_num(ih_a['sharpe_diff'])} higher over the whole replay ({_clear(ih_a)}) and {_num(ih_l['sharpe_diff'])} "
+         f"Risk does carry over: a block's volatility against the next, correlation {num(po['corr_vol'])}. Weighting by "
+         f"1/volatility on the whole past ran at {pct(ih_a['vol'], 1, False)} volatility against {pct(eq_a['vol'], 1, False)} "
+         f"for a third each, with a worst fall of {pct(ih_a['worst_fall'], 0)} against {pct(eq_a['worst_fall'], 0)}. Its Sharpe "
+         f"ratio was {num(ih_a['sharpe_diff'])} higher over the whole replay ({_clear(ih_a)}) and {num(ih_l['sharpe_diff'])} "
          f"since the live funds began ({_clear(ih_l)}). The forecast gave the same weights for "
          f"{a['sleeve']['invvol_fcst']['turnover'] / max(ih_a['turnover'], 1e-9):.0f} times the trading."),
         ("How much risk in total", "Your choice; use the forecast to know what you chose",
          f"No input picks the stock share: it is the risk you accept. Scaling the 60/40 mix to a 10% risk target with the "
-         f"forecast gave about the same Sharpe ratio as leaving it fixed ({_num(tf['sharpe'], 2, False)} against "
-         f"{_num(fx['sharpe'], 2, False)}, {_clear(tf)}) with a worst fall of {_pct(tf['worst_fall'], 0)} against "
-         f"{_pct(fx['worst_fall'], 0)}; scaling with past volatility {scaled_hist} ({_num(th['sharpe_diff'])}). The forecast's "
-         f"12-month matrix stood {_pct(f['acc']['fcst']['ratio'] - 1, 0)} above month-to-month volatility, so a target set "
+         f"forecast gave about the same Sharpe ratio as leaving it fixed ({num(tf['sharpe'], 2, False)} against "
+         f"{num(fx['sharpe'], 2, False)}, {_clear(tf)}) with a worst fall of {pct(tf['worst_fall'], 0)} against "
+         f"{pct(fx['worst_fall'], 0)}; scaling with past volatility {scaled_hist} ({num(th['sharpe_diff'])}). The forecast's "
+         f"12-month matrix stood {pct(f['acc']['fcst']['ratio'] - 1, 0)} above month-to-month volatility, so a target set "
          f"with it runs below the target."),
     ]
 
@@ -114,9 +106,9 @@ def _rules_md(t: pd.DataFrame, period: str, sleeve: bool) -> str:
     t = t[t["period"] == period]
     rows = []
     for _, r in t.iterrows():
-        iv = "" if not np.isfinite(r["diff_lo"]) else f"{_num(r['sharpe_diff'])} ({_num(r['diff_lo'])} to {_num(r['diff_hi'])})"
+        iv = "" if not np.isfinite(r["diff_lo"]) else f"{num(r['sharpe_diff'])} ({num(r['diff_lo'])} to {num(r['diff_hi'])})"
         held = " / ".join(f"{100 * r[f'w_{a}']:.0f}%" for a in (A.SLEEVE if sleeve else A.ASSETS))
-        rows.append([r["name"], _pct(r["growth"]), _pct(r["vol"], 1, False), _num(r["sharpe"], 2, False), _pct(r["worst_fall"], 0),
+        rows.append([r["name"], pct(r["growth"]), pct(r["vol"], 1, False), num(r["sharpe"], 2, False), pct(r["worst_fall"], 0),
                      iv, f"{100 * r['turnover']:.0f}%", held, *([] if sleeve else [f"{100 * r['exposure']:.0f}%"])])
     head = ["Rule", "Growth over T-bills", "Vol", "Sharpe", "Worst fall", "Sharpe against the first row (90% interval)",
             "Turnover a year", "Average held: " + ("Treasuries / gold / managed futures" if sleeve else
@@ -145,16 +137,16 @@ def write_report(d: dict | None = None) -> str:
           f"One block of {s['persist']} months against the next, non-overlapping, on each holding's whole history:", "",
           md_table(["Holding", "From", "Pairs of blocks", "Volatility", "Mean return", "Return per unit of risk"],
                  [[A.NAMES.get(r["asset"], "All four, pooled"), "" if pd.isna(r.get("start")) else str(r["start"])[:4],
-                   f"{r['pairs']:.0f}", _num(r["corr_vol"]), _num(r["corr_mean"]), _num(r["corr_sharpe"])]
+                   f"{r['pairs']:.0f}", num(r["corr_vol"]), num(r["corr_mean"]), num(r["corr_sharpe"])]
                   for _, r in ps.iterrows()]), "",
           "The pooled row removes each holding's own average first. Managed futures' return looks persistent because its "
           "blocks before 2007 are the paper factor.", "",
           f"Historical means on the common window ({meta['common_start'][:4]} on), with the package's 90% interval:", "",
           md_table(["Holding", "Mean a year", "90% interval", "Vol", "Return per unit of risk", "Its interval",
                   f"To {mt['first_half_end'].iloc[0][:7]}", "After"],
-                 [[r["name"], _pct(r["mean"]), f"{_pct(r['mean_lo'])} to {_pct(r['mean_hi'])}", _pct(r["vol"], 1, False),
-                   _num(r["sharpe"]), f"{_num(r['sharpe_lo'])} to {_num(r['sharpe_hi'])}", _num(r["sharpe_first_half"]),
-                   _num(r["sharpe_second_half"])] for _, r in mt.iterrows()]), ""]
+                 [[r["name"], pct(r["mean"]), f"{pct(r['mean_lo'])} to {pct(r['mean_hi'])}", pct(r["vol"], 1, False),
+                   num(r["sharpe"]), f"{num(r['sharpe_lo'])} to {num(r['sharpe_hi'])}", num(r["sharpe_first_half"]),
+                   num(r["sharpe_second_half"])] for _, r in mt.iterrows()]), ""]
 
     ra = d["risk_accuracy"]
     v = ra[ra["kind"] == "vol"]
@@ -164,12 +156,12 @@ def write_report(d: dict | None = None) -> str:
           "forecast with realized.", "",
           md_table(["Source", *[f"{ITEM_NAMES[i]}: QLIKE" for i in ("world_stocks", "ust_int", "gold", "mix")],
                   "60/40 mix: level", "60/40 mix: correlation"],
-                 [[SOURCE_NAMES[sname], *[_num(g.set_index("item").loc[i, "qlike"], 3, False) for i in ("world_stocks", "ust_int", "gold", "mix")],
-                   _num(g.set_index("item").loc["mix", "ratio"], 2, False), _num(g.set_index("item").loc["mix", "corr_with_realized"])]
+                 [[SOURCE_NAMES[sname], *[num(g.set_index("item").loc[i, "qlike"], 3, False) for i in ("world_stocks", "ust_int", "gold", "mix")],
+                   num(g.set_index("item").loc["mix", "ratio"], 2, False), num(g.set_index("item").loc["mix", "corr_with_realized"])]
                   for sname, g in v.groupby("source", sort=False)]), "",
           "Correlations: mean squared error against the realized 12-month correlation.", "",
           md_table(["Source", *[ITEM_NAMES[i] for i in c["item"].unique()]],
-                 [[SOURCE_NAMES[sname], *[_num(x, 3, False) for x in g["mse"]]] for sname, g in c.groupby("source", sort=False)]), "",
+                 [[SOURCE_NAMES[sname], *[num(x, 3, False) for x in g["mse"]]] for sname, g in c.groupby("source", sort=False)]), "",
           "The forecast does not cover managed futures. The 21-day row was added after the first run showed the 12-month "
           "matrix standing above month-to-month volatility; no rule uses it.", ""]
 
@@ -192,9 +184,9 @@ def write_report(d: dict | None = None) -> str:
               md_table(["Stocks", "Treasuries", "Gold", "Managed futures", "Forecast vol", "Replay growth", "Replay vol",
                       "Replay worst fall"],
                      [[f"{r['w_world_stocks']:.0%}", f"{r['w_ust_int']:.0%}", f"{r['w_gold']:.0%}", f"{r['w_mf']:.0%}",
-                       _pct(r["vol_fcst"], 1, False),
-                       f"{_pct(r['growth_all'])} ({_pct(r['growth_live'])})", f"{_pct(r['vol_all'], 1, False)} ({_pct(r['vol_live'], 1, False)})",
-                       f"{_pct(r['worst_fall_all'], 0)} ({_pct(r['worst_fall_live'], 0)})"] for _, r in g.iterrows()]), ""]
+                       pct(r["vol_fcst"], 1, False),
+                       f"{pct(r['growth_all'])} ({pct(r['growth_live'])})", f"{pct(r['vol_all'], 1, False)} ({pct(r['vol_live'], 1, False)})",
+                       f"{pct(r['worst_fall_all'], 0)} ({pct(r['worst_fall_live'], 0)})"] for _, r in g.iterrows()]), ""]
 
     L += ["## Caveats", "",
           "- Every year in the replay had been seen before the rules were written, and the three sleeve assets were chosen "
