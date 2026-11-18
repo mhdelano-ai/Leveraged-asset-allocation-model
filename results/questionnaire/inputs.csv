@@ -1,0 +1,5 @@
+asset,mean_12m,ci90_lo,ci90_hi,first_month,n_months,source,name,vol
+world_stocks,0.0633556,0.0287783,0.0979329,1926-07,1204,threefund.expected,World stocks,0.159242
+ust_int,0.01534,-0.00287,0.03354,1962-02,777,published forecast,Intermediate Treasuries,0.0771159
+gold,0.03794,-0.01802,0.09391,1971-09,662,published forecast,Gold,0.244532
+mf,0.0162088,-0.000711846,0.0331294,2007-03,236,live funds only,Managed futures,0.0957233
